@@ -7,15 +7,18 @@ The Runner SHALL manage the full autonomous cycle as a state machine with define
 - **WHEN** the Runner is operating
 - **THEN** it SHALL transition through these states:
   1. `seeding` → Seeder is active, human is interacting. Exit: human approves seed.
-  2. `building` → Factory is building a scoped brief. Exit: Factory reports build complete with deployment URL.
-  3. `qa-gate` → QA phase running: checking if build matches spec. Exit: QA verdict PASS or FAIL.
-  4. `qa-fixing` → QA failed, Factory is fixing bugs against existing spec. Exit: Factory re-deploys, return to `qa-gate`.
-  5. `po-reviewing` → PO Review phase running: checking if spec-compliant product meets production quality bar. Exit: PO Review report with verdict and quality gaps.
-  6. `analyzing` → Runner is processing the PO Review report, deciding next action. Exit: decision made (continue, deepen, broaden, or notify).
-  7. `generating-change-spec` → Runner is creating NEW specs from quality gaps (not bug fixes — design+implementation changes). Exit: change specs written.
-  8. `vision-checking` → Runner is comparing overall progress against the vision document. Exit: vision check passes or escalation triggered.
-  9. `waiting-for-human` → Notifier has sent a message, Runner is paused waiting for response. Exit: human responds.
-  10. `complete` → All feature areas meet the quality bar. Product is ready for human review.
+  2. `building` → Factory is building on a loop branch, deploying to staging. Exit: Factory reports build complete with staging URL.
+  3. `test-integrity` → Test Integrity Gate running: verifying tests match current spec. Exit: tests verified (gaps filled, stale regenerated, orphans removed).
+  4. `qa-gate` → QA phase running with verified tests: checking if build matches spec. Exit: QA verdict PASS or FAIL.
+  5. `qa-fixing` → QA failed, Factory is fixing bugs against existing spec. Exit: Factory re-deploys to staging, return to `test-integrity`.
+  6. `po-reviewing` → PO Review phase running: checking if spec-compliant product meets production quality bar. Exit: PO Review report with verdict, quality gaps, and delta.
+  7. `analyzing` → Runner is processing the PO Review report and delta, deciding next action. Exit: decision made (promote, deepen, broaden, rollback, or notify).
+  8. `promoting` → Merging loop PR to production branch, promoting staging to production. Exit: production updated.
+  9. `rolling-back` → Abandoning loop — closing PR, reverting staging, preserving learnings. Exit: staging reverted to previous known-good.
+  10. `generating-change-spec` → Runner is creating NEW specs from quality gaps (not bug fixes — design+implementation changes). Exit: change specs written.
+  11. `vision-checking` → Runner is comparing overall progress against the vision document. Exit: vision check passes or escalation triggered.
+  12. `waiting-for-human` → Notifier has sent a message, Runner is paused waiting for response. Exit: human responds.
+  13. `complete` → All feature areas meet the quality bar. Product promoted to production. Ready for human review.
 
 #### Scenario: State transition persistence
 - **WHEN** the Runner transitions to a new state
@@ -192,6 +195,11 @@ The Runner SHALL NOT use a sequential handover pattern where Agent A summarises 
   - `factory_questions`: any ambiguities the Factory encountered and how it resolved them
   - `evaluator_observations`: raw observations from QA and PO Review, not just pass/fail verdicts
   - `runner_analysis`: the Runner's interpretation of evaluation results and rationale for next action
+  - `evaluation_deltas`: per-loop delta tracking (confidence_delta, journey_delta, screen_delta, heuristic_delta, overall_delta)
+  - `journey_log`: array of journey entries per loop (number, what_attempted, delta, confidence, outcome, decisions, learnings, rollback_reason)
+  - `staging_url`: current staging deployment URL
+  - `production_url`: current production deployment URL
+  - `loop_branch`: current git branch for this loop cycle
 
 #### Scenario: Factory reads full context, writes decisions back
 - **WHEN** the Factory builds
@@ -236,6 +244,150 @@ The Runner SHALL provide the Factory with the complete shared context, not a sum
   - `factory_decisions`: every significant choice with rationale
   - `factory_questions`: ambiguities encountered and how they were resolved
   - `divergences`: any places where the implementation diverged from the spec, with reasoning
+
+### Requirement: Runner manages git branches and PRs per loop cycle
+Each autonomous loop cycle SHALL produce a git branch and PR that serves as the auditable record of what was attempted, what was found, and whether it moved the product toward or away from the vision.
+
+#### Scenario: Branch-per-loop
+- **WHEN** a new loop cycle begins (Factory is about to build)
+- **THEN** the Runner SHALL create a git branch named `rouge/loop-{N}-{feature-area}` (e.g., `rouge/loop-3-trip-history`) from the current production branch
+
+#### Scenario: PR-per-loop with structured description
+- **WHEN** a loop cycle completes evaluation (QA + PO Review)
+- **THEN** the Runner SHALL create a PR with structured description:
+  ```
+  ## Loop {N}: {feature area}
+
+  ### What was built
+  - {list of implemented items from Factory report}
+
+  ### Evaluation results
+  - QA: {PASS/FAIL} — {summary}
+  - PO Review: {verdict} — confidence {score}%
+  - Delta from previous loop: {improving/stable/regressing}
+
+  ### Quality gaps found
+  - {list of gaps with categories}
+
+  ### Decisions made
+  - {key Factory decisions from shared context}
+
+  ### Vision alignment
+  - {closer/further from vision + reasoning}
+  ```
+
+#### Scenario: Merge on success, abandon on rollback
+- **WHEN** a loop cycle passes evaluation and is promoted to production
+- **THEN** the PR SHALL be merged to the production branch
+- **WHEN** a loop cycle is rolled back
+- **THEN** the PR SHALL be closed (not merged) with a comment explaining: why it was rolled back, what was learned, what will be tried differently next loop
+
+### Requirement: Runner tracks evaluation delta between loops
+The Runner SHALL compare each loop's evaluation results against the previous loop's results to determine whether the product is improving, stable, or regressing.
+
+#### Scenario: Delta calculation
+- **WHEN** a PO Review report is produced
+- **THEN** the Runner SHALL calculate delta against the previous loop's PO Review:
+  - `confidence_delta`: current confidence minus previous confidence
+  - `journey_delta`: change in % of journeys at production-ready or acceptable
+  - `screen_delta`: change in % of screens at production-ready or acceptable
+  - `heuristic_delta`: change in functional heuristic pass rate
+  - `overall_delta`: `improving` (confidence +2% or more), `stable` (within ±2%), `regressing` (confidence -2% or more)
+
+#### Scenario: Delta feeds Runner decisions
+- **WHEN** overall_delta is `regressing` for 2 consecutive loops
+- **THEN** the Runner SHALL flag: "Product is regressing. Last 2 loops made things worse. Consider rollback to loop {N-2} state." Include: what changed, what got worse, hypothesis for why.
+- **WHEN** overall_delta is `improving`
+- **THEN** the Runner SHALL continue with the next planned action (deepen, broaden, or next feature area)
+- **WHEN** overall_delta is `stable` for 3+ loops
+- **THEN** the Runner SHALL flag a plateau (same as existing confidence plateau detection)
+
+### Requirement: Runner supports rollback of bad loops
+The Runner SHALL be able to abandon a loop that made the product worse, reverting to the previous known-good state while preserving the learnings from the failed loop.
+
+#### Scenario: Rollback triggered
+- **WHEN** the Runner determines a loop should be rolled back (regression detected, or evaluation shows critical degradation)
+- **THEN** the Runner SHALL:
+  1. Close the loop's PR without merging (with rollback explanation)
+  2. Revert the staging environment to the previous loop's deployment
+  3. Record a rollback entry in the journey log: loop number, what was attempted, why it was rolled back, what was learned
+  4. Write the learnings to the shared context so the next loop knows what was tried and why it failed
+  5. The next loop SHALL incorporate the rollback learnings: "Loop {N} tried {X} and it made {Y} worse because {Z}. Try a different approach."
+
+#### Scenario: Rollback preserves learnings
+- **WHEN** a rollback occurs
+- **THEN** the failed loop's evaluation report, Factory decisions, and root cause analysis SHALL be preserved in the shared context. Only the code is reverted — the knowledge is kept.
+
+### Requirement: Runner manages staging and production dual environments
+The Runner SHALL maintain two deployment environments per project: staging (where the Factory deploys and evaluation runs) and production (the known-good state the human reviews).
+
+#### Scenario: Factory always deploys to staging
+- **WHEN** the Factory completes a build
+- **THEN** it SHALL deploy to the staging environment URL, never directly to production
+
+#### Scenario: Promotion to production on evaluation pass
+- **WHEN** QA passes AND PO Review verdict is PRODUCTION_READY or NEEDS_IMPROVEMENT with confidence ≥0.8
+- **THEN** the Runner SHALL promote the staging deployment to production (merge PR, update production deployment)
+
+#### Scenario: Staging rollback on evaluation fail or regression
+- **WHEN** evaluation fails or regression is detected and rollback is triggered
+- **THEN** the Runner SHALL revert staging to the previous production state. Production is unaffected — the human's last-reviewed version remains live.
+
+#### Scenario: Human always reviews production
+- **WHEN** the human is notified "we have something"
+- **THEN** the notification SHALL include the production URL (not staging). The human always sees the best version, not work-in-progress.
+
+### Requirement: Runner maintains a journey log for meta-narrative
+The Runner SHALL maintain a `journey.json` that accumulates the full history of the product's evolution across all loops — what was attempted, what worked, what was rolled back, and how confidence tracked over time.
+
+#### Scenario: Journey log entry per loop
+- **WHEN** a loop cycle completes (whether promoted, rolled back, or ongoing)
+- **THEN** the Runner SHALL append an entry to `journey.json`:
+  ```json
+  {
+    "loop": 3,
+    "feature_area": "trip-history",
+    "branch": "rouge/loop-3-trip-history",
+    "pr_number": 7,
+    "timestamp_start": "2026-03-18T02:30:00Z",
+    "timestamp_end": "2026-03-18T03:45:00Z",
+    "duration_minutes": 75,
+    "what_attempted": "Deepen trip history: add map interaction, improve information hierarchy",
+    "change_spec_type": "deepen",
+    "qa_verdict": "PASS",
+    "po_verdict": "NEEDS_IMPROVEMENT",
+    "confidence": 0.78,
+    "confidence_delta": "+0.05",
+    "overall_delta": "improving",
+    "quality_gaps_found": 4,
+    "quality_gaps_resolved": 2,
+    "outcome": "promoted",
+    "key_decisions": [
+      "Used Leaflet for map instead of Mapbox (lower complexity)",
+      "Moved trip metadata to sidebar instead of overlay"
+    ],
+    "learnings": [
+      "Map overlay obscured trip route — sidebar layout works better for data-dense screens"
+    ],
+    "rollback_reason": null
+  }
+  ```
+
+#### Scenario: Journey log for rolled-back loops
+- **WHEN** a loop is rolled back
+- **THEN** the entry SHALL have `"outcome": "rolled_back"` with `"rollback_reason"` populated and `"learnings"` capturing what was learned from the failure
+
+#### Scenario: Journey log supports visualization
+- **WHEN** the journey log is read
+- **THEN** it SHALL be renderable as:
+  - A timeline showing loops, outcomes (promoted/rolled-back), and confidence trend
+  - A feature evolution view showing what was added/changed per loop
+  - A learnings summary across all loops
+  - This data feeds the Saturday demo and can be adapted into Substack content
+
+#### Scenario: Journey log included in morning briefings
+- **WHEN** a morning briefing is compiled
+- **THEN** it SHALL include a mini-timeline from the journey log: last N loops, their outcomes, confidence trend direction, and any rollbacks
 
 ### Requirement: Runner supports the meta-loop for Factory improvement
 The Runner SHALL periodically analyze cross-product quality patterns and generate improvement specs for the AI Factory itself.

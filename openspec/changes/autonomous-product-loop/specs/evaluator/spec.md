@@ -2,11 +2,96 @@
 
 ---
 
+# PHASE 0: TEST INTEGRITY GATE
+
+The Test Integrity Gate answers: **"Are our tests still valid?"**
+
+Before QA checks the product, we check the tests. Tests are derived from specs — if the spec changed, the tests must change. If a test doesn't map to a current spec criterion, it's orphaned. If a spec criterion has no test, there's a coverage gap. Without this gate, QA can pass falsely (stale tests testing old behaviour) or fail misleadingly (tests testing something that was intentionally changed).
+
+---
+
+### Requirement: Every test must be traceable to a spec criterion or PO check
+Tests are not independent artifacts. Every test SHALL map to a specific acceptance criterion (for QA tests) or a specific PO check (for PO Review tests). Tests without a mapping are orphaned and should not run.
+
+#### Scenario: Test-to-spec traceability
+- **WHEN** the test suite is examined
+- **THEN** every test SHALL have a `criterion_id` or `po_check_id` annotation that maps it to the spec. Example: test "trip row click shows map" maps to criterion `trip-history.AC-3`.
+
+#### Scenario: Orphaned test detection
+- **WHEN** a test's `criterion_id` does not match any criterion in the current active spec
+- **THEN** the test SHALL be flagged as orphaned. Orphaned tests are: excluded from QA runs (they'd test something that's no longer specified), reported in the integrity check report, and queued for removal or re-mapping.
+
+### Requirement: Test integrity check runs before every QA gate
+Before QA executes, the Test Integrity Gate SHALL verify that the test suite accurately reflects the current spec.
+
+#### Scenario: Integrity check procedure
+- **WHEN** the Runner is about to enter `qa-gate` state
+- **THEN** the Test Integrity Gate SHALL:
+  1. Parse the current active spec for all acceptance criteria (extract IDs and descriptions)
+  2. Parse the current PO check set for all instantiated checks (extract IDs)
+  3. Scan the test suite for all test annotations (`criterion_id` and `po_check_id` mappings)
+  4. Produce three lists:
+     - **Covered**: spec criteria/PO checks that have matching tests ✅
+     - **Uncovered**: spec criteria/PO checks that have NO matching test ❌ (coverage gap)
+     - **Orphaned**: tests that map to criteria/checks no longer in the spec 🔴 (stale)
+  5. Check for **stale tests**: for each covered criterion, has the criterion text changed since the test was last generated? If yes, the test may be testing old behaviour.
+
+#### Scenario: Integrity check passes
+- **WHEN** there are zero uncovered criteria, zero orphaned tests, and zero stale tests
+- **THEN** the integrity check passes and QA proceeds normally
+
+#### Scenario: Coverage gaps detected
+- **WHEN** uncovered criteria are found (spec has criteria with no tests)
+- **THEN** the Test Integrity Gate SHALL:
+  1. Generate tests for the uncovered criteria using the spec's acceptance criteria text and the criterion's verification method
+  2. Add the generated tests to the suite with proper `criterion_id` mapping
+  3. Log: "Generated {N} new tests for uncovered criteria: {list}"
+  4. Re-run the integrity check to confirm full coverage, then proceed to QA
+
+#### Scenario: Orphaned tests detected
+- **WHEN** orphaned tests are found (tests mapping to criteria no longer in spec)
+- **THEN** the Test Integrity Gate SHALL:
+  1. Exclude orphaned tests from the QA run
+  2. Mark them for removal in the next commit
+  3. Log: "Excluded {N} orphaned tests: {list} — these map to criteria no longer in the active spec"
+
+#### Scenario: Stale tests detected
+- **WHEN** stale tests are found (criterion text changed since test was generated)
+- **THEN** the Test Integrity Gate SHALL:
+  1. Regenerate the stale tests from the updated criterion text
+  2. Replace the old test with the regenerated version
+  3. Log: "Regenerated {N} stale tests for modified criteria: {list}"
+  4. Re-run integrity check, then proceed to QA
+
+#### Scenario: Spec changes trigger test regeneration, not patching
+- **WHEN** a change spec modifies acceptance criteria
+- **THEN** the Test Integrity Gate SHALL regenerate tests for the modified criteria from scratch (using the new criterion text), NOT attempt to patch the existing tests. This prevents test drift from accumulated patches.
+
+### Requirement: Test coverage is measured against the spec, not the code
+The north star for test completeness is: "every spec criterion has a test." Code coverage (branch, line, statement) is a supplementary signal collected during QA, but spec coverage is the primary measure.
+
+#### Scenario: Spec coverage reported
+- **WHEN** the test integrity check completes
+- **THEN** it SHALL report:
+  - `spec_coverage`: {covered} / {total criteria} = {percentage}%
+  - `po_check_coverage`: {covered} / {total PO checks} = {percentage}%
+  - `orphaned_count`: {N}
+  - `stale_regenerated`: {N}
+  - `newly_generated`: {N}
+
+#### Scenario: Spec coverage threshold
+- **WHEN** spec coverage is below 100%
+- **THEN** the Test Integrity Gate SHALL block QA and generate the missing tests first. QA SHALL NOT run with coverage gaps — a missing test means a criterion goes unchecked, which defeats the purpose of the QA gate.
+
+---
+
 # PHASE 1: QA GATE
 
 QA answers one question: **"Does what we built match what we said we'd build?"**
 
 QA checks the product against the spec — acceptance criteria, user journeys, functional correctness. It is binary pass/fail. QA does NOT judge quality, aesthetics, production-readiness, or whether the spec itself was good enough. If the spec says "show a list of trips" and the product shows a list of trips, QA passes — even if the list is ugly, the hierarchy is flat, and the interaction is clunky.
+
+**QA runs with a verified test suite.** The Test Integrity Gate has already confirmed that every spec criterion has a current, non-stale test. QA can trust its tests.
 
 QA failures go back to the Factory as bug fixes, not as new specs.
 
@@ -460,8 +545,8 @@ The PO Review SHALL produce a structured report that identifies every quality ga
 
 ---
 
-### Requirement: QA and PO Review are sequential, not parallel
-The evaluation flow SHALL be strictly sequential: QA first, then PO Review. PO Review SHALL NOT run until QA passes.
+### Requirement: Test Integrity, QA, and PO Review are sequential
+The evaluation flow SHALL be strictly sequential: Test Integrity Gate first, then QA, then PO Review. Each phase must pass before the next runs.
 
 #### Scenario: Full evaluation flow
 - **WHEN** the Factory completes a build
@@ -470,20 +555,29 @@ The evaluation flow SHALL be strictly sequential: QA first, then PO Review. PO R
   Factory completes build
       │
       ▼
-  QA GATE
-  "Does it match the spec?"
+  TEST INTEGRITY GATE
+  "Are our tests still valid?"
       │
-      ├── FAIL → Bug fix brief → Factory → rebuild → QA again
+      ├── Coverage gaps → generate missing tests
+      ├── Stale tests → regenerate from updated spec
+      ├── Orphaned tests → exclude and remove
+      │
+      ├── ALL CLEAR ▼
+      │
+  QA GATE
+  "Does it match the spec?" (with verified tests)
+      │
+      ├── FAIL → Bug fix brief → Factory → rebuild → Test Integrity → QA again
       │
       ├── PASS ▼
       │
   PO REVIEW
   "Is the spec-compliant product good enough?"
       │
-      ├── PRODUCTION_READY → next feature area or notify human
+      ├── PRODUCTION_READY → promote to production → next feature area or notify human
       │
       ├── NEEDS_IMPROVEMENT → generate new specs from gaps
-      │       │               → Factory (full pipeline) → QA → PO Review
+      │       │               → Factory (full pipeline) → Test Integrity → QA → PO Review
       │       │
       ├── NOT_READY → generate new specs from gaps
       │               → if confidence ≥0.7: Factory → QA → PO Review
