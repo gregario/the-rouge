@@ -51,6 +51,21 @@ The Library SHALL maintain global standards as concrete, testable heuristic entr
 - `no-console-errors`: Pages SHALL produce zero uncaught console errors during normal usage. Measurement: browser QA with console monitoring. Threshold: 0 errors.
 - `api-response-time`: API endpoints SHALL respond in <500ms for read operations and <1000ms for write operations. Measurement: automated API timing during user journey simulation. Threshold: p95 <500ms reads, <1000ms writes.
 
+**Code quality standards (non-functional):**
+- `code-complexity`: No source file SHALL exceed a cyclomatic complexity of 20 per function. Measurement: static analysis (ESLint complexity rule, or language-equivalent). Threshold: max complexity 20 per function, average <10 across codebase.
+- `code-duplication`: No code block of ≥6 lines SHALL be duplicated more than twice in the codebase. Measurement: duplication detection tool (jscpd or language-equivalent). Threshold: ≤2 instances of any block ≥6 lines.
+- `file-size`: No source file SHALL exceed 300 lines. Measurement: line count per file. Threshold: ≤300 lines per file. (Test files exempt up to 500 lines.)
+- `dependency-count`: New external dependencies SHALL be justified in the Factory's `factory_decisions` context. Measurement: diff `package.json` (or equivalent) before and after build cycle. Threshold: every new dependency has a recorded justification. Unjustified additions are flagged.
+- `static-analysis-warnings`: Zero new static analysis warnings SHALL be introduced per build cycle. Measurement: run linter before and after, diff warning counts. Threshold: new warnings = 0. (Pre-existing warnings tracked separately for reduction over time.)
+- `dead-code`: No unreachable or unused exports SHALL exist in the codebase. Measurement: static analysis for unused exports, unreachable code paths. Threshold: 0 dead code items.
+- `test-coverage-floor`: Code implementing acceptance criteria SHALL have ≥80% branch coverage. Measurement: coverage tool (c8, istanbul, or language-equivalent). Threshold: ≥80% branch coverage on feature code. (Utility/config files exempt.)
+
+**Architectural integrity standards (non-functional):**
+- `architecture-drift`: The implemented architecture SHALL match the architecture defined during design mode. Measurement: after each build cycle, generate an architecture diagram (module dependency graph) from the code and compare against the design mode's intended architecture. Threshold: no unintended cross-module dependencies, no circular dependencies, no components in the wrong architectural layer.
+- `architecture-visualization`: After each build cycle, an architecture diagram SHALL be generated from the codebase and stored alongside the evaluation report. Measurement: automated dependency graph generation (e.g., Madge for JS, or language-equivalent). Threshold: diagram generated successfully and diff'd against previous cycle's diagram.
+- `api-contract-stability`: Public API contracts (route signatures, request/response schemas) SHALL not change unintentionally between cycles. Measurement: generate API schema from code (OpenAPI extraction or equivalent), diff against previous cycle. Threshold: any changes must be present in the active spec. Unspecified changes are flagged.
+- `layer-separation`: Code SHALL maintain clean separation between layers (presentation, business logic, data access). Measurement: static analysis of import paths — presentation layer files SHALL NOT import data access layer files directly. Threshold: zero cross-layer violations.
+
 ### Requirement: Library stores PO Review check templates
 The Library SHALL maintain check templates — reusable given/when/then quality checks that get instantiated per product during seeding. Check templates define HOW to mechanically evaluate a quality dimension, independent of any specific product. The Seeder combines these templates with product context to generate product-specific PO checks.
 

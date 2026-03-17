@@ -176,22 +176,66 @@ The Runner SHALL maintain a confidence history across cycles and use trend analy
 - **WHEN** confidence has stayed within ±2% for 5 consecutive cycles on the same feature area
 - **THEN** the Runner SHALL flag a plateau: "Feature area {X} has plateaued at {N}% confidence after 5 cycles. The remaining gaps may require a different approach or human input." Include the specific failing items that aren't improving.
 
-### Requirement: Runner invokes The Factory with scoped briefs
-The Runner SHALL invoke the AI Factory as a worker, passing it everything needed to build without further context gathering.
+### Requirement: Runner uses shared-context orchestration, not sequential handover
+The Runner SHALL NOT use a sequential handover pattern where Agent A summarises work and passes it to Agent B. Sequential handover loses context at every boundary — if the Factory misinterprets a brief, the Evaluator catches symptoms without understanding root cause, and the Runner generates change specs blind to the Factory's reasoning. Instead, the Runner SHALL maintain a shared context document that all phases read from and write to, like a product team's shared workspace where the PRD, designs, decisions, and questions are all visible to everyone.
 
-#### Scenario: Build brief contents
+#### Scenario: Shared context document structure
+- **WHEN** a cycle begins
+- **THEN** the Runner SHALL maintain a `cycle_context.json` for the current cycle containing:
+  - `vision`: the full vision document (not a summary)
+  - `product_standard`: the full product standard
+  - `active_spec`: the current spec being implemented (seed or change spec)
+  - `library_heuristics`: all applicable heuristics with full definitions
+  - `reference_products`: names, dimensions, cached screenshots
+  - `previous_evaluations`: full QA and PO Review reports from prior cycles (not summaries)
+  - `factory_decisions`: decisions the Factory made during implementation — what it chose, what it rejected, and why
+  - `factory_questions`: any ambiguities the Factory encountered and how it resolved them
+  - `evaluator_observations`: raw observations from QA and PO Review, not just pass/fail verdicts
+  - `runner_analysis`: the Runner's interpretation of evaluation results and rationale for next action
+
+#### Scenario: Factory reads full context, writes decisions back
+- **WHEN** the Factory builds
+- **THEN** it SHALL:
+  1. Read the full `cycle_context.json` — not a summarised brief
+  2. During implementation, write `factory_decisions` back to the context: every significant design choice, every ambiguity resolved, every deviation from the spec with rationale
+  3. If the Factory encounters something that contradicts the spec or vision, it SHALL write a `factory_question` to the context and proceed with its best judgment, flagging the question for the Evaluator
+
+#### Scenario: Evaluator reads Factory decisions for root cause analysis
+- **WHEN** the Evaluator (QA or PO Review) finds a failure
+- **THEN** it SHALL read `factory_decisions` and `factory_questions` to determine:
+  - Did the Factory misinterpret the spec? (Root cause: spec ambiguity → fix the spec, not just the code)
+  - Did the Factory make a reasonable design choice that produced a bad outcome? (Root cause: design constraint → change the approach)
+  - Did the Factory flag a question and proceed incorrectly? (Root cause: missing context → clarify and rebuild)
+  - The evaluation report SHALL include root cause classification alongside the failure, so the Runner can generate the right kind of response
+
+#### Scenario: Runner reads full context for change spec generation
+- **WHEN** the Runner generates a change spec from evaluation failures
+- **THEN** it SHALL read the full `cycle_context.json` including Factory decisions and Evaluator root cause analysis, so the change spec addresses the actual root cause — not just the symptom. If the root cause is spec ambiguity, the change spec fixes the spec. If it's a design choice, the change spec provides clearer design direction. If it's missing context, the change spec adds context.
+
+#### Scenario: Refinement loop within a cycle (back-and-forth)
+- **WHEN** the Evaluator identifies a failure whose root cause is spec ambiguity
+- **THEN** instead of completing the full evaluation and generating a change spec, the Runner SHALL trigger a **refinement loop**: send the ambiguity back to the relevant discipline (spec, design, or vision) for clarification, update the shared context, and resume the current cycle — not start a new one. This mirrors agile refinement where questions go back to the PM/designer before the story is re-estimated.
+
+#### Scenario: Context accumulates across cycles
+- **WHEN** a new cycle begins (change spec → Factory → Evaluator)
+- **THEN** the `cycle_context.json` SHALL carry forward the full history of prior cycles' decisions, questions, and observations — so the Factory in cycle 5 knows what was tried and rejected in cycles 1-4. Context is appended, not replaced.
+
+### Requirement: Runner invokes The Factory with full shared context
+The Runner SHALL provide the Factory with the complete shared context, not a summarised brief.
+
+#### Scenario: Factory receives full context
 - **WHEN** the Runner initiates a build cycle
-- **THEN** it SHALL pass The Factory a brief containing:
-  - The spec to implement (seed spec for first cycle, change spec for subsequent cycles)
-  - The per-project product standard
-  - Relevant Library heuristics (global + domain + personal fingerprint)
-  - Reference product details (names, dimensions to match, cached screenshots)
-  - Previous evaluation report (so Factory knows what failed and why)
-  - Deployment target (local dev server URL or remote deploy URL)
+- **THEN** it SHALL provide the Factory with the full `cycle_context.json` including: vision document, product standard, active spec, Library heuristics (full definitions), reference products, all previous evaluation reports, all previous Factory decisions and questions, and the Runner's analysis of what needs to change and why
 
-#### Scenario: Factory reports completion
+#### Scenario: Factory reports back into shared context
 - **WHEN** The Factory completes a build cycle
-- **THEN** it SHALL report: deployment URL, list of what was implemented, list of what was skipped and why, any decisions made during implementation that diverged from the brief
+- **THEN** it SHALL write to `cycle_context.json`:
+  - `deployment_url`: where the product is deployed
+  - `implemented`: list of what was built
+  - `skipped`: list of what was skipped and why
+  - `factory_decisions`: every significant choice with rationale
+  - `factory_questions`: ambiguities encountered and how they were resolved
+  - `divergences`: any places where the implementation diverged from the spec, with reasoning
 
 ### Requirement: Runner supports the meta-loop for Factory improvement
 The Runner SHALL periodically analyze cross-product quality patterns and generate improvement specs for the AI Factory itself.

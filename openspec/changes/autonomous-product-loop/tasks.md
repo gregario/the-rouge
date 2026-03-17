@@ -58,10 +58,14 @@
 - [ ] 6.3 Implement criteria failure classification — not-implemented (no evidence feature was built), broken (exists but fails), partial (partially works — passes QA with warning)
 - [ ] 6.4 Implement functional correctness checks — page load (all routes, HTTP 200, no blank), console errors (zero tolerance), interactive elements (all respond), forms (valid submit + invalid validation), navigation (all links work, no loops)
 - [ ] 6.5 Implement Lighthouse baseline collection — run on 3-10 key pages, extract scores. Informational only — does NOT affect QA verdict, passed through to PO Review
-- [ ] 6.6 Implement spec-completeness calculator — total criteria, implemented-and-passing, implemented-but-failing, not-implemented, percentage, per-feature-area breakdown
-- [ ] 6.7 Implement QA gate report — structured report with verdict (PASS/FAIL), criteria results, functional correctness results, performance baseline, spec completeness
-- [ ] 6.8 Implement QA pass condition — PASS when: zero not-implemented, zero broken, zero console errors, zero dead elements on core pages, all forms submit. Partial criteria = warning, not failure
-- [ ] 6.9 Test QA gate against a known product with injected bugs — verify failures are caught and correctly classified
+- [ ] 6.6 Implement code quality baseline collection — run static analysis: cyclomatic complexity (max and avg per function), code duplication (blocks ≥6 lines, >2 instances), file sizes (count >300 lines), new warnings (diff against previous cycle), dead code detection, test coverage (branch %)
+- [ ] 6.7 Implement architecture integrity check — generate module dependency graph, check circular dependencies (zero tolerance), check cross-layer violations (zero tolerance), diff against design mode architecture, generate and store architecture visualization
+- [ ] 6.8 Implement API contract stability check — extract API schema from code, diff against previous cycle, flag unspecified changes
+- [ ] 6.9 Implement critical code quality degradation detection — flag warning if: complexity max >30, duplication >5%, new warnings >10, circular deps introduced, coverage <60%
+- [ ] 6.10 Implement spec-completeness calculator — total criteria, implemented-and-passing, implemented-but-failing, not-implemented, percentage, per-feature-area breakdown
+- [ ] 6.11 Implement QA gate report — structured report with verdict (PASS/FAIL), criteria results, functional correctness results, performance baseline, code quality baseline (with warning flag), spec completeness
+- [ ] 6.12 Implement QA pass condition — PASS when: zero not-implemented, zero broken, zero console errors, zero dead elements on core pages, all forms submit. Partial criteria and code quality warnings = warnings, not failures
+- [ ] 6.13 Test QA gate against a known product with injected bugs AND injected code quality issues — verify bugs fail QA, code quality issues produce warnings
 
 ## 7. PO Review — Journey Quality Assessment (Phase 2)
 
@@ -113,18 +117,22 @@
 - [ ] 11.9 Implement interaction check generation — for each key interaction, determine type (form, destructive, data-loading, navigation) and instantiate appropriate templates
 - [ ] 11.10 Implement seed approval flow — present summary (feature area count, QA criteria count, PO check count, journey count, screen count, interaction count, heuristic count, definition of done, estimated cycles), handle approval/revision
 
-## 12. The Runner — Core Loop Engine
+## 12. The Runner — Shared Context & Core Loop Engine
 
-- [ ] 12.1 Implement state machine — states: seeding, building, qa-gate, qa-fixing, po-reviewing, analyzing, generating-change-spec, vision-checking, waiting-for-human, complete — with defined transitions
-- [ ] 12.2 Implement Factory invocation — pass scoped brief (spec, product standard, Library heuristics, reference details, previous PO Review, deployment target), receive completion report (URL, what was built, what was skipped, divergences)
+- [ ] 12.1 Implement `cycle_context.json` schema — vision, product_standard, active_spec, library_heuristics (full definitions), reference_products, previous_evaluations (full reports), factory_decisions, factory_questions, evaluator_observations, runner_analysis. Context accumulates across cycles (appended, not replaced)
+- [ ] 12.2 Implement state machine — states: seeding, building, qa-gate, qa-fixing, po-reviewing, analyzing, generating-change-spec, vision-checking, waiting-for-human, complete — with defined transitions
+- [ ] 12.3 Implement Factory invocation with full shared context — pass complete `cycle_context.json` (not a summarised brief). Factory reads full context and writes decisions/questions/divergences back into it
 - [ ] 12.3 Implement QA gate trigger — after Factory completes build, invoke QA phase with deployment URL and active spec. On FAIL: transition to qa-fixing, send bug fix brief to Factory. On PASS: transition to po-reviewing
 - [ ] 12.4 Implement QA fix loop — QA fails → bug fix brief to Factory → Factory re-deploys → QA re-runs. Retry limit: 3 attempts on same criteria before escalating to human
-- [ ] 12.5 Implement PO Review trigger — after QA passes, invoke PO Review with deployment URL, QA report (including performance baseline and partial warnings), Library heuristics, reference products
-- [ ] 12.6 Implement analysis engine — read PO Review report, execute recommended action logic, generate quality improvement spec or transition state
-- [ ] 12.7 Implement quality improvement spec generation — translate PO Review quality gaps into NEW specs (not bug fixes). Each spec: requires_design_mode=true, gaps with evidence and what_good_looks_like, affected screens/journeys, Library context
+- [ ] 12.5 Implement PO Review trigger — after QA passes, invoke PO Review with full shared context (including QA report with performance + code quality baselines, partial warnings, Factory decisions)
+- [ ] 12.6 Implement Evaluator root cause analysis — when failures found, read factory_decisions and factory_questions to classify root cause: spec ambiguity, design choice, or missing context. Include root cause in evaluation report
+- [ ] 12.7 Implement refinement loop — when root cause is spec ambiguity, instead of completing full evaluation and starting new cycle, send ambiguity back to relevant discipline (spec/design/vision) for clarification, update shared context, and resume current cycle
+- [ ] 12.8 Implement analysis engine — read PO Review report with root cause analysis, execute recommended action logic, generate quality improvement spec or transition state. Read full shared context including Factory decisions to address actual root cause not just symptoms
+- [ ] 12.9 Implement quality improvement spec generation — translate PO Review quality gaps into NEW specs (not bug fixes). Each spec: requires_design_mode=true, gaps with evidence and what_good_looks_like, root cause classification, affected screens/journeys, Library context
 - [ ] 12.8 Implement spec prioritization — critical quality gaps > flow restructure > design change > interaction improvement > content change > performance > personal fingerprint
 - [ ] 12.9 Implement quality improvement pipeline — new specs go through Factory full pipeline: design mode → implementation → QA gate → PO Review. Not a code patch.
-- [ ] 12.10 Implement retry limit — after 5 PO Review cycles on same feature area without reaching PRODUCTION_READY, escalate to human with summary of attempts and recurring gaps
+- [ ] 12.10 Implement code quality degradation response — when QA flags code_quality_warning, Runner SHALL assess: continue with feature work (if degradation is minor) or trigger a refactoring cycle before continuing (if degradation threatens future velocity). Refactoring cycle: Factory receives a refactoring brief (reduce complexity, eliminate duplication, fix architecture violations) with no new features — purely structural improvement
+- [ ] 12.11 Implement retry limit — after 5 PO Review cycles on same feature area without reaching PRODUCTION_READY, escalate to human with summary of attempts and recurring gaps
 
 ## 13. The Runner — Vision Checking & Confidence
 
