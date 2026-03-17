@@ -40,43 +40,54 @@
 - [ ] 5.4 Implement feedback-to-heuristic conversion — translate classified feedback into Library entry format (derive id, rule, measurement, threshold from the feedback text)
 - [ ] 5.5 Test classifier against 20+ example feedback statements covering all classification types, verify ≥85% accuracy
 
-## 6. The Evaluator — Criteria Checking
+## 6. QA Gate — Spec Verification (Phase 1)
 
-- [ ] 6.1 Implement vision document criteria extractor — parse acceptance_criteria sections into testable assertions
-- [ ] 6.2 Implement browser-based criteria testing — for each criterion, determine test approach (DOM query, interaction simulation, screenshot + LLM vision), execute, record pass/fail with evidence
-- [ ] 6.3 Implement criteria failure classification — for each failure, determine: missing-feature (not built), broken-interaction (built but broken), or incomplete-implementation (partially built)
-- [ ] 6.4 Implement criteria report generation — total, passed, failed, with per-failure: criterion text, expected, observed, screenshot, classification
+- [ ] 6.1 Implement spec criteria extractor — parse acceptance_criteria from the active spec (seed spec or change spec for this cycle) into a testable checklist. Each item: ID, criterion text, target screen/URL, verification method
+- [ ] 6.2 Implement browser-based criteria testing — for each criterion, determine approach (DOM query, interaction simulation, screenshot + LLM vision), execute, record binary pass/fail with evidence
+- [ ] 6.3 Implement criteria failure classification — not-implemented (no evidence feature was built), broken (exists but fails), partial (partially works — passes QA with warning)
+- [ ] 6.4 Implement functional correctness checks — page load (all routes, HTTP 200, no blank), console errors (zero tolerance), interactive elements (all respond), forms (valid submit + invalid validation), navigation (all links work, no loops)
+- [ ] 6.5 Implement Lighthouse baseline collection — run on 3-10 key pages, extract scores. Informational only — does NOT affect QA verdict, passed through to PO Review
+- [ ] 6.6 Implement spec-completeness calculator — total criteria, implemented-and-passing, implemented-but-failing, not-implemented, percentage, per-feature-area breakdown
+- [ ] 6.7 Implement QA gate report — structured report with verdict (PASS/FAIL), criteria results, functional correctness results, performance baseline, spec completeness
+- [ ] 6.8 Implement QA pass condition — PASS when: zero not-implemented, zero broken, zero console errors, zero dead elements on core pages, all forms submit. Partial criteria = warning, not failure
+- [ ] 6.9 Test QA gate against a known product with injected bugs — verify failures are caught and correctly classified
 
-## 7. The Evaluator — Product Sense Checking
+## 7. PO Review — Journey Quality Assessment (Phase 2)
 
-- [ ] 7.1 Implement user journey simulator — given a journey (entry point, steps, goal), navigate the product using LLM-driven decisions (not scripted), attempting to complete the journey naturally
-- [ ] 7.2 Implement friction point detection — after each action, assess: did the product respond as expected? Was there visual feedback? Was the next step obvious? Flag ambiguous or missing responses as friction points with severity (minor, moderate, major)
-- [ ] 7.3 Implement journey failure reporting — when journey can't complete within 10 actions, report: journey name, progress, stuck point, what was tried, failure classification
-- [ ] 7.4 Implement undiscovered flow exploration — when the simulator notices interactive elements not part of any defined journey, explore up to 3 undocumented paths and report findings
-- [ ] 7.5 Test journey simulator against a known product (e.g., a simple deployed web app) — verify it can navigate, detect friction, and report failures accurately
+- [ ] 7.1 Implement journey quality evaluator — for each journey that passed QA, walk through as a first-time user (LLM-driven, not scripted), assessing quality not correctness
+- [ ] 7.2 Implement per-step quality dimensions — at each step assess: clarity (clear/ambiguous/confusing), feedback (satisfying/adequate/missing), efficiency (optimal/acceptable/wasteful), delight (delightful/neutral/frustrating). Overall: strong/weak/failing
+- [ ] 7.3 Implement journey-level verdicts — production-ready (no step below adequate), acceptable-with-improvements (no step failing), not-production-ready (any step failing)
+- [ ] 7.4 Implement quality gap generation from journey assessment — for each weak/failing step: which journey, which step, which dimensions failed, what "good" looks like (Library heuristic + reference), improvement category
 
-## 8. The Evaluator — External Signal Collection
+## 8. PO Review — Screen Quality Assessment (Phase 2)
 
-- [ ] 8.1 Implement browser QA integration — invoke browser QA tooling to run: page load check (all routes), console error check, interactive element check, form submission check, navigation check
-- [ ] 8.2 Implement browser QA report parser — extract structured results: pages_tested, pages_passing, console_errors (with URL and message), dead_elements (with selector and URL), form_issues, navigation_issues
-- [ ] 8.3 Implement Lighthouse integration — run Lighthouse on 3-10 key pages (landing, primary nav destinations, core journey endpoints), extract: Performance, Accessibility, SEO scores, LCP, FID/INP, CLS, TTI
-- [ ] 8.4 Implement spec-completeness calculator — parse seed spec for all criteria, cross-reference with criteria check results, calculate: total, implemented-and-verified, implemented-but-failing, not-implemented, overall percentage, per-feature-area breakdown
-- [ ] 8.5 Implement reference product screenshot capture — navigate to reference product URLs, capture screenshots of specified dimensions (navigation, data density, etc.), cache in Library for reuse
+- [ ] 8.1 Implement screen quality evaluator — for each visited screen, capture screenshot and assess: information hierarchy, layout structure, visual consistency, density appropriateness, empty/edge states, mobile readiness (375px)
+- [ ] 8.2 Implement per-dimension verdicts — production-ready/needs-work/failing per dimension. Overall: production-ready (no failing, ≤1 needs-work), acceptable (no failing), not-production-ready (any failing)
+- [ ] 8.3 Implement quality gap generation from screen assessment — for each needs-work/failing dimension: observation, reference to Library heuristic or reference product screenshot, improvement category
 
-## 9. The Evaluator — Pairwise Comparison & Heuristics
+## 9. PO Review — Interaction Quality Assessment (Phase 2)
 
-- [ ] 9.1 Implement pairwise comparison — for each reference product dimension, capture screenshots of both products, present side-by-side to LLM vision with prompt "Which more closely matches professional standards?", record verdict: matches-reference, approaching-reference, significantly-below-reference
-- [ ] 9.2 Implement comparison report — reference product name, per-dimension verdict, side-by-side screenshot evidence, specific observations (e.g., "Product uses 3 font sizes where Linear uses 2")
-- [ ] 9.3 Implement heuristic evaluation engine — for each active Library heuristic, execute its measurement method, compare against threshold, record pass/fail with measured value and evidence
-- [ ] 9.4 Implement measurement method dispatchers — dom-analysis (query DOM), screenshot-llm (capture + LLM vision), lighthouse-metric (extract from Lighthouse results), interaction-test (simulate interaction + verify response), journey-test (run journey simulation), api-test (call API + measure timing)
-- [ ] 9.5 Test heuristic engine against seeded heuristics on a known product — verify all measurement methods execute correctly and thresholds are evaluated properly
+- [ ] 9.1 Implement interaction quality evaluator — for each interactive element encountered during journey/screen evaluation, assess: hover state, click feedback, loading states, success states, transition animations
+- [ ] 9.2 Implement interaction ratings — polished (all dimensions good), functional (works but lacks polish), raw (minimal/no feedback). Raw interactions generate quality gaps
+- [ ] 9.3 Test interaction evaluator against a product with intentionally varied interaction quality — verify it distinguishes polished from raw
 
-## 10. The Evaluator — Composite Quality Report
+## 10. PO Review — Library Heuristics & Reference Comparison (Phase 2)
 
-- [ ] 10.1 Implement report aggregation — combine criteria check, product sense, browser QA, performance, spec-completeness, reference comparison, and heuristic results into single structured report
-- [ ] 10.2 Implement confidence score calculation — weighted composite: spec-completeness 30%, criteria pass rate 25%, heuristic pass rate 20%, journey completion rate 15%, reference comparison 10% — non-functional scores reported separately
-- [ ] 10.3 Implement recommended action logic — continue (confidence ≥0.9, all criteria pass), deepen (0.7-0.9, failures concentrated), broaden (0.7-0.9, missing features), notify-human (<0.7)
-- [ ] 10.4 Test report generation against mock evaluation data — verify confidence calculation, action logic, and report structure
+- [ ] 10.1 Implement Library heuristic evaluation in PO Review context — apply all active heuristics (global + domain + personal), execute measurements, compare thresholds. Failures are quality gaps, NOT bugs
+- [ ] 10.2 Implement measurement method dispatchers — dom-analysis, screenshot-llm, lighthouse-metric (from QA baseline), interaction-test, journey-test, api-test
+- [ ] 10.3 Implement reference product screenshot capture — navigate to reference URLs, capture specified dimensions, cache in Library (<30 days freshness)
+- [ ] 10.4 Implement pairwise comparison — per dimension: capture both products, LLM vision pairwise judgment, verdict: matches-reference/approaching-reference/significantly-below-reference
+- [ ] 10.5 Implement comparison report — per-dimension verdict, side-by-side screenshots, specific observations. Significantly-below dimensions generate quality gaps with reference as evidence
+- [ ] 10.6 Test heuristic engine + pairwise comparison against known products — verify measurement accuracy and comparison reliability
+
+## 11. PO Review — Quality Report & Confidence (Phase 2)
+
+- [ ] 11.1 Implement PO Review report aggregation — combine journey quality, screen quality, interaction quality, heuristic results, reference comparison into structured report with quality gap list
+- [ ] 11.2 Implement quality gap categorization — each gap categorized: design_change, interaction_improvement, content_change, flow_restructure, performance_improvement. Prioritized: critical > high > medium > low
+- [ ] 11.3 Implement PO Review verdict — PRODUCTION_READY (zero critical/high gaps, ≥85% heuristic pass, zero significantly-below reference), NEEDS_IMPROVEMENT (zero critical, has high/medium), NOT_READY (has critical or <70% heuristic pass or 2+ significantly-below)
+- [ ] 11.4 Implement confidence score — weighted: journey quality 30%, screen quality 20%, heuristic functional pass rate 20%, spec completeness (from QA) 15%, reference comparison 15%. Non-functional reported separately
+- [ ] 11.5 Implement recommended action logic — continue (≥0.9 + PRODUCTION_READY), deepen (0.7-0.9 + gaps concentrated), broaden (0.7-0.9 + missing capabilities), notify-human (<0.7 or NOT_READY with critical)
+- [ ] 11.6 Test report, verdict, confidence, and action logic against mock PO Review data
 
 ## 11. The Seeder — Interactive Swarm
 
@@ -90,13 +101,16 @@
 
 ## 12. The Runner — Core Loop Engine
 
-- [ ] 12.1 Implement state machine — states: seeding, building, evaluating, analyzing, generating-change-spec, vision-checking, waiting-for-human, complete — with defined transitions
-- [ ] 12.2 Implement Factory invocation — pass scoped brief (spec, product standard, Library heuristics, reference details, previous evaluation, deployment target), receive completion report (URL, what was built, what was skipped, divergences)
-- [ ] 12.3 Implement evaluation trigger — after Factory reports completion, invoke Evaluator with deployment URL and full evaluation context
-- [ ] 12.4 Implement analysis engine — read composite quality report, execute recommended action logic, generate change spec or transition state
-- [ ] 12.5 Implement change spec generation — translate gap reports into structured change specs with: target feature area, type (deepen/broaden/fix), gaps (source, description, evidence, acceptance criterion), Library context, reference comparison, scope hint
-- [ ] 12.6 Implement change spec prioritization — missing-feature > broken-interaction > major friction > global heuristic failures > domain failures > personal failures > non-functional failures
-- [ ] 12.7 Implement retry limit — after 5 deepen/broaden cycles on same feature area without reaching `continue`, escalate to human with summary of attempts
+- [ ] 12.1 Implement state machine — states: seeding, building, qa-gate, qa-fixing, po-reviewing, analyzing, generating-change-spec, vision-checking, waiting-for-human, complete — with defined transitions
+- [ ] 12.2 Implement Factory invocation — pass scoped brief (spec, product standard, Library heuristics, reference details, previous PO Review, deployment target), receive completion report (URL, what was built, what was skipped, divergences)
+- [ ] 12.3 Implement QA gate trigger — after Factory completes build, invoke QA phase with deployment URL and active spec. On FAIL: transition to qa-fixing, send bug fix brief to Factory. On PASS: transition to po-reviewing
+- [ ] 12.4 Implement QA fix loop — QA fails → bug fix brief to Factory → Factory re-deploys → QA re-runs. Retry limit: 3 attempts on same criteria before escalating to human
+- [ ] 12.5 Implement PO Review trigger — after QA passes, invoke PO Review with deployment URL, QA report (including performance baseline and partial warnings), Library heuristics, reference products
+- [ ] 12.6 Implement analysis engine — read PO Review report, execute recommended action logic, generate quality improvement spec or transition state
+- [ ] 12.7 Implement quality improvement spec generation — translate PO Review quality gaps into NEW specs (not bug fixes). Each spec: requires_design_mode=true, gaps with evidence and what_good_looks_like, affected screens/journeys, Library context
+- [ ] 12.8 Implement spec prioritization — critical quality gaps > flow restructure > design change > interaction improvement > content change > performance > personal fingerprint
+- [ ] 12.9 Implement quality improvement pipeline — new specs go through Factory full pipeline: design mode → implementation → QA gate → PO Review. Not a code patch.
+- [ ] 12.10 Implement retry limit — after 5 PO Review cycles on same feature area without reaching PRODUCTION_READY, escalate to human with summary of attempts and recurring gaps
 
 ## 13. The Runner — Vision Checking & Confidence
 
@@ -135,10 +149,12 @@
 
 ## 17. Integration & End-to-End Testing
 
-- [ ] 17.1 E2E: Seed a landing page product → full autonomous loop → verify quality report shows ≥85% heuristic pass rate → verify Slack notification fires
-- [ ] 17.2 E2E: Seed a multi-feature web product → verify feature-area cycling → verify per-area evaluation → verify cross-area vision check
-- [ ] 17.3 E2E: Inject known quality issue (missing interactive feedback on buttons) → verify Evaluator catches it → verify Runner generates change spec → verify Factory fixes it on next cycle
-- [ ] 17.4 E2E: Simulate 3 cycles of feedback with recurring theme (e.g., "flat hierarchy") → verify Library creates fingerprint entry with strength ≥0.7 → verify future evaluations apply it
-- [ ] 17.5 E2E: Crash mid-cycle (kill process) → restart → verify resume from checkpoint → verify no lost state
-- [ ] 17.6 E2E: Simulate confidence dropping below 70% → verify pivot notification fires immediately → verify Runner pauses → verify human response resumes loop
-- [ ] 17.7 E2E: Run 5 products → verify meta-loop triggers → verify cross-product pattern detection produces Factory improvement spec
+- [ ] 17.1 E2E: Seed a landing page → Factory builds → QA gate passes → PO Review runs → verify two-phase evaluation produces separate QA report and PO Review report
+- [ ] 17.2 E2E: Inject a bug (broken form submission) → verify QA gate catches it (FAIL) → verify bug fix brief sent to Factory → verify QA re-runs and passes → verify PO Review only runs after QA passes
+- [ ] 17.3 E2E: Inject a quality issue (flat information hierarchy, all elements same visual weight) → verify QA passes (it works) → verify PO Review catches it (screen quality: hierarchy failing) → verify quality gap generates a NEW spec (not a bug fix) → verify new spec goes through design mode
+- [ ] 17.4 E2E: Seed a multi-feature web product → verify feature-area cycling → verify per-area QA+PO Review → verify cross-area vision check
+- [ ] 17.5 E2E: Simulate 3 cycles of feedback with recurring theme (e.g., "flat hierarchy") → verify Library creates fingerprint entry with strength ≥0.7 → verify future PO Reviews apply it as a heuristic
+- [ ] 17.6 E2E: Crash mid-cycle at each state (qa-gate, po-reviewing, analyzing) → restart → verify resume from checkpoint → verify no lost state
+- [ ] 17.7 E2E: Simulate PO Review confidence dropping below 70% → verify pivot notification fires immediately → verify Runner pauses at waiting-for-human → verify human response resumes loop
+- [ ] 17.8 E2E: Run 5 products → verify meta-loop triggers → verify cross-product pattern detection produces Factory improvement spec
+- [ ] 17.9 E2E: Full happy path — seed → build → QA pass → PO Review PRODUCTION_READY → Slack notification → human feedback → Library updated → verify end-to-end flow completes
