@@ -73,6 +73,42 @@ QA SHALL collect non-functional metrics as data, not as pass/fail gates. Perform
 - **WHEN** QA runs on a web product
 - **THEN** it SHALL run Lighthouse on key pages (landing, primary nav destinations, core journey endpoints — 3-10 pages) and extract: Performance score, Accessibility score, SEO score, LCP, FID/INP, CLS, TTI
 
+### Requirement: QA collects code quality baselines
+QA SHALL collect code quality metrics after each build cycle. Like performance, these are non-functional signals — they do not block QA but are passed to PO Review and the Runner for trend analysis. However, if code quality degrades below critical thresholds, the Runner SHALL flag it.
+
+#### Scenario: Static analysis metrics collected
+- **WHEN** QA runs after a build cycle
+- **THEN** it SHALL run static analysis and collect:
+  - Cyclomatic complexity per function (max and average)
+  - Code duplication report (blocks ≥6 lines duplicated >2 times)
+  - File size distribution (count of files exceeding 300 lines)
+  - New static analysis warnings introduced in this cycle (diff against previous cycle)
+  - Dead code detection (unused exports, unreachable paths)
+  - Test coverage on feature code (branch coverage %)
+
+#### Scenario: Architecture integrity check
+- **WHEN** QA runs after a build cycle
+- **THEN** it SHALL:
+  1. Generate a module dependency graph from the codebase
+  2. Check for circular dependencies (threshold: zero)
+  3. Check for cross-layer violations (presentation importing data access directly — threshold: zero)
+  4. Diff the dependency graph against the previous cycle's graph and against the design mode's intended architecture
+  5. Generate and store an architecture visualization for the evaluation report
+  6. If API contracts exist, extract the current schema and diff against previous cycle — flag unspecified changes
+
+#### Scenario: Code quality data passed through
+- **WHEN** code quality metrics are collected
+- **THEN** they SHALL be included in the QA report as `code_quality_baseline` alongside `performance_baseline` — informational data for the PO Review and Runner, NOT used to determine QA pass/fail
+
+#### Scenario: Critical code quality degradation flagged
+- **WHEN** code quality metrics show critical degradation:
+  - Cyclomatic complexity max >30 (any function)
+  - Code duplication >5% of codebase
+  - New static analysis warnings >10 in a single cycle
+  - Circular dependencies introduced
+  - Test coverage drops below 60%
+- **THEN** QA SHALL flag a `code_quality_warning` in the report. This does NOT fail QA (the product may still work) but the Runner SHALL treat it as a signal that the codebase is degrading and may need a refactoring cycle before further feature work
+
 #### Scenario: Performance data passed through
 - **WHEN** Lighthouse metrics are collected
 - **THEN** they SHALL be included in the QA report as `performance_baseline` — informational data for the PO Review phase, NOT used to determine QA pass/fail
@@ -110,6 +146,20 @@ The QA phase SHALL produce a structured report that determines whether the produ
     performance_baseline:
       pages_audited: N
       scores: [{ url, performance, accessibility, seo, lcp, tti }]
+
+    code_quality_baseline:
+      complexity_max: N
+      complexity_avg: N
+      duplication_percentage: N%
+      files_over_300_lines: N
+      new_warnings: N
+      dead_code_items: N
+      test_coverage_branch: N%
+      circular_dependencies: N
+      cross_layer_violations: N
+      architecture_diff: [{ added_dependency, removed_dependency, unintended }]
+      api_contract_changes: [{ endpoint, change_type, in_spec: bool }]
+      code_quality_warning: bool
 
     spec_completeness:
       total_criteria: N
