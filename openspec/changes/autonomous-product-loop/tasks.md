@@ -1,3 +1,30 @@
+## 0a. Prerequisite — Factory Skill Audit & Rewrites
+
+- [ ] 0a.1 Audit all existing AI Factory skills against Rouge requirements — for each skill, classify as: keep as-is, extend, rewrite, or create from scratch
+- [ ] 0a.2 Rewrite OpenSpec propose/design/specs prompts for production depth — replace "concise 1-2 pages" with "comprehensive, production-grade." Enforce acceptance criteria per journey step, edge cases, data models, interaction patterns
+- [ ] 0a.3 Rewrite brainstorming skill — add "depth mode" that doesn't YAGNI. Current skill actively fights depth; Rouge needs it to explore fully
+- [ ] 0a.4 Rewrite design mode prompts — produce structured artifacts parseable by the Evaluator (YAML/JSON vision docs, component mappings, PO-checkable outputs), not design prose
+- [ ] 0a.5 Adapt product taste for re-invocation within seeding swarm — currently one-shot gate, needs to be a discipline callable multiple times as other disciplines challenge it
+- [ ] 0a.6 Extend QA skill — add code quality baseline collection, architecture integrity checks, test integrity gate
+- [ ] 0a.7 Create PO Review skill from scratch — mechanical execution of instantiated check templates, journey/screen/interaction quality assessment, quality gap generation
+- [ ] 0a.8 Create Seeding Swarm orchestration skill from scratch — non-linear multi-discipline management, loop-back detection, convergence detection
+- [ ] 0a.9 Create Runner loop skill from scratch — 13-state machine, shared context management, Factory invocation, evaluation orchestration, delta tracking, rollback
+- [ ] 0a.10 Create Vision Check skill from scratch — periodic re-evaluation against vision document, scope expansion/contraction decisions
+- [ ] 0a.11 Create Evaluation Orchestrator skill from scratch — three-phase sequential execution (Test Integrity → QA → PO Review), routing failures correctly (bugs vs quality specs)
+- [ ] 0a.12 Verify all rewritten/new skills work individually before composing them into the loop
+
+## 0b. Prerequisite — Deployment Infrastructure Battle-Testing
+
+- [ ] 0b.1 Test new project deployment end-to-end — from empty repo to deployed staging + production for a web product. Document every manual step that should be automated
+- [ ] 0b.2 Automate Supabase project creation — if using Supabase, the Runner must be able to provision a new project, run migrations, and get a connection string without manual dashboard work
+- [ ] 0b.3 Automate Cloudflare Pages setup — if using Cloudflare, the Runner must be able to create a new Pages project, configure build settings, and get staging + production URLs without manual dashboard work
+- [ ] 0b.4 Automate local Docker deployment as fallback — if cloud provisioning fails or isn't configured, the Runner must be able to deploy to a local Docker environment for evaluation
+- [ ] 0b.5 Test staging → production promotion flow — verify the Runner can promote a staging deployment to production (DNS swap, CDN cache clear, or equivalent) without manual intervention
+- [ ] 0b.6 Test rollback flow — verify staging can be reverted to previous state without affecting production
+- [ ] 0b.7 Test Lighthouse against deployed staging — verify Lighthouse CI can run against the staging URL and return parseable results
+- [ ] 0b.8 Test browser QA against deployed staging — verify the QA skill can navigate a staging URL, interact with elements, and collect results
+- [ ] 0b.9 Document and fix every failure found during battle-testing — each manual step that should be automated becomes a task
+
 ## 1. Project Foundation & State Management
 
 - [ ] 1.1 Define and implement `state.json` schema — current_state, cycle_number, feature_areas (with status), current_feature_area, last_evaluation, change_specs_pending, vision_check_results, confidence_history, timestamp
