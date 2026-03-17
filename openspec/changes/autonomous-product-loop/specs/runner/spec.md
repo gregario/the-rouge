@@ -8,12 +8,14 @@ The Runner SHALL manage the full autonomous cycle as a state machine with define
 - **THEN** it SHALL transition through these states:
   1. `seeding` → Seeder is active, human is interacting. Exit: human approves seed.
   2. `building` → Factory is building a scoped brief. Exit: Factory reports build complete with deployment URL.
-  3. `evaluating` → Evaluator is assessing the built product. Exit: Evaluator produces composite quality report.
-  4. `analyzing` → Runner is processing the evaluation report, deciding next action. Exit: decision made (continue, deepen, broaden, or notify).
-  5. `generating-change-spec` → Runner is creating a change spec for identified gaps. Exit: change spec written.
-  6. `vision-checking` → Runner is comparing overall progress against the vision document. Exit: vision check passes or escalation triggered.
-  7. `waiting-for-human` → Notifier has sent a message, Runner is paused waiting for response. Exit: human responds.
-  8. `complete` → All feature areas meet the quality bar. Product is ready for human review.
+  3. `qa-gate` → QA phase running: checking if build matches spec. Exit: QA verdict PASS or FAIL.
+  4. `qa-fixing` → QA failed, Factory is fixing bugs against existing spec. Exit: Factory re-deploys, return to `qa-gate`.
+  5. `po-reviewing` → PO Review phase running: checking if spec-compliant product meets production quality bar. Exit: PO Review report with verdict and quality gaps.
+  6. `analyzing` → Runner is processing the PO Review report, deciding next action. Exit: decision made (continue, deepen, broaden, or notify).
+  7. `generating-change-spec` → Runner is creating NEW specs from quality gaps (not bug fixes — design+implementation changes). Exit: change specs written.
+  8. `vision-checking` → Runner is comparing overall progress against the vision document. Exit: vision check passes or escalation triggered.
+  9. `waiting-for-human` → Notifier has sent a message, Runner is paused waiting for response. Exit: human responds.
+  10. `complete` → All feature areas meet the quality bar. Product is ready for human review.
 
 #### Scenario: State transition persistence
 - **WHEN** the Runner transitions to a new state
@@ -22,7 +24,8 @@ The Runner SHALL manage the full autonomous cycle as a state machine with define
   - `cycle_number`: integer, incremented after each full build-evaluate loop
   - `feature_areas`: list of all feature areas with status (`pending`, `in-progress`, `complete`)
   - `current_feature_area`: which feature area is active (null for whole-product)
-  - `last_evaluation`: the most recent composite quality report
+  - `last_qa_report`: the most recent QA gate report
+  - `last_po_review`: the most recent PO Review report
   - `change_specs_pending`: list of change specs not yet sent to Factory
   - `vision_check_results`: array of past vision check outcomes
   - `confidence_history`: array of confidence scores from each cycle (for trend detection)
@@ -32,11 +35,12 @@ The Runner SHALL manage the full autonomous cycle as a state machine with define
 - **WHEN** a Runner session is interrupted at any state
 - **THEN** upon restart, the Runner SHALL:
   1. Read `state.json`
-  2. If state is `building`, check if Factory completed (look for deployment artifacts). If not, restart the build.
-  3. If state is `evaluating`, restart evaluation (evaluation is idempotent).
-  4. If state is `analyzing` or `generating-change-spec`, re-run analysis from the last evaluation report.
-  5. If state is `waiting-for-human`, check Slack for responses received while down.
-  6. Log: "Resumed from state: {state}, cycle: {N}"
+  2. If state is `building` or `qa-fixing`: check if Factory completed (look for deployment artifacts). If not, restart the build.
+  3. If state is `qa-gate`: restart QA (idempotent).
+  4. If state is `po-reviewing`: restart PO Review (idempotent).
+  5. If state is `analyzing` or `generating-change-spec`: re-run analysis from the last PO Review report.
+  6. If state is `waiting-for-human`: check Slack for responses received while down.
+  7. Log: "Resumed from state: {state}, cycle: {N}"
 
 ### Requirement: Runner decides cycle granularity during seeding
 The Runner SHALL determine whether to cycle through the product as a whole or by feature area, based on the seed spec structure.
@@ -56,8 +60,23 @@ The Runner SHALL determine whether to cycle through the product as a whole or by
   3. Cross-cutting: features that aggregate or span other features (dashboards, analytics, search) come last
   4. The order SHALL be presented to the human during seeding for approval/override
 
-### Requirement: Runner processes evaluation reports and decides next action
-The Runner SHALL read the Evaluator's composite quality report and decide the next action based on the recommended action and confidence trend.
+### Requirement: Runner manages the two-phase evaluation flow
+The Runner SHALL manage QA and PO Review as sequential phases. QA must pass before PO Review runs. QA failures produce bug fix briefs (same spec). PO Review failures produce new specs (quality improvements).
+
+#### Scenario: QA fail loop
+- **WHEN** QA verdict is FAIL
+- **THEN** the Runner SHALL transition to `qa-fixing`, send the QA failure report to the Factory as a bug fix brief (not a new spec — fix the code to match the existing spec), and upon Factory completion, return to `qa-gate` for re-testing
+
+#### Scenario: QA fix retry limit
+- **WHEN** QA has failed and been re-attempted 3 times on the same criteria
+- **THEN** the Runner SHALL escalate to human: "QA has failed 3 times on these criteria: {list}. The Factory cannot fix them. This may indicate a spec issue rather than an implementation bug."
+
+#### Scenario: QA pass advances to PO Review
+- **WHEN** QA verdict is PASS
+- **THEN** the Runner SHALL transition to `po-reviewing`, passing the QA report (including performance baseline and partial warnings) as context to the PO Review phase
+
+### Requirement: Runner processes PO Review reports and decides next action
+The Runner SHALL read the PO Review report and decide the next action based on the verdict, quality gaps, and confidence trend.
 
 #### Scenario: Continue to next feature area
 - **WHEN** recommended action is `continue` AND there are remaining feature areas
@@ -88,33 +107,40 @@ The Runner SHALL read the Evaluator's composite quality report and decide the ne
 - **WHEN** the same feature area has been through 5 deepen/broaden cycles without reaching `continue`
 - **THEN** the Runner SHALL escalate to human with: "Feature area {X} has been through 5 iteration cycles and still has {N} failing criteria. Here's what's been tried and what keeps failing. Socrates recommends: {recommendation}."
 
-### Requirement: Runner generates change specs from evaluation gaps
-The Runner SHALL translate evaluation gap reports into structured change specs that The Factory can implement.
+### Requirement: Runner generates new specs from PO Review quality gaps
+The Runner SHALL translate PO Review quality gaps into NEW change specs. These are NOT bug fixes — they are design and implementation changes that go through the Factory's full pipeline (design mode → implementation → QA → PO Review).
 
-#### Scenario: Change spec structure
-- **WHEN** a change spec is generated
+#### Scenario: Quality improvement spec structure
+- **WHEN** a new spec is generated from PO Review gaps
 - **THEN** it SHALL contain:
   - `target_feature_area`: which feature area this addresses
-  - `type`: `deepen` | `broaden` | `fix`
-  - `gaps`: list of evaluation failures driving this change, each with:
-    - `source`: which evaluation component found it (criteria, heuristic, product-sense, browser-qa)
+  - `type`: `deepen` | `broaden` (never `fix` — bug fixes come from QA, not PO Review)
+  - `requires_design_mode`: true (quality improvements always go through design mode, not straight to code)
+  - `gaps`: list of quality gaps from the PO Review driving this change, each with:
+    - `source`: which PO Review component found it (journey-quality, screen-quality, interaction-quality, heuristic, reference-comparison)
     - `description`: what's wrong in plain English
-    - `evidence`: screenshot URL or data from the evaluation
-    - `acceptance_criterion`: what "fixed" looks like, expressed as a testable assertion
-  - `library_context`: relevant heuristics and standards from The Library that apply
+    - `evidence`: screenshot or data from the PO Review
+    - `what_good_looks_like`: description or reference screenshot showing the target quality level
+    - `improvement_category`: design_change | interaction_improvement | content_change | flow_restructure | performance_improvement
+  - `library_context`: relevant heuristics and standards from The Library that define "good" for these gaps
   - `reference_comparison`: if pairwise comparison found gaps, include the specific dimensions and reference screenshots
-  - `scope_hint`: which screens, components, or files likely need changes (from the evaluation's DOM analysis)
+  - `affected_screens`: which screens need changes (from PO Review screen quality assessment)
+  - `affected_journeys`: which user journeys are impacted (from PO Review journey quality assessment)
 
-#### Scenario: Change spec prioritization
-- **WHEN** multiple gaps are identified in a single evaluation
-- **THEN** the change spec SHALL prioritize:
-  1. `missing-feature` gaps (criteria check: not implemented) — highest priority
-  2. `broken-interaction` gaps (criteria check: built but broken) — high priority
-  3. Major friction points from product sense check — high priority
-  4. Heuristic failures from global tier — medium priority
-  5. Heuristic failures from domain tier — medium priority
-  6. Heuristic failures from personal tier — lower priority
-  7. Non-functional failures — lowest priority (unless below critical threshold)
+#### Scenario: Quality improvement spec prioritization
+- **WHEN** multiple quality gaps are identified in a single PO Review
+- **THEN** the new specs SHALL prioritize:
+  1. Critical quality gaps (journey rated not-production-ready, screen rated failing) — highest priority
+  2. Flow restructure gaps (user journey efficiency, click count violations) — high priority
+  3. Design change gaps (information hierarchy, layout structure, density) — high priority
+  4. Interaction improvement gaps (missing feedback, raw interactions) — medium priority
+  5. Content change gaps (empty state guidance, error messages) — medium priority
+  6. Performance improvement gaps (non-functional heuristic failures) — lower priority (unless user-perceptible)
+  7. Personal fingerprint heuristic gaps — lowest priority (nice-to-have, not blocking)
+
+#### Scenario: Quality improvement specs go through full Factory pipeline
+- **WHEN** a quality improvement spec is sent to the Factory
+- **THEN** the Factory SHALL process it through: design mode (produce updated design for affected screens/interactions) → implementation (code the design) → QA (verify the new spec is met) → PO Review (verify the quality gap is actually closed). This is a full cycle, not a patch.
 
 ### Requirement: Runner performs periodic vision checks
 The Runner SHALL step back after each feature area completion and re-evaluate the product holistically against the original vision.
