@@ -51,6 +51,83 @@ The Library SHALL maintain global standards as concrete, testable heuristic entr
 - `no-console-errors`: Pages SHALL produce zero uncaught console errors during normal usage. Measurement: browser QA with console monitoring. Threshold: 0 errors.
 - `api-response-time`: API endpoints SHALL respond in <500ms for read operations and <1000ms for write operations. Measurement: automated API timing during user journey simulation. Threshold: p95 <500ms reads, <1000ms writes.
 
+### Requirement: Library stores PO Review check templates
+The Library SHALL maintain check templates — reusable given/when/then quality checks that get instantiated per product during seeding. Check templates define HOW to mechanically evaluate a quality dimension, independent of any specific product. The Seeder combines these templates with product context to generate product-specific PO checks.
+
+Heuristics define WHAT to check at the screen level ("does this screen have information hierarchy?"). Check templates define HOW to check at the journey-step level ("for this specific interaction, is the feedback timely, is the transition animated, is the next action clear?").
+
+#### Scenario: Check template structure
+- **WHEN** a check template is stored in The Library
+- **THEN** it SHALL contain:
+  - `id`: unique identifier (e.g., `template.feedback.visual-response-time`)
+  - `dimension`: which quality dimension this checks (`clarity` | `feedback` | `efficiency` | `delight` | `hierarchy` | `density` | `consistency` | `transitions`)
+  - `applies_to`: what this template checks (`journey-step` | `screen` | `interaction`)
+  - `given`: precondition (parameterized, e.g., "GIVEN the user has performed {action} on {element}")
+  - `when`: trigger (parameterized, e.g., "WHEN {action} is executed")
+  - `then`: expected outcome with measurement (e.g., "THEN within {threshold}ms there SHALL be a visual change on {element} or its container")
+  - `measurement_method`: how to verify — `screenshot-diff` | `dom-query` | `timing-capture` | `viewport-analysis` | `style-extraction` | `llm-vision`
+  - `default_threshold`: the default pass/fail value (overridable per product)
+  - `parameters`: list of placeholders that the Seeder fills in per product (e.g., `{action}`, `{element}`, `{threshold}`)
+
+#### Scenario: Day-one seed check templates — Feedback dimension
+- **WHEN** The Library is initialized
+- **THEN** it SHALL contain these feedback check templates:
+
+  **Visual response time:**
+  - `template.feedback.visual-response`: GIVEN the user clicks {element}. WHEN the click occurs. THEN within 200ms there SHALL be a visual change (highlight, color shift, spinner, ripple) on the element or its immediate container. Measurement: capture timestamp of click event, capture screenshot at +200ms, diff against pre-click screenshot. Pass: diff detected within element bounds. Fail: no diff.
+
+  **Loading indicator:**
+  - `template.feedback.loading-indicator`: GIVEN the user performs {action} that triggers a server request. WHEN the request takes >500ms. THEN a loading indicator SHALL be visible (spinner, skeleton, progress bar) within the {target_area}. Measurement: intercept network request, if response >500ms, capture screenshot at 600ms, verify loading element in DOM. Pass: loading element visible. Fail: static screen or no indicator.
+
+  **Success confirmation:**
+  - `template.feedback.success-confirmation`: GIVEN the user completes {action} (form submit, save, delete). WHEN the action succeeds. THEN there SHALL be a visible success indicator (toast, inline message, state change, redirect to success screen) within 1 second. Measurement: capture screenshot at +1s after action, verify new element or state change. Pass: confirmation visible. Fail: no visible change or generic/ambiguous response.
+
+  **Error feedback:**
+  - `template.feedback.error-specificity`: GIVEN the user performs {action} that fails. WHEN the error occurs. THEN the error message SHALL be specific to what went wrong (not "Something went wrong" but "Email already registered" or "File too large — max 5MB"). Measurement: trigger error, extract error message text, LLM judgment on specificity. Pass: message names the specific issue. Fail: generic or vague message.
+
+#### Scenario: Day-one seed check templates — Clarity dimension
+- **WHEN** The Library is initialized
+- **THEN** it SHALL contain these clarity check templates:
+
+  **Next action obvious:**
+  - `template.clarity.next-action`: GIVEN the user is on {screen} at step {N} of {journey}. WHEN they look for the next action. THEN there SHALL be ≤2 visually prominent interactive elements competing for attention (the intended next action should be dominant). Measurement: screenshot the viewport, identify all interactive elements, measure visual prominence (size × contrast × position). Pass: the intended next action is the most or second-most prominent element. Fail: intended action is visually equal to 3+ alternatives or not visible.
+
+  **Label descriptiveness:**
+  - `template.clarity.label-quality`: GIVEN an interactive element on {screen}. WHEN the label is read. THEN it SHALL describe the outcome, not the mechanism (e.g., "Save Trip" not "Submit", "View on Map" not "Click Here"). Measurement: extract all button/link text on screen, LLM judgment per label — is it action-outcome descriptive? Pass: ≥90% of labels are descriptive. Fail: <90%.
+
+  **Visual affordance:**
+  - `template.clarity.affordance`: GIVEN a clickable element on {screen}. WHEN a user sees it. THEN it SHALL look interactive (styled as a button, link, or card with hover cursor). Measurement: for each clickable element, check computed styles — does it have button styling, underline, or pointer cursor? Pass: 100% of interactive elements have visual affordance. Fail: any interactive element styled as plain text/div without interaction cues.
+
+#### Scenario: Day-one seed check templates — Efficiency dimension
+- **WHEN** The Library is initialized
+- **THEN** it SHALL contain these efficiency check templates:
+
+  **Step necessity:**
+  - `template.efficiency.step-necessity`: GIVEN step {N} in {journey}. WHEN the step's purpose is analyzed. THEN the step SHALL serve a purpose that cannot be merged with the previous or next step. Measurement: LLM judgment — "Could this step be eliminated or combined with an adjacent step without losing functionality?" Pass: step is necessary. Fail: step could be eliminated or merged.
+
+  **Redundant confirmation:**
+  - `template.efficiency.no-redundant-confirm`: GIVEN a non-destructive action in {journey}. WHEN the action is triggered. THEN there SHALL NOT be a "are you sure?" confirmation dialog. Measurement: perform action, check for confirmation modal/dialog. Pass: no confirmation for non-destructive actions. Fail: unnecessary confirmation dialog appears. (Note: destructive actions like delete SHOULD have confirmation — this template only applies to non-destructive actions.)
+
+#### Scenario: Day-one seed check templates — Transitions dimension
+- **WHEN** The Library is initialized
+- **THEN** it SHALL contain these transition check templates:
+
+  **Screen transition animation:**
+  - `template.transitions.screen-change`: GIVEN the user navigates from {screen_a} to {screen_b}. WHEN the navigation occurs. THEN there SHALL be an animated transition (not an instant content swap). Measurement: capture 3 screenshots over 300ms during transition (0ms, 150ms, 300ms). Pass: frame at 150ms is visually different from both start and end frames (intermediate state exists). Fail: frame at 150ms matches the end frame (instant swap).
+
+  **State transition animation:**
+  - `template.transitions.state-change`: GIVEN a state change occurs on {screen} (loading→populated, action→result, expand→collapse). WHEN the state changes. THEN the transition SHALL be animated. Measurement: same 3-frame capture method. Pass: intermediate frame detected. Fail: instant swap.
+
+#### Scenario: Day-one seed check templates — Delight dimension
+- **WHEN** The Library is initialized
+- **THEN** it SHALL contain these delight check templates:
+
+  **Contextual copy:**
+  - `template.delight.contextual-copy`: GIVEN a success/empty/error state on {screen}. WHEN the state message is displayed. THEN it SHALL be contextual to what the user just did (e.g., "Trip saved — 127km logged" not "Success"). Measurement: extract state message text, LLM judgment — is it contextual and specific? Pass: message references the user's action or data. Fail: generic message.
+
+  **Microinteraction presence:**
+  - `template.delight.microinteraction`: GIVEN an interactive element on {screen} in a core journey. WHEN the user interacts with it. THEN there SHALL be a microinteraction beyond basic state change (e.g., button ripple, icon animation, counter increment animation, card expand animation). Measurement: capture interaction as 5 frames over 500ms, identify animation frames. Pass: animation detected beyond simple opacity/display toggle. Fail: only basic toggle or no animation.
+
 ### Requirement: Library stores domain-specific taste as domain heuristic sets
 The Library SHALL maintain separate heuristic sets for each product domain. Domain heuristics use the same entry structure as global heuristics but are scoped to their domain and only applied when evaluating products of that domain type.
 

@@ -149,73 +149,102 @@ PO Review failures generate NEW SPECS — not bug fixes. "The information hierar
 
 ---
 
-### Requirement: PO Review evaluates each user journey for production quality
-The PO Review SHALL simulate each user journey NOT to check if it completes (QA did that) but to assess whether the experience is production-quality.
+### Requirement: PO Review executes instantiated journey checks mechanically
+The PO Review SHALL NOT "assess" journey quality via open-ended judgment. It SHALL execute the product-specific PO checks that the Seeder generated from Library check templates. Each check is a given/when/then with a measurement method and pass/fail threshold — same mechanical execution as QA, just checking quality instead of correctness.
 
-#### Scenario: Journey quality assessment procedure
+#### Scenario: Journey check execution procedure
 - **WHEN** PO Review evaluates a user journey
-- **THEN** for each journey that passed QA, it SHALL:
-  1. Start at the journey's entry point
-  2. Walk through the journey as a first-time user would (LLM-driven, not scripted)
-  3. At EACH STEP, assess against quality dimensions:
-     - **Clarity**: Is it obvious what to do next? Would a first-time user hesitate?
-     - **Feedback**: Did the product acknowledge my action? Was there visual/animated feedback?
-     - **Efficiency**: Could this step be eliminated or combined with another? Does it respect the 3-click rule?
-     - **Delight**: Does anything about this step feel surprisingly good? Or does it feel utilitarian/boring?
-  4. At JOURNEY END, assess:
-     - **Completeness**: Did the journey feel finished? Was there a clear success state?
-     - **Satisfaction**: Would a user feel accomplished? Or confused about what just happened?
-  5. Produce per-journey quality report with step-by-step assessment and overall verdict: `production-ready`, `acceptable-with-improvements`, `not-production-ready`
+- **THEN** for each journey step that passed QA, it SHALL:
+  1. Load the instantiated PO checks for this step from the seed spec's `po_checks.journey_checks` section
+  2. Navigate to the step's screen
+  3. Execute EACH check mechanically:
+     - Read the check's `given` (precondition), `when` (trigger), `then` (expected outcome)
+     - Perform the trigger action
+     - Execute the measurement method (screenshot-diff, timing-capture, DOM query, LLM vision, etc.)
+     - Compare result against threshold
+     - Record: check ID, template source, pass/fail, measured value, threshold, evidence (screenshot or data)
+  4. After all checks for this step: compute step quality from check results
+  5. After all steps: compute journey quality from step results
 
-#### Scenario: Journey quality dimensions scored
-- **WHEN** each journey step is assessed
-- **THEN** it SHALL receive per-dimension ratings:
-  - `clarity`: clear | ambiguous | confusing
-  - `feedback`: satisfying | adequate | missing
-  - `efficiency`: optimal | acceptable | wasteful
-  - `delight`: delightful | neutral | frustrating
-  And the step gets an overall: `strong` (no dimension below adequate) | `weak` (one dimension below adequate) | `failing` (multiple dimensions below adequate)
+#### Scenario: Step quality derived from check results
+- **WHEN** all checks for a journey step have been executed
+- **THEN** the step's per-dimension quality SHALL be derived from the check results:
+  - `clarity`: derived from clarity template checks (next-action, label-quality, affordance). All pass = `clear`. Any fail = `ambiguous`. Multiple fail = `confusing`.
+  - `feedback`: derived from feedback template checks (visual-response, loading-indicator, success-confirmation, error-specificity). All pass = `satisfying`. Any fail = `adequate`. Multiple fail = `missing`.
+  - `efficiency`: derived from efficiency template checks (step-necessity, no-redundant-confirm). All pass = `optimal`. Any fail = `acceptable`. Multiple fail = `wasteful`.
+  - `delight`: derived from delight template checks (contextual-copy, microinteraction). All pass = `delightful`. Any fail = `neutral`. Multiple fail = `frustrating`.
+  - Step overall: `strong` (no dimension below adequate) | `weak` (one dimension below adequate) | `failing` (multiple dimensions below adequate)
 
-#### Scenario: Weak steps generate quality gaps
-- **WHEN** a journey step is rated `weak` or `failing`
-- **THEN** the PO Review SHALL generate a quality gap entry: which journey, which step, which dimensions failed, what "good" would look like for this step (referencing Library heuristics and reference products), and suggested improvement category (design change, interaction improvement, content change, flow restructure)
+#### Scenario: Journey verdict derived from step results
+- **WHEN** all steps in a journey have been evaluated
+- **THEN** the journey verdict SHALL be:
+  - `production-ready`: no step rated `failing`, at most 1 step rated `weak`
+  - `acceptable-with-improvements`: no step rated `failing`
+  - `not-production-ready`: any step rated `failing`
 
-### Requirement: PO Review evaluates each screen for production quality
-The PO Review SHALL assess every screen visited during journey evaluation for design and information quality — independent of whether the journeys on that screen passed.
+#### Scenario: Failed checks generate quality gaps with full context
+- **WHEN** a PO check fails
+- **THEN** the PO Review SHALL generate a quality gap entry containing:
+  - Which journey, which step, which check failed
+  - The check's template source (so the gap references a Library-defined standard)
+  - What was measured and what the threshold was
+  - Evidence (screenshot, timing data, DOM snapshot)
+  - What "good" looks like: the template's description of the expected outcome
+  - Improvement category: derived from the check's dimension (feedback checks → interaction_improvement, clarity checks → design_change, efficiency checks → flow_restructure, delight checks → interaction_improvement)
 
-#### Scenario: Screen quality assessment procedure
+### Requirement: PO Review executes instantiated screen checks mechanically
+The PO Review SHALL execute the product-specific screen checks that the Seeder generated, plus the Library's screen-level heuristics. Each screen check has a measurement and threshold — no open-ended assessment.
+
+#### Scenario: Screen check execution procedure
 - **WHEN** PO Review evaluates a screen
-- **THEN** it SHALL capture a full-page screenshot and assess:
-  1. **Information hierarchy**: Is there a clear primary element? Distinct secondary? Tertiary? Or is everything the same visual weight? (References Library heuristic `hierarchy-primary` and `hierarchy-levels`)
-  2. **Layout structure**: Does the layout have intentional structure (grid, clear sections, logical grouping)? Or is it a flat list of elements?
-  3. **Visual consistency**: Does this screen match the design system? Same fonts, colors, spacing as other screens?
-  4. **Density appropriateness**: Is the information density right for the screen's purpose? (Dashboard = high density. Onboarding = low density. Settings = medium density.)
-  5. **Empty/edge states**: If testable, trigger empty and error states — do they have guidance, or are they blank/generic?
-  6. **Mobile readiness**: Resize to 375px — does it degrade gracefully or break?
+- **THEN** it SHALL:
+  1. Load the instantiated screen checks from the seed spec's `po_checks.screen_checks` section for this screen
+  2. Navigate to the screen URL
+  3. Execute each product-specific screen check:
+     - **Hierarchy check**: The seed spec defines what the primary element on this screen should be (e.g., "total fleet mileage"). Measure: find that element in DOM, calculate its visual prominence score (font-size × weight × position), compare against all other elements. Pass: named primary element is the most visually prominent. Fail: another element is more prominent or elements are equal weight.
+     - **Density check**: The seed spec defines the expected density and minimum datapoints above fold. Measure: count distinct data-bearing elements in the above-fold viewport. Pass: count ≥ specified minimum. Fail: count below minimum.
+  4. Execute Library heuristics applicable to screens:
+     - `hierarchy-primary`: primary score ≥1.5x secondary (generic, applied to all screens)
+     - `hierarchy-levels`: 3 visual weight tiers present
+     - `visual-consistency`: compare computed styles against other screenshotted screens
+     - `mobile-responsive`: render at 375px, check for overflow/overlap
+     - `empty-state-guidance`: trigger empty state, verify CTA exists
+     - `five-state-coverage`: trigger each state, verify distinct renders
+  5. Each check: record pass/fail, measurement, threshold, evidence
 
-#### Scenario: Screen quality scored
-- **WHEN** screen assessment completes
-- **THEN** each screen SHALL receive:
-  - Per-dimension verdict: `production-ready` | `needs-work` | `failing`
-  - An overall screen quality: `production-ready` (no dimension failing, at most 1 needs-work) | `acceptable` (no dimension failing) | `not-production-ready` (any dimension failing)
-  - For `needs-work` and `failing` dimensions: specific observation and reference to what "good" looks like (Library heuristic or reference product screenshot)
+#### Scenario: Screen quality derived from check results
+- **WHEN** all checks for a screen have been executed
+- **THEN** the screen SHALL receive per-dimension verdicts derived from check results:
+  - `hierarchy`: from hierarchy checks. All pass = `production-ready`. Any fail = `needs-work`. Primary element wrong = `failing`.
+  - `layout`: from density checks + LLM vision "does this have intentional structure?" All pass = `production-ready`. Fail = `needs-work` or `failing`.
+  - `consistency`: from visual-consistency heuristic. Pass = `production-ready`. Fail = `needs-work`.
+  - `density`: from product-specific density check. Pass = `production-ready`. Fail = `needs-work`.
+  - `edge_states`: from five-state-coverage + empty-state-guidance. All pass = `production-ready`. Any fail = `needs-work`. Critical state missing = `failing`.
+  - `mobile`: from mobile-responsive heuristic. Pass = `production-ready`. Fail = `needs-work` (minor issues) or `failing` (unusable).
+  - Overall: `production-ready` (no failing, ≤1 needs-work) | `acceptable` (no failing) | `not-production-ready` (any failing)
 
-### Requirement: PO Review evaluates interactions for production quality
-The PO Review SHALL assess the quality of individual interactions — not whether they work (QA) but whether they feel professional.
+### Requirement: PO Review executes instantiated interaction checks mechanically
+The PO Review SHALL execute the product-specific interaction checks from the seed spec, plus the Library's interaction-level heuristics. Each check has a measurement — no subjective assessment.
 
-#### Scenario: Interaction quality assessment
-- **WHEN** PO Review encounters an interactive element during journey or screen evaluation
-- **THEN** it SHALL assess:
-  1. **Hover state**: Does the element change on hover? Does the cursor change? Is the hover state visually distinct?
-  2. **Click feedback**: Is there immediate visual feedback on click (ripple, color change, animation)? Or does the element just... do something eventually?
-  3. **Loading states**: If the action triggers loading, is there an indicator (spinner, skeleton, progress bar)? Or does the UI freeze?
-  4. **Success states**: After the action completes, is there clear confirmation? Or does the user wonder if it worked?
-  5. **Transition animations**: Are transitions between states smooth? Abrupt? Non-existent?
+#### Scenario: Interaction check execution procedure
+- **WHEN** PO Review evaluates an interaction defined in `po_checks.interaction_checks`
+- **THEN** it SHALL:
+  1. Navigate to the element's screen
+  2. Execute checks based on the interaction type:
+     - **All interactions**: run `template.feedback.visual-response` (hover state + click feedback). Measure: simulate hover, screenshot-diff for style change. Simulate click, screenshot-diff at +200ms.
+     - **Form submits**: run `template.feedback.success-confirmation` (contextual success message). Measure: submit form, capture confirmation text, LLM judgment on contextuality.
+     - **Destructive actions**: verify confirmation dialog exists before execution.
+     - **Data loading actions**: run `template.feedback.loading-indicator` (spinner/skeleton during load).
+     - **State transitions**: run `template.transitions.state-change` (animated transition, not instant swap).
+  3. Each check: record pass/fail, measurement, threshold, evidence
 
-#### Scenario: Interaction patterns rated
-- **WHEN** interaction assessment completes
-- **THEN** each interaction SHALL be rated: `polished` (all dimensions good) | `functional` (works but lacks polish) | `raw` (minimal or no feedback)
-- **AND** `raw` interactions SHALL generate quality gaps with reference to Library heuristic `interactive-feedback` and `animation-state-transitions`
+#### Scenario: Interaction quality derived from check results
+- **WHEN** all checks for an interaction have been executed
+- **THEN** the interaction SHALL be rated:
+  - `polished`: all checks pass (hover responds, click gives feedback, loading shows indicator, success confirms contextually, transitions are animated)
+  - `functional`: ≥50% of checks pass (it works but lacks polish)
+  - `raw`: <50% of checks pass (minimal or no quality signals)
+- **AND** `raw` interactions SHALL generate quality gaps with the specific failing checks, their evidence, and what the template defines as "good"
 
 ### Requirement: PO Review applies Library taste heuristics
 The PO Review SHALL apply every active Library heuristic (global + domain + personal fingerprint) as quality checks. These are the "is it good enough?" checks that sit above QA's "does it work?" checks.

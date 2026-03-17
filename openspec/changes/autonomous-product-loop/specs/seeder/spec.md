@@ -100,6 +100,78 @@ The product standard layers project-specific quality criteria on top of The Libr
 - **WHEN** the product standard is generated
 - **THEN** it SHALL be presented to the human as part of the seed approval, with: total heuristic count (global + domain + project-specific), any overrides highlighted, and the definition of done
 
+### Requirement: Seeder generates product-specific PO checks from Library check templates
+The Seeder SHALL instantiate The Library's check templates into concrete, product-specific PO checks for every user journey step, screen, and key interaction. These instantiated checks are what the PO Review agent mechanically executes — no hand-waving, no "assess."
+
+#### Scenario: Check instantiation for a journey step
+- **WHEN** a user journey step is defined (e.g., "click trip row to view on map")
+- **THEN** the Seeder SHALL generate PO checks by filling in template parameters:
+  - From `template.feedback.visual-response`: GIVEN the user clicks the trip row. WHEN the click occurs. THEN within 200ms there SHALL be a visual change on the row (highlight, expansion, or loading indicator). Measurement: screenshot diff at +200ms. Pass: diff detected on row element.
+  - From `template.feedback.loading-indicator`: GIVEN the user clicks a trip row that loads map data. WHEN the request takes >500ms. THEN a loading indicator SHALL be visible in the map area. Measurement: intercept request, screenshot at 600ms. Pass: spinner/skeleton in map container.
+  - From `template.clarity.next-action`: GIVEN the user is on the trip detail/map screen. WHEN they want to return to the list. THEN there SHALL be ≤2 prominent interactive elements competing (back button or breadcrumb should dominate). Measurement: visual prominence analysis. Pass: return action is most prominent interactive element.
+  - From `template.transitions.screen-change`: GIVEN navigation from trip list to trip detail. WHEN navigation occurs. THEN animated transition (not instant swap). Measurement: 3-frame capture. Pass: intermediate frame detected.
+  - From `template.delight.contextual-copy`: GIVEN the trip detail screen loads. WHEN trip data is displayed. THEN the header SHALL include contextual info (e.g., "Trip to Edinburgh — March 15" not "Trip Detail"). Measurement: extract heading text, LLM judgment on contextuality. Pass: heading references trip-specific data.
+
+#### Scenario: Check instantiation for a screen
+- **WHEN** a screen is identified in the product (e.g., "dashboard")
+- **THEN** the Seeder SHALL generate PO checks from screen-level templates:
+  - From screen hierarchy heuristics: what is the primary element on this specific screen? (e.g., "the total fleet mileage metric should be the primary element on the dashboard")
+  - From screen density heuristics: what density is appropriate for this screen? (e.g., "dashboard = high density, display ≥5 data points above fold")
+  - From screen consistency heuristics: what design system elements should be present?
+  - Each check has the template's measurement method and threshold, now parameterized with this screen's specific elements
+
+#### Scenario: Check instantiation for interactions
+- **WHEN** a key interaction is identified (e.g., "save trip form", "delete vehicle button")
+- **THEN** the Seeder SHALL generate PO checks:
+  - Feedback checks parameterized for this specific element
+  - For destructive actions (delete): verify confirmation dialog exists
+  - For forms: verify inline validation, success confirmation with contextual message
+  - For data loading: verify skeleton/spinner appears during load
+
+#### Scenario: Generated checks stored in the seed
+- **WHEN** all PO checks have been generated
+- **THEN** they SHALL be stored in the seed spec as a `po_checks` section alongside the acceptance criteria:
+  ```
+  feature_areas:
+    - name: trip-history
+      acceptance_criteria:   # ← QA uses these (does it work?)
+        - "User can see list of trips"
+        - "User can click trip to view on map"
+      po_checks:             # ← PO Review uses these (is it good?)
+        journey_checks:
+          - journey: "view past trip on map"
+            step: "click trip row"
+            checks:
+              - template: feedback.visual-response
+                element: "trip row"
+                threshold_ms: 200
+              - template: transitions.screen-change
+                from: "trip list"
+                to: "trip detail"
+              - template: clarity.next-action
+                screen: "trip detail"
+                intended_action: "return to trip list"
+        screen_checks:
+          - screen: "/dashboard"
+            primary_element: "total fleet mileage"
+            density: "high"
+            min_datapoints_above_fold: 5
+          - screen: "/trips"
+            primary_element: "trip list table"
+            density: "medium"
+        interaction_checks:
+          - element: "save trip form"
+            type: "form-submit"
+            success_message_context: "trip name and distance"
+          - element: "delete vehicle button"
+            type: "destructive"
+            requires_confirmation: true
+  ```
+
+#### Scenario: Check count presented at seed approval
+- **WHEN** the seed is presented for human approval
+- **THEN** the summary SHALL include: total QA criteria count AND total PO check count, so the human can see the depth of quality evaluation. Example: "47 acceptance criteria (QA) + 128 PO quality checks across 12 journeys, 8 screens, and 23 key interactions."
+
 ### Requirement: Seeder produces a seed spec with depth proportional to product complexity
 The seed spec SHALL be comprehensive enough that the Factory can build feature areas without coming back to ask questions, but not so prescriptive that it constrains implementation approach.
 

@@ -24,9 +24,20 @@
 - [ ] 3.4 Seed web domain heuristics: nav-persistent (nav visible on every route), above-fold-value (primary element ≥50% visible at 1440×900), form-validation-inline (100% inline), breadcrumb-depth (breadcrumbs at ≥3 levels deep)
 - [ ] 3.5 Verify all seeded heuristics have valid measurement methods and thresholds by running them against a known-good reference product (Stripe dashboard or similar)
 
-## 4. The Library — Personal Taste Fingerprint
+## 4. The Library — PO Check Templates
 
-- [ ] 4.1 Implement fingerprint entry schema — id, preference (plain English), evidence (list of {date, source_quote}), strength (0.0-1.0), last_expressed (date), contradictions (list), applies_to (all | web | game | artifact)
+- [ ] 4.1 Implement check template schema — id, dimension, applies_to, given (parameterized), when (parameterized), then (with measurement), measurement_method, default_threshold, parameters list
+- [ ] 4.2 Seed feedback dimension templates: visual-response (200ms screenshot-diff), loading-indicator (500ms threshold, intercept network), success-confirmation (1s contextual check), error-specificity (LLM judgment on message specificity)
+- [ ] 4.3 Seed clarity dimension templates: next-action (≤2 competing elements via visual prominence analysis), label-quality (≥90% descriptive labels via LLM judgment), affordance (100% interactive elements have visual cues)
+- [ ] 4.4 Seed efficiency dimension templates: step-necessity (LLM judgment on step eliminability), no-redundant-confirm (no confirmation dialogs for non-destructive actions)
+- [ ] 4.5 Seed transitions dimension templates: screen-change (3-frame capture, intermediate state detected), state-change (same 3-frame method for in-page state changes)
+- [ ] 4.6 Seed delight dimension templates: contextual-copy (LLM judgment on message contextuality), microinteraction (5-frame capture detecting animation beyond basic toggle)
+- [ ] 4.7 Implement template instantiation engine — given a template and product-specific parameters, produce a concrete given/when/then check with filled-in values
+- [ ] 4.8 Test each seeded template against a known product — verify measurement methods work and thresholds are sensible
+
+## 5. The Library — Personal Taste Fingerprint
+
+- [ ] 5.1 Implement fingerprint entry schema — id, preference (plain English), evidence (list of {date, source_quote}), strength (0.0-1.0), last_expressed (date), contradictions (list), applies_to (all | web | game | artifact)
 - [ ] 4.2 Implement pattern detection — after 3+ feedback instances on the same dimension, auto-create fingerprint entry with strength ≥0.7 and flag in next briefing
 - [ ] 4.3 Implement strength calculation — 0.3 for single mention, 0.5 for 2 mentions, 0.7 for 3+, 1.0 for 5+ with no contradictions; contradictions reduce strength by 0.2 each
 - [ ] 4.4 Implement decay — preferences not reinforced in 6+ months decay 0.1/month to floor of 0.2
@@ -97,7 +108,10 @@
 - [ ] 11.4 Implement vision document generator — produce structured vision document from swarm outputs matching the defined schema
 - [ ] 11.5 Implement product standard generator — inherit global + domain from Library, add project overrides and additions, generate definition of done
 - [ ] 11.6 Implement seed spec generator — produce feature areas with user journeys (step-by-step), acceptance criteria, data model sketch, interaction patterns, edge cases, explicit scope boundaries
-- [ ] 11.7 Implement seed approval flow — present summary (feature area count, criteria count, journey count, heuristic count, definition of done, estimated cycles), handle approval/revision
+- [ ] 11.7 Implement PO check generation — for each journey step, instantiate Library check templates with product-specific parameters (element names, screen URLs, expected primary elements, density levels). Store as `po_checks` in seed spec
+- [ ] 11.8 Implement screen check generation — for each screen, define primary element, expected density, and instantiate screen-level templates
+- [ ] 11.9 Implement interaction check generation — for each key interaction, determine type (form, destructive, data-loading, navigation) and instantiate appropriate templates
+- [ ] 11.10 Implement seed approval flow — present summary (feature area count, QA criteria count, PO check count, journey count, screen count, interaction count, heuristic count, definition of done, estimated cycles), handle approval/revision
 
 ## 12. The Runner — Core Loop Engine
 
