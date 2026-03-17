@@ -51,7 +51,22 @@
 - [ ] 5.4 Implement feedback-to-heuristic conversion — translate classified feedback into Library entry format (derive id, rule, measurement, threshold from the feedback text)
 - [ ] 5.5 Test classifier against 20+ example feedback statements covering all classification types, verify ≥85% accuracy
 
-## 6. QA Gate — Spec Verification (Phase 1)
+## 6. Test Integrity Gate (Phase 0)
+
+- [ ] 6.1 Implement test-to-spec traceability — every test must have a `criterion_id` or `po_check_id` annotation mapping it to the current spec
+- [ ] 6.2 Implement spec parser for integrity check — extract all acceptance criteria IDs from active spec, extract all PO check IDs from PO check set
+- [ ] 6.3 Implement test suite scanner — scan test files for criterion/check ID annotations, build mapping of test → spec criterion
+- [ ] 6.4 Implement coverage gap detection — identify spec criteria and PO checks with no matching test
+- [ ] 6.5 Implement orphaned test detection — identify tests mapping to criteria no longer in the active spec
+- [ ] 6.6 Implement stale test detection — for each covered criterion, compare criterion text hash against the hash stored when the test was last generated. Changed hash = stale test
+- [ ] 6.7 Implement test generation for coverage gaps — given a spec criterion (text + verification method), generate a test with proper criterion_id annotation
+- [ ] 6.8 Implement test regeneration for stale tests — regenerate from updated criterion text (not patch existing), replace old test, update hash
+- [ ] 6.9 Implement orphaned test removal — exclude from QA run, mark for removal in next commit
+- [ ] 6.10 Implement integrity report — spec_coverage %, po_check_coverage %, orphaned count, stale regenerated count, newly generated count
+- [ ] 6.11 Implement coverage threshold — block QA if spec coverage < 100%. Generate missing tests first, then proceed
+- [ ] 6.12 Test integrity gate against a test suite with intentional gaps, stale tests, and orphans — verify all three are detected and handled
+
+## 7. QA Gate — Spec Verification (Phase 1)
 
 - [ ] 6.1 Implement spec criteria extractor — parse acceptance_criteria from the active spec (seed spec or change spec for this cycle) into a testable checklist. Each item: ID, criterion text, target screen/URL, verification method
 - [ ] 6.2 Implement browser-based criteria testing — for each criterion, determine approach (DOM query, interaction simulation, screenshot + LLM vision), execute, record binary pass/fail with evidence
@@ -134,49 +149,83 @@
 - [ ] 12.10 Implement code quality degradation response — when QA flags code_quality_warning, Runner SHALL assess: continue with feature work (if degradation is minor) or trigger a refactoring cycle before continuing (if degradation threatens future velocity). Refactoring cycle: Factory receives a refactoring brief (reduce complexity, eliminate duplication, fix architecture violations) with no new features — purely structural improvement
 - [ ] 12.11 Implement retry limit — after 5 PO Review cycles on same feature area without reaching PRODUCTION_READY, escalate to human with summary of attempts and recurring gaps
 
-## 13. The Runner — Vision Checking & Confidence
+## 13. The Runner — Git, PRs & Loop Tracking
 
-- [ ] 13.1 Implement vision check — re-read vision document, review all completed work, LLM judgment on alignment, produce vision check report (alignment, gaps, scope recommendations, confidence)
-- [ ] 13.2 Implement autonomous scope expansion — when vision check reveals needed capability not in original vision, add to feature queue if confidence >80%, flag in briefing if 70-80%, escalate if <70%
-- [ ] 13.3 Implement pivot detection — when vision check reveals fundamental premise issues, compile evidence and notify human with structured pivot proposal
-- [ ] 13.4 Implement confidence trend tracking — record confidence after each cycle, detect 3-cycle declining trends and 5-cycle plateaus, flag in briefing
-- [ ] 13.5 Implement feature area ordering — dependency analysis, foundation first, cross-cutting last, present order to human during seeding for approval
+- [ ] 13.1 Implement branch-per-loop — create `rouge/loop-{N}-{feature-area}` branch from production branch at start of each cycle
+- [ ] 13.2 Implement PR-per-loop — create PR with structured description: what was built, evaluation results, delta, quality gaps, Factory decisions, vision alignment
+- [ ] 13.3 Implement PR merge on promotion — when loop is promoted to production, merge the PR
+- [ ] 13.4 Implement PR close on rollback — when loop is rolled back, close PR without merging, add rollback explanation comment
+- [ ] 13.5 Implement evaluation delta calculation — compare current PO Review against previous: confidence_delta, journey_delta, screen_delta, heuristic_delta, overall_delta (improving/stable/regressing)
+- [ ] 13.6 Implement regression detection — if overall_delta is regressing for 2 consecutive loops, flag for rollback consideration
+- [ ] 13.7 Implement plateau detection from delta — stable (±2%) for 3+ loops triggers plateau flag
 
-## 14. The Runner — Meta-Loop
+## 14. The Runner — Staging, Production & Rollback
 
-- [ ] 14.1 Implement cross-product pattern detection — after 3+ products, aggregate evaluation reports, identify heuristics that fail across multiple products
-- [ ] 14.2 Implement factory-level vs product-level classification — determine whether recurring failures are addressable at the Factory level (stacks, skills, templates) or product level
-- [ ] 14.3 Implement Factory improvement spec generation — create change specs targeting AI-Factory for recurring factory-level issues
-- [ ] 14.4 Implement meta-analysis trigger — run after every 5 completed products
+- [ ] 14.1 Implement dual environment management — track staging_url and production_url per project in cycle_context.json
+- [ ] 14.2 Implement Factory-to-staging deployment — Factory always deploys to staging, never to production directly
+- [ ] 14.3 Implement staging-to-production promotion — on evaluation pass (QA + PO Review PRODUCTION_READY or NEEDS_IMPROVEMENT with confidence ≥0.8), merge PR and promote staging to production
+- [ ] 14.4 Implement rollback — close PR without merging, revert staging to previous production state, production unaffected
+- [ ] 14.5 Implement rollback learning preservation — failed loop's evaluation, Factory decisions, and root cause analysis preserved in shared context. Only code reverted, knowledge kept
+- [ ] 14.6 Implement rollback-informed next loop — next loop's shared context includes: what was tried, why it failed, "try a different approach"
 
-## 15. The Notifier — Slack Integration
+## 15. The Runner — Journey Log & Meta-Narrative
 
-- [ ] 15.1 Implement Slack API client — send messages to configured channel/DM using Block Kit for structured formatting
-- [ ] 15.2 Implement product-ready notification — structured message with deployment URL, build time, quality summary, confidence score
-- [ ] 15.3 Implement pivot notification — structured message with status, what's happening, what was tried, lettered options (A/B/C/D)
-- [ ] 15.4 Implement scope expansion notification — queued for morning briefing, includes capability added, reason, confidence, revert option
-- [ ] 15.5 Implement morning briefing — progress per feature area, highlights, issues resolved, items needing input, confidence trend, screenshots (up to 5, annotated)
-- [ ] 15.6 Implement briefing screenshot capture — screenshot primary screen + each feature area's main screen + significant design decision screens, annotate with captions
-- [ ] 15.7 Implement Saturday demo compilation — all products worked on, per-product status/URL/key achievement/screenshots, Library growth stats, meta-loop findings, cross-product patterns
+- [ ] 15.1 Implement `journey.json` schema — per-loop entries: number, feature_area, branch, pr_number, timestamps, what_attempted, change_spec_type, qa_verdict, po_verdict, confidence, confidence_delta, overall_delta, quality_gaps_found/resolved, outcome (promoted/rolled_back), key_decisions, learnings, rollback_reason
+- [ ] 15.2 Implement journey log append — after each loop completes (promoted, rolled back, or ongoing), append entry to journey.json
+- [ ] 15.3 Implement journey log for rollbacks — outcome=rolled_back with rollback_reason and learnings populated
+- [ ] 15.4 Implement journey timeline renderer — generate a Mermaid timeline from journey.json showing loops, outcomes, and confidence trend
+- [ ] 15.5 Implement journey feature evolution view — from journey.json, show what was added/changed per loop, what went bad
+- [ ] 15.6 Implement journey log inclusion in morning briefings — mini-timeline of last N loops with outcomes and confidence trend
+- [ ] 15.7 Implement journey log inclusion in Saturday demo — full product journey visualization per product
 
-## 16. The Notifier — Feedback Ingestion
+## 16. The Runner — Vision Checking & Confidence
 
-- [ ] 16.1 Implement Slack message listener — receive human messages in response to notifications
-- [ ] 16.2 Implement feedback parser — split message into distinct feedback items, handle multi-item messages
-- [ ] 16.3 Implement feedback classifier — for each item, classify as product-change, global-learning, domain-learning, personal-preference, or direction using LLM analysis
-- [ ] 16.4 Implement ambiguity handler — when classification confidence is low, send Slack confirmation with options
-- [ ] 16.5 Implement voice transcription cleanup — detect rough transcription, clean up, present interpreted items for confirmation before routing
-- [ ] 16.6 Implement feedback routing — route classified items to Runner (change specs, direction) or Library (standards, domain taste, fingerprint)
-- [ ] 16.7 Implement batching logic — queue non-critical events for morning briefing, send critical events immediately (confidence <70%, build failure, pivot, budget threshold)
+- [ ] 16.1 Implement vision check — re-read vision document, review all completed work, LLM judgment on alignment, produce vision check report (alignment, gaps, scope recommendations, confidence)
+- [ ] 16.2 Implement autonomous scope expansion — when vision check reveals needed capability not in original vision, add to feature queue if confidence >80%, flag in briefing if 70-80%, escalate if <70%
+- [ ] 16.3 Implement pivot detection — when vision check reveals fundamental premise issues, compile evidence and notify human with structured pivot proposal
+- [ ] 16.4 Implement confidence trend tracking — record confidence after each cycle, detect 3-cycle declining trends and 5-cycle plateaus, flag in briefing
+- [ ] 16.5 Implement feature area ordering — dependency analysis, foundation first, cross-cutting last, present order to human during seeding for approval
 
-## 17. Integration & End-to-End Testing
+## 17. The Runner — Meta-Loop
 
-- [ ] 17.1 E2E: Seed a landing page → Factory builds → QA gate passes → PO Review runs → verify two-phase evaluation produces separate QA report and PO Review report
-- [ ] 17.2 E2E: Inject a bug (broken form submission) → verify QA gate catches it (FAIL) → verify bug fix brief sent to Factory → verify QA re-runs and passes → verify PO Review only runs after QA passes
-- [ ] 17.3 E2E: Inject a quality issue (flat information hierarchy, all elements same visual weight) → verify QA passes (it works) → verify PO Review catches it (screen quality: hierarchy failing) → verify quality gap generates a NEW spec (not a bug fix) → verify new spec goes through design mode
-- [ ] 17.4 E2E: Seed a multi-feature web product → verify feature-area cycling → verify per-area QA+PO Review → verify cross-area vision check
-- [ ] 17.5 E2E: Simulate 3 cycles of feedback with recurring theme (e.g., "flat hierarchy") → verify Library creates fingerprint entry with strength ≥0.7 → verify future PO Reviews apply it as a heuristic
-- [ ] 17.6 E2E: Crash mid-cycle at each state (qa-gate, po-reviewing, analyzing) → restart → verify resume from checkpoint → verify no lost state
-- [ ] 17.7 E2E: Simulate PO Review confidence dropping below 70% → verify pivot notification fires immediately → verify Runner pauses at waiting-for-human → verify human response resumes loop
-- [ ] 17.8 E2E: Run 5 products → verify meta-loop triggers → verify cross-product pattern detection produces Factory improvement spec
-- [ ] 17.9 E2E: Full happy path — seed → build → QA pass → PO Review PRODUCTION_READY → Slack notification → human feedback → Library updated → verify end-to-end flow completes
+- [ ] 17.1 Implement cross-product pattern detection — after 3+ products, aggregate evaluation reports, identify heuristics that fail across multiple products
+- [ ] 17.2 Implement factory-level vs product-level classification — determine whether recurring failures are addressable at the Factory level (stacks, skills, templates) or product level
+- [ ] 17.3 Implement Factory improvement spec generation — create change specs targeting AI-Factory for recurring factory-level issues
+- [ ] 17.4 Implement meta-analysis trigger — run after every 5 completed products
+
+## 18. The Notifier — Slack Integration
+
+- [ ] 18.1 Implement Slack API client — send messages to configured channel/DM using Block Kit for structured formatting
+- [ ] 18.2 Implement product-ready notification — structured message with production URL, build time, quality summary, confidence score
+- [ ] 18.3 Implement pivot notification — structured message with status, what's happening, what was tried, lettered options (A/B/C/D)
+- [ ] 18.4 Implement scope expansion notification — queued for morning briefing, includes capability added, reason, confidence, revert option
+- [ ] 18.5 Implement morning briefing — progress per feature area, highlights, issues resolved, items needing input, confidence trend, journey timeline, screenshots (up to 5, annotated)
+- [ ] 18.6 Implement briefing screenshot capture — screenshot primary screen + each feature area's main screen + significant design decision screens, annotate with captions
+- [ ] 18.7 Implement Saturday demo compilation — all products worked on, per-product status/URL/key achievement/screenshots, Library growth stats, meta-loop findings, journey visualizations
+
+## 19. The Notifier — Feedback Ingestion
+
+- [ ] 19.1 Implement Slack message listener — receive human messages in response to notifications
+- [ ] 19.2 Implement feedback parser — split message into distinct feedback items, handle multi-item messages
+- [ ] 19.3 Implement feedback classifier — for each item, classify as product-change, global-learning, domain-learning, personal-preference, or direction using LLM analysis
+- [ ] 19.4 Implement ambiguity handler — when classification confidence is low, send Slack confirmation with options
+- [ ] 19.5 Implement voice transcription cleanup — detect rough transcription, clean up, present interpreted items for confirmation before routing
+- [ ] 19.6 Implement feedback routing — route classified items to Runner (change specs, direction) or Library (standards, domain taste, fingerprint)
+- [ ] 19.7 Implement batching logic — queue non-critical events for morning briefing, send critical events immediately (confidence <70%, build failure, pivot, budget threshold)
+
+## 20. Integration & End-to-End Testing
+
+- [ ] 20.1 E2E: Seed a landing page → Factory builds to staging → Test Integrity Gate → QA gate passes → PO Review runs → promote to production → verify three-phase evaluation produces integrity report, QA report, and PO Review report
+- [ ] 20.2 E2E: Inject a bug (broken form submission) → verify QA gate catches it → verify bug fix brief → verify QA re-runs → verify PO Review only runs after QA passes
+- [ ] 20.3 E2E: Inject a quality issue (flat hierarchy) → verify QA passes → verify PO Review catches it → verify quality gap generates NEW spec → verify new spec goes through design mode
+- [ ] 20.4 E2E: Inject stale tests (spec changed, tests didn't) → verify Test Integrity Gate detects staleness → verify tests regenerated → verify QA runs with fresh tests
+- [ ] 20.5 E2E: Seed a multi-feature web product → verify feature-area cycling → verify per-area evaluation → verify cross-area vision check
+- [ ] 20.6 E2E: Simulate 3 cycles of feedback with recurring theme → verify Library fingerprint entry → verify future PO Reviews apply it
+- [ ] 20.7 E2E: Simulate a loop that makes the product worse → verify regression detection → verify rollback (PR closed, staging reverted, learnings preserved) → verify next loop incorporates rollback learnings
+- [ ] 20.8 E2E: Verify staging/production dual environment — Factory deploys to staging, promotion only on pass, human reviews production URL, rollback doesn't affect production
+- [ ] 20.9 E2E: Verify journey.json accumulates across loops — check timeline rendering, feature evolution view, and rollback entries
+- [ ] 20.10 E2E: Verify PR-per-loop — branch created, structured description, merged on promotion, closed on rollback
+- [ ] 20.11 E2E: Crash mid-cycle at each state → restart → verify resume from checkpoint → verify no lost state
+- [ ] 20.12 E2E: Simulate PO Review confidence dropping below 70% → verify pivot notification → verify Runner pauses → verify human response resumes
+- [ ] 20.13 E2E: Run 5 products → verify meta-loop triggers → verify cross-product pattern detection → Factory improvement spec
+- [ ] 20.14 E2E: Full happy path — seed → build → staging → test integrity → QA pass → PO Review PRODUCTION_READY → promote to production → Slack notification → human feedback → Library updated → journey log complete
