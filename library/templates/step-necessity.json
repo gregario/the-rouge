@@ -1,0 +1,14 @@
+{
+  "id": "step-necessity",
+  "dimension": "efficiency",
+  "applies_to": "journey-step",
+  "given": "User is performing {journey}",
+  "when": "User reaches step {step_number}",
+  "then": "This step cannot be eliminated or combined with an adjacent step",
+  "measurement_method": "llm-judgment",
+  "default_threshold": 1.0,
+  "parameters": [
+    { "name": "journey", "description": "User journey name" },
+    { "name": "step_number", "description": "Step number in the journey" }
+  ]
+}

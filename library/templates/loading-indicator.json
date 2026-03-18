@@ -1,0 +1,14 @@
+{
+  "id": "loading-indicator",
+  "dimension": "feedback",
+  "applies_to": "interaction",
+  "given": "User triggers {action} that takes more than {threshold_ms}ms",
+  "when": "Response time exceeds {threshold_ms}ms",
+  "then": "A loading indicator is visible until the operation completes",
+  "measurement_method": "timing",
+  "default_threshold": 500,
+  "parameters": [
+    { "name": "action", "description": "The triggering action" },
+    { "name": "threshold_ms", "description": "Time before indicator should appear", "default": 500 }
+  ]
+}

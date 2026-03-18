@@ -1,0 +1,14 @@
+{
+  "id": "next-action",
+  "dimension": "clarity",
+  "applies_to": "screen",
+  "given": "User is on {screen}",
+  "when": "User looks for what to do next",
+  "then": "At most {max_competing} competing primary actions are visible",
+  "measurement_method": "dom-analysis",
+  "default_threshold": 2,
+  "parameters": [
+    { "name": "screen", "description": "Screen name or URL path" },
+    { "name": "max_competing", "description": "Maximum competing CTAs", "default": 2 }
+  ]
+}

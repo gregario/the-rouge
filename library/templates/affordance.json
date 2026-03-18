@@ -1,0 +1,13 @@
+{
+  "id": "affordance",
+  "dimension": "clarity",
+  "applies_to": "screen",
+  "given": "User is on {screen}",
+  "when": "User scans for interactive elements",
+  "then": "100% of interactive elements have visual affordance cues (cursor, underline, button styling)",
+  "measurement_method": "interaction-test",
+  "default_threshold": 1.0,
+  "parameters": [
+    { "name": "screen", "description": "Screen name or URL path" }
+  ]
+}

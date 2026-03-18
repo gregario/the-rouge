@@ -1,0 +1,16 @@
+{
+  "id": "visual-response",
+  "dimension": "feedback",
+  "applies_to": "interaction",
+  "given": "User is on {screen} viewing {element}",
+  "when": "User {action} on {element}",
+  "then": "Visual feedback appears within {max_ms}ms",
+  "measurement_method": "screenshot-diff",
+  "default_threshold": 200,
+  "parameters": [
+    { "name": "screen", "description": "Screen name or URL path" },
+    { "name": "element", "description": "Interactive element description" },
+    { "name": "action", "description": "User action (click, hover, etc.)" },
+    { "name": "max_ms", "description": "Maximum response time in ms", "default": 200 }
+  ]
+}
