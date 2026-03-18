@@ -172,18 +172,18 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 ## 5. The Library — Personal Taste Fingerprint
 
 - [x] 5.1 Implement fingerprint entry schema — id, preference (plain English), evidence (list of {date, source_quote}), strength (0.0-1.0), last_expressed (date), contradictions (list), applies_to (all | web | game | artifact)
-- [ ] 4.2 Implement pattern detection — after 3+ feedback instances on the same dimension, auto-create fingerprint entry with strength ≥0.7 and flag in next briefing
-- [ ] 4.3 Implement strength calculation — 0.3 for single mention, 0.5 for 2 mentions, 0.7 for 3+, 1.0 for 5+ with no contradictions; contradictions reduce strength by 0.2 each
-- [ ] 4.4 Implement decay — preferences not reinforced in 6+ months decay 0.1/month to floor of 0.2
-- [ ] 4.5 Implement fingerprint query — return all entries with strength ≥0.5, formatted as design constraints with strength and evidence count
+- [x] 4.2 Implement pattern detection — after 3+ feedback instances on the same dimension, auto-create fingerprint entry with strength ≥0.7 and flag in next briefing
+- [x] 4.3 Implement strength calculation — 0.3 for single mention, 0.5 for 2 mentions, 0.7 for 3+, 1.0 for 5+ with no contradictions; contradictions reduce strength by 0.2 each
+- [x] 4.4 Implement decay — preferences not reinforced in 6+ months decay 0.1/month to floor of 0.2
+- [x] 4.5 Implement fingerprint query — return all entries with strength ≥0.5, formatted as design constraints with strength and evidence count
 
 ## 5. The Library — Feedback Classification
 
-- [ ] 5.1 Implement feedback classifier — LLM-based analysis of feedback text to determine: product-change, global-learning, domain-learning, personal-preference, or direction
-- [ ] 5.2 Implement classification logic — analyze each feedback item for scope (this product vs all products vs domain), dimension (functional vs non-functional), and specificity (general principle vs personal preference)
-- [ ] 5.3 Implement ambiguity detection — when classification confidence is below threshold, generate Slack confirmation question with options
-- [ ] 5.4 Implement feedback-to-heuristic conversion — translate classified feedback into Library entry format (derive id, rule, measurement, threshold from the feedback text)
-- [ ] 5.5 Test classifier against 20+ example feedback statements covering all classification types, verify ≥85% accuracy
+- [x] 5.1 Implement feedback classifier — LLM-based analysis of feedback text to determine: product-change, global-learning, domain-learning, personal-preference, or direction
+- [x] 5.2 Implement classification logic — analyze each feedback item for scope (this product vs all products vs domain), dimension (functional vs non-functional), and specificity (general principle vs personal preference)
+- [x] 5.3 Implement ambiguity detection — when classification confidence is below threshold, generate Slack confirmation question with options
+- [x] 5.4 Implement feedback-to-heuristic conversion — translate classified feedback into Library entry format (derive id, rule, measurement, threshold from the feedback text)
+- [x] 5.5 Test classifier against 20+ example feedback statements covering all classification types, verify ≥85% accuracy
 
 ## 6. Test Integrity Gate (Phase 0)
 
