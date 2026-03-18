@@ -126,11 +126,11 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 - [x] 0c.15 Implement "rouge pause" command — transition any active project to `waiting-for-human`, store `paused_from_state` in state.json, confirm via Slack
 - [x] 0c.16 Implement "rouge resume" command — transition paused project back to `paused_from_state`, confirm via Slack
 - [x] 0c.17 Implement "rouge status" command — read all project state.json files, format summary (active/ready/paused/complete), send as Block Kit message
-- [ ] 0c.18 Implement "rouge new" command — create project directory with scaffolding, start interactive seeding session via Slack relay
-- [ ] 0c.19 Implement Slack-to-Claude seeding relay — spawn Claude Code seeding session, relay messages bidirectionally between Slack and Claude Code, handle conversation flow
-- [ ] 0c.20 Implement seeding conversation timeout — save seeding state to seeding-state.json after 2 hours of inactivity, notify user, support resume via "rouge seed {name}"
-- [ ] 0c.21 Implement seeding completion handler — on seed approval via Slack, write artifacts to project directory, set state.json to `ready` (not `building`), notify user with start instructions
-- [ ] 0c.22 Test Slack control plane end-to-end — rouge new → seeding conversation → rouge start → verify launcher picks up → rouge pause → rouge resume → rouge status
+- [x] 0c.18 Implement "rouge new" command — create project directory with scaffolding, start interactive seeding session via Slack relay
+- [x] 0c.19 Implement Slack-to-Claude seeding relay — spawn Claude Code seeding session, relay messages bidirectionally between Slack and Claude Code, handle conversation flow
+- [x] 0c.20 Implement seeding conversation timeout — save seeding state to seeding-state.json after 2 hours of inactivity, notify user, support resume via "rouge seed {name}"
+- [x] 0c.21 Implement seeding completion handler — on seed approval via Slack, write artifacts to project directory, set state.json to `ready` (not `building`), notify user with start instructions
+- [x] 0c.22 Test Slack control plane end-to-end — rouge new → seeding conversation → rouge start → verify launcher picks up → rouge pause → rouge resume → rouge status
 
 ## 1. Project Foundation & State Management
 
