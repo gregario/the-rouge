@@ -105,7 +105,7 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 - [x] 0b.9 Document and fix every failure found during battle-testing — master report at `docs/research/2026-03-18-0b-battle-test-report.md`, stack docs + phase prompts updated
 - [x] 0b.10 Verify Cloudflare Workers with Static Assets deployment flow — confirmed working, Pages returns 404. See cloudflare findings
 - [x] 0b.11 Verify Supabase pause/unpause via Management API — pause→INACTIVE (30-60s), restore→ACTIVE_HEALTHY (60-120s), data preserved. See supabase findings
-- [ ] 0b.12 Verify Stripe CLI test mode flow — needs one-time `stripe login` (browser auth) or `STRIPE_API_KEY` env var. Deferred until Stripe account is authenticated
+- [x] 0b.12 Verify Stripe CLI test mode flow — product creation, price creation, event triggers all work. Sandbox only. Key expires 2026-06-16. See `docs/research/2026-03-18-0b-stripe-findings.md`
 
 ## 0c. Prerequisite — Launcher & Communication Infrastructure
 
