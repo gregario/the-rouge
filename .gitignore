@@ -3,6 +3,7 @@ dist/
 .env
 .env.local
 *.log
+logs/
 .DS_Store
 .context/
 docs/drafts/
