@@ -59,7 +59,6 @@ function writeSeedingState(projectName, seedState) {
 
 function invokeClaudeSeeding(projectDir, prompt, sessionId) {
   const args = ['claude', '-p'];
-  args.push('--project', projectDir);
   args.push('--dangerously-skip-permissions');
   args.push('--model', 'opus');
   args.push('--max-turns', '50');
