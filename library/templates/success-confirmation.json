@@ -1,0 +1,14 @@
+{
+  "id": "success-confirmation",
+  "dimension": "feedback",
+  "applies_to": "interaction",
+  "given": "User completes {action}",
+  "when": "Action succeeds",
+  "then": "Contextual success confirmation is visible within {max_ms}ms",
+  "measurement_method": "screenshot-diff",
+  "default_threshold": 1000,
+  "parameters": [
+    { "name": "action", "description": "The completed action" },
+    { "name": "max_ms", "description": "Max time for confirmation to appear", "default": 1000 }
+  ]
+}

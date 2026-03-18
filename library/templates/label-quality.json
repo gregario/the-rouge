@@ -1,0 +1,14 @@
+{
+  "id": "label-quality",
+  "dimension": "clarity",
+  "applies_to": "screen",
+  "given": "User is on {screen}",
+  "when": "User reads interface labels",
+  "then": "At least {min_pct}% of labels are descriptive (not 'Submit', 'Click here', 'Item 1')",
+  "measurement_method": "llm-judgment",
+  "default_threshold": 0.9,
+  "parameters": [
+    { "name": "screen", "description": "Screen name or URL path" },
+    { "name": "min_pct", "description": "Minimum percentage of descriptive labels", "default": 90 }
+  ]
+}

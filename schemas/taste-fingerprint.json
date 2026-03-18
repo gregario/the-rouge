@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Personal Taste Fingerprint Entry",
+  "description": "Tracks user's evolving design preferences based on feedback patterns.",
+  "type": "object",
+  "required": ["id", "preference", "evidence", "strength", "applies_to"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]+$" },
+    "preference": { "type": "string", "description": "Plain English preference statement" },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["date", "source_quote"],
+        "properties": {
+          "date": { "type": "string", "format": "date" },
+          "source_quote": { "type": "string" }
+        }
+      }
+    },
+    "strength": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "0.3=single mention, 0.5=2 mentions, 0.7=3+, 1.0=5+ no contradictions"
+    },
+    "last_expressed": { "type": "string", "format": "date" },
+    "contradictions": { "type": "array", "items": { "type": "string" } },
+    "applies_to": { "type": "string", "enum": ["all", "web", "game", "artifact"] }
+  }
+}

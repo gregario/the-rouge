@@ -1,0 +1,14 @@
+{
+  "id": "screen-transition",
+  "dimension": "transitions",
+  "applies_to": "interaction",
+  "given": "User navigates from {from_screen} to {to_screen}",
+  "when": "Navigation occurs",
+  "then": "An intermediate transition state is visible (not an instant jump)",
+  "measurement_method": "frame-capture",
+  "default_threshold": 3,
+  "parameters": [
+    { "name": "from_screen", "description": "Origin screen" },
+    { "name": "to_screen", "description": "Destination screen" }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "id": "contextual-copy",
+  "dimension": "delight",
+  "applies_to": "any",
+  "given": "User sees {message_context}",
+  "when": "A system message is displayed",
+  "then": "The message is contextual to the user's current action, not generic",
+  "measurement_method": "llm-judgment",
+  "default_threshold": 0.8,
+  "parameters": [
+    { "name": "message_context", "description": "Context where the message appears" }
+  ]
+}

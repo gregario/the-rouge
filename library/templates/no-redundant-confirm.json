@@ -1,0 +1,13 @@
+{
+  "id": "no-redundant-confirm",
+  "dimension": "efficiency",
+  "applies_to": "interaction",
+  "given": "User performs {action}",
+  "when": "Action is non-destructive",
+  "then": "No confirmation dialog is shown",
+  "measurement_method": "interaction-test",
+  "default_threshold": 1.0,
+  "parameters": [
+    { "name": "action", "description": "The non-destructive action" }
+  ]
+}

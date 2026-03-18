@@ -1,0 +1,14 @@
+{
+  "id": "microinteraction",
+  "dimension": "delight",
+  "applies_to": "interaction",
+  "given": "User {action} on {element}",
+  "when": "State change occurs",
+  "then": "Animation beyond basic toggle is visible (scale, fade, slide, etc.)",
+  "measurement_method": "frame-capture",
+  "default_threshold": 5,
+  "parameters": [
+    { "name": "action", "description": "User action" },
+    { "name": "element", "description": "Target element" }
+  ]
+}

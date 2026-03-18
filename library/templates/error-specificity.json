@@ -1,0 +1,13 @@
+{
+  "id": "error-specificity",
+  "dimension": "feedback",
+  "applies_to": "form",
+  "given": "User submits {form} with invalid data",
+  "when": "Validation fails",
+  "then": "Error message is specific to the failure (not generic 'Something went wrong')",
+  "measurement_method": "llm-judgment",
+  "default_threshold": 0.9,
+  "parameters": [
+    { "name": "form", "description": "Form identifier or description" }
+  ]
+}
