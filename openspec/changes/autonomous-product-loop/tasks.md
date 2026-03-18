@@ -94,18 +94,18 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 
 ## 0b. Prerequisite — Deployment Infrastructure Battle-Testing
 
-- [ ] 0b.1 Test new project deployment end-to-end — from empty repo to deployed staging + production for a web product. Document every manual step that should be automated
-- [ ] 0b.2 Automate Supabase project creation — if using Supabase, the Runner must be able to provision a new project, run migrations, and get a connection string without manual dashboard work
-- [ ] 0b.3 Automate Cloudflare Pages setup — if using Cloudflare, the Runner must be able to create a new Pages project, configure build settings, and get staging + production URLs without manual dashboard work
-- [ ] 0b.4 Automate local Docker deployment as fallback — if cloud provisioning fails or isn't configured, the Runner must be able to deploy to a local Docker environment for evaluation
-- [ ] 0b.5 Test staging → production promotion flow — verify the Runner can promote a staging deployment to production (DNS swap, CDN cache clear, or equivalent) without manual intervention
-- [ ] 0b.6 Test rollback flow — verify staging can be reverted to previous state without affecting production
-- [ ] 0b.7 Test Lighthouse against deployed staging — verify Lighthouse CI can run against the staging URL and return parseable results
-- [ ] 0b.8 Test browser QA against deployed staging — verify the QA skill can navigate a staging URL, interact with elements, and collect results
-- [ ] 0b.9 Document and fix every failure found during battle-testing — each manual step that should be automated becomes a task
-- [ ] 0b.10 Verify Cloudflare Workers with Static Assets deployment flow — Pages is deprecated (April 2025). Test `wrangler deploy` with `[assets]` config as the forward-looking deployment path
-- [ ] 0b.11 Verify Supabase pause/unpause via Management API — test `POST /v1/projects/{ref}/pause` and restore flow, confirm data preservation
-- [ ] 0b.12 Verify Stripe CLI test mode flow — create product, create checkout session, complete with test card, verify webhook receipt
+- [x] 0b.1 Test new project deployment end-to-end — Workers + Static Assets path works. See `docs/research/2026-03-18-0b-cloudflare-findings.md`
+- [x] 0b.2 Automate Supabase project creation — CLI fully non-interactive. Pause/restore via Management API. See `docs/research/2026-03-18-0b-supabase-findings.md`
+- [x] 0b.3 Automate Cloudflare setup — Workers auto-create on first deploy. No dashboard needed. See cloudflare findings
+- [ ] 0b.4 Automate local Docker deployment as fallback — deferred (not needed for V1, all cloud tools work)
+- [x] 0b.5 Test staging → production promotion flow — `wrangler deploy --env staging` then `wrangler deploy`. Same build, cached assets
+- [x] 0b.6 Test rollback flow — `wrangler versions deploy <id>@100%` instant rollback, production unaffected
+- [x] 0b.7 Test Lighthouse against deployed staging — headless Chrome, JSON output, 96/100/100/100 baseline. See `docs/research/2026-03-18-0b-lighthouse-findings.md`
+- [x] 0b.8 Test browser QA against deployed staging — GStack browse works, 370ms total. See `docs/research/2026-03-18-0b-browse-findings.md`
+- [x] 0b.9 Document and fix every failure found during battle-testing — master report at `docs/research/2026-03-18-0b-battle-test-report.md`, stack docs + phase prompts updated
+- [x] 0b.10 Verify Cloudflare Workers with Static Assets deployment flow — confirmed working, Pages returns 404. See cloudflare findings
+- [x] 0b.11 Verify Supabase pause/unpause via Management API — pause→INACTIVE (30-60s), restore→ACTIVE_HEALTHY (60-120s), data preserved. See supabase findings
+- [ ] 0b.12 Verify Stripe CLI test mode flow — needs one-time `stripe login` (browser auth) or `STRIPE_API_KEY` env var. Deferred until Stripe account is authenticated
 
 ## 0c. Prerequisite — Launcher & Communication Infrastructure
 
