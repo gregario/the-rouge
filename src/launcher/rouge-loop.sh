@@ -75,6 +75,25 @@ if [[ -n "$AUTH_WARNINGS" ]]; then
 fi
 
 while true; do
+  # Check for morning briefing trigger
+  if [[ -f "$ROUGE_ROOT/trigger-briefing.json" ]]; then
+    log "Morning briefing triggered"
+    rm "$ROUGE_ROOT/trigger-briefing.json"
+    if [[ -n "${ROUGE_SLACK_WEBHOOK:-}" ]]; then
+      briefing=""
+      for pdir in "$PROJECTS_DIR"/*/; do
+        [[ -d "$pdir" ]] || continue
+        pname="$(basename "$pdir")"
+        pstate="$pdir/state.json"
+        [[ -f "$pstate" ]] || continue
+        pst="$(jq -r '.current_state' "$pstate")"
+        pcycle="$(jq -r '.cycle_number // 0' "$pstate")"
+        briefing="${briefing}• ${pname}: ${pst} (cycle ${pcycle})\n"
+      done
+      "$LAUNCHER_DIR/notify.sh" "$(echo -e "☀️ Morning Briefing\n${briefing}")" 2>/dev/null || true
+    fi
+  fi
+
   for project_dir in "$PROJECTS_DIR"/*/; do
     [[ -d "$project_dir" ]] || continue
 
