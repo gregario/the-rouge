@@ -12,6 +12,12 @@ mkdir -p "$LOG_DIR"
 
 log() { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*" | tee -a "$LOG_DIR/rouge.log"; }
 
+is_rate_limited() {
+  local log_file="$1"
+  tail -20 "$log_file" 2>/dev/null | grep -qi "rate.limit\|too.many.requests\|429" && return 0
+  return 1
+}
+
 run_phase() {
   local project_dir="$1"
   local project_name="$(basename "$project_dir")"
@@ -74,10 +80,11 @@ while true; do
         project_name="$(basename "$project_dir")"
         log "[$project_name] Retry $retries/$max_retries"
 
+        state_file="$project_dir/state.json"
+        current_state="$(jq -r '.current_state' "$state_file")"
+
         if [[ $retries -ge $max_retries ]]; then
           log "[$project_name] Max retries reached. Transitioning to waiting-for-human."
-          state_file="$project_dir/state.json"
-          current_state="$(jq -r '.current_state' "$state_file")"
           jq --arg s "$current_state" '.paused_from_state = $s | .current_state = "waiting-for-human"' \
             "$state_file" > "$state_file.tmp" && mv "$state_file.tmp" "$state_file"
 
@@ -90,7 +97,13 @@ while true; do
           fi
         fi
 
-        sleep 30
+        if is_rate_limited "$LOG_DIR/${project_name}-${current_state}.log"; then
+          backoff=$((60 * retries))
+          log "[$project_name] Rate limited. Backing off ${backoff}s."
+          sleep "$backoff"
+        else
+          sleep 30
+        fi
       fi
     done
   done
