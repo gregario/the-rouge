@@ -328,3 +328,35 @@ app.event('app_mention', async ({ event, say }) => {
   await app.start();
   console.log('\u26A1 Rouge Slack bot is running (Socket Mode)');
 })();
+
+// Check for seeding timeouts every 10 minutes
+const SEEDING_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 hours
+
+setInterval(() => {
+  try {
+    const projects = listProjects();
+    for (const name of projects) {
+      const ss = getSeedingState(name);
+      if (!ss || ss.status !== 'active') continue;
+
+      const elapsed = Date.now() - new Date(ss.last_activity).getTime();
+      if (elapsed > SEEDING_TIMEOUT_MS) {
+        ss.status = 'paused';
+        writeSeedingState(name, ss);
+
+        if (process.env.ROUGE_SLACK_WEBHOOK) {
+          const msg = `⏸️ Seeding for \`${name}\` paused (2h timeout). Resume: \`rouge seed ${name}\``;
+          try {
+            execSync(
+              `curl -s -X POST "$ROUGE_SLACK_WEBHOOK" -H 'Content-Type: application/json' -d '${JSON.stringify({ text: msg }).replace(/'/g, "'\\''")}'`,
+              { env: process.env, timeout: 10000 }
+            );
+          } catch {}
+        }
+        console.log(`Seeding timeout: ${name} paused`);
+      }
+    }
+  } catch (err) {
+    console.error('Timeout check error:', err.message);
+  }
+}, 10 * 60 * 1000);
