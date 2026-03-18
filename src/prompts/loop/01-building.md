@@ -197,11 +197,13 @@ Both stages must pass before the task is accepted. Do not accept "good enough." 
 After all tasks are implemented and reviewed, deploy to the staging environment. **Never deploy to production.** Production promotion happens in a separate phase.
 
 ```bash
-# For Cloudflare Workers with Static Assets:
-wrangler deploy --branch=staging
+# Build first (if not already built)
+npx @opennextjs/cloudflare build
 
-# For other deployment targets, use the project's deploy command
-# Read the project's package.json or deployment config for the correct command
+# Deploy to staging environment
+npx wrangler deploy --env staging
+
+# For non-Cloudflare deployment targets, read the project's deploy config
 ```
 
 Capture the staging URL from the deploy output. You will need it for `cycle_context.json`.

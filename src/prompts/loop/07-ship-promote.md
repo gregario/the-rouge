@@ -147,7 +147,7 @@ Merge the PR using `gh pr merge` with squash or merge commit (follow the project
 
 Execute the production deployment. This is platform-specific:
 
-- **Cloudflare Workers/Pages**: Merge to main triggers auto-deploy. Verify deployment status via `wrangler` or Cloudflare dashboard API.
+- **Cloudflare Workers**: Run `npx wrangler deploy` to promote to production. Verify with `curl -s -o /dev/null -w "%{http_code}" <production-url>`. If the response is not 200, check `wrangler tail --name <worker-name>` for errors.
 - **npm publish**: Run `npm publish` (only if the project is a published package).
 - **Other platforms**: Read deployment configuration from project files and execute accordingly.
 
@@ -179,6 +179,24 @@ On successful promotion, update `cycle_context.json`:
   }
 }
 ```
+
+### Step 7.5 — Rollback Plan
+
+If post-deploy verification fails (production URL returns errors, key user flows broken):
+
+```bash
+# List available versions
+npx wrangler versions list --name <worker-name>
+
+# Roll back to the previous version
+npx wrangler versions deploy <previous-version-id>@100% --name <worker-name> --yes
+```
+
+On rollback:
+1. Close the PR (do not delete the branch — preserve the work).
+2. Log the failure in `cycle_context.json` under `ship_error` with the rollback details.
+3. The code remains on the loop branch for investigation in the next cycle.
+4. Set `escalation_needed: true` — production rollbacks always need human awareness.
 
 ---
 
