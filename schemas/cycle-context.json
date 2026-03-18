@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Rouge Cycle Context",
+  "description": "Shared workspace for all phases within a cycle. The complete context a phase needs to do its work.",
+  "type": "object",
+  "properties": {
+    "vision": { "$ref": "vision.json" },
+    "active_spec": { "type": "object", "description": "Current seed or change spec being implemented" },
+    "product_standard": { "type": "object", "description": "Quality bar (inherited + overrides)" },
+    "library_heuristics": {
+      "type": "array",
+      "items": { "type": "object" },
+      "description": "Applicable heuristics (global + domain + personal) for this evaluation"
+    },
+    "previous_evaluations": {
+      "type": "array",
+      "items": { "type": "object" },
+      "description": "QA and PO Review reports from prior cycles"
+    },
+    "evaluation_deltas": {
+      "type": "array",
+      "items": { "type": "object" },
+      "description": "Score changes between consecutive evaluations"
+    },
+    "implemented": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "task": { "type": "string" },
+          "acceptance_criteria": { "type": "array", "items": { "type": "string" } },
+          "files_changed": { "type": "array", "items": { "type": "string" } },
+          "tests_added": { "type": "integer" },
+          "tests_passing": { "type": "integer" }
+        }
+      }
+    },
+    "skipped": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "task": { "type": "string" },
+          "reason": { "type": "string" },
+          "blocker_type": { "type": "string", "enum": ["dependency", "spec_contradiction", "infrastructure", "complexity"] }
+        }
+      }
+    },
+    "divergences": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "spec_says": { "type": "string" },
+          "actually_did": { "type": "string" },
+          "rationale": { "type": "string" }
+        }
+      }
+    },
+    "factory_decisions": { "type": "array", "items": { "type": "object" } },
+    "factory_questions": { "type": "array", "items": { "type": "object" } },
+    "qa_report": { "type": ["object", "null"] },
+    "po_review_report": { "type": ["object", "null"] },
+    "deployment_url": { "type": ["string", "null"] },
+    "infrastructure": {
+      "type": "object",
+      "properties": {
+        "staging_url": { "type": ["string", "null"] },
+        "production_url": { "type": ["string", "null"] },
+        "supabase_ref": { "type": ["string", "null"] },
+        "sentry_dsn": { "type": ["string", "null"] }
+      }
+    },
+    "_project_name": { "type": "string" },
+    "_cycle_number": { "type": "integer" }
+  }
+}

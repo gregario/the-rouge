@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Rouge Project State",
+  "description": "State machine position for a Rouge-managed project. Read by launcher, written by phase prompts.",
+  "type": "object",
+  "required": ["current_state", "cycle_number", "timestamp"],
+  "properties": {
+    "current_state": {
+      "type": "string",
+      "enum": [
+        "seeding", "ready", "building", "test-integrity", "qa-gate",
+        "qa-fixing", "po-reviewing", "analyzing", "generating-change-spec",
+        "vision-checking", "promoting", "rolling-back", "waiting-for-human", "complete"
+      ]
+    },
+    "cycle_number": { "type": "integer", "minimum": 0 },
+    "feature_areas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "status"],
+        "properties": {
+          "name": { "type": "string" },
+          "status": { "type": "string", "enum": ["pending", "in-progress", "complete"] }
+        }
+      }
+    },
+    "current_feature_area": { "type": ["string", "null"] },
+    "qa_fix_attempts": { "type": "integer", "minimum": 0, "default": 0 },
+    "po_review_cycles": { "type": "integer", "minimum": 0, "default": 0 },
+    "change_specs_pending": { "type": "array", "items": { "type": "string" } },
+    "confidence_history": { "type": "array", "items": { "type": "number", "minimum": 0, "maximum": 1 } },
+    "paused_from_state": { "type": "string" },
+    "timestamp": { "type": "string", "format": "date-time" }
+  }
+}
