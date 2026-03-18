@@ -109,23 +109,23 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 
 ## 0c. Prerequisite — Launcher & Communication Infrastructure
 
-- [ ] 0c.1 Implement `rouge-loop.sh` — bash launcher script (~50 lines). Read state.json for each project dir, skip waiting/complete, spawn `claude -p` with phase-specific prompt, handle errors and rate limits, loop forever
-- [ ] 0c.2 Implement model selection in launcher — map each state to opus or sonnet model, pass `--model` flag to `claude -p`
-- [ ] 0c.3 Implement multi-project directory scanning — launcher discovers projects by scanning for `state.json` in `projects/*/`
-- [ ] 0c.4 Implement error handling — log failures, retry up to 3 times, transition to waiting-for-human on persistent failure, notify via Slack webhook
-- [ ] 0c.5 Implement rate limit detection — detect Claude Code rate limit responses, back off exponentially, resume when limit resets
-- [ ] 0c.6 Create Slack App — set up app at api.slack.com, enable Socket Mode, create App-Level Token (`connections:write`), add Bot Token Scopes (`chat:write`, `channels:history`, `app_mentions:read`, `channels:read`), install to workspace
-- [ ] 0c.7 Implement Slack bot listener (~50 lines Bolt.js) — Socket Mode WebSocket, listen for app_mention events, parse feedback, write to `projects/<name>/feedback.json`
-- [ ] 0c.8 Implement Slack webhook sending — store webhook URL in env var, helper function to send Block Kit JSON via curl
-- [ ] 0c.9 Implement feedback queue detection in launcher — check for `feedback.json` in each project dir, if found and project is waiting-for-human, transition state and pass feedback to next phase
-- [ ] 0c.10 Implement Supabase slot management — track active projects, check count before provisioning, pause least-recently-active when at limit, log swaps
-- [ ] 0c.11 Implement morning briefing cron — cron job that writes `trigger-briefing.json`, launcher detects and runs briefing phase
-- [ ] 0c.12 Test launcher end-to-end — start launcher, verify it picks up a seeded project, runs phases, transitions states, handles errors
-- [ ] 0c.13 Implement Slack command parser — detect "rouge start/pause/resume/status/new/seed" patterns from incoming Slack messages, route to appropriate handler
-- [ ] 0c.14 Implement "rouge start" command — verify project exists and is in `ready` state, check Supabase slot availability if needed, transition state.json to `building`, confirm via Slack
-- [ ] 0c.15 Implement "rouge pause" command — transition any active project to `waiting-for-human`, store `paused_from_state` in state.json, confirm via Slack
-- [ ] 0c.16 Implement "rouge resume" command — transition paused project back to `paused_from_state`, confirm via Slack
-- [ ] 0c.17 Implement "rouge status" command — read all project state.json files, format summary (active/ready/paused/complete), send as Block Kit message
+- [x] 0c.1 Implement `rouge-loop.sh` — bash launcher script (~50 lines). Read state.json for each project dir, skip waiting/complete, spawn `claude -p` with phase-specific prompt, handle errors and rate limits, loop forever
+- [x] 0c.2 Implement model selection in launcher — map each state to opus or sonnet model, pass `--model` flag to `claude -p`
+- [x] 0c.3 Implement multi-project directory scanning — launcher discovers projects by scanning for `state.json` in `projects/*/`
+- [x] 0c.4 Implement error handling — log failures, retry up to 3 times, transition to waiting-for-human on persistent failure, notify via Slack webhook
+- [x] 0c.5 Implement rate limit detection — detect Claude Code rate limit responses, back off exponentially, resume when limit resets
+- [x] 0c.6 Create Slack App — set up app at api.slack.com, enable Socket Mode, create App-Level Token (`connections:write`), add Bot Token Scopes (`chat:write`, `channels:history`, `app_mentions:read`, `channels:read`), install to workspace
+- [x] 0c.7 Implement Slack bot listener (~50 lines Bolt.js) — Socket Mode WebSocket, listen for app_mention events, parse feedback, write to `projects/<name>/feedback.json`
+- [x] 0c.8 Implement Slack webhook sending — store webhook URL in env var, helper function to send Block Kit JSON via curl
+- [x] 0c.9 Implement feedback queue detection in launcher — check for `feedback.json` in each project dir, if found and project is waiting-for-human, transition state and pass feedback to next phase
+- [x] 0c.10 Implement Supabase slot management — track active projects, check count before provisioning, pause least-recently-active when at limit, log swaps
+- [x] 0c.11 Implement morning briefing cron — cron job that writes `trigger-briefing.json`, launcher detects and runs briefing phase
+- [x] 0c.12 Test launcher end-to-end — start launcher, verify it picks up a seeded project, runs phases, transitions states, handles errors
+- [x] 0c.13 Implement Slack command parser — detect "rouge start/pause/resume/status/new/seed" patterns from incoming Slack messages, route to appropriate handler
+- [x] 0c.14 Implement "rouge start" command — verify project exists and is in `ready` state, check Supabase slot availability if needed, transition state.json to `building`, confirm via Slack
+- [x] 0c.15 Implement "rouge pause" command — transition any active project to `waiting-for-human`, store `paused_from_state` in state.json, confirm via Slack
+- [x] 0c.16 Implement "rouge resume" command — transition paused project back to `paused_from_state`, confirm via Slack
+- [x] 0c.17 Implement "rouge status" command — read all project state.json files, format summary (active/ready/paused/complete), send as Block Kit message
 - [ ] 0c.18 Implement "rouge new" command — create project directory with scaffolding, start interactive seeding session via Slack relay
 - [ ] 0c.19 Implement Slack-to-Claude seeding relay — spawn Claude Code seeding session, relay messages bidirectionally between Slack and Claude Code, handle conversation flow
 - [ ] 0c.20 Implement seeding conversation timeout — save seeding state to seeding-state.json after 2 hours of inactivity, notify user, support resume via "rouge seed {name}"
