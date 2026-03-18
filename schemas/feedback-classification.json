@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Classified Feedback",
+  "description": "Result of LLM feedback classification. Written by analyzing phase.",
+  "type": "object",
+  "required": ["original_text", "classification", "scope", "confidence"],
+  "properties": {
+    "original_text": { "type": "string" },
+    "classification": {
+      "type": "string",
+      "enum": ["product-change", "global-learning", "domain-learning", "personal-preference", "direction"],
+      "description": "product-change: fix/change specific product. global-learning: update global heuristic. domain-learning: update domain heuristic. personal-preference: add to taste fingerprint. direction: strategic guidance for vision."
+    },
+    "scope": {
+      "type": "string",
+      "enum": ["this-product", "all-products", "domain"],
+      "description": "How broadly this feedback applies"
+    },
+    "dimension": {
+      "type": "string",
+      "enum": ["functional", "non-functional", "aesthetic", "interaction", "content"],
+      "description": "What aspect of quality this feedback addresses"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Classification confidence. Below 0.7 triggers Slack confirmation."
+    },
+    "derived_heuristic": {
+      "type": ["object", "null"],
+      "description": "If classification is global-learning or domain-learning, the derived Library entry"
+    },
+    "derived_fingerprint": {
+      "type": ["object", "null"],
+      "description": "If classification is personal-preference, the derived taste fingerprint entry"
+    },
+    "needs_confirmation": {
+      "type": "boolean",
+      "description": "True if confidence < 0.7 — analyzer should ask for Slack confirmation"
+    }
+  }
+}
