@@ -1,3 +1,5 @@
+> **Architecture note:** The Seeder is the ONE phase that runs interactively with the human present. It is NOT invoked by the Karpathy Loop launcher. Instead, the human starts a Claude Code session and runs the seeding skill directly (or seeds interactively via Slack — see Notifier spec). All other phases are autonomous. After seeding completes and the human approves, the Seeder writes `state.json` with `current_state: "ready"` (not `"building"`). The autonomous loop does NOT begin automatically — the human must explicitly trigger it via `rouge start` command or equivalent. The launcher picks it up on its next loop only after that explicit start.
+
 ## ADDED Requirements
 
 ### Requirement: Seeder runs an interactive non-linear swarm
@@ -30,6 +32,8 @@ The Seeder SHALL facilitate a multi-discipline session where brainstorming, comp
 #### Scenario: Swarm convergence
 - **WHEN** all disciplines have been run at least once AND no discipline has raised a new loop-back trigger in the last pass
 - **THEN** the Seeder SHALL declare convergence and move to artifact production
+
+> **Note:** Swarming (non-linear back-and-forth between disciplines) is used ONLY during seeding. Autonomous phases use tight Karpathy loops instead — if something fails, the state machine iterates mechanically. This reduces the need for autonomous judgment about when to loop back.
 
 ### Requirement: Seeder produces a structured vision document
 The vision document SHALL be structured so The Evaluator can parse it programmatically. It is NOT a prose document — it is a structured artifact with defined sections that map to evaluation inputs.
@@ -190,6 +194,15 @@ The seed spec SHALL be comprehensive enough that the Factory can build feature a
 - **WHEN** the product is small enough for whole-product cycling
 - **THEN** the seed spec SHALL have the same depth as above but for the entire product in a single document, with clear separation between functional areas even if they're not cycled separately
 
+#### Scenario: Seed spec records infrastructure requirements
+- **WHEN** the seed spec is produced
+- **THEN** it SHALL include an `infrastructure` section specifying:
+  - `needs_database`: boolean (true for web apps with data, false for static sites, CLI tools, MCP servers)
+  - `needs_auth`: boolean
+  - `needs_storage`: boolean
+  - `deployment_target`: `cloudflare-workers` | `cloudflare-pages` | `npm` | `other`
+- **AND** the Runner SHALL use this to skip unnecessary provisioning steps
+
 #### Scenario: Seed spec leaves implementation approach open
 - **WHEN** the seed spec describes a feature
 - **THEN** it SHALL NOT specify: which framework/library to use, file structure, API endpoint design, component hierarchy, or state management approach — those are Factory decisions informed by the relevant stack profile
@@ -217,5 +230,5 @@ The Seeder SHALL present the complete seed (vision document + product standard +
 - **WHEN** the human approves the seed
 - **THEN** the Seeder SHALL:
   1. Write the vision document, product standard, and seed spec to the project directory
-  2. Hand off to the Runner with a pointer to all three artifacts
-  3. The Runner SHALL transition to `building` state and begin the first cycle
+  2. Write `state.json` with `current_state: "ready"` and a pointer to all three artifacts
+  3. The autonomous loop SHALL NOT begin until the human explicitly triggers it via `rouge start` command or equivalent

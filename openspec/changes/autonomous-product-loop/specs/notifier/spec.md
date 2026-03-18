@@ -1,5 +1,23 @@
 ## ADDED Requirements
 
+### Requirement: Notifier uses Slack Bot API with Socket Mode for bidirectional communication
+The Notifier SHALL use a lightweight Slack bot (Bolt.js, ~50 lines) with Socket Mode for receiving human feedback, and either `chat.postMessage` or incoming webhooks for sending structured notifications. The Notifier SHALL NOT use MCP for Slack — MCP only works within active Claude Code sessions and cannot handle asynchronous notifications.
+
+#### Scenario: Sending notifications from phases
+- **WHEN** a phase needs to send a Slack notification (product ready, pivot request, scope expansion)
+- **THEN** it SHALL use an incoming webhook URL (`curl -X POST`) with Block Kit JSON payload
+- **AND** this works from any phase without a persistent process
+
+#### Scenario: Receiving feedback asynchronously
+- **WHEN** the human replies to a notification in Slack
+- **THEN** the Socket Mode listener SHALL write the feedback to `projects/<name>/feedback.json`
+- **AND** the launcher SHALL detect the feedback file on its next loop and transition the project out of `waiting-for-human` state
+
+#### Scenario: Slack bot runs alongside launcher
+- **WHEN** the Rouge system starts
+- **THEN** the Slack bot process SHALL start alongside the launcher (separate process or background job)
+- **AND** it SHALL maintain a WebSocket connection to Slack via Socket Mode (outbound only, no public URL needed)
+
 ### Requirement: Notifier sends structured Slack messages for key events
 The Notifier SHALL send Slack messages to a configured channel or DM for defined event types. Messages SHALL be structured with Slack Block Kit for readability, not plain text dumps.
 
@@ -100,6 +118,11 @@ The Notifier SHALL compile a structured morning briefing summarizing all autonom
 - **WHEN** morning briefing time arrives but no autonomous work has occurred (Runner was paused, waiting, or idle)
 - **THEN** the Notifier SHALL send a brief status: "No overnight activity. {Product Name} is {state}: {reason}."
 
+#### Scenario: Morning briefing triggered by cron
+- **WHEN** a cron job fires at the configured briefing time (default 8:00 AM)
+- **THEN** it SHALL write a `trigger-briefing.json` file to the Rouge state directory
+- **AND** the launcher SHALL detect this file, transition to a briefing phase for each active project, compile the briefing, and send via Slack webhook
+
 ### Requirement: Notifier ingests human feedback and routes it
 The Notifier SHALL accept human feedback via Slack messages, parse it into structured items, classify each item, and route it to the appropriate handler (Runner for change specs, Library for taste updates).
 
@@ -158,40 +181,42 @@ The Notifier SHALL aggregate non-critical updates into morning briefings rather 
 - **WHEN** the human sends a Slack message outside of briefing time
 - **THEN** the Notifier SHALL respond with a condensed status update (not a full briefing): current state, current feature area, confidence, and answer to any questions in the message
 
-### Requirement: Notifier supports Saturday demo compilation
-The Notifier SHALL compile a weekly demo package that summarizes all products worked on during the week, for a portfolio-level review session.
+> **Note:** Saturday demo compilation deferred from V1. Can be added as a periodic state triggered by cron.
 
-#### Scenario: Saturday demo structure
-- **WHEN** Saturday demo time arrives (configurable, default: Saturday 10:00 AM)
-- **THEN** the Notifier SHALL compile:
-  ```
-  📊 Weekly Demo — Week of {date}
+### Requirement: Notifier handles Slack commands as the control plane
+The Notifier SHALL support three modes of Slack interaction: command handling (control plane), interactive seeding (project creation via chat), and feedback during autonomous loops (already specified above).
 
-  Products worked on: {N}
+#### Scenario: Command parsing
+- **WHEN** a Slack message matches a known command pattern ("rouge start X", "rouge pause X", "rouge resume X", "rouge status")
+- **THEN** the Slack bot SHALL parse the command and execute it by modifying the appropriate project's `state.json`
+- **AND** respond with confirmation in Slack
 
-  Per product:
-  • {Product Name}
-    - Status: {complete / in-progress at {N}%}
-    - Deployment: {URL}
-    - Cycles this week: {N}
-    - Key achievement: {one sentence}
-    - Top open issue: {one sentence}
-    - Screenshots: [key screens]
+#### Scenario: Unknown command
+- **WHEN** a Slack message doesn't match a command pattern and no project is in `waiting-for-human` state
+- **THEN** the Slack bot SHALL respond: "Unknown command. Available: rouge start <name>, rouge pause <name>, rouge resume <name>, rouge status, rouge new <name>"
 
-  Library growth:
-  • New global heuristics: {N}
-  • New domain heuristics: {N}
-  • Taste fingerprint updates: {N}
-  • Total active heuristics: {N}
+### Requirement: Notifier supports interactive seeding via Slack
+The Notifier SHALL support creating new projects entirely through Slack conversation. The human chats with The Rouge in Slack to go through the seeding swarm (brainstorming, competition review, product taste, spec, design). This enables project creation from a phone without needing a terminal.
 
-  Factory meta-loop:
-  • Recurring issues detected: {list or "none"}
-  • Factory improvement specs generated: {N}
+#### Scenario: New project initiation
+- **WHEN** a Slack message "rouge new {project-name}" is received
+- **THEN** the Slack bot SHALL:
+  1. Create the project directory with initial scaffolding
+  2. Start an interactive seeding session by spawning a Claude Code session with the seeding skill
+  3. Relay messages between Slack and the Claude Code session
+  4. The seeding swarm runs through Slack: questions appear as Slack messages, the human replies in Slack
 
-  Patterns Socrates noticed:
-  • {Cross-product observation}
-  ```
+#### Scenario: Seeding conversation timeout
+- **WHEN** a seeding conversation has been inactive for more than 2 hours
+- **THEN** the Slack bot SHALL save the current seeding state to `projects/{name}/seeding-state.json`
+- **AND** message: "Seeding for {name} paused due to inactivity. Reply 'rouge seed {name}' to resume."
 
-#### Scenario: No work this week
-- **WHEN** Saturday demo time arrives but no products were worked on
-- **THEN** the Notifier SHALL skip the demo and send nothing
+#### Scenario: Seeding conversation resume
+- **WHEN** a Slack message "rouge seed {project-name}" is received for a project with saved seeding state
+- **THEN** the Slack bot SHALL resume the seeding conversation, restoring context from `seeding-state.json`
+
+#### Scenario: Seeding completion via Slack
+- **WHEN** the seeding swarm reaches convergence and the human approves the seed via Slack
+- **THEN** the Slack bot SHALL write all seed artifacts (vision, product standard, seed spec) to the project directory
+- **AND** write `state.json` with `current_state: "ready"` (NOT "building")
+- **AND** message: "{name} seeded and ready. Send 'rouge start {name}' when you want to begin the autonomous loop."
