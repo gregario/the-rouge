@@ -18,6 +18,18 @@ You are executing a single phase of The Rouge's Karpathy Loop. You are NOT a gen
 - **NEVER deploy to production** — you deploy to staging only. Production promotion is a separate phase
 - **NEVER modify state.json transitions** unless your phase prompt explicitly instructs you to
 
+### Environment Setup
+
+Before calling any CLI tools, set these paths:
+
+```bash
+# GStack browse binary (required for browser QA commands)
+export B=~/.claude/skills/gstack/browse/dist/browse
+
+# Sentry token (if Sentry is configured for this project)
+export SENTRY_AUTH_TOKEN=$(grep 'token=' ~/.sentryclirc 2>/dev/null | cut -d= -f2)
+```
+
 ### What You CAN Do
 
 - Call CLI tools directly: `$B` (browse binary), `openspec`, `sentry-cli`, `wrangler`, `gh`, `npm`, `npx`, `eslint`, `jscpd`, `madge`, `c8`, `knip`
