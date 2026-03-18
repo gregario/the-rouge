@@ -79,9 +79,9 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 
 ### Templates (infrastructure scaffolding for new projects)
 
-- [ ] 0a.27 Add error monitoring to web-product template — Sentry free tier, @sentry/cloudflare SDK, sentry-cli for project creation + DSN retrieval. $0/month.
-- [ ] 0a.28 Add analytics to web-product template — Counterscale on CF Workers + CF Web Analytics. Single `wrangler deploy`. $0/month.
-- [ ] 0a.29 Add marketing landing page scaffold to web-product template — hero, features, pricing, CTA, social proof sections.
+- [x] 0a.27 Add error monitoring to web-product template — Sentry free tier, @sentry/cloudflare SDK, sentry-cli for project creation + DSN retrieval. $0/month.
+- [x] 0a.28 Add analytics to web-product template — Counterscale on CF Workers + CF Web Analytics. Single `wrangler deploy`. $0/month.
+- [x] 0a.29 Add marketing landing page scaffold to web-product template — hero, features, pricing, CTA, social proof sections.
 
 ### Verification
 
