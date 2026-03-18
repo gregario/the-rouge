@@ -1,0 +1,14 @@
+{
+  "id": "page-load-time",
+  "name": "Fast page load",
+  "rule": "Largest Contentful Paint must be under 2000ms",
+  "measurement": { "type": "lighthouse-metric", "method": "Run Lighthouse, check audits.largest-contentful-paint.numericValue" },
+  "threshold": 2000,
+  "type": "non-functional",
+  "tier": "global",
+  "domain": null,
+  "source": "rouge-seed-v1",
+  "version": 1,
+  "status": "active",
+  "deprecated_reason": null
+}

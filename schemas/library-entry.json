@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Library Heuristic Entry",
+  "type": "object",
+  "required": ["id", "name", "rule", "measurement", "threshold", "type", "tier", "status"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]+$" },
+    "name": { "type": "string" },
+    "rule": { "type": "string", "description": "Plain English rule statement" },
+    "measurement": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["dom-analysis", "screenshot-llm", "lighthouse-metric", "interaction-test", "journey-test", "api-test", "code-analysis", "count"]
+        },
+        "method": { "type": "string", "description": "Specific measurement approach" }
+      }
+    },
+    "threshold": { "description": "Pass/fail threshold (type depends on measurement)" },
+    "type": { "type": "string", "enum": ["functional", "non-functional"] },
+    "tier": { "type": "string", "enum": ["global", "domain", "personal"] },
+    "domain": { "type": ["string", "null"], "enum": ["web", "game", "artifact", null] },
+    "source": { "type": "string", "description": "Where this heuristic came from" },
+    "version": { "type": "integer", "minimum": 1, "default": 1 },
+    "status": { "type": "string", "enum": ["active", "deprecated"] },
+    "deprecated_reason": { "type": ["string", "null"] }
+  }
+}

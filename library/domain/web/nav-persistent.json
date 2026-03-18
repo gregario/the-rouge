@@ -1,0 +1,14 @@
+{
+  "id": "nav-persistent",
+  "name": "Persistent navigation",
+  "rule": "Navigation must be visible on every route",
+  "measurement": { "type": "interaction-test", "method": "Navigate to each route, verify nav element exists and is visible" },
+  "threshold": 1.0,
+  "type": "functional",
+  "tier": "domain",
+  "domain": "web",
+  "source": "rouge-seed-v1",
+  "version": 1,
+  "status": "active",
+  "deprecated_reason": null
+}

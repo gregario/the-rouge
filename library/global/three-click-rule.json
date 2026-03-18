@@ -1,0 +1,14 @@
+{
+  "id": "three-click-rule",
+  "name": "Core tasks in 3 clicks",
+  "rule": "Core user tasks must complete in 3 clicks or fewer",
+  "measurement": { "type": "journey-test", "method": "Simulate each core journey, count click events" },
+  "threshold": 3,
+  "type": "functional",
+  "tier": "global",
+  "domain": null,
+  "source": "rouge-seed-v1",
+  "version": 1,
+  "status": "active",
+  "deprecated_reason": null
+}

@@ -1,0 +1,14 @@
+{
+  "id": "error-recovery",
+  "name": "Error states have recovery",
+  "rule": "100% of error states must have a clear recovery path",
+  "measurement": { "type": "interaction-test", "method": "Trigger each error state, verify recovery action is visible and functional" },
+  "threshold": 1.0,
+  "type": "functional",
+  "tier": "global",
+  "domain": null,
+  "source": "rouge-seed-v1",
+  "version": 1,
+  "status": "active",
+  "deprecated_reason": null
+}

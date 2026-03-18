@@ -1,0 +1,14 @@
+{
+  "id": "above-fold-value",
+  "name": "Primary content above fold",
+  "rule": "Primary content element must be at least 50% visible at 1440x900 viewport without scrolling",
+  "measurement": { "type": "dom-analysis", "method": "Set viewport 1440x900, check primary element bounding box vs viewport" },
+  "threshold": 0.5,
+  "type": "functional",
+  "tier": "domain",
+  "domain": "web",
+  "source": "rouge-seed-v1",
+  "version": 1,
+  "status": "active",
+  "deprecated_reason": null
+}

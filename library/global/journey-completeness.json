@@ -1,0 +1,14 @@
+{
+  "id": "journey-completeness",
+  "name": "All journeys completable",
+  "rule": "100% of defined user journeys must be completable end-to-end",
+  "measurement": { "type": "journey-test", "method": "Execute each journey via browser automation, verify completion" },
+  "threshold": 1.0,
+  "type": "functional",
+  "tier": "global",
+  "domain": null,
+  "source": "rouge-seed-v1",
+  "version": 1,
+  "status": "active",
+  "deprecated_reason": null
+}

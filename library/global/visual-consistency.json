@@ -1,0 +1,14 @@
+{
+  "id": "visual-consistency",
+  "name": "Consistent typography and color",
+  "rule": "Use at most 2 font families, 5 font sizes, and 8 colors",
+  "measurement": { "type": "code-analysis", "method": "Parse CSS/Tailwind config for font-family count, font-size count, color count" },
+  "threshold": { "font_families": 2, "font_sizes": 5, "colors": 8 },
+  "type": "functional",
+  "tier": "global",
+  "domain": null,
+  "source": "rouge-seed-v1",
+  "version": 1,
+  "status": "active",
+  "deprecated_reason": null
+}

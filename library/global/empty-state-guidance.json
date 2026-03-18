@@ -1,0 +1,14 @@
+{
+  "id": "empty-state-guidance",
+  "name": "Empty states have CTAs",
+  "rule": "100% of empty states must include a call-to-action guiding the user",
+  "measurement": { "type": "dom-analysis", "method": "Navigate to each empty state, verify CTA element exists" },
+  "threshold": 1.0,
+  "type": "functional",
+  "tier": "global",
+  "domain": null,
+  "source": "rouge-seed-v1",
+  "version": 1,
+  "status": "active",
+  "deprecated_reason": null
+}

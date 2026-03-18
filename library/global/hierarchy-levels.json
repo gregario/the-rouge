@@ -1,0 +1,14 @@
+{
+  "id": "hierarchy-levels",
+  "name": "Three visual weight tiers",
+  "rule": "Every screen must have exactly 3 visual weight tiers: primary, secondary, tertiary",
+  "measurement": { "type": "dom-analysis", "method": "Identify distinct font-size/weight clusters per screen" },
+  "threshold": 3,
+  "type": "functional",
+  "tier": "global",
+  "domain": null,
+  "source": "rouge-seed-v1",
+  "version": 1,
+  "status": "active",
+  "deprecated_reason": null
+}
