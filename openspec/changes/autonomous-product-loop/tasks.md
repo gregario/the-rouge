@@ -1,17 +1,66 @@
 ## 0a. Prerequisite — Factory Skill Audit & Rewrites
 
-- [ ] 0a.1 Audit all existing AI Factory skills against Rouge requirements — for each skill, classify as: keep as-is | extend | rewrite for autonomous claude -p mode | create from scratch
-- [ ] 0a.2 Rewrite OpenSpec propose/design/specs prompts for production depth — replace "concise 1-2 pages" with "comprehensive, production-grade." Enforce acceptance criteria per journey step, edge cases, data models, interaction patterns (must work as autonomous `claude -p` prompt — no interactive questions, no AskUserQuestion, all decisions logged to cycle_context.json)
-- [ ] 0a.3 Rewrite brainstorming skill — add "depth mode" that doesn't YAGNI. Current skill actively fights depth; Rouge needs it to explore fully (must work as autonomous `claude -p` prompt — no interactive questions, no AskUserQuestion, all decisions logged to cycle_context.json)
-- [ ] 0a.4 Rewrite design mode prompts — produce structured artifacts parseable by the Evaluator (YAML/JSON vision docs, component mappings, PO-checkable outputs), not design prose (must work as autonomous `claude -p` prompt — no interactive questions, no AskUserQuestion, all decisions logged to cycle_context.json)
-- [ ] 0a.5 Adapt product taste for re-invocation within seeding swarm — currently one-shot gate, needs to be a discipline callable multiple times as other disciplines challenge it (must work as autonomous `claude -p` prompt — no interactive questions, no AskUserQuestion, all decisions logged to cycle_context.json)
-- [ ] 0a.6 Extend QA skill — add code quality baseline collection, architecture integrity checks, test integrity gate (must work as autonomous `claude -p` prompt — no interactive questions, no AskUserQuestion, all decisions logged to cycle_context.json)
-- [ ] 0a.7 Create PO Review skill from scratch — mechanical execution of instantiated check templates, journey/screen/interaction quality assessment, quality gap generation
-- [ ] 0a.8 Create Seeding Swarm orchestration skill from scratch — non-linear multi-discipline management, loop-back detection, convergence detection
-- [ ] 0a.9 Create Runner loop skill from scratch — 13-state machine, shared context management, Factory invocation, evaluation orchestration, delta tracking, rollback
+Skill timing categories for Rouge:
+- **Seed-once**: Run during project seeding, not repeated each loop (legal, privacy, test bootstrap, monitoring/analytics setup)
+- **Every-loop**: Run in each Karpathy Loop iteration (QA, security, code audit, design review, ship)
+- **Final-gate**: Run once before first production deploy (full validation checklist)
+
+Cross-cutting meta-layer patterns (apply to ALL skills):
+- **Boil the Lake**: Always recommend complete implementation. Never scope down for AI convenience. Dual time estimates (human-team vs CC) on every recommendation.
+- **Latent space activation**: Anchor evaluator/review prompts in reasoning frameworks of named thinkers (Bezos one-way doors, Munger inversion, Grove paranoid scanning, Rams subtraction, Norman time-horizon design, etc.). Instruction: "internalize these, don't enumerate them."
+- **Completeness scoring**: Every decision point shows 1-10 completeness score.
+- **Autonomous mode**: All skills must work as `claude -p` prompts — no AskUserQuestion, no interactive questions, all decisions logged to cycle_context.json.
+
+### Audit & Classification (expanded scope)
+
+- [ ] 0a.1 Audit ALL skills across four ecosystems against Rouge requirements — 13 factory skills, 14 superpowers skills (v5.0.5), 11 GStack skills (v0.6.4), 4 OpenSpec skills, plus 2 superpowers PR skills (#564 AI code audit, #560 security review). For each: classify as keep-as-is | extend | rewrite for autonomous mode | create from scratch | adopt-and-adapt (new to our stack). Total: ~44 skills.
+
+### Rewrites (existing skills → autonomous mode)
+
+- [ ] 0a.2 Rewrite OpenSpec propose/design/specs prompts for production depth — replace "concise 1-2 pages" with "comprehensive, production-grade." Enforce acceptance criteria per journey step, edge cases, data models, interaction patterns. Apply latent space activation for product thinking. (autonomous `claude -p`)
+- [ ] 0a.3 Rewrite brainstorming skill — add "depth mode" that doesn't YAGNI. Current skill actively fights depth; Rouge needs it to explore fully. Incorporate GStack's SELECTIVE EXPANSION mode for cherry-picking scope expansions. (autonomous `claude -p`)
+- [ ] 0a.4 Rewrite design mode prompts — produce structured artifacts parseable by the Evaluator (YAML/JSON vision docs, component mappings, PO-checkable outputs). Integrate GStack's `/plan-design-review` scoring (0-10 per dimension), 80-item design checklist, and AI slop detection. Integrate `/design-consultation` competitive browsing for seed phase. Apply latent space activation (Rams, Norman, Zhuo, Gebbia, Ive). (autonomous `claude -p`)
+- [ ] 0a.5 Adapt product taste for re-invocation within seeding swarm — currently one-shot gate, needs to be a discipline callable multiple times. Apply latent space activation (Chesky 10-star, Graham do things that don't scale). (autonomous `claude -p`)
+- [ ] 0a.6 Extend QA skill — add: code quality baseline collection, architecture integrity checks, test integrity gate, auto regression test generation (from GStack 0.6.0), test bootstrap from scratch (detect runtime, install framework, write initial tests — from GStack 0.6.0), diff-scope categorization (frontend/backend/prompts/tests/docs/config — from GStack 0.6.3), plan-to-QA artifact flow (from GStack 0.4.0). (autonomous `claude -p`)
+- [ ] 0a.6b Extend ship skill — add: coverage audit mapping diff to tests with ASCII diagram (from GStack 0.6.0), fix-first heuristic for auto-fixing obvious issues (from GStack 0.4.5), design review lite 20-item CSS checklist on frontend PRs (from GStack 0.6.3), review readiness dashboard tracking gate status per branch (from GStack 0.5.1), enum handler detection (from GStack 0.4.1). (autonomous `claude -p`)
+- [ ] 0a.6c Extend review skill — add: fix-first heuristic, design review lite, enum handler detection, single whole-plan review (token savings, from superpowers v5.0.4), raised bar for blocking issues with calibration (from superpowers v5.0.4), reduced max review iterations 5→3 (from superpowers v5.0.4). (autonomous `claude -p`)
+
+### New skills (create from scratch)
+
+- [ ] 0a.7 Create PO Review skill from scratch — mechanical execution of instantiated check templates, journey/screen/interaction quality assessment, quality gap generation. Apply latent space activation for product evaluation. Integrate GStack's design scoring dimensions.
+- [ ] 0a.8 Create Seeding Swarm orchestration skill from scratch — non-linear multi-discipline management, loop-back detection, convergence detection. Integrate GStack's `/design-consultation` for competitive design intelligence during seed phase.
+- [ ] 0a.9 Create Runner loop skill from scratch — 13-state machine, shared context management, Factory invocation, evaluation orchestration, delta tracking, rollback. Integrate review readiness dashboard (from GStack 0.5.1) for gate tracking. Integrate diff-scope (from GStack 0.6.3) for routing changes to correct review gates.
 - [ ] 0a.10 Create Vision Check skill from scratch — periodic re-evaluation against vision document, scope expansion/contraction decisions
-- [ ] 0a.11 Create Evaluation Orchestrator skill from scratch — three-phase sequential execution (Test Integrity → QA → PO Review), routing failures correctly (bugs vs quality specs)
-- [ ] 0a.12 Verify all rewritten/new skills work individually before composing them into the loop
+- [ ] 0a.11 Create Evaluation Orchestrator skill from scratch — three-phase sequential execution (Test Integrity → QA → PO Review), routing failures correctly (bugs vs quality specs). Integrate AI code audit (from superpowers PR #564, 7-dimension audit) and security review (from superpowers PR #560, OWASP 5-category checklist) as evaluation sub-phases.
+
+### New skills (adopt and adapt from external sources)
+
+- [ ] 0a.13 Create `/ai-code-audit` skill — adapt superpowers PR #564 (auditing-ai-generated-code). 7-dimension audit targeting AI-specific failure patterns: dead validation, hallucinated deps, client-exposed keys, localStorage-as-persistence. 0-100 scoring with hard rules. Timing: every-loop.
+- [ ] 0a.14 Create `/security-review` skill — adapt superpowers PR #560. OWASP-style 5-category checklist: input validation, auth, data exposure, deps, config. 5-step hard gate (DIFF→CHECK→FLAG→FIX→VERIFY). Timing: every-loop.
+- [ ] 0a.15 Create `/design-review` skill — adapt GStack's post-build visual QA with atomic CSS fixes and before/after screenshots. Merge with GStack's design review lite for lightweight mode. Timing: every-loop.
+- [ ] 0a.16 Create `/a11y-review` skill — WCAG accessibility audit. Covers: color contrast (WCAG AA), keyboard navigation, screen reader compatibility, ARIA attributes, focus management, alt text, semantic HTML. Integrate with QA flow. Timing: every-loop.
+- [ ] 0a.17 Create `/legal-scaffold` skill — seed-once skill. Two parts: (a) GC input review on concept (trademark conflicts, IP risk, OSS license compliance, regulated domain detection, data handling obligations), (b) generate boilerplate T&Cs, privacy policy, cookie policy tailored to the product's data handling. Timing: seed-once.
+- [ ] 0a.18 Create `/privacy-review` skill — GDPR/CCPA review. Data flow mapping, cookie audit, consent mechanism check, data deletion capability, third-party data sharing inventory. Timing: seed-once (with every-loop checks for new data flows).
+- [ ] 0a.19 Create `/marketing-landing-page` template — extend web-product template with marketing landing page scaffold (hero, features, pricing, CTA, social proof). Timing: seed-once.
+
+### Infrastructure adoption (meta-layer + templates)
+
+- [ ] 0a.20 Integrate "Boil the Lake" + dual time estimates into meta-layer — update CLAUDE.md, preamble partial, ask-format partial. Every recommendation shows human-team vs CC time. Every option shows completeness score 1-10.
+- [ ] 0a.21 Integrate latent space activation across all review/evaluation skills — create a `partials/latent-space-activation.md` partial with domain-specific thinker sets (product: Bezos/Chesky/Graham/Altman; engineering: Larson/McKinley/Brooks/Beck/Majors; design: Rams/Norman/Zhuo/Gebbia/Ive; security: OWASP/Schneier; legal: Lessig). Include in relevant skill templates.
+- [ ] 0a.22 Integrate review readiness dashboard pattern — create shared state tracker that logs which gates (QA, security, AI audit, design review, a11y, PO review) have passed per branch. Runner reads this to determine next phase.
+- [ ] 0a.23 Integrate diff-scope pattern — create `rouge-diff-scope` utility that categorizes branch changes. Runner uses this to determine which review gates to invoke (frontend changes → design review + a11y; backend → security review; all → AI code audit).
+- [ ] 0a.24 Add error monitoring template (Sentry free tier, @sentry/cloudflare SDK) — scaffold into web-product template. Fully CLI-automatable via sentry-cli. $0/month for <5K errors.
+- [ ] 0a.25 Add analytics template (Counterscale on CF Workers + CF Web Analytics) — scaffold into web-product template. Single `wrangler deploy`. $0/month.
+- [ ] 0a.26 Create final validation gate skill — pre-production checklist: all tests pass, coverage threshold met, security audit clean, privacy review complete, legal docs generated, error monitoring configured, analytics configured, Lighthouse baseline met, SEO basics (meta/sitemap/robots.txt), domain+SSL configured, production env vars set, marketing page live, README current, a11y baseline met.
+
+### Verification
+
+- [ ] 0a.12 Verify all rewritten/new/adopted skills work individually before composing them into the loop
+
+### Backlog (not task 0a — fundamentally different loops needing separate design)
+
+- [ ] BACKLOG: MCP testing loop — wrap `/mcp-qa` into Rouge-compatible gate for MCP server products
+- [ ] BACKLOG: Godot testing loop — wrap GUT into Rouge-compatible gate for Godot game products
 
 ## 0b. Prerequisite — Deployment Infrastructure Battle-Testing
 
