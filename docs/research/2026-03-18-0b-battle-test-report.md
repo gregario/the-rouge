@@ -28,9 +28,11 @@
 | Stripe CLI (create product) | **PASS** | Sandbox mode. JSON output. `"livemode": false` verified. |
 | Stripe CLI (create price) | **PASS** | Recurring params via `-d` flag. |
 | Stripe CLI (trigger events) | **PASS** | checkout.session.completed, subscription.created, invoice.payment_succeeded. |
-| Sentry CLI | **NEEDS AUTH** | One-time `sentry-cli login` is interactive (y/n prompt). Token-based alternative: `SENTRY_AUTH_TOKEN` env var. |
+| Sentry API (create project) | **PASS** | REST API, not CLI. Returns project ID + slug. |
+| Sentry API (get DSN) | **PASS** | REST API keys endpoint. DSN in `[0].dsn.public`. |
+| sentry-cli (info/auth) | **PASS** | Token in `~/.sentryclirc`. |
 
-**Overall:** 19/20 tools validated PASS. 1 needs account setup (Sentry).
+**Overall:** 21/21 tools validated PASS. All infrastructure is autonomous.
 
 ---
 
