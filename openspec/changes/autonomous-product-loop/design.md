@@ -6,8 +6,10 @@ The Rouge adds an autonomous outer loop that removes the human as the between-se
 
 Karpathy's autoresearch system is the inspiration: tight feedback loops, external evaluation metrics, autonomous iteration. The key difference is that autoresearch has a single unambiguous metric (val_bpb) while product quality requires a composite of measurable signals.
 
+An architecture exploration resolved the execution model: short-lived Claude Code invocations with state on disk (the "Karpathy Loop"), rather than a traditional long-running process. This eliminates session management complexity and makes crash recovery the normal operating mode. See decisions 8-12 for details.
+
 **Constraints:**
-- Solo founder use case — no multi-tenancy, no web UI needed
+- Solo founder use case — me first, others later, but architected for future generalization (open source or SaaS potential)
 - Web products first (SaaS, marketing sites) — full browser control for evaluation
 - AI Factory exists and works — The Rouge wraps it, doesn't replace it
 - Token budget is not a constraint (willing to spend on quality)
@@ -101,6 +103,40 @@ The Rouge notifies the human when:
 
 Between these, it runs autonomously. Prefers batching (one daily briefing) over interruption (15 messages/day).
 
+### 8. Karpathy Loop execution model
+
+Each phase of the state machine runs as a separate, short-lived `claude -p` invocation. No long-running process. State lives on disk (`state.json`, `cycle_context.json`). A bash launcher script (~50 lines) reads state, spawns the right Claude Code session, handles errors, and loops forever. Inspired by Karpathy's AutoResearch: each iteration is self-contained, starts fresh, reads state from disk.
+
+**Why not a long-running Node.js process?** Claude Code sessions die (context limits, session timeouts). Fighting this with session chaining and context management adds complexity without value. The Karpathy pattern embraces ephemerality — crash recovery IS the normal operating mode.
+
+**Why not API-based (`claude -p` with API key)?** V1 uses subscription auth (`claude -p` with cached OAuth on the user's machine). Subscription is ~12x cheaper than API pricing. V2 can migrate to API key for full cloud autonomy — same code, different auth.
+
+**Alternative considered:** Claude Code Agent tool for sub-agents within a single session. Rejected because sessions still die, and the state machine is cleaner when each phase is independent.
+
+### 9. Multi-project round-robin launcher
+
+The launcher iterates through all project directories, checking each `state.json`. Projects in `waiting-for-human` or `complete` states are skipped. One phase per project per loop. This naturally supports parallel product development.
+
+**Why round-robin?** Simplest scheduling that works. No priority system needed for V1 — first-in-first-out. If all projects are paused waiting for feedback, the launcher idles (zero cost).
+
+### 10. Model selection per phase
+
+The launcher passes `--model` to `claude -p` per state. Opus for thinking phases (building, PO review, analysis, change specs, vision checks). Sonnet for commodity phases (test integrity, QA gate, promoting, rolling back). This reduces API costs by ~40-60% when migrating to V2.
+
+**Why not Opus for everything?** Commodity phases are mechanical (run tests, check pass/fail, merge PR). Sonnet handles these reliably at lower cost.
+
+### 11. Swarming only during seeding
+
+The seeding phase is the ONE interactive phase where the human is present. It uses a non-linear swarm (brainstorming ↔ taste ↔ spec ↔ design). All autonomous phases use tight Karpathy loops instead — if something fails, the state machine iterates. More loops, less deliberation per loop.
+
+**Why not swarm autonomously?** Swarming requires judgment about when to loop back. Tight loops with clear pass/fail criteria converge mechanically without needing that judgment.
+
+### 12. Supabase 2-slot management
+
+Free tier allows 2 active Supabase projects. Paused projects preserve data and don't count. The launcher tracks active projects and rotates slots: pause least-recently-active, unpause or create as needed. Not every product needs a database — the Rouge detects this from project type.
+
+**Why not Pro plan?** $25/mo base + $10/project adds up fast across many products. Free tier with slot rotation costs $0. Upgrade individual products to Pro only when they generate revenue.
+
 ## Risks / Trade-offs
 
 **[Token cost explosion]** → Autonomous multi-hour loops with sub-agents will consume significant tokens. Mitigation: start with web products (faster eval cycles), monitor cost per loop, set configurable budget caps per cycle.
@@ -115,11 +151,15 @@ Between these, it runs autonomously. Prefers batching (one daily briefing) over 
 
 **[Library pollution]** → Bad feedback or incorrect tagging could corrupt The Library. Mitigation: Library entries are versioned and prunable. Retrospectives surface conflicting or outdated entries.
 
+**[Subscription auth fragility]** → OAuth tokens on the user's machine may need periodic re-login. Mitigation: the launcher detects auth failures and notifies via Slack. Re-login takes 30 seconds.
+
+**[Supabase slot contention]** → With only 2 active slots, products under human review block other products from being built. Mitigation: review turnaround is typically <24h. If blocking becomes an issue, upgrade one product to Pro.
+
 ## Open Questions
 
-- What is the minimum set of taste heuristics needed to seed The Library on day one?
-- How should the vision document be structured to enable automated comparison?
-- What's the right confidence threshold for pivot notification vs autonomous resolution?
-- How does the consensus engine work in practice? (Multi-LLM evaluation for high-stakes decisions)
-- What's the state persistence format? (Files on disk, database, or hybrid)
-- How does The Rouge invoke The Factory? (Same process, subprocess, separate session)
+- GStack browse on Linux (macOS ARM binary, need Linux alternative for thin client)
+- OAuth credential longevity on persistent machine
+- Cloudflare Workers vs Pages deployment flow validation
+- Stripe end-to-end test flow spike
+- Feedback queue format (how Slack bot writes for launcher pickup)
+- Morning briefing scheduling mechanism

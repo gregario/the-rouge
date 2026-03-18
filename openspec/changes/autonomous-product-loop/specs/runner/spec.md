@@ -1,5 +1,22 @@
 ## ADDED Requirements
 
+### Requirement: Runner executes as a Karpathy Loop of short-lived phases
+The Runner SHALL NOT be a long-running process. Each state transition SHALL be executed as an independent `claude -p` invocation that reads state from disk, executes one phase, writes results back, and exits. A launcher script manages the loop externally.
+
+#### Scenario: Phase invocation
+- **WHEN** the launcher detects a project's `state.json` indicates a phase to execute
+- **THEN** it SHALL spawn `claude -p --project <project-dir> --dangerously-skip-permissions --model <model>` with a phase-specific prompt
+- **AND** the Claude Code session SHALL read `state.json` and `cycle_context.json`, execute the phase, write results back to both files, git commit, and exit
+
+#### Scenario: Model selection per phase
+- **WHEN** the launcher spawns a phase
+- **THEN** it SHALL use `--model opus` for: building, qa-fixing, po-reviewing, analyzing, generating-change-spec, vision-checking
+- **AND** it SHALL use `--model sonnet` for: test-integrity, qa-gate, promoting, rolling-back
+
+#### Scenario: Multi-project round-robin
+- **WHEN** the launcher loops
+- **THEN** it SHALL iterate through all project directories, read each `state.json`, skip projects in `waiting-for-human`, `complete`, or `ready` states, and execute one phase for each active project per loop iteration
+
 ### Requirement: Runner orchestrates the build-evaluate-iterate loop
 The Runner SHALL manage the full autonomous cycle as a state machine with defined states and transitions. Each state persists to disk so the loop can survive crashes and resume.
 
@@ -7,6 +24,7 @@ The Runner SHALL manage the full autonomous cycle as a state machine with define
 - **WHEN** the Runner is operating
 - **THEN** it SHALL transition through these states:
   1. `seeding` → Seeder is active, human is interacting. Exit: human approves seed.
+  1.5. `ready` → Seeding complete, human has approved the seed. Waiting for explicit trigger to begin autonomous loop. Exit: human sends "rouge start" via Slack or triggers manually.
   2. `building` → Factory is building on a loop branch, deploying to staging. Exit: Factory reports build complete with staging URL.
   3. `test-integrity` → Test Integrity Gate running: verifying tests match current spec. Exit: tests verified (gaps filled, stale regenerated, orphans removed).
   4. `qa-gate` → QA phase running with verified tests: checking if build matches spec. Exit: QA verdict PASS or FAIL.
@@ -35,15 +53,9 @@ The Runner SHALL manage the full autonomous cycle as a state machine with define
   - `timestamp`: ISO 8601
 
 #### Scenario: Crash recovery
-- **WHEN** a Runner session is interrupted at any state
-- **THEN** upon restart, the Runner SHALL:
-  1. Read `state.json`
-  2. If state is `building` or `qa-fixing`: check if Factory completed (look for deployment artifacts). If not, restart the build.
-  3. If state is `qa-gate`: restart QA (idempotent).
-  4. If state is `po-reviewing`: restart PO Review (idempotent).
-  5. If state is `analyzing` or `generating-change-spec`: re-run analysis from the last PO Review report.
-  6. If state is `waiting-for-human`: check Slack for responses received while down.
-  7. Log: "Resumed from state: {state}, cycle: {N}"
+- **WHEN** a phase invocation fails (non-zero exit, timeout, or rate limit)
+- **THEN** the launcher SHALL log the error, wait 30-60 seconds, and re-invoke the same phase. State.json was not updated (the phase didn't complete), so re-running is safe — each phase is idempotent.
+- **AND** if the same phase fails 3 consecutive times, the launcher SHALL transition the project to `waiting-for-human` and notify via Slack: "Phase {state} failed 3 times for {project}. Error: {last error}."
 
 ### Requirement: Runner decides cycle granularity during seeding
 The Runner SHALL determine whether to cycle through the product as a whole or by feature area, based on the seed spec structure.
@@ -231,6 +243,11 @@ The Runner SHALL NOT use a sequential handover pattern where Agent A summarises 
 ### Requirement: Runner invokes The Factory with full shared context
 The Runner SHALL provide the Factory with the complete shared context, not a summarised brief.
 
+#### Scenario: Factory invocation is a claude -p session
+- **WHEN** the Runner's launcher invokes the building phase
+- **THEN** it SHALL spawn `claude -p --project <target-project-dir>` where the target project has AI-Factory 2.0 skills installed
+- **AND** the phase prompt SHALL instruct Claude Code to read `cycle_context.json` for full context, build the feature area, deploy to staging, and write `factory_decisions` and `factory_questions` back to `cycle_context.json`
+
 #### Scenario: Factory receives full context
 - **WHEN** the Runner initiates a build cycle
 - **THEN** it SHALL provide the Factory with the full `cycle_context.json` including: vision document, product standard, active spec, Library heuristics (full definitions), reference products, all previous evaluation reports, all previous Factory decisions and questions, and the Runner's analysis of what needs to change and why
@@ -389,6 +406,20 @@ The Runner SHALL maintain a `journey.json` that accumulates the full history of 
 - **WHEN** a morning briefing is compiled
 - **THEN** it SHALL include a mini-timeline from the journey log: last N loops, their outcomes, confidence trend direction, and any rollbacks
 
+### Requirement: Runner manages Supabase slot rotation
+The Runner SHALL track active Supabase projects and manage the 2-slot free tier limit.
+
+#### Scenario: Slot check before provisioning
+- **WHEN** a phase needs to create or unpause a Supabase project
+- **THEN** the Runner SHALL check the active project count via Management API (`GET /v1/projects` filtered by status)
+- **AND** if at the 2-project limit, pause the least-recently-active project (`POST /v1/projects/{ref}/pause`) before proceeding
+- **AND** log the swap in the journey log
+
+#### Scenario: Not all products need Supabase
+- **WHEN** a new product is seeded
+- **THEN** the Seeder SHALL record in the vision document whether the product requires a database
+- **AND** the Runner SHALL skip Supabase provisioning for products that don't need one (static sites, CLI tools, MCP servers)
+
 ### Requirement: Runner supports the meta-loop for Factory improvement
 The Runner SHALL periodically analyze cross-product quality patterns and generate improvement specs for the AI Factory itself.
 
@@ -400,3 +431,33 @@ The Runner SHALL periodically analyze cross-product quality patterns and generat
 #### Scenario: Meta-loop frequency
 - **WHEN** 5 products have been completed
 - **THEN** the Runner SHALL run a meta-analysis: aggregate all evaluation reports, identify the top 5 most common failures, determine which are addressable at the Factory level, and generate improvement specs if any are found
+
+### Requirement: Runner supports explicit project activation via Slack commands
+The Runner SHALL NOT automatically begin building after seeding. Projects enter a `ready` state after seeding and require an explicit trigger to begin the autonomous loop. This trigger can come via Slack commands or manual state file edits.
+
+#### Scenario: Project activation
+- **WHEN** a Slack command "rouge start {project-name}" is received
+- **THEN** the Slack bot SHALL verify the project exists and is in `ready` state
+- **AND** check Supabase slot availability (if project needs a database)
+- **AND** transition `state.json` to `building`
+- **AND** the launcher SHALL pick it up on its next loop iteration
+- **AND** confirm via Slack: "Starting {project-name}. First phase: building."
+
+#### Scenario: Project pause
+- **WHEN** a Slack command "rouge pause {project-name}" is received
+- **THEN** the Slack bot SHALL transition the project to `waiting-for-human` state regardless of current state
+- **AND** if a `claude -p` phase is currently running for this project, it will complete its current phase but the launcher will not start the next one
+- **AND** confirm via Slack: "{project-name} paused at state: {current_state}."
+
+#### Scenario: Project resume
+- **WHEN** a Slack command "rouge resume {project-name}" is received
+- **THEN** the Slack bot SHALL transition the project back to its previous state (stored in `state.json` as `paused_from_state`)
+- **AND** confirm via Slack: "Resuming {project-name} from state: {state}."
+
+#### Scenario: Status check
+- **WHEN** a Slack command "rouge status" is received
+- **THEN** the Slack bot SHALL read all project `state.json` files and respond with a summary:
+  - Active projects: name, current state, cycle number, confidence
+  - Ready projects: name (waiting to be started)
+  - Paused projects: name, paused-from state
+  - Complete projects: name, production URL
