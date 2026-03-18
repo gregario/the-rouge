@@ -25,10 +25,12 @@
 | jscpd | **PASS** | `--reporters json` writes to file, parseable. |
 | madge | **PASS** | `--circular` exits non-zero on circular deps. |
 | knip | **PASS** | `--reporter json` produces parseable output. |
-| Stripe CLI | **NEEDS AUTH** | One-time `stripe login` requires browser. Once authed, fully CLI-driven. |
+| Stripe CLI (create product) | **PASS** | Sandbox mode. JSON output. `"livemode": false` verified. |
+| Stripe CLI (create price) | **PASS** | Recurring params via `-d` flag. |
+| Stripe CLI (trigger events) | **PASS** | checkout.session.completed, subscription.created, invoice.payment_succeeded. |
 | Sentry CLI | **NEEDS AUTH** | One-time `sentry-cli login` is interactive (y/n prompt). Token-based alternative: `SENTRY_AUTH_TOKEN` env var. |
 
-**Overall:** 16/18 tools validated PASS. 2 need one-time manual auth (Stripe, Sentry).
+**Overall:** 19/20 tools validated PASS. 1 needs account setup (Sentry).
 
 ---
 
