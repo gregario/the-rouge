@@ -134,17 +134,17 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 
 ## 1. Project Foundation & State Management
 
-- [ ] 1.1 Define and implement `state.json` schema — current_state, cycle_number, feature_areas (with status), current_feature_area, last_evaluation, change_specs_pending, vision_check_results, confidence_history, timestamp
-- [ ] 1.2 Implement state persistence module — write state after every state transition, atomic writes to prevent corruption
-- [ ] 1.3 Implement crash recovery logic — read state.json on startup, determine resume action per state (building: check for deploy artifacts; evaluating: restart; analyzing: re-run from last report; waiting-for-human: check Slack)
-- [ ] 1.4 Define vision document schema (YAML/JSON) — name, one_liner, persona, problem, emotional_north_star, reference_products (with dimensions and URLs), feature_areas (with user_journeys and acceptance_criteria), product_standard (overrides, additions, reference_screenshots)
-- [ ] 1.5 Implement vision document parser — extract acceptance criteria as testable assertions, user journeys as simulatable flows, reference product dimensions, product standard overrides
-- [ ] 1.6 Define product standard schema — inherits (global + domain), overrides (heuristic ID + modified threshold + justification), additions (project-specific heuristics in Library entry format), definition_of_done (plain English + heuristic count references)
+- [x] 1.1 Define and implement `state.json` schema — current_state, cycle_number, feature_areas (with status), current_feature_area, last_evaluation, change_specs_pending, vision_check_results, confidence_history, timestamp
+- [x] 1.2 Implement state persistence module — write state after every state transition, atomic writes to prevent corruption
+- [x] 1.3 Implement crash recovery logic — read state.json on startup, determine resume action per state (building: check for deploy artifacts; evaluating: restart; analyzing: re-run from last report; waiting-for-human: check Slack)
+- [x] 1.4 Define vision document schema (YAML/JSON) — name, one_liner, persona, problem, emotional_north_star, reference_products (with dimensions and URLs), feature_areas (with user_journeys and acceptance_criteria), product_standard (overrides, additions, reference_screenshots)
+- [x] 1.5 Implement vision document parser — extract acceptance criteria as testable assertions, user journeys as simulatable flows, reference product dimensions, product standard overrides
+- [x] 1.6 Define product standard schema — inherits (global + domain), overrides (heuristic ID + modified threshold + justification), additions (project-specific heuristics in Library entry format), definition_of_done (plain English + heuristic count references)
 
 ## 2. The Library — Storage & Data Model
 
-- [ ] 2.1 Design and implement Library storage format — file-based, one file per heuristic entry, directory structure: `library/global/`, `library/domain/{web,game,artifact}/`, `library/personal/`, `library/history/`
-- [ ] 2.2 Implement heuristic entry schema — id, name, rule, measurement (with type: dom-analysis | screenshot-llm | lighthouse-metric | interaction-test | journey-test | api-test), threshold, type (functional | non-functional), tier (global | domain | personal), domain, source, version, status, deprecated_reason
+- [x] 2.1 Design and implement Library storage format — file-based, one file per heuristic entry, directory structure: `library/global/`, `library/domain/{web,game,artifact}/`, `library/personal/`, `library/history/`
+- [x] 2.2 Implement heuristic entry schema — id, name, rule, measurement (with type: dom-analysis | screenshot-llm | lighthouse-metric | interaction-test | journey-test | api-test), threshold, type (functional | non-functional), tier (global | domain | personal), domain, source, version, status, deprecated_reason
 - [ ] 2.3 Implement Library read API — query by tier, domain, status; return all active heuristics for a given evaluation context (global + relevant domain + personal fingerprint)
 - [ ] 2.4 Implement Library write API — add new entry, update entry (increment version, preserve history), deprecate entry (set status, record reason), prune deprecated entries older than N months
 - [ ] 2.5 Implement version history — every update creates a history entry with old value, new value, reason, date; stored in `library/history/`
@@ -152,26 +152,26 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 
 ## 3. The Library — Day-One Seed
 
-- [ ] 3.1 Seed product standards (functional): hierarchy-primary (DOM analysis, primary score ≥1.5x secondary), hierarchy-levels (3 visual weight tiers), three-click-rule (journey simulation ≤3 clicks), five-state-coverage (5 states per interactive screen), progressive-disclosure (≤7 primary actions visible), user-journey-completeness (100% journeys complete), error-recovery (100% error states have recovery path)
-- [ ] 3.2 Seed design standards (functional): visual-consistency (≤2 font families, ≤5 sizes, ≤8 colors), interactive-feedback (100% elements respond to hover/click), animation-state-transitions (≥80% transitions animated), mobile-responsive (usable at 375px+, ≥44px tap targets), empty-state-guidance (100% empty states have CTA)
-- [ ] 3.3 Seed engineering standards (non-functional): page-load-time (LCP <2000ms), time-to-interactive (TTI <3000ms), lighthouse-performance (score ≥80), lighthouse-accessibility (score ≥90), no-console-errors (0 errors), api-response-time (p95 <500ms reads, <1000ms writes)
-- [ ] 3.4 Seed web domain heuristics: nav-persistent (nav visible on every route), above-fold-value (primary element ≥50% visible at 1440×900), form-validation-inline (100% inline), breadcrumb-depth (breadcrumbs at ≥3 levels deep)
+- [x] 3.1 Seed product standards (functional): hierarchy-primary (DOM analysis, primary score ≥1.5x secondary), hierarchy-levels (3 visual weight tiers), three-click-rule (journey simulation ≤3 clicks), five-state-coverage (5 states per interactive screen), progressive-disclosure (≤7 primary actions visible), user-journey-completeness (100% journeys complete), error-recovery (100% error states have recovery path)
+- [x] 3.2 Seed design standards (functional): visual-consistency (≤2 font families, ≤5 sizes, ≤8 colors), interactive-feedback (100% elements respond to hover/click), animation-state-transitions (≥80% transitions animated), mobile-responsive (usable at 375px+, ≥44px tap targets), empty-state-guidance (100% empty states have CTA)
+- [x] 3.3 Seed engineering standards (non-functional): page-load-time (LCP <2000ms), time-to-interactive (TTI <3000ms), lighthouse-performance (score ≥80), lighthouse-accessibility (score ≥90), no-console-errors (0 errors), api-response-time (p95 <500ms reads, <1000ms writes)
+- [x] 3.4 Seed web domain heuristics: nav-persistent (nav visible on every route), above-fold-value (primary element ≥50% visible at 1440×900), form-validation-inline (100% inline), breadcrumb-depth (breadcrumbs at ≥3 levels deep)
 - [ ] 3.5 Verify all seeded heuristics have valid measurement methods and thresholds by running them against a known-good reference product (Stripe dashboard or similar)
 
 ## 4. The Library — PO Check Templates
 
-- [ ] 4.1 Implement check template schema — id, dimension, applies_to, given (parameterized), when (parameterized), then (with measurement), measurement_method, default_threshold, parameters list
-- [ ] 4.2 Seed feedback dimension templates: visual-response (200ms screenshot-diff), loading-indicator (500ms threshold, intercept network), success-confirmation (1s contextual check), error-specificity (LLM judgment on message specificity)
-- [ ] 4.3 Seed clarity dimension templates: next-action (≤2 competing elements via visual prominence analysis), label-quality (≥90% descriptive labels via LLM judgment), affordance (100% interactive elements have visual cues)
-- [ ] 4.4 Seed efficiency dimension templates: step-necessity (LLM judgment on step eliminability), no-redundant-confirm (no confirmation dialogs for non-destructive actions)
-- [ ] 4.5 Seed transitions dimension templates: screen-change (3-frame capture, intermediate state detected), state-change (same 3-frame method for in-page state changes)
-- [ ] 4.6 Seed delight dimension templates: contextual-copy (LLM judgment on message contextuality), microinteraction (5-frame capture detecting animation beyond basic toggle)
+- [x] 4.1 Implement check template schema — id, dimension, applies_to, given (parameterized), when (parameterized), then (with measurement), measurement_method, default_threshold, parameters list
+- [x] 4.2 Seed feedback dimension templates: visual-response (200ms screenshot-diff), loading-indicator (500ms threshold, intercept network), success-confirmation (1s contextual check), error-specificity (LLM judgment on message specificity)
+- [x] 4.3 Seed clarity dimension templates: next-action (≤2 competing elements via visual prominence analysis), label-quality (≥90% descriptive labels via LLM judgment), affordance (100% interactive elements have visual cues)
+- [x] 4.4 Seed efficiency dimension templates: step-necessity (LLM judgment on step eliminability), no-redundant-confirm (no confirmation dialogs for non-destructive actions)
+- [x] 4.5 Seed transitions dimension templates: screen-change (3-frame capture, intermediate state detected), state-change (same 3-frame method for in-page state changes)
+- [x] 4.6 Seed delight dimension templates: contextual-copy (LLM judgment on message contextuality), microinteraction (5-frame capture detecting animation beyond basic toggle)
 - [ ] 4.7 Implement template instantiation engine — given a template and product-specific parameters, produce a concrete given/when/then check with filled-in values
 - [ ] 4.8 Test each seeded template against a known product — verify measurement methods work and thresholds are sensible
 
 ## 5. The Library — Personal Taste Fingerprint
 
-- [ ] 5.1 Implement fingerprint entry schema — id, preference (plain English), evidence (list of {date, source_quote}), strength (0.0-1.0), last_expressed (date), contradictions (list), applies_to (all | web | game | artifact)
+- [x] 5.1 Implement fingerprint entry schema — id, preference (plain English), evidence (list of {date, source_quote}), strength (0.0-1.0), last_expressed (date), contradictions (list), applies_to (all | web | game | artifact)
 - [ ] 4.2 Implement pattern detection — after 3+ feedback instances on the same dimension, auto-create fingerprint entry with strength ≥0.7 and flag in next briefing
 - [ ] 4.3 Implement strength calculation — 0.3 for single mention, 0.5 for 2 mentions, 0.7 for 3+, 1.0 for 5+ with no contradictions; contradictions reduce strength by 0.2 each
 - [ ] 4.4 Implement decay — preferences not reinforced in 6+ months decay 0.1/month to floor of 0.2
