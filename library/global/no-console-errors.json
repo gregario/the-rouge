@@ -1,0 +1,14 @@
+{
+  "id": "no-console-errors",
+  "name": "Zero console errors",
+  "rule": "No JavaScript console errors on any page",
+  "measurement": { "type": "interaction-test", "method": "Navigate all pages, collect console.error output via $B console --errors" },
+  "threshold": 0,
+  "type": "non-functional",
+  "tier": "global",
+  "domain": null,
+  "source": "rouge-seed-v1",
+  "version": 1,
+  "status": "active",
+  "deprecated_reason": null
+}

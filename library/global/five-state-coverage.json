@@ -1,0 +1,14 @@
+{
+  "id": "five-state-coverage",
+  "name": "Five UI states per screen",
+  "rule": "Every interactive screen must be designed in 5 states: empty, loading, populated, error, overflow",
+  "measurement": { "type": "code-analysis", "method": "Check component code for all 5 state branches" },
+  "threshold": 5,
+  "type": "functional",
+  "tier": "global",
+  "domain": null,
+  "source": "rouge-seed-v1",
+  "version": 1,
+  "status": "active",
+  "deprecated_reason": null
+}

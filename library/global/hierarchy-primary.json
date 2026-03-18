@@ -1,0 +1,14 @@
+{
+  "id": "hierarchy-primary",
+  "name": "Primary content dominance",
+  "rule": "Primary content must have at least 1.5x the visual weight of secondary content",
+  "measurement": { "type": "dom-analysis", "method": "Compare computed font-size and area of primary vs secondary elements" },
+  "threshold": 1.5,
+  "type": "functional",
+  "tier": "global",
+  "domain": null,
+  "source": "rouge-seed-v1",
+  "version": 1,
+  "status": "active",
+  "deprecated_reason": null
+}

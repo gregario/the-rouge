@@ -1,0 +1,14 @@
+{
+  "id": "mobile-responsive",
+  "name": "Mobile responsive",
+  "rule": "Application must be usable at 375px width with minimum 44px tap targets",
+  "measurement": { "type": "interaction-test", "method": "Set viewport to 375px, verify layout and measure tap target sizes" },
+  "threshold": { "min_width": 375, "min_tap_target": 44 },
+  "type": "functional",
+  "tier": "global",
+  "domain": null,
+  "source": "rouge-seed-v1",
+  "version": 1,
+  "status": "active",
+  "deprecated_reason": null
+}

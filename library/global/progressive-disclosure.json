@@ -1,0 +1,14 @@
+{
+  "id": "progressive-disclosure",
+  "name": "Limited primary actions",
+  "rule": "No more than 7 primary actions visible at any time",
+  "measurement": { "type": "dom-analysis", "method": "Count visible primary action elements (buttons, links with primary styling)" },
+  "threshold": 7,
+  "type": "functional",
+  "tier": "global",
+  "domain": null,
+  "source": "rouge-seed-v1",
+  "version": 1,
+  "status": "active",
+  "deprecated_reason": null
+}

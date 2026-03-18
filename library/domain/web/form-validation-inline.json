@@ -1,0 +1,14 @@
+{
+  "id": "form-validation-inline",
+  "name": "Inline form validation",
+  "rule": "100% of form fields must show validation inline (not in alerts or page-level messages)",
+  "measurement": { "type": "interaction-test", "method": "Submit forms with invalid data, verify error messages appear adjacent to fields" },
+  "threshold": 1.0,
+  "type": "functional",
+  "tier": "domain",
+  "domain": "web",
+  "source": "rouge-seed-v1",
+  "version": 1,
+  "status": "active",
+  "deprecated_reason": null
+}

@@ -1,0 +1,14 @@
+{
+  "id": "interactive-feedback",
+  "name": "All elements respond to interaction",
+  "rule": "100% of interactive elements must respond visually to hover and click",
+  "measurement": { "type": "interaction-test", "method": "Hover and click each interactive element, capture screenshot diff" },
+  "threshold": 1.0,
+  "type": "functional",
+  "tier": "global",
+  "domain": null,
+  "source": "rouge-seed-v1",
+  "version": 1,
+  "status": "active",
+  "deprecated_reason": null
+}

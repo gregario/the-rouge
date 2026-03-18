@@ -1,0 +1,14 @@
+{
+  "id": "lighthouse-performance",
+  "name": "Lighthouse performance score",
+  "rule": "Lighthouse performance score must be 80 or above",
+  "measurement": { "type": "lighthouse-metric", "method": "Run Lighthouse, check categories.performance.score" },
+  "threshold": 0.8,
+  "type": "non-functional",
+  "tier": "global",
+  "domain": null,
+  "source": "rouge-seed-v1",
+  "version": 1,
+  "status": "active",
+  "deprecated_reason": null
+}
