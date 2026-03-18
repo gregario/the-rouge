@@ -59,8 +59,6 @@ function writeSeedingState(projectName, seedState) {
 
 function invokeClaudeSeeding(projectDir, prompt, sessionId) {
   const args = ['claude', '-p'];
-  // Escape the prompt for shell safety
-  args.push(JSON.stringify(prompt));
   args.push('--project', projectDir);
   args.push('--dangerously-skip-permissions');
   args.push('--model', 'opus');
@@ -70,15 +68,16 @@ function invokeClaudeSeeding(projectDir, prompt, sessionId) {
     args.push('--resume', sessionId);
   }
   try {
+    // Pipe prompt via stdin to avoid shell argument length limits
     const result = execSync(args.join(' '), {
       encoding: 'utf8',
+      input: prompt,
       timeout: 300000,
       cwd: projectDir,
       env: { ...process.env, HOME: process.env.HOME },
     });
     return JSON.parse(result);
   } catch (err) {
-    // If JSON parse fails, return the raw output
     if (err.stdout) {
       try { return JSON.parse(err.stdout); } catch {}
     }
