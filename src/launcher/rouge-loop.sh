@@ -65,6 +65,15 @@ run_phase() {
 # Main loop
 log "Rouge launcher starting. Projects dir: $PROJECTS_DIR"
 
+# Check auth expiry on startup
+AUTH_WARNINGS="$("$LAUNCHER_DIR/check-auth-expiry.sh" 2>/dev/null)" || true
+if [[ -n "$AUTH_WARNINGS" ]]; then
+  log "$AUTH_WARNINGS"
+  if [[ -n "${ROUGE_SLACK_WEBHOOK:-}" ]]; then
+    "$LAUNCHER_DIR/notify.sh" "$AUTH_WARNINGS" 2>/dev/null || true
+  fi
+fi
+
 while true; do
   for project_dir in "$PROJECTS_DIR"/*/; do
     [[ -d "$project_dir" ]] || continue
