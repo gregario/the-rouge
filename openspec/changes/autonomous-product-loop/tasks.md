@@ -363,3 +363,12 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 - [x] 20.12 E2E: Simulate PO Review confidence dropping below 70% → verify pivot notification → verify Runner pauses → verify human response resumes
 - [x] 20.13 E2E: Run 5 products → verify meta-loop triggers → verify cross-product pattern detection → Factory improvement spec
 - [x] 20.14 E2E: Full happy path — seed → build → staging → test integrity → QA pass → PO Review PRODUCTION_READY → promote to production → Slack notification → human feedback → Library updated → journey log complete
+
+## Future Work — Slack UX Polish
+
+- [ ] FW.1 Thread-based bot replies — use `thread_ts` so seeding conversations and notifications don't flood the channel
+- [ ] FW.2 Per-loop status notifications — "Loop N: building → QA passed → PO review in progress" at each phase transition
+- [ ] FW.3 Phase transition notifications — notify channel when a phase starts/completes with brief summary
+- [ ] FW.4 Confidence trend in notifications — include confidence score and delta in loop completion messages
+- [ ] FW.5 Screenshot attachments in notifications — capture primary screen + feature screens, attach to Slack messages via file upload
+- [ ] FW.6 Seeding swarm progress — "Discipline 3/7 complete (brainstorming → competition → taste)" during seeding loops
