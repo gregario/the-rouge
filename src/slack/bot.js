@@ -245,6 +245,55 @@ app.event('app_mention', async ({ event, say }) => {
       }
 
       default: {
+        // Check for active seeding session in this channel
+        const activeSeedings = listProjects().filter(name => {
+          const ss = getSeedingState(name);
+          return ss && ss.status === 'active' && ss.channel_id === event.channel;
+        });
+
+        if (activeSeedings.length > 0) {
+          const seedProject = activeSeedings[0];
+          const seedState = getSeedingState(seedProject);
+          const projectDir = path.join(PROJECTS_DIR, seedProject);
+
+          const result = invokeClaudeSeeding(projectDir, text, seedState.session_id);
+
+          if (result.error) {
+            await say(`❌ Seeding error: ${result.error}`);
+            break;
+          }
+
+          seedState.last_activity = new Date().toISOString();
+          if (result.session_id) seedState.session_id = result.session_id;
+
+          const response = result.result || result.message || (typeof result === 'string' ? result : JSON.stringify(result));
+
+          // Detect seeding completion
+          const isComplete = response.includes('SEEDING_COMPLETE') ||
+                           (response.includes('approved') && response.includes('ready'));
+
+          if (isComplete) {
+            const state = readState(seedProject);
+            state.current_state = 'ready';
+            writeState(seedProject, state);
+            seedState.status = 'complete';
+          }
+
+          writeSeedingState(seedProject, seedState);
+
+          if (response.length > 3000) {
+            const chunks = response.match(/.{1,3000}/gs) || [response];
+            for (const chunk of chunks) await say(chunk);
+          } else {
+            await say(response);
+          }
+
+          if (isComplete) {
+            await say(`\n✅ Seeding complete for \`${seedProject}\`! Use \`rouge start ${seedProject}\` when ready.`);
+          }
+          break;
+        }
+
         // Check if this is feedback for a waiting project
         if (projectName) {
           const state = readState(projectName);
