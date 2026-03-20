@@ -191,6 +191,26 @@
       ],
       "tests_added": 33,
       "tests_passing": 149
+    },
+    {
+      "task": "navigation-shared-layout",
+      "acceptance_criteria": ["AC-NAV-01", "AC-NAV-02", "AC-NAV-03", "AC-NAV-04", "AC-NAV-07", "AC-NAV-08", "AC-NAV-09", "AC-NAV-10"],
+      "files_changed": [
+        "src/app/layout.tsx",
+        "src/app/page.tsx",
+        "src/app/collection/page.tsx",
+        "src/app/garden/page.tsx",
+        "src/app/card/[id]/page.tsx",
+        "src/lib/navigation.ts",
+        "src/lib/app-context.tsx",
+        "src/app/HomeContent.tsx",
+        "src/components/CollectionView.tsx",
+        "src/components/CardView.tsx",
+        "src/components/BottomNav.tsx",
+        "tests/lib/navigation.test.ts"
+      ],
+      "tests_added": 12,
+      "tests_passing": 149
     }
   ],
   "skipped": [
@@ -284,6 +304,30 @@
       "rationale": "The tests logically belong in generateDailyChallenge. Removing the premature }) restored proper nesting.",
       "confidence": "high",
       "affects": ["tests/lib/daily-challenge.test.ts"]
+    },
+    {
+      "decision": "Moved AppShell from per-page wrapping to root layout for shared context across tab navigation",
+      "context": "Each page independently created AppShell with AppProvider, causing state re-initialization on every tab switch. This violated AC-NAV-02 (instant switching) and prevented persistent navigation context for AC-NAV-10.",
+      "alternatives_considered": ["Keep per-page AppShell with localStorage sync", "Use a route group layout instead of root layout", "Client-side state management library (zustand/jotai)"],
+      "rationale": "Root layout is the simplest approach — single AppProvider wrapping all routes. Next.js preserves layout state across client-side navigation. Pages become pure content components. No additional dependencies needed.",
+      "confidence": "high",
+      "affects": ["src/app/layout.tsx", "src/app/page.tsx", "src/app/collection/page.tsx", "src/app/garden/page.tsx", "src/app/card/[id]/page.tsx"]
+    },
+    {
+      "decision": "Card page resolves items client-side from context instead of server-side",
+      "context": "With AppShell moved to root layout, catalogue is loaded once server-side and available via React Context. Card page no longer needs its own server-side catalogue load.",
+      "alternatives_considered": ["Keep server-side item resolution with params", "Use generateStaticParams for static card pages"],
+      "rationale": "Client-side resolution from context is simpler and consistent with the shared layout pattern. The catalogue is already in memory. useParams provides the item ID.",
+      "confidence": "high",
+      "affects": ["src/app/card/[id]/page.tsx"]
+    },
+    {
+      "decision": "Added cardReturnTab state to AppContext for card view return tracking",
+      "context": "AC-NAV-10 requires cards opened from Collection to return to Collection, not Home. Needed a way to track the origin tab across the card view navigation.",
+      "alternatives_considered": ["URL query parameter (?from=collection)", "sessionStorage for return target", "Browser history state API"],
+      "rationale": "React Context is the natural place since it's already shared across all pages via AppProvider. Simpler than URL manipulation and survives client-side navigation. Default is 'home' for deep-linked cards (edge case).",
+      "confidence": "high",
+      "affects": ["src/lib/app-context.tsx", "src/app/HomeContent.tsx", "src/components/CollectionView.tsx", "src/components/CardView.tsx"]
     }
   ],
   "factory_questions": [
