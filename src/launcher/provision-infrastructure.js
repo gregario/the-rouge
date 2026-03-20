@@ -108,12 +108,20 @@ export default config;
     }
   }
 
-  // Build and deploy to staging
+  // Build: Next.js first, then OpenNext
+  log('Cloudflare: building Next.js app');
+  try {
+    run('npm run build', { cwd: projectDir, timeout: 120000 });
+  } catch (err) {
+    log(`Cloudflare: Next.js build failed: ${err.message.slice(0, 200)}`);
+    // Try OpenNext directly — some setups don't need separate Next.js build
+  }
+
   log('Cloudflare: building with OpenNext');
   try {
     run('npx @opennextjs/cloudflare build', { cwd: projectDir, timeout: 120000 });
   } catch (err) {
-    log(`Cloudflare: build failed: ${err.message.slice(0, 200)}`);
+    log(`Cloudflare: OpenNext build failed: ${err.message.slice(0, 200)}`);
     return null;
   }
 
@@ -137,10 +145,13 @@ export default config;
 // --- Supabase setup ---
 
 function getSupabaseToken() {
+  // V1 (macOS): extract from keychain and base64 decode
   try {
     const raw = execSync('security find-generic-password -s "Supabase CLI" -w', { encoding: 'utf8', timeout: 5000 }).trim();
-    return execSync(`echo "${raw}" | base64 -d`, { encoding: 'utf8', timeout: 5000 }).trim();
+    // Decode base64 in Node.js (no shell pipe needed)
+    return Buffer.from(raw, 'base64').toString('utf8');
   } catch {}
+  // V2 (Linux/Docker): env var
   return process.env.SUPABASE_ACCESS_TOKEN || null;
 }
 
@@ -179,30 +190,58 @@ function provisionSupabase(projectDir, projectName) {
   log(`Supabase: ${active.length}/2 slots used`);
 
   if (active.length >= 2) {
-    // Slot rotation: pause the least-recently-active project
-    // Sort by updated_at ascending — oldest activity first
-    active.sort((a, b) => new Date(a.updated_at || 0) - new Date(b.updated_at || 0));
-    const toPause = active[0];
-    log(`Supabase: 2/2 slots used — pausing least-recent: ${toPause.name} (${toPause.ref})`);
+    // Slot rotation: find a project NOT actively managed by Rouge to pause.
+    // Rouge-managed projects have a state.json in PROJECTS_DIR/<name>/ with state != complete.
+    // Non-Rouge projects (manual, other tools) are always eligible to pause.
+    const PROJECTS_DIR = process.env.ROUGE_PROJECTS_DIR || path.join(ROUGE_ROOT, 'projects');
 
-    try {
-      execSync(
-        `curl -s -X POST "https://api.supabase.com/v1/projects/${toPause.ref}/pause" -H "Authorization: Bearer ${token}" -H "Content-Type: application/json"`,
-        { encoding: 'utf8', timeout: 30000 }
+    const isActiveRougeProject = (supabaseName) => {
+      // Check all Rouge project dirs for a matching supabase ref
+      if (!fs.existsSync(PROJECTS_DIR)) return false;
+      const rougeDirs = fs.readdirSync(PROJECTS_DIR).filter(d =>
+        fs.existsSync(path.join(PROJECTS_DIR, d, 'state.json'))
       );
-
-      // Wait for pause to complete (poll every 10s, max 3 min)
-      for (let i = 0; i < 18; i++) {
-        const status = JSON.parse(
-          execSync(`curl -s "https://api.supabase.com/v1/projects/${toPause.ref}" -H "Authorization: Bearer ${token}"`, { encoding: 'utf8', timeout: 10000 })
-        ).status;
-        log(`Supabase: ${toPause.name} status: ${status}`);
-        if (status === 'INACTIVE') break;
-        execSync('sleep 10');
+      for (const dir of rougeDirs) {
+        const ctx = readJson(path.join(PROJECTS_DIR, dir, 'cycle_context.json'));
+        const state = readJson(path.join(PROJECTS_DIR, dir, 'state.json'));
+        if (ctx?.supabase?.project_ref && state?.current_state !== 'complete') {
+          // This Rouge project is actively using a Supabase slot
+          if (supabaseName.includes(dir) || dir.includes(supabaseName)) return true;
+        }
       }
-      log(`Supabase: ${toPause.name} paused — slot freed`);
-    } catch (err) {
-      log(`Supabase: failed to pause ${toPause.name}: ${err.message.slice(0, 200)}`);
+      return false;
+    };
+
+    // Find eligible projects to pause (not actively Rouge-managed)
+    const eligible = active.filter(p => !isActiveRougeProject(p.name));
+
+    if (eligible.length > 0) {
+      const toPause = eligible[0]; // Pause the first eligible
+      log(`Supabase: 2/2 slots used — pausing idle project: ${toPause.name} (${toPause.ref})`);
+
+      try {
+        execSync(
+          `curl -s -X POST "https://api.supabase.com/v1/projects/${toPause.ref}/pause" -H "Authorization: Bearer ${token}" -H "Content-Type: application/json"`,
+          { encoding: 'utf8', timeout: 30000 }
+        );
+
+        // Wait for pause to complete (poll every 10s, max 3 min)
+        for (let i = 0; i < 18; i++) {
+          const status = JSON.parse(
+            execSync(`curl -s "https://api.supabase.com/v1/projects/${toPause.ref}" -H "Authorization: Bearer ${token}"`, { encoding: 'utf8', timeout: 10000 })
+          ).status;
+          log(`Supabase: ${toPause.name} status: ${status}`);
+          if (status === 'INACTIVE') break;
+          execSync('sleep 10');
+        }
+        log(`Supabase: ${toPause.name} paused — slot freed`);
+      } catch (err) {
+        log(`Supabase: failed to pause ${toPause.name}: ${err.message.slice(0, 200)}`);
+        return null;
+      }
+    } else {
+      // All 2 slots are active Rouge projects — can't start a 3rd
+      log('Supabase: 2/2 slots are active Rouge projects — cannot provision a 3rd. Skipping.');
       return null;
     }
   }
