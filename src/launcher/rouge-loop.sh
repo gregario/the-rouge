@@ -44,11 +44,12 @@ run_phase() {
 
   log "[$project_name] Running phase: $state (model: $model)"
 
-  # Spawn Claude Code — pipe prompt via stdin, cwd = project dir for context
-  if cat "$prompt_file" | (cd "$project_dir" && claude -p \
+  # Spawn Claude Code from the project directory (reads project CLAUDE.md + context)
+  if (cd "$project_dir" && claude -p \
     --dangerously-skip-permissions \
     --model "$model" \
-    --max-turns 200) \
+    --max-turns 200 \
+    < "$prompt_file") \
     >> "$LOG_DIR/${project_name}-${state}.log" 2>&1; then
     log "[$project_name] Phase $state completed successfully"
     return 0
