@@ -67,6 +67,22 @@ function isRateLimited(text) {
          lower.includes('resets ');
 }
 
+function tryParseClaudeOutput(raw) {
+  // Try parsing the whole output as JSON
+  try { return JSON.parse(raw); } catch {}
+  // Try finding a JSON object in the output (Claude may prefix with non-JSON text)
+  const jsonMatch = raw.match(/\{[\s\S]*"result"[\s\S]*\}/);
+  if (jsonMatch) {
+    try { return JSON.parse(jsonMatch[0]); } catch {}
+  }
+  // Try last line (Claude sometimes outputs progress then JSON on last line)
+  const lines = raw.trim().split('\n');
+  for (let i = lines.length - 1; i >= 0; i--) {
+    try { return JSON.parse(lines[i]); } catch {}
+  }
+  return null;
+}
+
 function invokeClaudeSeeding(projectDir, prompt, sessionId) {
   const args = ['claude', '-p'];
   args.push('--dangerously-skip-permissions');
@@ -77,16 +93,22 @@ function invokeClaudeSeeding(projectDir, prompt, sessionId) {
     args.push('--resume', sessionId);
   }
   try {
-    const result = execSync(args.join(' '), {
+    const rawOutput = execSync(args.join(' '), {
       encoding: 'utf8',
       input: prompt,
-      timeout: 600000, // 10 min (was 5 min — seeding prompts are large)
+      timeout: 600000, // 10 min
       cwd: projectDir,
       env: { ...process.env, HOME: process.env.HOME },
     });
-    const parsed = JSON.parse(result);
 
-    // Check if Claude's response indicates rate limiting
+    // Claude may output multiple lines — find the JSON line
+    const parsed = tryParseClaudeOutput(rawOutput);
+    if (!parsed) {
+      // Couldn't parse JSON — return raw text as the result
+      console.error('Could not parse Claude JSON output, returning raw text');
+      return { result: rawOutput.slice(0, 3000), session_id: null };
+    }
+
     const responseText = parsed.result || parsed.message || '';
     if (isRateLimited(responseText)) {
       return { rate_limited: true, message: responseText };
@@ -94,20 +116,30 @@ function invokeClaudeSeeding(projectDir, prompt, sessionId) {
 
     return parsed;
   } catch (err) {
-    if (err.stdout) {
-      try {
-        const parsed = JSON.parse(err.stdout);
+    const stdout = err.stdout || '';
+    const stderr = err.stderr || '';
+
+    // Try to parse stdout even on error exit
+    if (stdout) {
+      const parsed = tryParseClaudeOutput(stdout);
+      if (parsed) {
         const responseText = parsed.result || parsed.message || '';
         if (isRateLimited(responseText)) {
           return { rate_limited: true, message: responseText };
         }
         return parsed;
-      } catch {}
+      }
+      // Couldn't parse but got output — return it as text
+      if (stdout.length > 10) {
+        return { result: stdout.slice(0, 3000), session_id: null };
+      }
     }
+
     // Distinguish timeout from other errors
     if (err.message.includes('ETIMEDOUT') || err.message.includes('timed out')) {
       return { error: 'Claude took too long to respond. Try again in a minute.', timeout: true };
     }
+    console.error('Claude invocation error:', err.message.slice(0, 200));
     return { error: err.message.slice(0, 500) };
   }
 }
