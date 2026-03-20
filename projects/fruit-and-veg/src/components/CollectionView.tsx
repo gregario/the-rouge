@@ -30,12 +30,15 @@ export default function CollectionView() {
     () => new Set(progress.completedItems),
     [progress.completedItems]
   )
-  const completedCount = progress.completedItems.length
 
   const filteredItems = useMemo(() => {
     if (activeTab === 'all') return catalogue
     return catalogue.filter((item) => item.category === activeTab)
   }, [catalogue, activeTab])
+
+  const filteredCompletedCount = useMemo(() => {
+    return filteredItems.filter((item) => completedSet.has(item.id)).length
+  }, [filteredItems, completedSet])
 
   const earnedBadgeIds = useMemo(
     () => new Set(progress.categoryBadges),
@@ -60,7 +63,7 @@ export default function CollectionView() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">My Collection</h1>
         <span className="text-sm text-muted-foreground">
-          {completedCount} / {catalogue.length} collected
+          {filteredCompletedCount} / {filteredItems.length} collected
         </span>
       </div>
 
@@ -94,7 +97,7 @@ export default function CollectionView() {
       </div>
 
       {/* Empty State */}
-      {completedCount === 0 && activeTab === 'all' && (
+      {filteredCompletedCount === 0 && activeTab === 'all' && (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <p className="text-lg font-semibold text-primary">
             Tap any fruit to start learning!

@@ -19,6 +19,7 @@ const emptyProgress: UserProgress = {
   dailyStamps: [],
   totalQuizCorrect: 0,
   totalQuizAnswered: 0,
+  recentFeaturedIds: [],
 }
 
 describe('progress', () => {

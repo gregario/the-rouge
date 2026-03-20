@@ -1,14 +1,18 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useApp } from '@/lib/app-context'
 import { FeaturedCard } from '@/components/FeaturedCard'
 import { ReviewCard } from '@/components/ReviewCard'
 import { ProgressDots } from '@/components/ProgressDots'
+import { DailyStampCelebration } from '@/components/DailyStampCelebration'
 
 export function HomeContent() {
   const router = useRouter()
   const { catalogue, progress, daily } = useApp()
+  const [showStampCelebration, setShowStampCelebration] = useState(false)
+  const [prevComplete, setPrevComplete] = useState(daily.isComplete)
 
   const featuredItem = catalogue.find((i) => i.id === daily.featuredItemId)
   const reviewItems = daily.reviewItemIds
@@ -19,6 +23,14 @@ export function HomeContent() {
   const completedCount = daily.completedCards.length
   const allCompleted = progress.completedItems.length === catalogue.length
   const isBrandNew = progress.completedItems.length === 0
+
+  // Detect when daily challenge just completed
+  useEffect(() => {
+    if (daily.isComplete && !prevComplete) {
+      setShowStampCelebration(true)
+    }
+    setPrevComplete(daily.isComplete)
+  }, [daily.isComplete, prevComplete])
 
   const handleCardClick = (itemId: string) => {
     router.push(`/card/${itemId}`)
@@ -89,10 +101,18 @@ export function HomeContent() {
       )}
 
       {/* Daily complete message */}
-      {daily.isComplete && (
+      {daily.isComplete && !showStampCelebration && (
         <p className="text-center text-sm font-bold text-success">
-          Daily Challenge Complete!
+          Daily Challenge Complete! Come back tomorrow for a new fruit!
         </p>
+      )}
+
+      {/* Daily Stamp Celebration Overlay */}
+      {showStampCelebration && (
+        <DailyStampCelebration
+          streak={progress.currentStreak}
+          onDismiss={() => setShowStampCelebration(false)}
+        />
       )}
     </div>
   )

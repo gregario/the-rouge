@@ -54,6 +54,7 @@ export interface UserProgress {
   dailyStamps: string[]
   totalQuizCorrect: number
   totalQuizAnswered: number
+  recentFeaturedIds: string[]
 }
 
 export interface DailyChallenge {

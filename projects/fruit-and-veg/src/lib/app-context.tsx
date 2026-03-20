@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useCallback, useEffect, useState, useMemo } from 'react'
 import type { CatalogueItem, UserProgress, DailyChallenge, CategoryBadge } from './types'
 import { loadProgress, saveProgress, completeItem, updateStreak, addDailyStamp, getLocalDateString } from './progress'
-import { loadDailyChallenge, saveDailyChallenge, markCardCompleted } from './daily-challenge'
+import { loadDailyChallenge, saveDailyChallenge, markCardCompleted, recordFeaturedItem } from './daily-challenge'
 import { generateBadges, checkNewBadges } from './badges'
 
 interface AppState {
@@ -33,7 +33,13 @@ export function AppProvider({
   catalogue: CatalogueItem[]
   children: React.ReactNode
 }) {
-  const [progress, setProgress] = useState<UserProgress>(loadProgress)
+  const [progress, setProgress] = useState<UserProgress>(() => {
+    const p = loadProgress()
+    const challenge = loadDailyChallenge(catalogue, p, getLocalDateString())
+    const updated = recordFeaturedItem(p, challenge.featuredItemId)
+    if (updated !== p) saveProgress(updated)
+    return updated
+  })
   const [daily, setDaily] = useState<DailyChallenge>(() =>
     loadDailyChallenge(catalogue, loadProgress(), getLocalDateString())
   )

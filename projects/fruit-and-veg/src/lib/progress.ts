@@ -12,6 +12,7 @@ const defaultProgress: UserProgress = {
   dailyStamps: [],
   totalQuizCorrect: 0,
   totalQuizAnswered: 0,
+  recentFeaturedIds: [],
 }
 
 export function loadProgress(): UserProgress {

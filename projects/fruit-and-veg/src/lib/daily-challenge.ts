@@ -27,22 +27,30 @@ export function generateDailyChallenge(
 ): DailyChallenge {
   const rand = seededRandom(hashDate(dateStr))
 
-  // Featured item: uncompleted, prefer easy if < 10 completions
+  // Recent featured IDs to avoid repeating within 7 days
+  const recentIds = new Set(progress.recentFeaturedIds ?? [])
+
+  // Featured item: uncompleted, prefer easy if < 10 completions, avoid recent
   const uncompleted = catalogue.filter(
     item => !progress.completedItems.includes(item.id)
   )
 
   let featuredItemId: string
   if (uncompleted.length === 0) {
-    // Re-discovery mode: random completed item
-    const idx = Math.floor(rand() * catalogue.length)
-    featuredItemId = catalogue[idx].id
+    // Re-discovery mode: random completed item, avoiding recent if possible
+    const nonRecent = catalogue.filter(item => !recentIds.has(item.id))
+    const pool = nonRecent.length > 0 ? nonRecent : catalogue
+    const idx = Math.floor(rand() * pool.length)
+    featuredItemId = pool[idx].id
   } else {
     let pool = uncompleted
     if (progress.completedItems.length < 10) {
       const easyPool = uncompleted.filter(item => item.difficulty === 'easy')
       if (easyPool.length > 0) pool = easyPool
     }
+    // Filter out recently featured items if enough alternatives exist
+    const nonRecent = pool.filter(item => !recentIds.has(item.id))
+    if (nonRecent.length > 0) pool = nonRecent
     const idx = Math.floor(rand() * pool.length)
     featuredItemId = pool[idx].id
   }
@@ -102,6 +110,13 @@ export function saveDailyChallenge(challenge: DailyChallenge): void {
   } catch {
     // Ignore
   }
+}
+
+export function recordFeaturedItem(progress: UserProgress, featuredId: string): UserProgress {
+  const recent = progress.recentFeaturedIds ?? []
+  if (recent[recent.length - 1] === featuredId) return progress
+  const updated = [...recent, featuredId].slice(-7)
+  return { ...progress, recentFeaturedIds: updated }
 }
 
 export function markCardCompleted(
