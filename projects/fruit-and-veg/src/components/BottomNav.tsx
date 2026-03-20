@@ -28,6 +28,12 @@ export function BottomNav() {
               href={href}
               role="tab"
               aria-selected={isActive}
+              onKeyDown={(e) => {
+                if (e.key === ' ') {
+                  e.preventDefault()
+                  e.currentTarget.click()
+                }
+              }}
               className={`flex flex-col items-center justify-center min-w-[64px] min-h-[64px] px-3 py-1 transition-colors ${
                 isActive
                   ? 'text-primary font-bold'
