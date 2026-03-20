@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# NOTE: Not using set -e globally — the main loop must survive individual phase failures.
+# Individual functions use explicit error handling instead.
+set -uo pipefail
 
 # Resolve paths
 ROUGE_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -206,6 +208,7 @@ run_phase() {
     --model "$model" \
     --max-turns 200 \
     "Read the phase prompt at $prompt_file and execute it. The project directory is $(pwd). Read cycle_context.json and state.json for context." \
+    < /dev/null \
     >> "$phase_log" 2>&1 || claude_exit=$?
   popd > /dev/null
   if [[ $claude_exit -eq 0 ]]; then
