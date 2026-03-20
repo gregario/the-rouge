@@ -58,6 +58,101 @@ function writeSeedingState(projectName, seedState) {
   fs.renameSync(tmp, seedPath);
 }
 
+// FIX #2: Generate cycle_context.json from seed artifacts when seeding completes
+function generateCycleContext(projectName) {
+  const projectDir = path.join(PROJECTS_DIR, projectName);
+  const specDir = path.join(projectDir, 'seed_spec');
+
+  // Read feature areas from spec files
+  const featureAreas = [];
+  if (fs.existsSync(specDir)) {
+    const specFiles = fs.readdirSync(specDir).filter(f => f.startsWith('spec-') && f.endsWith('.md')).sort();
+    for (const file of specFiles) {
+      const name = file.replace(/^spec-\d+-/, '').replace('.md', '');
+      featureAreas.push({ name, status: 'pending' });
+    }
+  }
+
+  // Read design artifact if it exists
+  const designFile = path.join(specDir, 'design-artifact.yaml');
+  const hasDesign = fs.existsSync(designFile);
+
+  // Build the context
+  const context = {
+    _schema_version: '1.0',
+    _project_name: projectName,
+    _cycle_number: 1,
+    vision: {
+      name: projectName,
+      feature_areas: featureAreas.map(fa => ({
+        name: fa.name,
+        description: `See seed_spec/spec-*-${fa.name}.md`,
+        status: 'pending',
+      })),
+      infrastructure: {
+        needs_database: true,
+        needs_auth: false,
+        needs_payments: false,
+        deployment_target: 'cloudflare-workers',
+      },
+    },
+    product_standard: {
+      inherits: ['global', 'domain/web'],
+      overrides: [],
+      additions: [],
+    },
+    active_spec: {
+      type: 'seed',
+      feature_areas: featureAreas.map(fa => fa.name),
+      spec_files: fs.existsSync(specDir)
+        ? fs.readdirSync(specDir).filter(f => f.startsWith('spec-')).sort().map(f => `seed_spec/${f}`)
+        : [],
+      design_file: hasDesign ? 'seed_spec/design-artifact.yaml' : null,
+    },
+    library_heuristics: [],
+    reference_products: [],
+    previous_evaluations: [],
+    evaluation_deltas: [],
+    implemented: [],
+    skipped: [],
+    divergences: [],
+    factory_decisions: [],
+    factory_questions: [],
+    qa_report: null,
+    po_review_report: null,
+    deployment_url: null,
+    infrastructure: {
+      staging_url: null,
+      production_url: null,
+      supabase_ref: null,
+      sentry_dsn: null,
+    },
+    retry_counts: {},
+    previous_cycles: [],
+    supabase: {
+      project_ref: null,
+      slot_acquired: false,
+      connection_string: null,
+    },
+  };
+
+  const contextPath = path.join(projectDir, 'cycle_context.json');
+  const tmp = contextPath + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(context, null, 2) + '\n');
+  fs.renameSync(tmp, contextPath);
+
+  // Also update state.json with feature areas
+  const state = readState(projectName);
+  if (state) {
+    state.feature_areas = featureAreas;
+    state.current_feature_area = featureAreas.length > 0 ? featureAreas[0].name : null;
+    state.cycle_number = 1;
+    writeState(projectName, state);
+  }
+
+  return { featureAreas: featureAreas.length, specFiles: context.active_spec.spec_files.length };
+}
+
 function isRateLimited(text) {
   if (!text) return false;
   const lower = text.toLowerCase();
@@ -422,6 +517,9 @@ app.event('app_mention', async ({ event, say }) => {
                        (response.includes('approved') && response.includes('ready'));
 
       if (isComplete) {
+        // Generate cycle_context.json from seed artifacts
+        const stats = generateCycleContext(seedProject);
+
         const state = readState(seedProject);
         state.current_state = 'ready';
         writeState(seedProject, state);
@@ -438,7 +536,10 @@ app.event('app_mention', async ({ event, say }) => {
       }
 
       if (isComplete) {
-        await say(`\n\u2705 Seeding complete for \`${seedProject}\`! Use \`rouge start ${seedProject}\` when ready.`);
+        const stats = JSON.parse(fs.readFileSync(path.join(PROJECTS_DIR, seedProject, 'cycle_context.json'), 'utf8'));
+        const faCount = stats.active_spec?.feature_areas?.length || 0;
+        const specCount = stats.active_spec?.spec_files?.length || 0;
+        await say(`\n\u2705 Seeding complete for \`${seedProject}\`!\n\u{1F4CB} ${faCount} feature areas, ${specCount} spec files, cycle_context.json generated.\nUse \`rouge start ${seedProject}\` when ready.`);
       }
       return;
     }
