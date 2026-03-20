@@ -403,3 +403,24 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 - [ ] FW.26 Add channels:manage scope to manifest for channel creation
 - [ ] FW.27 First-run welcome flow — bot explains itself in each channel with pinned usage guide
 - [ ] FW.28 Document 5-step new user setup — create workspace, import manifest, install app, copy 3 tokens, start bot (everything else auto-configures)
+
+## Future Work — Rouge Maintain (Closed Source)
+
+Rouge Maintain: autonomous maintenance of deployed production systems.
+
+- [ ] FM.1 SBOM generation and CVE scanning — weekly automated dependency audit
+- [ ] FM.2 Automated security patching — CVE detected → branch → patch → test → PR
+- [ ] FM.3 Bug triage from error monitoring — Sentry errors → classify → fix or escalate
+- [ ] FM.4 Database migration planning — schema changes with rollback plans, dry-run on staging
+- [ ] FM.5 Dependency updates — automated minor/patch updates with test verification
+- [ ] FM.6 Uptime monitoring — health checks, auto-restart, incident notification
+- [ ] FM.7 Production safeguards — never auto-merge to production without human approval for destructive changes (table drops, data migrations)
+- [ ] FM.8 Weekly maintenance report — what was patched, what needs attention, security posture
+
+## Future Work — Rate Limit Handling Rethink
+
+- [ ] FW.29 Distinguish rate limits from real failures — rate limits should NEVER count toward the 3-retry limit. They're temporary, not errors.
+- [ ] FW.30 Rate limit detection without log content — check Claude CLI exit code or stderr directly, not just log file grep (log may be empty if redirect fails)
+- [ ] FW.31 Rate limit backoff should pause ALL projects — if one project hits rate limit, others will too. Pause the entire loop, not just the current project.
+- [ ] FW.32 Rate limit reset detection — parse "resets Xpm" from Claude output, sleep until reset time instead of arbitrary backoff
+- [ ] FW.33 Document rate limit interaction between Rouge Spec (interactive) and Rouge Build (autonomous) — if a human is seeding via Slack and the build loop is running, they compete for the same rate limit budget
