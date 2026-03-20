@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { generateDailyChallenge, markCardCompleted } from '@/lib/daily-challenge'
+import { generateDailyChallenge, markCardCompleted, recordFeaturedItem } from '@/lib/daily-challenge'
 import type { CatalogueItem, UserProgress } from '@/lib/types'
 
 const makeMockItem = (id: string, difficulty: 'easy' | 'medium' = 'easy'): CatalogueItem => ({
@@ -59,6 +59,7 @@ const emptyProgress: UserProgress = {
   dailyStamps: [],
   totalQuizCorrect: 0,
   totalQuizAnswered: 0,
+  recentFeaturedIds: [],
 }
 
 const catalogue = Array.from({ length: 20 }, (_, i) =>
@@ -156,6 +157,60 @@ describe('daily-challenge', () => {
       }
       const challenge = generateDailyChallenge(catalogue, progress, '2026-03-20')
       expect(allCompleted).toContain(challenge.featuredItemId)
+    })
+
+    it('avoids recently featured items (AC-DAILY-12)', () => {
+      // Set up progress where items 0-6 were recently featured
+      const recentIds = Array.from({ length: 7 }, (_, i) => `item-${i}`)
+      const progress = {
+        ...emptyProgress,
+        recentFeaturedIds: recentIds,
+      }
+      // Generate challenges — featured should NOT be in recentIds (if enough alternatives)
+      const challenges = Array.from({ length: 10 }, (_, i) =>
+        generateDailyChallenge(catalogue, progress, `2026-04-${String(i + 1).padStart(2, '0')}`)
+      )
+      for (const c of challenges) {
+        expect(recentIds).not.toContain(c.featuredItemId)
+      }
+    })
+
+    it('falls back to recent items if no alternatives available', () => {
+      // Only 2 items in catalogue, both recently featured
+      const smallCatalogue = [makeMockItem('a'), makeMockItem('b')]
+      const progress = {
+        ...emptyProgress,
+        recentFeaturedIds: ['a', 'b'],
+      }
+      const challenge = generateDailyChallenge(smallCatalogue, progress, '2026-03-20')
+      expect(['a', 'b']).toContain(challenge.featuredItemId)
+    })
+  })
+
+  describe('recordFeaturedItem', () => {
+    it('adds featured item to recentFeaturedIds', () => {
+      const updated = recordFeaturedItem(emptyProgress, 'item-0')
+      expect(updated.recentFeaturedIds).toEqual(['item-0'])
+    })
+
+    it('keeps max 7 items', () => {
+      const progress = {
+        ...emptyProgress,
+        recentFeaturedIds: ['a', 'b', 'c', 'd', 'e', 'f', 'g'],
+      }
+      const updated = recordFeaturedItem(progress, 'h')
+      expect(updated.recentFeaturedIds).toHaveLength(7)
+      expect(updated.recentFeaturedIds).not.toContain('a')
+      expect(updated.recentFeaturedIds).toContain('h')
+    })
+
+    it('does not duplicate if last item is same', () => {
+      const progress = {
+        ...emptyProgress,
+        recentFeaturedIds: ['item-0'],
+      }
+      const updated = recordFeaturedItem(progress, 'item-0')
+      expect(updated).toBe(progress) // Same reference — no change
     })
   })
 
