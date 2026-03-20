@@ -240,6 +240,35 @@ function runPhase(projectDir) {
 
   if (SKIP_STATES.has(currentState)) return true;
 
+  // Normalize *-complete states (phase prompts sometimes write these)
+  if (currentState.endsWith('-complete')) {
+    const baseState = currentState.replace('-complete', '');
+    log(`[${projectName}] Normalizing state: ${currentState} → advancing from ${baseState}`);
+    state.current_state = baseState;
+    writeJson(stateFile, state);
+    currentState = baseState;
+    advanceState(projectDir);
+    return true; // will pick up the new state on next iteration
+  }
+
+  // Infrastructure provisioning: run before building if not yet provisioned
+  if (currentState === 'building') {
+    const ctx = readJson(path.join(projectDir, 'cycle_context.json'));
+    if (ctx && !ctx.infrastructure?.staging_url) {
+      log(`[${projectName}] Infrastructure not provisioned — running provisioning`);
+      try {
+        execFileSync('node', [path.join(__dirname, 'provision-infrastructure.js'), projectDir], {
+          encoding: 'utf8',
+          timeout: 300000, // 5 min for provisioning
+          stdio: 'inherit',
+        });
+      } catch (err) {
+        log(`[${projectName}] Provisioning failed: ${(err.message || '').slice(0, 200)}`);
+        // Continue anyway — building can still work without staging, just QA will be limited
+      }
+    }
+  }
+
   const promptRelPath = STATE_TO_PROMPT[currentState];
   if (!promptRelPath) return true;
 
