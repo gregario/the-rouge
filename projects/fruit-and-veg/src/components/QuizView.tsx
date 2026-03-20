@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Question, QuestionOption, CatalogueItem } from '@/lib/types'
 
 interface QuizViewProps {
@@ -22,6 +22,7 @@ export default function QuizView({ questions, item, onComplete }: QuizViewProps)
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null)
   const [answered, setAnswered] = useState(false)
   const [correctCount, setCorrectCount] = useState(0)
+  const answeredRef = useRef(false)
 
   const question = questions[currentIndex]
   const isCorrect = selectedOptionId === question?.correctOptionId
@@ -46,7 +47,8 @@ export default function QuizView({ questions, item, onComplete }: QuizViewProps)
   if (!question) return null
 
   function handleSelect(optionId: string) {
-    if (answered) return
+    if (answeredRef.current) return
+    answeredRef.current = true
     setSelectedOptionId(optionId)
     setAnswered(true)
     if (optionId === question.correctOptionId) {

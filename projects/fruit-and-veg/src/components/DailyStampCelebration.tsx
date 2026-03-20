@@ -37,7 +37,7 @@ export function DailyStampCelebration({ streak, onDismiss }: DailyStampCelebrati
         onClick={(e) => e.stopPropagation()}
       >
         {/* Stamp icon with drop animation */}
-        <div className="stamp-drop">
+        <div className="stamp-animation">
           <div className="w-20 h-20 rounded-full bg-accent flex items-center justify-center text-4xl shadow-md">
             📮
           </div>
