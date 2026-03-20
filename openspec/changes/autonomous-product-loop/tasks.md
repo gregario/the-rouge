@@ -424,3 +424,10 @@ Rouge Maintain: autonomous maintenance of deployed production systems.
 - [ ] FW.31 Rate limit backoff should pause ALL projects — if one project hits rate limit, others will too. Pause the entire loop, not just the current project.
 - [ ] FW.32 Rate limit reset detection — parse "resets Xpm" from Claude output, sleep until reset time instead of arbitrary backoff
 - [ ] FW.33 Document rate limit interaction between Rouge Spec (interactive) and Rouge Build (autonomous) — if a human is seeding via Slack and the build loop is running, they compete for the same rate limit budget
+
+## Future Work — Launcher Improvements
+
+- [ ] FW.35 Replace timeout-based phase monitoring with heartbeat/progress detection — periodically check if Claude is still producing output (file changes, log growth, tool calls) rather than using a fixed timeout. If no progress for N minutes, then timeout. This is more resilient than fixed timeouts and provides observability data for the dashboard.
+- [ ] FW.36 Phase progress streaming — emit periodic progress events (files changed, tests run, etc.) that the Slack newsroom and web dashboard can consume in real-time
+- [ ] FW.37 Handle phase prompts writing state.json — normalize `*-complete` suffixed states back to the expected state, or add pre/post guards that save and restore state.json around phase invocations
+- [ ] FW.38 README disclaimer — "experimental, not for production use, token-intensive" warning
