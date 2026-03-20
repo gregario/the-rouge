@@ -179,14 +179,32 @@ function provisionSupabase(projectDir, projectName) {
   log(`Supabase: ${active.length}/2 slots used`);
 
   if (active.length >= 2) {
-    // Need to pause one — find least recently used
-    // For now, log and skip — don't auto-pause user's other projects without confirmation
-    log('Supabase: 2/2 slots used — cannot provision. Need to pause a project first.');
-    log('Supabase: active projects:');
-    for (const p of active) {
-      log(`  - ${p.name} (${p.ref}) region: ${p.region}`);
+    // Slot rotation: pause the least-recently-active project
+    // Sort by updated_at ascending — oldest activity first
+    active.sort((a, b) => new Date(a.updated_at || 0) - new Date(b.updated_at || 0));
+    const toPause = active[0];
+    log(`Supabase: 2/2 slots used — pausing least-recent: ${toPause.name} (${toPause.ref})`);
+
+    try {
+      execSync(
+        `curl -s -X POST "https://api.supabase.com/v1/projects/${toPause.ref}/pause" -H "Authorization: Bearer ${token}" -H "Content-Type: application/json"`,
+        { encoding: 'utf8', timeout: 30000 }
+      );
+
+      // Wait for pause to complete (poll every 10s, max 3 min)
+      for (let i = 0; i < 18; i++) {
+        const status = JSON.parse(
+          execSync(`curl -s "https://api.supabase.com/v1/projects/${toPause.ref}" -H "Authorization: Bearer ${token}"`, { encoding: 'utf8', timeout: 10000 })
+        ).status;
+        log(`Supabase: ${toPause.name} status: ${status}`);
+        if (status === 'INACTIVE') break;
+        execSync('sleep 10');
+      }
+      log(`Supabase: ${toPause.name} paused — slot freed`);
+    } catch (err) {
+      log(`Supabase: failed to pause ${toPause.name}: ${err.message.slice(0, 200)}`);
+      return null;
     }
-    return null;
   }
 
   // Create new project
