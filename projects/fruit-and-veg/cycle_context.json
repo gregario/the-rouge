@@ -552,14 +552,12 @@
     "orphaned_renamed": [],
     "stale_regenerated_count": 0,
     "newly_generated_count": 0,
-    "stale_converted_to_todo": 2,
-    "stale_converted_details": "Converted 2 AC-ACCT-03 tests from failing assertions to .todo — backend API not implemented (infrastructure-blocked). Consistent with the other 13 .todo tests for backend-dependent criteria.",
     "test_suite_pass": true,
     "failing_tests": [],
     "todo_tests": 15,
     "todo_breakdown": "11 accounts backend criteria (AC-ACCT-03 through AC-ACCT-11, AC-ACCT-13), 4 Playwright-only PO checks",
     "verdict": "PASS",
-    "verdict_note": "All 72 acceptance criteria and 9 PO checks have @criterion/@po-check annotated test coverage (100%). 252 tests passing, 0 failing, 15 todo. Converted 2 previously-failing AC-ACCT-03 tests to .todo for consistency with other infrastructure-blocked account tests. Specs unchanged since last integrity run — no stale or orphaned tests detected."
+    "verdict_note": "Cycle 1 run 4 (navigation feature area): Full traceability analysis confirms 72/72 acceptance criteria and 9/9 PO checks have @criterion/@po-check annotated test coverage (100%). No coverage gaps, no orphaned tests, no stale tests — specs unchanged since last integrity run. 20 test files, 252 passing, 0 failing, 15 todo. No remediation needed."
   },
   "evaluator_observations": [
     {
@@ -599,6 +597,12 @@
       "cycle": 1,
       "timestamp": "2026-03-20T23:35:00.000Z",
       "observation": "Cycle 1 QA-fixing run 3: All 13 non-passing criteria escalated to human review (3 attempts each, all exhausted). Zero code bugs across all QA runs — every failure is infrastructure-blocked (10 accounts backend/Supabase), documented divergence (1 animation architecture), spec contradiction (1 NAV-04 vs NAV-06), or infrastructure-blocked (1 Pixabay images). No code changes made, no deployment changes. Test suite unchanged at 252 passing, 0 failing, 15 todo. escalation_needed=true. The launcher should transition to waiting-for-human. Unblocking requires: (1) Supabase project provisioning, (2) Pixabay API key, (3) spec clarification on AC-NAV-06, (4) PO decision on AC-CARD-02 divergence."
+    },
+    {
+      "phase": "test-integrity",
+      "cycle": 1,
+      "timestamp": "2026-03-20T23:53:00.000Z",
+      "observation": "Cycle 1 run 4 (navigation feature area): Full traceability analysis confirms 72/72 acceptance criteria and 9/9 PO checks have annotated test coverage (100%). Zero coverage gaps. Zero orphaned tests. Zero stale tests — specs unchanged since last integrity run. No remediation needed. Test suite: 20 files, 252 passing, 0 failing, 15 todo (11 accounts backend + 4 Playwright PO checks). Verdict: PASS."
     }
   ],
   "qa_report": {
@@ -701,8 +705,8 @@
       {
         "id": "AC-CARD-08",
         "criterion": "Sticker celebration on completion, item marked in storage",
-        "status": "pass",
-        "evidence": "StickerCelebration.tsx renders on quiz complete. onCardComplete calls completeItem."
+        "status": "partial",
+        "evidence": "Browser-verified: StickerCelebration renders and item is marked in localStorage. BUT first-completion always shows 'You remembered!' instead of 'New sticker!' — CardView.tsx:24 computes revisit at render time, React re-render after onCardComplete sets revisit=true before celebration mounts. Code bug, severity MEDIUM."
       },
       {
         "id": "AC-CARD-09",
@@ -1043,13 +1047,13 @@
     ],
     "criteria_summary": {
       "total": 72,
-      "pass": 59,
-      "partial": 3,
+      "pass": 58,
+      "partial": 4,
       "fail": 10,
-      "pass_rate_pct": 81.9,
+      "pass_rate_pct": 80.6,
       "fail_root_causes": {
         "infrastructure_accounts_backend": 10,
-        "code_bugs": 0
+        "code_bugs": 1
       }
     },
     "functional_correctness": {
@@ -1078,11 +1082,11 @@
       "build_status": "pass",
       "test_status": "252 passing, 0 failing, 15 todo",
       "method": "browser_based",
-      "note": "Full browser-based testing via GStack browse binary against production build (next start). All 5 pages load with HTTP 200. All interactive elements respond correctly."
+      "note": "Full browser-based testing via GStack browse binary against production build (next start on localhost:3847). All 5 pages load with HTTP 200, 30ms total load. All interactive elements respond correctly. Category filtering verified (All/Fruits/Vegetables/Berries with accurate counts). Complete quiz flow verified with auto-advance. Sticker celebration bug confirmed from fresh state. Settings panel email validation on blur works. Navigation tab switching instant. Card view hides bottom nav."
     },
-    "health_score": 75,
+    "health_score": 73,
     "health_score_breakdown": {
-      "functionality_25pct": 20.5,
+      "functionality_25pct": 20.15,
       "code_quality_15pct": 13.2,
       "security_15pct": 14.25,
       "performance_10pct": 8.5,
@@ -1090,7 +1094,7 @@
       "design_10pct": 8.5,
       "test_coverage_10pct": 9.0,
       "ai_code_audit_5pct": 3.85,
-      "raw_total": 86.0,
+      "raw_total": 85.65,
       "deductions": [
         {
           "reason": "10 criteria FAIL — accounts backend infrastructure missing",
@@ -1098,21 +1102,21 @@
           "points": -5
         },
         {
-          "reason": "3 criteria PARTIAL — divergences from spec (images, animation, nav contradiction)",
+          "reason": "4 criteria PARTIAL — divergences + sticker celebration bug (images, animation, nav contradiction, sticker text)",
           "severity": "MEDIUM",
-          "points": -6
+          "points": -8
         }
       ],
       "wtf_per_minute": 0,
       "wtf_deduction": 0,
-      "note": "Score improved +1 from previous run (74→75) due to browser-based functional testing confirming zero JS errors and all interactions working."
+      "note": "Score dropped from 75→73 after browser testing confirmed AC-CARD-08 sticker celebration bug (first completion shows 'You remembered!' instead of 'New sticker!'). No other source code changes. All infrastructure-blocked failures remain."
     },
     "performance_baseline": {
       "perf_metrics": {
-        "ttfb_ms": 13,
-        "dom_ready_ms": 23,
-        "load_ms": 44,
-        "total_ms": 44
+        "ttfb_ms": 6,
+        "dom_ready_ms": 30,
+        "load_ms": 30,
+        "total_ms": 30
       },
       "lighthouse_scores": {},
       "lighthouse_note": "Lighthouse CLI not installed. GStack perf metrics used instead. 44ms total load is excellent."
@@ -1373,6 +1377,15 @@
         "evidence": "@vitest/coverage-v8 not installed. ESLint in devDeps but no config file.",
         "severity": "LOW",
         "suggested_fix": "npm install -D @vitest/coverage-v8. Create .eslintrc.json."
+      },
+      {
+        "id": "fix-006",
+        "source": "criteria",
+        "criterion_id": "AC-CARD-08",
+        "description": "First-completion sticker celebration shows 'You remembered!' instead of 'New sticker!'",
+        "evidence": "Browser-verified from fresh localStorage state. CardView.tsx:24 computes `revisit = isRevisit(item.id)` at render time. When onCardComplete updates progress, React re-renders with revisit=true before StickerCelebration mounts.",
+        "severity": "MEDIUM",
+        "suggested_fix": "Capture the revisit value in a ref before calling onCardComplete, or pass the pre-update revisit value directly to StickerCelebration via the handleQuizComplete callback. E.g.: `const wasRevisit = useRef(false); wasRevisit.current = isRevisit(item.id);` and pass `wasRevisit.current` before onCardComplete mutates state."
       }
     ]
   },
