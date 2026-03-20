@@ -197,12 +197,16 @@ run_phase() {
 
   # FIX #3 & #4: Run Claude from project dir, prompt via stdin
   local phase_log="$LOG_DIR/${project_name}-${state}.log"
-  if (cd "$project_dir" && claude -p \
+  pushd "$project_dir" > /dev/null
+  local claude_exit=0
+  claude -p \
     --dangerously-skip-permissions \
     --model "$model" \
     --max-turns 200 \
-    < "$prompt_file") \
-    >> "$phase_log" 2>&1; then
+    < "$prompt_file" \
+    >> "$phase_log" 2>&1 || claude_exit=$?
+  popd > /dev/null
+  if [[ $claude_exit -eq 0 ]]; then
 
     # FIX #6: Count files after and log delta
     local files_after
@@ -221,8 +225,7 @@ run_phase() {
     advance_state "$project_dir"
     return 0
   else
-    local exit_code=$?
-    log "[$project_name] Phase $state failed (exit $exit_code)"
+    log "[$project_name] Phase $state failed (exit $claude_exit)"
 
     # FIX #5: Log error context
     local error_line
@@ -231,7 +234,7 @@ run_phase() {
       log "[$project_name] Error context: $error_line"
     fi
 
-    return $exit_code
+    return $claude_exit
   fi
 }
 
