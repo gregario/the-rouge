@@ -211,6 +211,23 @@
       ],
       "tests_added": 12,
       "tests_passing": 149
+    },
+    {
+      "task": "catalogue-rebuild-and-ac-coverage",
+      "acceptance_criteria": ["AC-CAT-01", "AC-CAT-02", "AC-CAT-03", "AC-CAT-04", "AC-CAT-05", "AC-CAT-06", "AC-CAT-07", "AC-CAT-08", "AC-DAILY-02", "AC-DAILY-03", "AC-DAILY-04", "AC-DAILY-07", "AC-DAILY-10", "AC-DAILY-12", "AC-ACH-01", "AC-ACH-04", "AC-ACH-05"],
+      "files_changed": [
+        "src/data/catalogue.ts",
+        "src/lib/catalogue.ts",
+        "tests/lib/daily-challenge-logic.test.ts",
+        "tests/lib/badges-ac.test.ts",
+        "tests/lib/catalogue-helpers.test.ts",
+        "tests/components/BottomNav.test.tsx",
+        "tests/components/QuizView.test.tsx",
+        "tests/data/catalogue-validation.test.ts",
+        "tests/lib/navigation.test.ts"
+      ],
+      "tests_added": 22,
+      "tests_passing": 171
     }
   ],
   "skipped": [
@@ -258,12 +275,12 @@
   ],
   "factory_decisions": [
     {
-      "decision": "Use catalogue.json as the single source of truth, with catalogue.ts as a thin re-export",
-      "context": "The catalogue.ts file had been partially expanded with inline data but was truncated (719 lines, missing closing brackets). catalogue.json has all 75 items and is valid.",
-      "alternatives_considered": ["Expand catalogue.ts to full inline data", "Delete catalogue.ts entirely"],
-      "rationale": "JSON is the natural format for static data. A thin TS re-export provides type safety without data duplication. Tests import from JSON via the lib/catalogue.ts loader.",
+      "decision": "Rebuilt catalogue.ts as typed TypeScript module with 75 inline items, replacing JSON data source",
+      "context": "The prior approach used catalogue.json with a TS re-export. The catalogue.ts file was truncated at 719 lines with missing closing bracket. Rebuilt as a proper TS module with typed imports from lib/types.ts.",
+      "alternatives_considered": ["Keep JSON as data source", "Generate from CSV/YAML"],
+      "rationale": "A single .ts file provides type checking at compile time, catches invalid enum values immediately, and eliminates the JSON→TS dynamic import layer. The lib/catalogue.ts loader now imports directly from the TS module.",
       "confidence": "high",
-      "affects": ["src/data/catalogue.ts", "src/data/catalogue.json"]
+      "affects": ["src/data/catalogue.ts", "src/lib/catalogue.ts"]
     },
     {
       "decision": "Track recent featured items in UserProgress.recentFeaturedIds for AC-DAILY-12",
@@ -288,14 +305,6 @@
       "rationale": "Removed the + (isCorrect ? 1 : 0) from advance since correctCount state already includes the increment from handleSelect by the time advance runs (React 18+ batched updates).",
       "confidence": "high",
       "affects": ["src/components/QuizView.tsx"]
-    },
-    {
-      "decision": "Removed truncated src/data/catalogue.ts file that caused TypeScript build failure",
-      "context": "src/data/catalogue.ts had 719 lines of inline catalogue data but was missing the closing ] bracket, causing 'Unexpected token' build error. The JSON data in src/data/catalogue.json (75 items) is the actual data source used by src/lib/catalogue.ts. Nothing imported from the TS file.",
-      "alternatives_considered": ["Complete the truncated file", "Keep as thin re-export"],
-      "rationale": "The TS file was unused — no imports reference it. catalogue.json is the single source of truth loaded via src/lib/catalogue.ts. Removing eliminates the build blocker with zero risk.",
-      "confidence": "high",
-      "affects": ["src/data/catalogue.ts"]
     },
     {
       "decision": "Fixed daily-challenge.test.ts parse error — describe block closed prematurely, leaving two it() blocks orphaned",
