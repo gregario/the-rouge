@@ -5,3 +5,4 @@ out/
 .env.local
 *.tsbuildinfo
 next-env.d.ts
+.rouge-prompt.tmp
