@@ -372,3 +372,28 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 - [ ] FW.4 Confidence trend in notifications — include confidence score and delta in loop completion messages
 - [ ] FW.5 Screenshot attachments in notifications — capture primary screen + feature screens, attach to Slack messages via file upload
 - [ ] FW.6 Seeding swarm progress — "Discipline 3/7 complete (brainstorming → competition → taste)" during seeding loops
+
+## Future Work — Slack UX (Boil the Lake)
+
+### Foundation
+- [ ] FW.10 Create Slack App manifest YAML — one-click app setup for new users. All slash commands, event subscriptions, scopes, and permissions declared.
+- [ ] FW.11 Implement slash commands — /rouge new, /rouge status, /rouge start, /rouge pause, /rouge resume, /rouge seed, /rouge feedback. Requires Interactivity & Shortcuts enabled.
+- [ ] FW.12 Threaded seeding conversations — /rouge new starts a thread, all seeding back-and-forth lives in the thread, channel gets a summary on completion
+- [ ] FW.13 Modal for project creation — /rouge new opens a form: project name, one-line description, domain (web/game/artifact), template. Not free-text.
+
+### Dashboard & Visibility
+- [ ] FW.14 App Home tab as live dashboard — click Rouge in sidebar → see all projects with state, confidence trend, last activity, action buttons
+- [ ] FW.15 Ephemeral status messages — /rouge status shows results only to the requesting user, no channel spam
+
+### Rich Interactions
+- [ ] FW.16 Interactive Block Kit notifications — structured cards with progress indicators, confidence trends, screenshots, action buttons (Start, Pause, Approve, Reject)
+- [ ] FW.17 Block Kit morning briefing — multi-section card with per-project blocks, confidence charts, screenshot thumbnails
+- [ ] FW.18 Block Kit PO Review scorecard — journey/screen/interaction quality breakdown with pass/fail indicators
+- [ ] FW.19 Inline action buttons — "Start" button on ready notifications, "Investigate" button on rollback alerts, "Approve/Reject" on seeding completion
+- [ ] FW.20 Dropdown menus for feedback classification — when sending feedback, select type (product-change, global-learning, etc.) from a menu instead of relying on LLM classification
+
+### Polish
+- [ ] FW.21 DM support — seed from DMs with the bot for private brainstorming, channel notifications for team visibility
+- [ ] FW.22 Phase completion notifications with before/after screenshots embedded
+- [ ] FW.23 Rollback alerts with evidence summary and action buttons
+- [ ] FW.24 Confidence trend sparkline in notifications (Unicode block characters)
