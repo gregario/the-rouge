@@ -400,6 +400,11 @@
       "phase": "qa-gate",
       "cycle": 1,
       "observation": "Cycle 1 QA Gate: FAIL verdict — 81.9% criteria pass rate (below 90% threshold). Health score 74 (above 70 minimum). Zero CRITICAL findings. Zero code bugs — all 10 failures are infrastructure-blocked (accounts backend not deployed, no Supabase). Code quality is high: clean architecture, TypeScript strict, 0 npm vulnerabilities, 0 console.log, 0 TODOs, 252/267 tests passing. AI code audit score 87/100. Three PARTIAL criteria from documented divergences (images not sourced, no origin-aware animation, nav spec contradiction). A11y PASS via code inspection — good ARIA coverage, 44px targets, prefers-reduced-motion respected, minor gaps (skip-to-content, aria-live, focus trapping). No browser-based testing possible (deployment_url null). Primary blocker for PASS verdict: accounts backend infrastructure. Secondary: staging deployment for browser QA."
+    },
+    {
+      "phase": "qa-fixing",
+      "cycle": 1,
+      "observation": "Cycle 1 QA-fixing: No code fixes possible. All 13 non-passing criteria (10 FAIL, 3 PARTIAL) are infrastructure-blocked or documented divergences. Zero code bugs identified. 10 account criteria (AC-ACCT-03 through AC-ACCT-11, AC-ACCT-13) require Supabase project provisioning — no backend exists. AC-CAT-02 requires Pixabay API pipeline. AC-CARD-02 is an architectural divergence (route navigation vs origin-aware animation). AC-NAV-06 is a spec contradiction with AC-NAV-04. Escalation set to true — human intervention needed for infrastructure provisioning before these criteria can pass. No deployment changes made (nothing changed). Test suite remains at 252 passing, 2 failing (AC-ACCT-03 backend tests), 13 todo."
     }
   ],
   "qa_report": {
@@ -670,7 +675,136 @@
     "supabase_ref": null,
     "sentry_dsn": null
   },
-  "retry_counts": {},
+  "qa_fix_results": {
+    "phase": "qa-fixing",
+    "cycle": 1,
+    "timestamp": "2026-03-20T23:00:00.000Z",
+    "criteria_fixed": [],
+    "criteria_escalated": [],
+    "criteria_skipped": [
+      {
+        "criterion_id": "AC-ACCT-03",
+        "reason": "Infrastructure blocker — no Supabase project provisioned. Cannot implement account creation API without backend. SettingsPanel Create Account button has no API to call."
+      },
+      {
+        "criterion_id": "AC-ACCT-04",
+        "reason": "Infrastructure blocker — no auth backend. Email verification flow requires Supabase Auth."
+      },
+      {
+        "criterion_id": "AC-ACCT-05",
+        "reason": "Infrastructure blocker — no sync backend. Progress sync requires Supabase database and API routes."
+      },
+      {
+        "criterion_id": "AC-ACCT-06",
+        "reason": "Infrastructure blocker — no auth backend. Cross-device sign-in requires Supabase Auth."
+      },
+      {
+        "criterion_id": "AC-ACCT-07",
+        "reason": "Infrastructure blocker — no sync backend. Conflict resolution requires server-side progress storage."
+      },
+      {
+        "criterion_id": "AC-ACCT-08",
+        "reason": "Infrastructure blocker — no backend. Account deletion requires Supabase Auth + database."
+      },
+      {
+        "criterion_id": "AC-ACCT-09",
+        "reason": "Infrastructure blocker — no backend. Offline mode with sync icon requires online/offline detection against a real server."
+      },
+      {
+        "criterion_id": "AC-ACCT-10",
+        "reason": "Infrastructure blocker — no auth backend. Resend verification requires Supabase Auth email service."
+      },
+      {
+        "criterion_id": "AC-ACCT-11",
+        "reason": "Infrastructure blocker — no auth backend. Magic link sign-in requires Supabase Auth."
+      },
+      {
+        "criterion_id": "AC-ACCT-13",
+        "reason": "Infrastructure blocker — no user profile backend. Display name requires authenticated user profile storage."
+      },
+      {
+        "criterion_id": "AC-CAT-02",
+        "reason": "Infrastructure blocker — Pixabay API key not configured. Image sourcing requires API pipeline setup. Fallback (coloured circles) renders correctly."
+      },
+      {
+        "criterion_id": "AC-CARD-02",
+        "reason": "Documented divergence — card view uses Next.js route navigation instead of origin-aware scaling animation. This is an architectural design decision, not a code bug. Changing it would require a custom animation system."
+      },
+      {
+        "criterion_id": "AC-NAV-06",
+        "reason": "Spec contradiction — AC-NAV-04 requires bottom nav hidden during card view, making AC-NAV-06 (tap tab during card view) impossible. Documented as spec issue. Back button and celebration buttons provide navigation alternatives."
+      }
+    ],
+    "deployment_url": null,
+    "total_commits": 0,
+    "escalation_needed": true,
+    "escalation_details": {
+      "reason": "All 13 non-passing criteria are infrastructure-blocked or documented divergences. Zero code bugs found. 10 account criteria require Supabase project provisioning (infrastructure.supabase_ref is null). 1 criterion requires Pixabay API pipeline. 2 criteria are documented divergences/spec contradictions. No code fixes are possible without infrastructure provisioning.",
+      "infrastructure_required": [
+        "Supabase project creation and configuration (unblocks AC-ACCT-03 through AC-ACCT-11, AC-ACCT-13)",
+        "Pixabay API key and image sourcing pipeline (unblocks AC-CAT-02)",
+        "Cloudflare Workers staging deployment (unblocks browser-based QA testing)"
+      ],
+      "spec_issues": [
+        "AC-NAV-06 contradicts AC-NAV-04 — needs spec clarification",
+        "AC-CARD-02 origin-aware animation — architectural decision, not a bug"
+      ]
+    }
+  },
+  "retry_counts": {
+    "AC-ACCT-03": {
+      "attempts": 1,
+      "history": [{"cycle": 1, "phase": "qa-fixing", "what_tried": "Assessed feasibility — no Supabase project exists. Cannot implement backend without infrastructure.", "result": "skipped_infrastructure_blocker"}]
+    },
+    "AC-ACCT-04": {
+      "attempts": 1,
+      "history": [{"cycle": 1, "phase": "qa-fixing", "what_tried": "Assessed feasibility — requires Supabase Auth for email verification.", "result": "skipped_infrastructure_blocker"}]
+    },
+    "AC-ACCT-05": {
+      "attempts": 1,
+      "history": [{"cycle": 1, "phase": "qa-fixing", "what_tried": "Assessed feasibility — requires Supabase database for progress sync.", "result": "skipped_infrastructure_blocker"}]
+    },
+    "AC-ACCT-06": {
+      "attempts": 1,
+      "history": [{"cycle": 1, "phase": "qa-fixing", "what_tried": "Assessed feasibility — requires Supabase Auth for cross-device sign-in.", "result": "skipped_infrastructure_blocker"}]
+    },
+    "AC-ACCT-07": {
+      "attempts": 1,
+      "history": [{"cycle": 1, "phase": "qa-fixing", "what_tried": "Assessed feasibility — requires server-side storage for conflict resolution.", "result": "skipped_infrastructure_blocker"}]
+    },
+    "AC-ACCT-08": {
+      "attempts": 1,
+      "history": [{"cycle": 1, "phase": "qa-fixing", "what_tried": "Assessed feasibility — requires Supabase for account deletion.", "result": "skipped_infrastructure_blocker"}]
+    },
+    "AC-ACCT-09": {
+      "attempts": 1,
+      "history": [{"cycle": 1, "phase": "qa-fixing", "what_tried": "Assessed feasibility — requires backend for online/offline sync detection.", "result": "skipped_infrastructure_blocker"}]
+    },
+    "AC-ACCT-10": {
+      "attempts": 1,
+      "history": [{"cycle": 1, "phase": "qa-fixing", "what_tried": "Assessed feasibility — requires Supabase Auth email service.", "result": "skipped_infrastructure_blocker"}]
+    },
+    "AC-ACCT-11": {
+      "attempts": 1,
+      "history": [{"cycle": 1, "phase": "qa-fixing", "what_tried": "Assessed feasibility — requires Supabase Auth for magic link.", "result": "skipped_infrastructure_blocker"}]
+    },
+    "AC-ACCT-13": {
+      "attempts": 1,
+      "history": [{"cycle": 1, "phase": "qa-fixing", "what_tried": "Assessed feasibility — requires user profile backend.", "result": "skipped_infrastructure_blocker"}]
+    },
+    "AC-CAT-02": {
+      "attempts": 1,
+      "history": [{"cycle": 1, "phase": "qa-fixing", "what_tried": "Assessed feasibility — Pixabay API key not available.", "result": "skipped_infrastructure_blocker"}]
+    },
+    "AC-CARD-02": {
+      "attempts": 1,
+      "history": [{"cycle": 1, "phase": "qa-fixing", "what_tried": "Assessed — documented architectural divergence, not a code bug.", "result": "skipped_documented_divergence"}]
+    },
+    "AC-NAV-06": {
+      "attempts": 1,
+      "history": [{"cycle": 1, "phase": "qa-fixing", "what_tried": "Assessed — spec contradiction between AC-NAV-04 and AC-NAV-06.", "result": "skipped_spec_contradiction"}]
+    }
+  },
   "previous_cycles": [],
   "supabase": {
     "project_ref": null,
