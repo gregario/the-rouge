@@ -1,16 +1,12 @@
 import { CatalogueItem, Category } from './types'
-
-let catalogueCache: CatalogueItem[] | null = null
+import { catalogue as catalogueData } from '@/data/catalogue'
 
 export async function loadCatalogue(): Promise<CatalogueItem[]> {
-  if (catalogueCache) return catalogueCache
-  const data = await import('@/data/catalogue.json')
-  catalogueCache = data.default as CatalogueItem[]
-  return catalogueCache
+  return catalogueData
 }
 
 export function getCatalogueSync(): CatalogueItem[] {
-  return catalogueCache ?? []
+  return catalogueData
 }
 
 export function getItemById(
