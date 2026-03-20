@@ -372,15 +372,10 @@
     "orphaned_removed": [],
     "orphaned_renamed": [],
     "stale_regenerated_count": 0,
-    "newly_generated_count": 9,
-    "newly_generated_details": "9 PO check tests generated in tests/po-checks.test.ts (4 functional, 4 todo requiring Playwright, 1 hybrid)",
+    "newly_generated_count": 16,
+    "newly_generated_details": "14 accounts criteria tests in tests/components/SettingsPanel.test.tsx (AC-ACCT-01 through AC-ACCT-14), 2 AC-NAV-06 tests in tests/components/BottomNav-extended.test.tsx. Fixed 5 pre-existing test bugs: AC-NAV-04 (wrong component), AC-CARD-01 (multiple headings), AC-CARD-08 (2 tests: button filter + celebration), AC-NAV-06 (architectural documentation).",
     "test_suite_pass": false,
     "failing_tests": [
-      {
-        "criterion": "AC-CARD-08",
-        "test": "shows celebration overlay after quiz completion",
-        "reason": "CardView does not render celebration overlay after quiz completion — implementation gap"
-      },
       {
         "criterion": "AC-ACCT-03",
         "test": "shows verification pending message after clicking Create Account",
@@ -392,14 +387,14 @@
         "reason": "SettingsPanel does not call fetch — backend not implemented"
       }
     ],
-    "verdict": "PASS",
-    "verdict_note": "All 72 acceptance criteria and 9 PO checks have test coverage. 3 tests fail due to unimplemented features (accounts backend, card celebration wiring) — these are expected implementation gaps, not test integrity issues. The QA Gate will surface these as functional failures."
+    "verdict": "FAIL",
+    "verdict_note": "All 72 acceptance criteria and 9 PO checks have test coverage (100%). 2 tests fail because AC-ACCT-03 (account creation API) backend is not implemented. 13 tests are .todo (9 accounts backend criteria + 4 Playwright-only PO checks). The QA Gate will surface these as functional failures."
   },
   "evaluator_observations": [
     {
       "phase": "test-integrity",
       "cycle": 1,
-      "observation": "All 72 acceptance criteria across 6 feature areas have @criterion-annotated tests. 9 PO checks from design-artifact.yaml had zero test coverage — generated tests/po-checks.test.ts with 9 PO check test suites (4 functional tests passing, 4 .todo tests requiring Playwright for visual/layout measurement, 1 hybrid). No orphaned tests found. No stale tests (specs unchanged since seed). 3 test failures are implementation gaps: AC-CARD-08 celebration overlay not wired, AC-ACCT-03 backend not implemented. 13 tests are .todo (9 PO checks requiring Playwright + 4 account backend tests requiring infrastructure)."
+      "observation": "Cycle 1 run 2: All 72 ACs across 6 feature areas have @criterion-annotated tests. Generated 14 new tests for accounts criteria (AC-ACCT-01 to AC-ACCT-14) in tests/components/SettingsPanel.test.tsx. Added 2 AC-NAV-06 tests documenting the spec contradiction. Fixed 5 pre-existing test bugs: AC-NAV-04 tests incorrectly expected BottomNav to self-hide (hiding is AppShell's responsibility), AC-CARD-01 failed on multiple headings, AC-CARD-08 quiz answer filter excluded where-grow buttons (no aria-label) and needed multi-question completion. PO check coverage is 100% (tests/po-checks.test.ts already existed with all 9 checks). 2 tests fail due to unimplemented backend (AC-ACCT-03). 13 todos for backend+Playwright-dependent tests. Total: 252 passing, 2 failing, 13 todo."
     }
   ],
   "qa_report": null,

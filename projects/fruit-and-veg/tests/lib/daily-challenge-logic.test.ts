@@ -37,7 +37,8 @@ function emptyProgress(): UserProgress {
 }
 
 describe('Daily Challenge Logic', () => {
-  // AC-DAILY-02: Featured item is uncompleted
+  // @criterion: AC-DAILY-02
+  // @criterion-hash: d4dcbab28a96
   describe('AC-DAILY-02: featured item is uncompleted', () => {
     it('picks an uncompleted item as featured', () => {
       const catalogue = makeCatalogue(10)
@@ -66,7 +67,8 @@ describe('Daily Challenge Logic', () => {
     })
   })
 
-  // AC-DAILY-03: Review items are previously completed
+  // @criterion: AC-DAILY-03
+  // @criterion-hash: b2b54c4b9b61
   describe('AC-DAILY-03: review items are completed', () => {
     it('only includes completed items in review', () => {
       const catalogue = makeCatalogue(10)
@@ -96,7 +98,8 @@ describe('Daily Challenge Logic', () => {
     })
   })
 
-  // AC-DAILY-04: Review items prioritise oldest completions
+  // @criterion: AC-DAILY-04
+  // @criterion-hash: 0a5e5ef97766
   describe('AC-DAILY-04: review items prioritise oldest completions', () => {
     it('selects the two oldest completed items for review', () => {
       const catalogue = makeCatalogue(10)
@@ -122,7 +125,8 @@ describe('Daily Challenge Logic', () => {
     })
   })
 
-  // AC-DAILY-07: Daily challenge resets at midnight (different date → different result)
+  // @criterion: AC-DAILY-07
+  // @criterion-hash: 70b86859b610
   describe('AC-DAILY-07: daily challenge resets at midnight', () => {
     it('different dates produce challenges with potentially different featured items', () => {
       const catalogue = makeCatalogue(20)
@@ -139,7 +143,8 @@ describe('Daily Challenge Logic', () => {
     })
   })
 
-  // AC-DAILY-10: Re-discovery mode when catalogue exhausted
+  // @criterion: AC-DAILY-10
+  // @criterion-hash: 1beedf6a09a5
   describe('AC-DAILY-10: re-discovery mode activates when catalogue exhausted', () => {
     it('picks from completed items when all are completed', () => {
       const catalogue = makeCatalogue(5)
@@ -168,7 +173,8 @@ describe('Daily Challenge Logic', () => {
     })
   })
 
-  // AC-DAILY-12: Featured item not repeated within 7 days
+  // @criterion: AC-DAILY-12
+  // @criterion-hash: ba2a6ad06bf4
   describe('AC-DAILY-12: featured item not repeated within 7 days', () => {
     it('recordFeaturedItem keeps only last 7 entries', () => {
       let progress = emptyProgress()

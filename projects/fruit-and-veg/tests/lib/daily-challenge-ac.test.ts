@@ -67,6 +67,8 @@ const catalogue = Array.from({ length: 20 }, (_, i) =>
 )
 
 describe('daily-challenge acceptance criteria', () => {
+  // @criterion: AC-DAILY-05
+  // @criterion-hash: 7abf2c2bcdf7
   describe('AC-DAILY-05: new user sees only featured card', () => {
     it('reviewItemIds is empty when user has 0 completed items', () => {
       const challenge = generateDailyChallenge(catalogue, emptyProgress, '2026-03-20')
@@ -89,6 +91,8 @@ describe('daily-challenge acceptance criteria', () => {
     })
   })
 
+  // @criterion: AC-DAILY-06
+  // @criterion-hash: b4c4da73c396
   describe('AC-DAILY-06: daily challenge is consistent within a day', () => {
     it('same date produces identical challenge for same progress', () => {
       const c1 = generateDailyChallenge(catalogue, emptyProgress, '2026-03-20')
@@ -125,6 +129,8 @@ describe('daily-challenge acceptance criteria', () => {
     })
   })
 
+  // @criterion: AC-DAILY-08
+  // @criterion-hash: c022520d1e69
   describe('AC-DAILY-08: partial progress tracking via markCardCompleted', () => {
     it('tracks partial completion without triggering isComplete', () => {
       const progress: UserProgress = {
@@ -183,6 +189,8 @@ describe('daily-challenge acceptance criteria', () => {
     })
   })
 
+  // @criterion: AC-DAILY-09
+  // @criterion-hash: 1ecff8035a18
   describe('AC-DAILY-09: all cards complete triggers isComplete with 3 cards', () => {
     it('isComplete triggers when featured + 2 review cards are all completed', () => {
       const progress: UserProgress = {
@@ -241,6 +249,8 @@ describe('daily-challenge acceptance criteria', () => {
     })
   })
 
+  // @criterion: AC-DAILY-11
+  // @criterion-hash: a455a882e534
   describe('AC-DAILY-11: difficulty progression for new users', () => {
     it('users with 0 completions get easy featured items', () => {
       const easyIds = catalogue.filter(i => i.difficulty === 'easy').map(i => i.id)
