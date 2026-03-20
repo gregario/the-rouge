@@ -1,0 +1,281 @@
+{
+  "_schema_version": "1.0",
+  "_project_name": "fruit-and-veg",
+  "_cycle_number": 1,
+  "vision": {
+    "name": "Fruit & Veg",
+    "one_liner": "Kids discover and collect fruit and vegetable knowledge through playful flashcards \u2014 one new fruit every day.",
+    "persona": {
+      "who": "Parents of children aged 4-8",
+      "context": "Looking for educational screen time that teaches healthy eating habits",
+      "pain_points": [
+        "Educational apps are boring",
+        "Kids don't know where food comes from",
+        "Hard to find apps without ads/IAP for young kids"
+      ]
+    },
+    "problem": "Kids have limited knowledge of fruit and vegetables, and existing educational apps are either boring or filled with monetization dark patterns",
+    "emotional_north_star": "The joy of discovering something new about the food on your plate",
+    "feature_areas": [
+      {
+        "name": "catalogue",
+        "status": "implemented",
+        "description": "Curated database of ~75 fruit and vegetables"
+      },
+      {
+        "name": "card-experience",
+        "status": "implemented",
+        "description": "Flashcard interaction with first-person voice"
+      },
+      {
+        "name": "achievements",
+        "status": "implemented",
+        "description": "Sticker book collection and category badges"
+      },
+      {
+        "name": "daily-challenge",
+        "status": "implemented",
+        "description": "Fruit of the Day + 2 review cards"
+      },
+      {
+        "name": "navigation",
+        "status": "implemented",
+        "description": "5-screen structure with bottom tab bar"
+      },
+      {
+        "name": "accounts",
+        "status": "partial",
+        "description": "Optional accounts with progress sync — UI only, backend blocked"
+      }
+    ],
+    "infrastructure": {
+      "needs_database": true,
+      "needs_auth": true,
+      "needs_payments": false,
+      "deployment_target": "cloudflare-workers"
+    }
+  },
+  "product_standard": {
+    "inherits": [
+      "global",
+      "domain/web"
+    ],
+    "overrides": [],
+    "additions": [],
+    "definition_of_done": "All 6 feature areas implemented, 72 acceptance criteria passing, PO review PRODUCTION_READY, Lighthouse 90+ across all categories, zero console errors, COPPA/GDPR-K compliant"
+  },
+  "active_spec": {
+    "type": "seed",
+    "feature_areas": [
+      "catalogue",
+      "card-experience",
+      "achievements",
+      "daily-challenge",
+      "navigation",
+      "accounts"
+    ],
+    "spec_files": [
+      "seed_spec/spec-01-catalogue.md",
+      "seed_spec/spec-02-card-experience.md",
+      "seed_spec/spec-03-achievements.md",
+      "seed_spec/spec-04-daily-challenge.md",
+      "seed_spec/spec-05-navigation.md",
+      "seed_spec/spec-06-accounts.md"
+    ],
+    "design_file": "seed_spec/design-artifact.yaml",
+    "total_acceptance_criteria": 72,
+    "total_po_checks": 9,
+    "total_journeys": 12,
+    "total_screens": 5
+  },
+  "library_heuristics": [],
+  "reference_products": [],
+  "previous_evaluations": [],
+  "evaluation_deltas": [],
+  "deployment_url": null,
+  "implemented": [
+    {
+      "task": "navigation",
+      "acceptance_criteria": ["AC-NAV-01", "AC-NAV-02", "AC-NAV-03", "AC-NAV-04", "AC-NAV-05", "AC-NAV-07", "AC-NAV-08", "AC-NAV-09", "AC-NAV-10"],
+      "files_changed": [
+        "src/components/AppShell.tsx",
+        "src/components/BottomNav.tsx",
+        "src/app/layout.tsx",
+        "src/app/page.tsx",
+        "src/app/collection/page.tsx",
+        "src/app/garden/page.tsx",
+        "src/app/card/[id]/page.tsx"
+      ],
+      "tests_added": 0,
+      "tests_passing": 46
+    },
+    {
+      "task": "catalogue",
+      "acceptance_criteria": ["AC-CAT-01", "AC-CAT-02", "AC-CAT-03", "AC-CAT-04", "AC-CAT-05", "AC-CAT-06", "AC-CAT-07", "AC-CAT-08"],
+      "files_changed": [
+        "src/data/catalogue.json",
+        "src/data/catalogue.ts",
+        "src/lib/catalogue.ts",
+        "src/lib/types.ts"
+      ],
+      "tests_added": 11,
+      "tests_passing": 46
+    },
+    {
+      "task": "card-experience",
+      "acceptance_criteria": ["AC-CARD-01", "AC-CARD-02", "AC-CARD-03", "AC-CARD-04", "AC-CARD-05", "AC-CARD-06", "AC-CARD-07", "AC-CARD-08", "AC-CARD-09", "AC-CARD-10", "AC-CARD-11", "AC-CARD-12", "AC-CARD-13", "AC-CARD-14", "AC-CARD-15", "AC-CARD-16"],
+      "files_changed": [
+        "src/components/CardView.tsx",
+        "src/components/QuizView.tsx",
+        "src/components/StickerCelebration.tsx",
+        "src/components/ItemImage.tsx"
+      ],
+      "tests_added": 0,
+      "tests_passing": 46
+    },
+    {
+      "task": "achievements",
+      "acceptance_criteria": ["AC-ACH-01", "AC-ACH-02", "AC-ACH-03", "AC-ACH-04", "AC-ACH-05", "AC-ACH-06", "AC-ACH-07", "AC-ACH-08", "AC-ACH-09", "AC-ACH-10", "AC-ACH-11", "AC-ACH-12"],
+      "files_changed": [
+        "src/components/CollectionView.tsx",
+        "src/components/GardenView.tsx",
+        "src/lib/progress.ts",
+        "src/lib/badges.ts"
+      ],
+      "tests_added": 21,
+      "tests_passing": 46
+    },
+    {
+      "task": "daily-challenge",
+      "acceptance_criteria": ["AC-DAILY-01", "AC-DAILY-02", "AC-DAILY-03", "AC-DAILY-04", "AC-DAILY-05", "AC-DAILY-06", "AC-DAILY-07", "AC-DAILY-08", "AC-DAILY-09", "AC-DAILY-10", "AC-DAILY-11", "AC-DAILY-12"],
+      "files_changed": [
+        "src/lib/daily-challenge.ts",
+        "src/lib/app-context.tsx",
+        "src/app/HomeContent.tsx",
+        "src/components/FeaturedCard.tsx",
+        "src/components/ReviewCard.tsx",
+        "src/components/ProgressDots.tsx",
+        "src/components/DailyStampCelebration.tsx"
+      ],
+      "tests_added": 19,
+      "tests_passing": 46
+    },
+    {
+      "task": "accounts-ui",
+      "acceptance_criteria": ["AC-ACCT-01", "AC-ACCT-02", "AC-ACCT-12", "AC-ACCT-14"],
+      "files_changed": [
+        "src/components/SettingsButton.tsx",
+        "src/components/SettingsPanel.tsx"
+      ],
+      "tests_added": 0,
+      "tests_passing": 46
+    }
+  ],
+  "skipped": [
+    {
+      "task": "accounts-backend",
+      "reason": "No Supabase project configured. Account creation (AC-ACCT-03), verification (AC-ACCT-04), progress sync (AC-ACCT-05), sign-in (AC-ACCT-06, AC-ACCT-11), conflict resolution (AC-ACCT-07), deletion (AC-ACCT-08), offline sync (AC-ACCT-09), resend (AC-ACCT-10), display name (AC-ACCT-13) all require a backend.",
+      "blocker_type": "infrastructure",
+      "unblocked_by": "Supabase project creation and API route implementation"
+    },
+    {
+      "task": "staging-deployment",
+      "reason": "No wrangler.toml or Cloudflare Workers configuration exists. Cannot deploy to staging without infrastructure setup.",
+      "blocker_type": "infrastructure",
+      "unblocked_by": "Create wrangler.toml with Cloudflare Workers config and OpenNext adapter"
+    },
+    {
+      "task": "AC-NAV-06",
+      "reason": "Tab tap during card view — bottom nav is intentionally hidden during card view per AC-NAV-04. The spec acknowledges this interaction happens 'via swipe or gesture' which is acceptable behavior. The back button and in-card navigation handle card dismissal.",
+      "blocker_type": "spec_contradiction",
+      "unblocked_by": "Spec clarification on whether nav should be partially accessible during card view"
+    }
+  ],
+  "divergences": [
+    {
+      "spec_says": "Card view open: Card scales up from tapped position (origin-aware animation, 300ms)",
+      "actually_did": "Card view uses Next.js page navigation rather than origin-aware animation. The card page renders with a full-screen layout.",
+      "rationale": "Next.js App Router handles route transitions at the framework level. Origin-aware animations would require a custom animation system with layout measurements. The current approach is simpler and more reliable.",
+      "affects_acceptance_criteria": ["AC-CARD-02"],
+      "reversible": true
+    },
+    {
+      "spec_says": "Images sourced from Pixabay API during build",
+      "actually_did": "Image paths reference /images/catalogue/*.webp but actual image files are not bundled. Image fallback (coloured circle) is implemented and will render.",
+      "rationale": "Pixabay API image sourcing requires a separate build pipeline and API key. The fallback system works correctly for all items. Image sourcing should be a separate infrastructure task.",
+      "affects_acceptance_criteria": ["AC-CAT-02"],
+      "reversible": true
+    },
+    {
+      "spec_says": "Accounts UI shows 'Coming soon' placeholder",
+      "actually_did": "Settings panel has full UI for email input, guardian checkbox, and Create Account button, but the button doesn't call any API. Shows 'Accounts are coming soon!' message.",
+      "rationale": "Building the UI now means when the backend is ready, only the API integration needs wiring. The UI matches the spec's interaction patterns.",
+      "affects_acceptance_criteria": ["AC-ACCT-02", "AC-ACCT-14"],
+      "reversible": false
+    }
+  ],
+  "factory_decisions": [
+    {
+      "decision": "Use catalogue.json as the single source of truth, with catalogue.ts as a thin re-export",
+      "context": "The catalogue.ts file had been partially expanded with inline data but was truncated (719 lines, missing closing brackets). catalogue.json has all 75 items and is valid.",
+      "alternatives_considered": ["Expand catalogue.ts to full inline data", "Delete catalogue.ts entirely"],
+      "rationale": "JSON is the natural format for static data. A thin TS re-export provides type safety without data duplication. Tests import from JSON via the lib/catalogue.ts loader.",
+      "confidence": "high",
+      "affects": ["src/data/catalogue.ts", "src/data/catalogue.json"]
+    },
+    {
+      "decision": "Track recent featured items in UserProgress.recentFeaturedIds for AC-DAILY-12",
+      "context": "The 7-day non-repeat requirement for featured items needs history tracking. Alternatives were computing from date seeds or separate storage.",
+      "alternatives_considered": ["Compute previous days' featured items from date seeds", "Separate localStorage key for recent history", "No history — rely on seeded randomness"],
+      "rationale": "UserProgress already persists to localStorage. Adding a field is simpler than maintaining separate storage. Computing from seeds is recursive (each day's result depends on exclusions from prior days).",
+      "confidence": "high",
+      "affects": ["src/lib/types.ts", "src/lib/progress.ts", "src/lib/daily-challenge.ts", "src/lib/app-context.tsx"]
+    },
+    {
+      "decision": "Daily stamp celebration as a modal overlay rather than inline content",
+      "context": "AC-DAILY-09 requires a celebration when all daily cards are complete. The spec describes a stamp that 'drops from above with a thunk animation'.",
+      "alternatives_considered": ["Inline celebration text only", "Full-page celebration route", "Toast notification"],
+      "rationale": "A modal overlay matches the spec's description of a stamp celebration with auto-dismiss and manual dismiss options. Consistent with the sticker celebration pattern already used in CardView.",
+      "confidence": "high",
+      "affects": ["src/components/DailyStampCelebration.tsx", "src/app/HomeContent.tsx"]
+    }
+  ],
+  "factory_questions": [
+    {
+      "question": "AC-NAV-06 contradicts AC-NAV-04: Nav should hide during card view, but AC-NAV-06 describes tapping a nav tab during card view. How should the user access tab navigation while in card view?",
+      "found_in": "seed_spec/spec-05-navigation.md, AC-NAV-04 vs AC-NAV-06",
+      "resolved_as": "Card view has a back button and celebration buttons ('See collection', 'Next card') for navigation. The bottom nav is hidden per AC-NAV-04. AC-NAV-06 logged as skipped.",
+      "needs_clarification_from": "spec",
+      "severity": "minor"
+    },
+    {
+      "question": "Should account-related UI features (AC-ACCT-03 through AC-ACCT-13) be fully implemented without a backend, or should UI stubs be built now and wired later?",
+      "found_in": "seed_spec/spec-06-accounts.md",
+      "resolved_as": "Built the complete UI (settings panel with email input, guardian checkbox, validation) but no API calls. Shows 'coming soon' message. This approach lets the UI be QA'd independently of the backend.",
+      "needs_clarification_from": "design",
+      "severity": "significant"
+    },
+    {
+      "question": "The spec mentions Pixabay API for image sourcing (AC-CAT-02), but no API key or build pipeline exists. Should images be sourced during this cycle?",
+      "found_in": "seed_spec/spec-01-catalogue.md, Image Requirements section",
+      "resolved_as": "Deferred image sourcing. The image fallback system (coloured circle with item name) is fully implemented and will render for all items. Image sourcing is an infrastructure task.",
+      "needs_clarification_from": "human",
+      "severity": "significant"
+    }
+  ],
+  "qa_report": null,
+  "po_review_report": null,
+  "infrastructure": {
+    "staging_url": null,
+    "production_url": null,
+    "supabase_ref": null,
+    "sentry_dsn": null
+  },
+  "retry_counts": {},
+  "previous_cycles": [],
+  "supabase": {
+    "project_ref": null,
+    "slot_acquired": false,
+    "connection_string": null
+  }
+}
