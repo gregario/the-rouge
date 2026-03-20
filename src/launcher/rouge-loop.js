@@ -48,7 +48,7 @@ const MODEL = 'opus';
 const PHASE_TIMEOUT = {
   building: 20 * 60 * 1000,           // 20 min — scaffolding, TDD, deployment
   'test-integrity': 15 * 60 * 1000,   // 15 min — scanning tests, generating gaps
-  'qa-gate': 15 * 60 * 1000,          // 15 min — browser QA, Lighthouse, code quality
+  'qa-gate': 25 * 60 * 1000,          // 25 min — browser QA, Lighthouse, code quality, security
   'qa-fixing': 15 * 60 * 1000,        // 15 min — debugging, fixing, redeploying
   'po-reviewing': 15 * 60 * 1000,     // 15 min — journey walks, screen analysis
   analyzing: 10 * 60 * 1000,          // 10 min — reading reports, deciding action
