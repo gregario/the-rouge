@@ -39,10 +39,7 @@ function provisionCloudflare(projectDir, projectName) {
   const wranglerPath = path.join(projectDir, 'wrangler.toml');
   const openNextPath = path.join(projectDir, 'open-next.config.ts');
 
-  if (fs.existsSync(wranglerPath)) {
-    log('Cloudflare: wrangler.toml already exists');
-    return;
-  }
+  if (!fs.existsSync(wranglerPath)) {
 
   log('Cloudflare: creating wrangler.toml and open-next.config.ts');
 
@@ -95,6 +92,8 @@ const config: OpenNextConfig = {
 export default config;
 `);
   }
+
+  } // end if (!wranglerPath exists)
 
   // Install OpenNext if not already a dependency
   const pkg = readJson(path.join(projectDir, 'package.json'));
@@ -256,8 +255,9 @@ function provisionSupabase(projectDir, projectName) {
       timeout: 60000,
     });
 
-    // Get the project ref
-    const refMatch = result.match(/([a-z]{20})/);
+    // Get the project ref — supabase outputs a table with the ref in the REFERENCE ID column
+    // Format: "| org-id | ref-id | name | region | date |"
+    const refMatch = result.match(/\|\s*\w+\s*\|\s*(\w{20})\s*\|/);
     if (refMatch) {
       const ref = refMatch[1];
       log(`Supabase: project created (ref: ${ref})`);
