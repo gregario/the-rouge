@@ -199,11 +199,10 @@ run_phase() {
   local phase_log="$LOG_DIR/${project_name}-${state}.log"
   pushd "$project_dir" > /dev/null
   local claude_exit=0
-  claude -p \
+  cat "$prompt_file" | claude -p \
     --dangerously-skip-permissions \
     --model "$model" \
     --max-turns 200 \
-    < "$prompt_file" \
     >> "$phase_log" 2>&1 || claude_exit=$?
   popd > /dev/null
   if [[ $claude_exit -eq 0 ]]; then
