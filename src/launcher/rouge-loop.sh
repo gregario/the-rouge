@@ -197,12 +197,15 @@ run_phase() {
 
   # FIX #3 & #4: Run Claude from project dir, prompt via stdin
   local phase_log="$LOG_DIR/${project_name}-${state}.log"
+  # Pass prompt via process substitution to avoid stdin/background issues
+  # and shell expansion of special chars in prompt content
   pushd "$project_dir" > /dev/null
   local claude_exit=0
-  cat "$prompt_file" | claude -p \
+  claude -p \
     --dangerously-skip-permissions \
     --model "$model" \
     --max-turns 200 \
+    "Read the phase prompt at $prompt_file and execute it. The project directory is $(pwd). Read cycle_context.json and state.json for context." \
     >> "$phase_log" 2>&1 || claude_exit=$?
   popd > /dev/null
   if [[ $claude_exit -eq 0 ]]; then
