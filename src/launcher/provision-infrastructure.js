@@ -145,11 +145,13 @@ export default config;
 // --- Supabase setup ---
 
 function getSupabaseToken() {
-  // V1 (macOS): extract from keychain and base64 decode
+  // V1 (macOS): extract from keychain
+  // Keychain stores: "go-keyring-base64:<base64-encoded-token>"
+  // Strip prefix, base64 decode to get the actual token (sbp_...)
   try {
     const raw = execSync('security find-generic-password -s "Supabase CLI" -w', { encoding: 'utf8', timeout: 5000 }).trim();
-    // Decode base64 in Node.js (no shell pipe needed)
-    return Buffer.from(raw, 'base64').toString('utf8');
+    const b64 = raw.replace('go-keyring-base64:', '');
+    return Buffer.from(b64, 'base64').toString('utf8');
   } catch {}
   // V2 (Linux/Docker): env var
   return process.env.SUPABASE_ACCESS_TOKEN || null;
