@@ -96,6 +96,10 @@ html, body {
   100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
 }
 
+.confetti-fall {
+  animation: confetti-fall 1.5s linear forwards;
+}
+
 /* Stamp drop */
 @keyframes stamp-drop {
   0% { transform: translateY(-200px) scale(1.5); opacity: 0; }
@@ -129,17 +133,12 @@ html, body {
   outline: none;
 }
 
-/* Confetti fall animation class */
-.confetti-fall {
-  animation: confetti-fall 2s ease-in forwards;
-}
-
 /* Settings panel slide-in */
 @keyframes slide-in-right {
-  0% { transform: translateX(100%); }
-  100% { transform: translateX(0); }
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
 }
 
 .animate-slide-in-right {
-  animation: slide-in-right 300ms ease-out;
+  animation: slide-in-right 200ms ease-out forwards;
 }

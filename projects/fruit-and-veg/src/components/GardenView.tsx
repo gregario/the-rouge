@@ -6,6 +6,19 @@ import { Flame, Sparkles, Sprout, X } from 'lucide-react'
 import { useApp } from '@/lib/app-context'
 import type { CategoryBadge } from '@/lib/types'
 
+const BADGE_EMOJIS: Record<string, string> = {
+  tropical: '🌴',
+  citrus: '🍋',
+  'stone-fruit': '🍑',
+  root: '🥕',
+  leafy: '🥬',
+  legume: '🫘',
+  allium: '🧅',
+  gourd: '🎃',
+  common: '⭐',
+  exotic: '🌺',
+}
+
 export default function GardenView() {
   const { progress, badges, catalogue } = useApp()
   const [selectedBadge, setSelectedBadge] = useState<CategoryBadge | null>(null)
@@ -69,7 +82,7 @@ export default function GardenView() {
                     earned ? 'bg-success' : 'bg-muted'
                   }`}
                 >
-                  {earned ? badge.icon : (
+                  {earned ? (BADGE_EMOJIS[badge.category] || '🏆') : (
                     <span className="text-muted-foreground font-bold">?</span>
                   )}
                 </div>
@@ -133,7 +146,7 @@ export default function GardenView() {
 
             <div className="text-center">
               <div className="w-16 h-16 bg-success rounded-full flex items-center justify-center text-3xl mx-auto">
-                {selectedBadge.icon}
+                {BADGE_EMOJIS[selectedBadge.category] || '🏆'}
               </div>
               <h3 className="text-lg font-bold mt-3">{selectedBadge.name}</h3>
               <p className="text-sm text-muted-foreground mt-1">

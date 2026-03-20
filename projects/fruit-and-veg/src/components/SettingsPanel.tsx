@@ -25,7 +25,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex justify-end"
+      className="fixed inset-0 z-[100] flex justify-end bg-black/30"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div className="w-full max-w-sm bg-white h-full shadow-lg p-6 overflow-y-auto animate-slide-in-right">
