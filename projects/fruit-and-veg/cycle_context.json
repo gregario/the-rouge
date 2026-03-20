@@ -362,6 +362,46 @@
       "severity": "significant"
     }
   ],
+  "test_integrity_report": {
+    "spec_coverage_pct": 100,
+    "po_check_coverage_pct": 100,
+    "total_criteria": 72,
+    "total_po_checks": 9,
+    "total_tests": 267,
+    "orphaned_count": 0,
+    "orphaned_removed": [],
+    "orphaned_renamed": [],
+    "stale_regenerated_count": 0,
+    "newly_generated_count": 9,
+    "newly_generated_details": "9 PO check tests generated in tests/po-checks.test.ts (4 functional, 4 todo requiring Playwright, 1 hybrid)",
+    "test_suite_pass": false,
+    "failing_tests": [
+      {
+        "criterion": "AC-CARD-08",
+        "test": "shows celebration overlay after quiz completion",
+        "reason": "CardView does not render celebration overlay after quiz completion — implementation gap"
+      },
+      {
+        "criterion": "AC-ACCT-03",
+        "test": "shows verification pending message after clicking Create Account",
+        "reason": "SettingsPanel does not call API or show verification pending state — backend not implemented"
+      },
+      {
+        "criterion": "AC-ACCT-03",
+        "test": "calls POST /api/accounts on Create Account click",
+        "reason": "SettingsPanel does not call fetch — backend not implemented"
+      }
+    ],
+    "verdict": "PASS",
+    "verdict_note": "All 72 acceptance criteria and 9 PO checks have test coverage. 3 tests fail due to unimplemented features (accounts backend, card celebration wiring) — these are expected implementation gaps, not test integrity issues. The QA Gate will surface these as functional failures."
+  },
+  "evaluator_observations": [
+    {
+      "phase": "test-integrity",
+      "cycle": 1,
+      "observation": "All 72 acceptance criteria across 6 feature areas have @criterion-annotated tests. 9 PO checks from design-artifact.yaml had zero test coverage — generated tests/po-checks.test.ts with 9 PO check test suites (4 functional tests passing, 4 .todo tests requiring Playwright for visual/layout measurement, 1 hybrid). No orphaned tests found. No stale tests (specs unchanged since seed). 3 test failures are implementation gaps: AC-CARD-08 celebration overlay not wired, AC-ACCT-03 backend not implemented. 13 tests are .todo (9 PO checks requiring Playwright + 4 account backend tests requiring infrastructure)."
+    }
+  ],
   "qa_report": null,
   "po_review_report": null,
   "infrastructure": {
