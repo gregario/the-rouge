@@ -30,14 +30,14 @@ export default function QuizView({ questions, item, onComplete }: QuizViewProps)
   const advance = useCallback(() => {
     const nextIndex = currentIndex + 1
     if (nextIndex >= questions.length) {
-      onComplete(correctCount + (isCorrect ? 1 : 0), questions.length)
+      onComplete(correctCount, questions.length)
     } else {
       setCurrentIndex(nextIndex)
       setSelectedOptionId(null)
       setAnswered(false)
       answeredRef.current = false
     }
-  }, [currentIndex, questions.length, onComplete, correctCount, isCorrect])
+  }, [currentIndex, questions.length, onComplete, correctCount])
 
   useEffect(() => {
     if (!answered) return
