@@ -35,6 +35,7 @@ export default function QuizView({ questions, item, onComplete }: QuizViewProps)
       setCurrentIndex(nextIndex)
       setSelectedOptionId(null)
       setAnswered(false)
+      answeredRef.current = false
     }
   }, [currentIndex, questions.length, onComplete, correctCount, isCorrect])
 
