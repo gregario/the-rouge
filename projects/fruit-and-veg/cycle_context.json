@@ -1,7 +1,7 @@
 {
   "_schema_version": "1.0",
   "_project_name": "fruit-and-veg",
-  "_cycle_number": 1,
+  "_cycle_number": 0,
   "vision": {
     "name": "Fruit & Veg",
     "one_liner": "Kids discover and collect fruit and vegetable knowledge through playful flashcards \u2014 one new fruit every day.",
@@ -169,6 +169,28 @@
       ],
       "tests_added": 0,
       "tests_passing": 46
+    },
+    {
+      "task": "quiz-bugfix-and-component-tests",
+      "acceptance_criteria": ["AC-CARD-05", "AC-CARD-06", "AC-CARD-07", "AC-CARD-11", "AC-CARD-12", "AC-CARD-14", "AC-NAV-01", "AC-NAV-07", "AC-NAV-08", "AC-NAV-09"],
+      "files_changed": [
+        "src/components/QuizView.tsx",
+        "tests/components/BottomNav.test.tsx",
+        "tests/components/QuizView.test.tsx"
+      ],
+      "tests_added": 32,
+      "tests_passing": 144
+    },
+    {
+      "task": "ac-coverage-expansion-and-build-fix",
+      "acceptance_criteria": ["AC-DAILY-05", "AC-DAILY-06", "AC-DAILY-08", "AC-DAILY-09", "AC-DAILY-11", "AC-ACH-06", "AC-ACH-07", "AC-ACH-08", "AC-ACH-12", "AC-CARD-10"],
+      "files_changed": [
+        "tests/lib/daily-challenge-ac.test.ts",
+        "tests/lib/progress-ac.test.ts",
+        "tests/lib/daily-challenge.test.ts"
+      ],
+      "tests_added": 33,
+      "tests_passing": 149
     }
   ],
   "skipped": [
@@ -238,6 +260,30 @@
       "rationale": "A modal overlay matches the spec's description of a stamp celebration with auto-dismiss and manual dismiss options. Consistent with the sticker celebration pattern already used in CardView.",
       "confidence": "high",
       "affects": ["src/components/DailyStampCelebration.tsx", "src/app/HomeContent.tsx"]
+    },
+    {
+      "decision": "Fixed double-count bug in QuizView.advance — correctCount was incremented by handleSelect AND by advance's isCorrect check",
+      "context": "Component tests revealed that onComplete was called with correctCount+1 too many for correct answers on the last question. handleSelect calls setCorrectCount(c => c + 1), then advance computed correctCount + (isCorrect ? 1 : 0), double-counting.",
+      "alternatives_considered": ["Track correct count in a ref instead of state", "Remove the increment from handleSelect", "Remove the isCorrect addition from advance"],
+      "rationale": "Removed the + (isCorrect ? 1 : 0) from advance since correctCount state already includes the increment from handleSelect by the time advance runs (React 18+ batched updates).",
+      "confidence": "high",
+      "affects": ["src/components/QuizView.tsx"]
+    },
+    {
+      "decision": "Removed truncated src/data/catalogue.ts file that caused TypeScript build failure",
+      "context": "src/data/catalogue.ts had 719 lines of inline catalogue data but was missing the closing ] bracket, causing 'Unexpected token' build error. The JSON data in src/data/catalogue.json (75 items) is the actual data source used by src/lib/catalogue.ts. Nothing imported from the TS file.",
+      "alternatives_considered": ["Complete the truncated file", "Keep as thin re-export"],
+      "rationale": "The TS file was unused — no imports reference it. catalogue.json is the single source of truth loaded via src/lib/catalogue.ts. Removing eliminates the build blocker with zero risk.",
+      "confidence": "high",
+      "affects": ["src/data/catalogue.ts"]
+    },
+    {
+      "decision": "Fixed daily-challenge.test.ts parse error — describe block closed prematurely, leaving two it() blocks orphaned",
+      "context": "Tests for AC-DAILY-12 (7-day non-repeat) and fallback behavior were added outside the generateDailyChallenge describe block due to premature }). This caused a parse error preventing all daily-challenge tests from running.",
+      "alternatives_considered": ["Move tests to separate describe block"],
+      "rationale": "The tests logically belong in generateDailyChallenge. Removing the premature }) restored proper nesting.",
+      "confidence": "high",
+      "affects": ["tests/lib/daily-challenge.test.ts"]
     }
   ],
   "factory_questions": [
