@@ -1,4 +1,6 @@
 import type { Metadata } from 'next'
+import { loadCatalogue } from '@/lib/catalogue'
+import { AppShell } from '@/components/AppShell'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -6,11 +8,13 @@ export const metadata: Metadata = {
   description: 'Kids discover and collect fruit and vegetable knowledge through playful flashcards.',
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const catalogue = await loadCatalogue()
+
   return (
     <html lang="en">
       <head>
@@ -20,7 +24,9 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-background text-foreground font-body antialiased">
-        {children}
+        <AppShell catalogue={catalogue}>
+          {children}
+        </AppShell>
       </body>
     </html>
   )
