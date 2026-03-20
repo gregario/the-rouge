@@ -397,3 +397,9 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 - [ ] FW.22 Phase completion notifications with before/after screenshots embedded
 - [ ] FW.23 Rollback alerts with evidence summary and action buttons
 - [ ] FW.24 Confidence trend sparkline in notifications (Unicode block characters)
+
+### Self-Configuration
+- [ ] FW.25 Bot self-setup on first run — detect no channels exist, create #rouge-feed (newsroom), #rouge-seeding (conversations), #rouge-alerts (critical only), set topics, pin welcome messages
+- [ ] FW.26 Add channels:manage scope to manifest for channel creation
+- [ ] FW.27 First-run welcome flow — bot explains itself in each channel with pinned usage guide
+- [ ] FW.28 Document 5-step new user setup — create workspace, import manifest, install app, copy 3 tokens, start bot (everything else auto-configures)
