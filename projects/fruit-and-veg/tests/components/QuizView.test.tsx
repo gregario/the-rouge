@@ -75,7 +75,8 @@ describe('QuizView', () => {
     onComplete.mockClear()
   })
 
-  // AC-CARD-04: Quiz questions appear with 3–4 answer options
+  // @criterion: AC-CARD-04
+  // @criterion-hash: 9b3798350d0b
   describe('AC-CARD-04: answer options', () => {
     it('renders 3 options for a colour-match question', () => {
       render(
@@ -112,7 +113,8 @@ describe('QuizView', () => {
     })
   })
 
-  // AC-CARD-05: Correct answer shows green (bg-success)
+  // @criterion: AC-CARD-05
+  // @criterion-hash: e11b0691a8f5
   describe('AC-CARD-05: correct answer feedback', () => {
     it('applies bg-success class to the selected correct option', () => {
       render(
@@ -134,7 +136,8 @@ describe('QuizView', () => {
     })
   })
 
-  // AC-CARD-06: Incorrect answer shows amber, correct highlights
+  // @criterion: AC-CARD-06
+  // @criterion-hash: 7c879b8f832a
   describe('AC-CARD-06: incorrect answer feedback', () => {
     it('applies bg-incorrect class to the selected wrong option', () => {
       render(
@@ -188,7 +191,8 @@ describe('QuizView', () => {
     })
   })
 
-  // AC-CARD-07: Auto-advances after 1.5 seconds
+  // @criterion: AC-CARD-07
+  // @criterion-hash: f0c04c8498e3
   describe('AC-CARD-07: auto-advance', () => {
     beforeEach(() => {
       vi.useFakeTimers()
@@ -256,7 +260,8 @@ describe('QuizView', () => {
     })
   })
 
-  // AC-CARD-11: Colour-match questions render as colour circles
+  // @criterion: AC-CARD-11
+  // @criterion-hash: f55ffbbbb932
   describe('AC-CARD-11: colour circles', () => {
     it('renders buttons with inline background colour matching hex values', () => {
       render(
@@ -294,7 +299,8 @@ describe('QuizView', () => {
     })
   })
 
-  // AC-CARD-12: Where-grow questions show icons alongside text
+  // @criterion: AC-CARD-12
+  // @criterion-hash: 5d0cc659f222
   describe('AC-CARD-12: grow icons', () => {
     it('renders emoji icons next to option text', () => {
       render(
@@ -327,7 +333,8 @@ describe('QuizView', () => {
     })
   })
 
-  // AC-CARD-14: Double-tap protection
+  // @criterion: AC-CARD-14
+  // @criterion-hash: 977737e2ac75
   describe('AC-CARD-14: double-tap protection', () => {
     beforeEach(() => {
       vi.useFakeTimers()

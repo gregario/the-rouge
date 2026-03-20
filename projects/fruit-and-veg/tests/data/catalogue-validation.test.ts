@@ -16,16 +16,22 @@ try {
 const shouldRun = catalogue.length > 0
 
 describe.skipIf(!shouldRun)('Catalogue Data Validation', () => {
+  // @criterion: AC-CAT-01
+  // @criterion-hash: 67ea2fd8d630
   it('AC-CAT-01: All catalogue items load (minimum 60)', () => {
     expect(catalogue.length).toBeGreaterThanOrEqual(60)
   })
 
+  // @criterion: AC-CAT-02
+  // @criterion-hash: 531567fd4843
   it('AC-CAT-02: All images have valid paths', () => {
     for (const item of catalogue) {
       expect(item.image).toMatch(/^\/images\/catalogue\/[\w-]+\.webp$/)
     }
   })
 
+  // @criterion: AC-CAT-03
+  // @criterion-hash: 1a5c5c596f14
   it('AC-CAT-03: All questions have valid correct answers', () => {
     for (const item of catalogue) {
       for (const q of item.questions) {
@@ -38,6 +44,8 @@ describe.skipIf(!shouldRun)('Catalogue Data Validation', () => {
     }
   })
 
+  // @criterion: AC-CAT-04
+  // @criterion-hash: 4ce5a0bac56d
   it('AC-CAT-04: Category distribution is balanced', () => {
     const fruits = catalogue.filter((i) => i.category === 'fruit').length
     const vegetables = catalogue.filter((i) => i.category === 'vegetable').length
@@ -47,6 +55,8 @@ describe.skipIf(!shouldRun)('Catalogue Data Validation', () => {
     expect(berries).toBeGreaterThanOrEqual(6)
   })
 
+  // @criterion: AC-CAT-05
+  // @criterion-hash: a6f68c86a2ea
   it('AC-CAT-05: Fun facts meet content requirements', () => {
     for (const item of catalogue) {
       expect(
@@ -69,6 +79,8 @@ describe.skipIf(!shouldRun)('Catalogue Data Validation', () => {
     }
   })
 
+  // @criterion: AC-CAT-06
+  // @criterion-hash: 7e6f615dfaa7
   it('AC-CAT-06: Questions cover multiple types per item', () => {
     for (const item of catalogue) {
       if (item.questions.length >= 4) {
@@ -81,12 +93,16 @@ describe.skipIf(!shouldRun)('Catalogue Data Validation', () => {
     }
   })
 
+  // @criterion: AC-CAT-07
+  // @criterion-hash: a6e38cf0b15e
   it('AC-CAT-07: No duplicate item IDs', () => {
     const ids = catalogue.map((i) => i.id)
     const uniqueIds = new Set(ids)
     expect(uniqueIds.size).toBe(ids.length)
   })
 
+  // @criterion: AC-CAT-08
+  // @criterion-hash: 8509f1fb73df
   it('AC-CAT-08: Colour-match questions have valid hex colours', () => {
     const hexRegex = /^#[0-9a-fA-F]{6}$/
     for (const item of catalogue) {

@@ -8,7 +8,8 @@ import {
 } from '@/lib/navigation'
 
 describe('navigation state', () => {
-  // AC-NAV-01: App defaults to Home tab
+  // @criterion: AC-NAV-01
+  // @criterion-hash: a9fbae49a7d4
   it('defaults activeTab to "home"', () => {
     const state = createInitialNavigationState()
     expect(state.activeTab).toBe('home')
@@ -19,7 +20,8 @@ describe('navigation state', () => {
     expect(state.cardReturnTarget).toBe('home')
   })
 
-  // AC-NAV-09: URL routing matches screen state
+  // @criterion: AC-NAV-09
+  // @criterion-hash: 77c33fdb368a
   it('derives active tab from "/" pathname', () => {
     expect(getActiveTab('/')).toBe('home')
   })
@@ -40,7 +42,8 @@ describe('navigation state', () => {
     expect(getActiveTab('/settings')).toBeNull()
   })
 
-  // AC-NAV-10: Card view preserves return context
+  // @criterion: AC-NAV-10
+  // @criterion-hash: 986c341dd9b8
   it('tracks return target when opening card from collection', () => {
     const state = createInitialNavigationState()
     const updated = setCardReturnTarget(state, 'collection')
