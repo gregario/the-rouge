@@ -5,6 +5,7 @@ import type { CatalogueItem, UserProgress, DailyChallenge, CategoryBadge } from 
 import { loadProgress, saveProgress, completeItem, updateStreak, addDailyStamp, getLocalDateString } from './progress'
 import { loadDailyChallenge, saveDailyChallenge, markCardCompleted, recordFeaturedItem } from './daily-challenge'
 import { generateBadges, checkNewBadges } from './badges'
+import type { TabName } from './navigation'
 
 interface AppState {
   catalogue: CatalogueItem[]
@@ -12,6 +13,8 @@ interface AppState {
   daily: DailyChallenge
   badges: CategoryBadge[]
   newBadge: CategoryBadge | null
+  cardReturnTab: TabName
+  setCardReturnTab: (tab: TabName) => void
   isRevisit: (itemId: string) => boolean
   onCardComplete: (itemId: string, correctCount: number, totalCount: number) => CategoryBadge | null
   onDailyCardComplete: (cardId: string) => boolean
@@ -44,6 +47,7 @@ export function AppProvider({
     loadDailyChallenge(catalogue, loadProgress(), getLocalDateString())
   )
   const [newBadge, setNewBadge] = useState<CategoryBadge | null>(null)
+  const [cardReturnTab, setCardReturnTab] = useState<TabName>('home')
 
   const badges = useMemo(() => generateBadges(catalogue), [catalogue])
 
@@ -109,12 +113,14 @@ export function AppProvider({
       daily,
       badges,
       newBadge,
+      cardReturnTab,
+      setCardReturnTab,
       isRevisit,
       onCardComplete,
       onDailyCardComplete,
       dismissBadge,
     }),
-    [catalogue, progress, daily, badges, newBadge, isRevisit, onCardComplete, onDailyCardComplete, dismissBadge]
+    [catalogue, progress, daily, badges, newBadge, cardReturnTab, isRevisit, onCardComplete, onDailyCardComplete, dismissBadge]
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

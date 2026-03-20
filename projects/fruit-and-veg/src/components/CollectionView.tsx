@@ -23,7 +23,7 @@ const CATEGORY_BG: Record<Category, string> = {
 }
 
 export default function CollectionView() {
-  const { catalogue, progress, badges } = useApp()
+  const { catalogue, progress, badges, setCardReturnTab } = useApp()
   const [activeTab, setActiveTab] = useState<FilterTab>('all')
 
   const completedSet = useMemo(
@@ -118,6 +118,7 @@ export default function CollectionView() {
             <Link
               key={item.id}
               href={`/card/${item.id}`}
+              onClick={() => setCardReturnTab('collection')}
               className="flex flex-col items-center gap-1 transition-transform hover:scale-105 active:scale-95"
             >
               <div

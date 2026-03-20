@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Check } from 'lucide-react'
 import { useApp } from '@/lib/app-context'
@@ -18,7 +18,7 @@ const categoryBgColors: Record<string, string> = {
 
 export function CardView({ item }: { item: CatalogueItem }) {
   const router = useRouter()
-  const { isRevisit, onCardComplete, onDailyCardComplete, daily } = useApp()
+  const { isRevisit, onCardComplete, onDailyCardComplete, daily, cardReturnTab } = useApp()
   const [phase, setPhase] = useState<CardPhase>('front')
   const [isFlipping, setIsFlipping] = useState(false)
   const revisit = isRevisit(item.id)
@@ -66,6 +66,8 @@ export function CardView({ item }: { item: CatalogueItem }) {
   // Select 2-3 questions for the quiz
   const quizQuestions = item.questions.slice(0, 3)
 
+  const returnPath = cardReturnTab === 'collection' ? '/collection' : '/'
+
   if (phase === 'celebration') {
     return (
       <StickerCelebration
@@ -73,7 +75,7 @@ export function CardView({ item }: { item: CatalogueItem }) {
         isRevisit={revisit}
         badge={earnedBadge}
         onSeeCollection={() => router.push('/collection')}
-        onNextCard={() => router.push('/')}
+        onNextCard={() => router.push(returnPath)}
       />
     )
   }

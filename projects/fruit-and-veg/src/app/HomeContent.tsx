@@ -10,7 +10,7 @@ import { DailyStampCelebration } from '@/components/DailyStampCelebration'
 
 export function HomeContent() {
   const router = useRouter()
-  const { catalogue, progress, daily } = useApp()
+  const { catalogue, progress, daily, setCardReturnTab } = useApp()
   const [showStampCelebration, setShowStampCelebration] = useState(false)
   const [prevComplete, setPrevComplete] = useState(daily.isComplete)
 
@@ -33,6 +33,7 @@ export function HomeContent() {
   }, [daily.isComplete, prevComplete])
 
   const handleCardClick = (itemId: string) => {
+    setCardReturnTab('home')
     router.push(`/card/${itemId}`)
   }
 
