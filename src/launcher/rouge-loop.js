@@ -41,10 +41,22 @@ const STATE_TO_PROMPT = {
   'rolling-back': 'loop/07-ship-promote.md',
 };
 
-const OPUS_STATES = new Set([
-  'building', 'qa-fixing', 'po-reviewing', 'analyzing',
-  'generating-change-spec', 'vision-checking',
-]);
+// All phases run on Opus — Sonnet times out on complex phases like test-integrity
+const MODEL = 'opus';
+
+// Per-phase timeouts (ms) — heavy phases get more time
+const PHASE_TIMEOUT = {
+  building: 20 * 60 * 1000,           // 20 min — scaffolding, TDD, deployment
+  'test-integrity': 15 * 60 * 1000,   // 15 min — scanning tests, generating gaps
+  'qa-gate': 15 * 60 * 1000,          // 15 min — browser QA, Lighthouse, code quality
+  'qa-fixing': 15 * 60 * 1000,        // 15 min — debugging, fixing, redeploying
+  'po-reviewing': 15 * 60 * 1000,     // 15 min — journey walks, screen analysis
+  analyzing: 10 * 60 * 1000,          // 10 min — reading reports, deciding action
+  'generating-change-spec': 10 * 60 * 1000, // 10 min — writing specs
+  'vision-checking': 10 * 60 * 1000,  // 10 min — alignment check
+  promoting: 5 * 60 * 1000,           // 5 min — merge PR, deploy
+  'rolling-back': 5 * 60 * 1000,      // 5 min — revert
+};
 
 const SKIP_STATES = new Set(['ready', 'waiting-for-human', 'complete']);
 
@@ -237,10 +249,11 @@ function runPhase(projectDir) {
     return false;
   }
 
-  const model = OPUS_STATES.has(currentState) ? 'opus' : 'sonnet';
+  const model = MODEL;
+    const timeout = PHASE_TIMEOUT[currentState] || 10 * 60 * 1000;
   const phaseLog = path.join(LOG_DIR, `${projectName}-${currentState}.log`);
 
-  log(`[${projectName}] Running phase: ${currentState} (model: ${model})`);
+  log(`[${projectName}] Running phase: ${currentState} (model: ${model}, timeout: ${timeout / 60000}min)`);
 
   const filesBefore = countFiles(projectDir);
 
@@ -255,7 +268,7 @@ function runPhase(projectDir) {
     ], {
       cwd: projectDir,
       encoding: 'utf8',
-      timeout: 600000, // 10 minutes
+      timeout,
       stdio: ['pipe', 'pipe', 'pipe'], // capture all streams
       env: { ...process.env },
     });
