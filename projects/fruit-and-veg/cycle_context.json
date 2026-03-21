@@ -700,7 +700,7 @@
     "todo_tests": 11,
     "todo_breakdown": "11 accounts backend criteria requiring real email flow (AC-ACCT-03 through AC-ACCT-11, AC-ACCT-13 — tests exist as .todo)",
     "verdict": "PASS",
-    "verdict_note": "Cycle 1 run 9 (navigation feature area): Full traceability analysis confirms 72/72 acceptance criteria and 9/9 PO checks have @criterion/@po-check annotated test coverage (100%). No coverage gaps, no orphaned tests, no stale tests — specs unchanged since initial commit. 23 test files, 268 passing, 0 failing, 11 todo. No remediation needed."
+    "verdict_note": "Cycle 1 run 10 (navigation feature area): Full traceability analysis confirms 72/72 acceptance criteria and 9/9 PO checks have @criterion/@po-check annotated test coverage (100%). No coverage gaps, no orphaned tests, no stale tests — specs unchanged since initial commit. 23 test files, 268 passing, 0 failing, 11 todo. No remediation needed."
   },
   "evaluator_observations": [
     {
@@ -812,18 +812,30 @@
       "cycle": 1,
       "timestamp": "2026-03-21T15:03:00.000Z",
       "observation": "Cycle 1 run 9 (navigation feature area): Full traceability analysis confirms 72/72 acceptance criteria and 9/9 PO checks have @criterion/@po-check annotated test coverage (100%). Zero coverage gaps. Zero orphaned tests — all annotated criterion IDs map to valid spec criteria across 23 test files. Zero stale tests — spec files unchanged since initial commit. Test suite: 23 files, 268 passing, 0 failing, 11 todo (accounts backend requiring real email flow). No remediation needed. Verdict: PASS."
+    },
+    {
+      "phase": "test-integrity",
+      "cycle": 1,
+      "timestamp": "2026-03-21T15:12:00.000Z",
+      "observation": "Cycle 1 run 10 (navigation feature area): Full traceability analysis confirms 72/72 acceptance criteria and 9/9 PO checks have @criterion/@po-check annotated test coverage (100%). Zero coverage gaps. Zero orphaned tests — all annotated criterion IDs map to valid spec criteria across 23 test files. Zero stale tests — spec files unchanged since initial commit. Test suite: 23 files, 268 passing, 0 failing, 11 todo (accounts backend requiring real email flow). No remediation needed. Verdict: PASS."
+    },
+    {
+      "phase": "qa-gate",
+      "cycle": 1,
+      "timestamp": "2026-03-21T15:17:00.000Z",
+      "observation": "QA Gate cycle 1 run 7 (no code changes since run 4): FAIL verdict — 83.3% criteria pass rate (below 90% threshold). Health score 80/100 (unchanged since run 4). Full browser testing on staging via headless Chromium confirms all functionality working: Homepage loads with daily challenge (Lettuce featured, 'Hi there!' greeting, 'Meet your first fruit!' zero state). Collection: 75 items, category filters work (Fruits=27, Berries=8 verified). Card view: card flip animation, fun facts with highlighted keywords, back button, no bottom nav. Garden: streak counter, 10 badge slots, stats, CTA. Settings panel: slide-in with dimmed backdrop, form validation (Create Account disabled until valid email + guardian checkbox), close button with aria-label. API routes: POST /api/accounts {} → 400, GET /api/progress → 401, DELETE /api/accounts → 401. Proper ARIA: tablist navigation with aria-selected, heading hierarchy, landmarks. Only console errors: expected image 404s. 268 tests passing, 0 failing, 11 todo. Zero code changes since run 4 — results identical to runs 4-6. All 12 PARTIAL criteria unchanged. SEVENTH consecutive QA gate run with identical results. The QA-gate → qa-fixing loop MUST break. Escalation to human required."
     }
   ],
   "qa_report": {
     "verdict": "FAIL",
-    "run": 6,
-    "timestamp": "2026-03-21T14:40:00.000Z",
+    "run": 7,
+    "timestamp": "2026-03-21T15:17:00.000Z",
     "diff_scope": {
       "frontend": true,
       "backend": false
     },
     "changes_since_last_run": [
-      "No code changes — qa-fixing run 6 made 0 commits. All remaining PARTIAL criteria are non-code-fixable. This is the 6th QA gate run with identical results since run 4."
+      "No code changes — qa-fixing runs 5-9 all made 0 commits and escalated all 12 criteria. This is the 7th QA gate run with identical results since run 4. The qa-fixing loop is permanently stuck."
     ],
     "criteria_results": [
       {
@@ -1265,7 +1277,7 @@
       "partial": 12,
       "fail": 0,
       "pass_rate_pct": 83.3,
-      "note": "Run 6: No code changes since run 4 — qa-fixing runs 5-6 confirmed no actionable fixes remain. Results identical to runs 4-5. 83.3% pass rate (below 90% threshold). Zero FAIL criteria — all 12 non-pass are PARTIAL. 9 account criteria are code-complete but untestable without real email flow. 3 are documented divergence/spec contradiction/infrastructure. Full browser testing on staging confirmed all pages load, interactive flows work (card flip, quiz auto-advance, celebration, filters, settings validation, progress tracking). Loop should break — escalation required.",
+      "note": "Run 7: No code changes since run 4 — qa-fixing runs 5-9 all escalated all 12 criteria with 0 commits. This is the FOURTH consecutive identical QA gate result. 83.3% pass rate (below 90% threshold). Zero FAIL criteria — all 12 non-pass are PARTIAL. 9 account criteria are code-complete but untestable without real email flow. 3 are documented divergence/spec contradiction/infrastructure. Full browser testing on staging confirmed all pages load, interactive flows work. The qa-gate → qa-fixing loop is permanently stuck and MUST break immediately. Human intervention required.",
       "fail_root_causes": {
         "code_exists_but_untestable_email_flow": 9,
         "infrastructure_image_sourcing": 1,
@@ -1317,7 +1329,7 @@
       "build_status": "pass",
       "test_status": "268 passing, 0 failing, 11 todo",
       "method": "staging_browser_and_curl",
-      "note": "Run 6: Full browser testing on staging (fruit-and-veg-staging.gregj64.workers.dev) via headless Chromium. All 5 pages HTTP 200 (150ms TTFB, 611ms full load). Homepage renders daily challenge (Lettuce featured card), '1 cards today!' after Apple completion. Collection shows 75 items with working category filters (Fruits=27 confirmed). Card view: card flip works, fun facts display, quiz auto-advances after 1.5s, colour-match shows circles, where-grow shows emoji, sticker celebration shows 'New sticker!' correctly (AC-CARD-08 verified). Garden shows updated stats ('You've learned 1 fruits and veggies!'). Settings panel: form validation works (Create Account disabled→enabled on valid email + checkbox). API routes: GET /api/progress → 401, POST /api/accounts {} → 400. Only console errors: expected image 404s. 268 tests passing, 0 failing, 11 todo."
+      "note": "Run 7: Full browser testing on staging (fruit-and-veg-staging.gregj64.workers.dev) via headless Chromium. All pages HTTP 200 (0.7s load). Homepage: daily challenge (Lettuce featured), 'Hi there!' greeting, 'Meet your first fruit!' zero state, bottom nav with Home/Book/Garden. Collection: 75 items, category filters (All=75, Fruits=27, Berries=8 verified), proper ARIA tablist. Card view: card flip animation works, fun facts with highlighted keywords (varieties/float/Asia/red), back button, bottom nav correctly hidden. Garden: streak=0, badges, stats, CTA. Settings panel: slide-in overlay, form fields (Child's name, Parent's email, guardian checkbox), Create Account [disabled], Close button with aria-label='Close settings'. API routes: POST /api/accounts {} → 400, GET /api/progress → 401, DELETE /api/accounts → 401. Only console errors: expected image 404s. 268 tests passing, 0 failing, 11 todo."
     },
     "health_score": 80,
     "health_score_breakdown": {
@@ -1339,7 +1351,7 @@
       ],
       "wtf_per_minute": 0,
       "wtf_deduction": 0,
-      "note": "Run 6: Score holds at 80 (no code changes since run 4). Zero FAIL criteria. Dead code minimal (2 unused types). 268 tests passing. Full interactive browser testing on staging verified all flows including quiz completion, celebration, progress tracking, settings validation. Main gap unchanged: 9 account criteria code-complete but untestable without real email flow. 3 criteria are spec/infrastructure/divergence issues. Loop has stabilised — no further score improvement possible without human intervention."
+      "note": "Run 7: Score holds at 80 (no code changes since run 4 — 4th consecutive identical result). Zero FAIL criteria. Dead code minimal (2 unused types). 268 tests passing. Full interactive browser testing on staging verified all flows. Main gap unchanged: 9 account criteria code-complete but untestable without real email flow. 3 criteria are spec/infrastructure/divergence issues. Loop permanently stuck — no further score improvement possible without human intervention. MUST break loop."
     },
     "performance_baseline": {
       "perf_metrics": {
@@ -1630,7 +1642,7 @@
       ]
     },
     "fix_tasks": [],
-    "fix_tasks_note": "All code-fixable issues resolved. Remaining 12 PARTIAL criteria are not code bugs: 9 account criteria are code-complete + tested but untestable without real email flow, 1 infrastructure (Pixabay images), 1 architectural divergence (card animation), 1 spec contradiction (NAV-06). No fix_tasks for the builder.",
+    "fix_tasks_note": "Run 7: All code-fixable issues resolved since run 4. Remaining 12 PARTIAL criteria are NOT code bugs and CANNOT be fixed by the qa-fixing loop: 9 account criteria are code-complete + unit-tested but untestable without real email flow, 1 infrastructure (Pixabay images), 1 architectural divergence (card animation), 1 spec contradiction (NAV-06). No fix_tasks for the builder. The loop must break — human decisions required.",
     "escalations_carried_forward": [
       {
         "criterion_id": "AC-CAT-02",
