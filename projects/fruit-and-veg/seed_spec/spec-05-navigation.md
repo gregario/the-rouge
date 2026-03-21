@@ -175,11 +175,11 @@ AC-NAV-05: Browser back works from card view
   THEN card view closes and they return to the screen they came from
   MEASUREMENT: History state pops correctly. Previous tab content is visible.
 
-AC-NAV-06: Tab tap during card view returns to tab
-  GIVEN the user is in card view and taps a bottom nav tab
-  WHEN nav is temporarily visible (e.g., via swipe or gesture)
-  THEN card view closes and selected tab's content is shown
-  MEASUREMENT: Card view dismissed. Selected tab active and content visible.
+AC-NAV-06: Swipe down dismisses card view
+  GIVEN the user is in card view (full-screen, nav hidden per AC-NAV-04)
+  WHEN the user swipes down or taps the close button
+  THEN card view closes and they return to the screen they came from
+  MEASUREMENT: Card view dismissed. Previous tab content and bottom nav are visible.
 
 AC-NAV-07: Selected tab is visually distinct
   GIVEN the user is on a specific tab

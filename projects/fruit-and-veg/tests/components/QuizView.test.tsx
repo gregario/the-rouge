@@ -76,7 +76,7 @@ describe('QuizView', () => {
   })
 
   // @criterion: AC-CARD-04
-  // @criterion-hash: ed1aeb07b4a2
+  // @criterion-hash: b838ec543d9d
   describe('AC-CARD-04: answer options', () => {
     it('renders 3 options for a colour-match question', () => {
       render(
@@ -114,7 +114,7 @@ describe('QuizView', () => {
   })
 
   // @criterion: AC-CARD-05
-  // @criterion-hash: 4500b61bae20
+  // @criterion-hash: 7953882086fa
   describe('AC-CARD-05: correct answer feedback', () => {
     it('applies bg-success class to the selected correct option', () => {
       render(
@@ -137,7 +137,7 @@ describe('QuizView', () => {
   })
 
   // @criterion: AC-CARD-06
-  // @criterion-hash: a77800e242d8
+  // @criterion-hash: b5cafa3593e2
   describe('AC-CARD-06: incorrect answer feedback', () => {
     it('applies bg-incorrect class to the selected wrong option', () => {
       render(
@@ -192,7 +192,7 @@ describe('QuizView', () => {
   })
 
   // @criterion: AC-CARD-07
-  // @criterion-hash: 6a02fec360d2
+  // @criterion-hash: 747f9b4c874a
   describe('AC-CARD-07: auto-advance', () => {
     beforeEach(() => {
       vi.useFakeTimers()
@@ -261,7 +261,7 @@ describe('QuizView', () => {
   })
 
   // @criterion: AC-CARD-11
-  // @criterion-hash: 4d604619d91e
+  // @criterion-hash: 7078a6602f2a
   describe('AC-CARD-11: colour circles', () => {
     it('renders buttons with inline background colour matching hex values', () => {
       render(
@@ -300,7 +300,7 @@ describe('QuizView', () => {
   })
 
   // @criterion: AC-CARD-12
-  // @criterion-hash: 8cecf0b4e61a
+  // @criterion-hash: f423dab3587e
   describe('AC-CARD-12: grow icons', () => {
     it('renders emoji icons next to option text', () => {
       render(
@@ -334,7 +334,7 @@ describe('QuizView', () => {
   })
 
   // @criterion: AC-CARD-14
-  // @criterion-hash: 9ec01dcdb275
+  // @criterion-hash: a77034ad06ae
   describe('AC-CARD-14: double-tap protection', () => {
     beforeEach(() => {
       vi.useFakeTimers()

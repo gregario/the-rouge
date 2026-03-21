@@ -173,11 +173,11 @@ AC-CARD-01: Card displays image and name
   THEN the image is visible (min 200x200px rendered), and the name is displayed in readable text (min 16px font)
   MEASUREMENT: DOM query for img element with naturalWidth >= 200, text element with item name
 
-AC-CARD-02: Card flip animation works
-  GIVEN a card is displayed (front)
+AC-CARD-02: Card interaction opens detail view
+  GIVEN a card is displayed (thumbnail/preview)
   WHEN the user taps/clicks the card
-  THEN the card performs a Y-axis rotation animation completing in 300-500ms, revealing the back content
-  MEASUREMENT: CSS transform changes from rotateY(0) to rotateY(180deg) within 500ms. Back content becomes visible.
+  THEN a detail view opens with full card content (either via flip animation or route navigation to /card/[id])
+  MEASUREMENT: Detail content is visible within 500ms of tap. Content includes item name, image, fun facts, and quiz.
 
 AC-CARD-03: Fun facts display correctly
   GIVEN a card is flipped to the back

@@ -41,7 +41,7 @@ describe('BottomNav', () => {
   })
 
   // @criterion: AC-NAV-01
-  // @criterion-hash: 8d812060e2f5
+  // @criterion-hash: 64951c0aefaf
   describe('AC-NAV-01: App defaults to Home tab', () => {
     it('marks Home tab as active when path is "/"', () => {
       mockPathname = '/'
@@ -61,7 +61,7 @@ describe('BottomNav', () => {
   })
 
   // @criterion: AC-NAV-07
-  // @criterion-hash: 32b23d77b549
+  // @criterion-hash: d41f4b79dd2a
   describe('AC-NAV-07: Selected tab is visually distinct', () => {
     it('applies aria-selected=true and font-bold to the active tab', () => {
       mockPathname = '/collection'
@@ -84,7 +84,7 @@ describe('BottomNav', () => {
   })
 
   // @criterion: AC-NAV-08
-  // @criterion-hash: 60c439ca87b2
+  // @criterion-hash: 73599ea089c7
   describe('AC-NAV-08: All tap targets are minimum 44x44px', () => {
     it('each tab has min-w-[64px] and min-h-[64px] classes', () => {
       render(<BottomNav />)
@@ -97,7 +97,7 @@ describe('BottomNav', () => {
   })
 
   // @criterion: AC-NAV-09
-  // @criterion-hash: e0568fbadc7a
+  // @criterion-hash: a99802dc278f
   describe('AC-NAV-09: URL routing matches screen state', () => {
     it('activates Book tab for /collection path', () => {
       mockPathname = '/collection'

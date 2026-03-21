@@ -68,7 +68,7 @@ const catalogue = Array.from({ length: 20 }, (_, i) =>
 
 describe('daily-challenge acceptance criteria', () => {
   // @criterion: AC-DAILY-05
-  // @criterion-hash: 139b1cffeb4d
+  // @criterion-hash: a73df50940f5
   describe('AC-DAILY-05: new user sees only featured card', () => {
     it('reviewItemIds is empty when user has 0 completed items', () => {
       const challenge = generateDailyChallenge(catalogue, emptyProgress, '2026-03-20')
@@ -92,7 +92,7 @@ describe('daily-challenge acceptance criteria', () => {
   })
 
   // @criterion: AC-DAILY-06
-  // @criterion-hash: 1a379dfb1376
+  // @criterion-hash: ceccc693a8bf
   describe('AC-DAILY-06: daily challenge is consistent within a day', () => {
     it('same date produces identical challenge for same progress', () => {
       const c1 = generateDailyChallenge(catalogue, emptyProgress, '2026-03-20')
@@ -130,7 +130,7 @@ describe('daily-challenge acceptance criteria', () => {
   })
 
   // @criterion: AC-DAILY-08
-  // @criterion-hash: 6230535fe0e0
+  // @criterion-hash: 03e9d5b2644c
   describe('AC-DAILY-08: partial progress tracking via markCardCompleted', () => {
     it('tracks partial completion without triggering isComplete', () => {
       const progress: UserProgress = {
@@ -190,7 +190,7 @@ describe('daily-challenge acceptance criteria', () => {
   })
 
   // @criterion: AC-DAILY-09
-  // @criterion-hash: 741487aef62b
+  // @criterion-hash: 3d551faf368e
   describe('AC-DAILY-09: all cards complete triggers isComplete with 3 cards', () => {
     it('isComplete triggers when featured + 2 review cards are all completed', () => {
       const progress: UserProgress = {
@@ -250,7 +250,7 @@ describe('daily-challenge acceptance criteria', () => {
   })
 
   // @criterion: AC-DAILY-11
-  // @criterion-hash: a870b822583d
+  // @criterion-hash: b1e96e8a14cb
   describe('AC-DAILY-11: difficulty progression for new users', () => {
     it('users with 0 completions get easy featured items', () => {
       const easyIds = catalogue.filter(i => i.difficulty === 'easy').map(i => i.id)

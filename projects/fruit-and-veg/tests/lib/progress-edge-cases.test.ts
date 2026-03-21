@@ -31,6 +31,10 @@ describe('progress edge cases', () => {
     vi.useRealTimers()
   })
 
+  // @criterion: AC-ACH-06
+  // @criterion-hash: e6c20990b823
+  // @criterion: AC-ACH-06
+  // @criterion-hash: e6c20990b823
   describe('AC-ACH-06: streak increments on consecutive daily play', () => {
     it('play yesterday then play today yields streak +1', () => {
       vi.useFakeTimers()
@@ -71,6 +75,10 @@ describe('progress edge cases', () => {
     })
   })
 
+  // @criterion: AC-ACH-07
+  // @criterion-hash: 4f45c9c490ec
+  // @criterion: AC-ACH-07
+  // @criterion-hash: 4f45c9c490ec
   describe('AC-ACH-07: streak resets after missed day', () => {
     it('resets to 1 (not 0) when two days are skipped', () => {
       vi.useFakeTimers()
@@ -104,6 +112,8 @@ describe('progress edge cases', () => {
     })
   })
 
+  // @criterion: AC-ACH-08
+  // @criterion-hash: 372c08e598de
   describe('AC-ACH-08: longestStreak tracks all-time best', () => {
     it('longestStreak survives a streak reset and rebuild', () => {
       vi.useFakeTimers()
@@ -232,6 +242,8 @@ describe('progress edge cases', () => {
     })
   })
 
+  // @criterion: AC-DAILY-08
+  // @criterion-hash: 03e9d5b2644c
   describe('AC-DAILY-08: daily stamp not duplicated', () => {
     it('addDailyStamp twice on same day produces only one stamp', () => {
       vi.useFakeTimers()

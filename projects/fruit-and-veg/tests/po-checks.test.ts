@@ -10,7 +10,7 @@ import path from 'path'
 
 // ─── PO-HIER-01: Featured card is most visually prominent on Home ────────────
 // @po-check: PO-HIER-01
-// @criterion-hash: bce7cbd47839
+// @criterion-hash: 5b1aaa3a088c
 // Check: Fruit of the Day card is the most visually prominent element on /
 // Measurement: Compute rendered size of featured card vs other elements
 // NOTE: Full visual measurement requires browser-based testing (Playwright).
@@ -20,7 +20,7 @@ describe('PO-HIER-01: featured card is most visually prominent on Home', () => {
 
 // ─── PO-HIER-02: Collection grid is primary content area ─────────────────────
 // @po-check: PO-HIER-02
-// @criterion-hash: 3a3af7988b03
+// @criterion-hash: c423f374cc8a
 // Check: Collection grid is the primary content area on /collection
 // Measurement: Grid area occupies majority of screen below header
 // NOTE: Full layout measurement requires browser-based testing.
@@ -41,7 +41,7 @@ describe('PO-STATE-01: first-time user sees single card with encouraging text', 
 
 // ─── PO-STATE-02: Empty collection shows grey silhouettes with prompt ────────
 // @po-check: PO-STATE-02
-// @criterion-hash: d636b4de087c
+// @criterion-hash: 5c54f6ef63c7
 // Check: All items shown as grey silhouettes with prompt on /collection
 // Measurement: Load with zero completions, count grey elements
 // NOTE: Overlaps with AC-ACH-09. The AC test checks prompt presence;
@@ -52,7 +52,7 @@ describe('PO-STATE-02: empty collection shows grey silhouettes', () => {
 
 // ─── PO-STYLE-01: All text colours meet WCAG AA contrast ────────────────────
 // @po-check: PO-STYLE-01
-// @criterion-hash: 7d51fa12a090
+// @criterion-hash: bfa1f0b10186
 // Check: All text/background pairs meet WCAG AA contrast (>= 4.5:1)
 // Measurement: Compute contrast ratios for all text/background pairs
 describe('PO-STYLE-01: text colours meet WCAG AA contrast', () => {
@@ -120,7 +120,7 @@ describe('PO-STYLE-02: touch targets are minimum 44x44px', () => {
 
 // ─── PO-STYLE-03: Incorrect answer feedback uses amber, not red ──────────────
 // @po-check: PO-STYLE-03
-// @criterion-hash: c7c5a471506d
+// @criterion-hash: 31462389ffd4
 // Check: Incorrect answer UI uses amber (#FFB347), not red
 // Measurement: Trigger incorrect answer, check computed background colour
 describe('PO-STYLE-03: incorrect answer feedback uses amber not red', () => {

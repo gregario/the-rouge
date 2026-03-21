@@ -3,7 +3,7 @@ import { getActiveTab } from '@/lib/navigation'
 
 describe('navigation', () => {
   // @criterion: AC-NAV-09
-  // @criterion-hash: e0568fbadc7a
+  // @criterion-hash: a99802dc278f
   it('derives active tab from "/" pathname', () => {
     expect(getActiveTab('/')).toBe('home')
   })
@@ -25,7 +25,7 @@ describe('navigation', () => {
   })
 
   // @criterion: AC-NAV-10
-  // @criterion-hash: 06be8df30783
+  // @criterion-hash: 0634314a8eda
   it('card return tab defaults to home, can be set to collection', () => {
     // The app uses cardReturnTab state in AppContext.
     // When opening from Collection, setCardReturnTab('collection') is called.

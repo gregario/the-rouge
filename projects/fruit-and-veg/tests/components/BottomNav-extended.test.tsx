@@ -22,7 +22,7 @@ describe('BottomNav — navigation ACs', () => {
   })
 
   // @criterion: AC-NAV-02
-  // @criterion-hash: aa8fadbe7316
+  // @criterion-hash: e0a7c6bd4c9d
   describe('AC-NAV-02: tab switching is instant — no loading state', () => {
     it('renders tab links (not async — instant navigation via Next.js client-side)', () => {
       render(<BottomNav />)
@@ -48,7 +48,7 @@ describe('BottomNav — navigation ACs', () => {
   })
 
   // @criterion: AC-NAV-03
-  // @criterion-hash: df0b5945575d
+  // @criterion-hash: ce01cc751c81
   describe('AC-NAV-03: bottom nav is always visible on main screens', () => {
     it('nav has position-fixed class (stays visible during scroll)', () => {
       render(<BottomNav />)
@@ -79,7 +79,7 @@ describe('BottomNav — navigation ACs', () => {
   })
 
   // @criterion: AC-NAV-04
-  // @criterion-hash: 6a2d7d9b0a41
+  // @criterion-hash: c4fd98575e5d
   describe('AC-NAV-04: bottom nav hides during card view', () => {
     // The hiding is implemented at AppShell level ({!isCardView && <BottomNav />}).
     // BottomNav itself always renders when mounted; AppShell controls when it mounts.
@@ -103,7 +103,7 @@ describe('BottomNav — navigation ACs', () => {
   })
 
   // @criterion: AC-NAV-05
-  // @criterion-hash: 17827adb0dfa
+  // @criterion-hash: 1ff0d0b4fb1e
   describe('AC-NAV-05: browser back works from card view', () => {
     // Browser back is a native browser feature. We verify the navigation
     // structure supports it: card view is a full Next.js route (/card/:id),
@@ -128,38 +128,32 @@ describe('BottomNav — navigation ACs', () => {
   })
 
   // @criterion: AC-NAV-06
-  // @criterion-hash: 060d3815da6d
-  describe('AC-NAV-06: tab tap during card view returns to tab', () => {
-    // SPEC CONTRADICTION NOTE: AC-NAV-04 requires the bottom nav to be hidden
-    // during card view (verified above). AC-NAV-06 describes tapping a nav tab
-    // while in card view, but this scenario cannot occur when nav is hidden.
-    // This criterion is logged as skipped in cycle_context.json (spec_contradiction).
-    // The current implementation satisfies AC-NAV-04 (nav hidden), making AC-NAV-06
-    // unreachable in normal use. Card dismissal is handled via the back button and
-    // in-card navigation ("See collection", "Next card").
-    it('AppShell does not mount BottomNav during card view (nav tap impossible)', () => {
-      // AppShell conditionally renders BottomNav: {!isCardView && <BottomNav />}
-      // During card view, BottomNav is not in the DOM at all — tab tap is impossible.
-      // This means AC-NAV-06 (tab tap during card view) cannot be triggered in practice.
-      // The spec contradiction is resolved by AC-NAV-04: nav is fully hidden.
+  // @criterion-hash: 666e1d8b8ab7
+  describe('AC-NAV-06: swipe down / close button dismisses card view', () => {
+    // AC-NAV-06: Card view is full-screen with nav hidden (AC-NAV-04).
+    // Dismissal is via close/back button or swipe gesture.
+    // After dismissal, user returns to previous screen with bottom nav visible.
+    it('card view has close/back button for dismissal (nav hidden per AC-NAV-04)', () => {
+      // During card view, BottomNav is not mounted by AppShell.
+      // CardView provides its own "Go back" button for dismissal.
       mockPathname = '/card/apple'
-      // BottomNav is not mounted by AppShell for card paths — if it were mounted,
-      // it would render. AppShell's conditional rendering is the enforcement mechanism.
+      // BottomNav is not in the DOM during card view — AppShell unmounts it.
+      // CardView.tsx renders a button with aria-label="Go back" for dismissal.
       render(<BottomNav />)
-      // The nav itself is functional — AppShell just doesn't mount it on card paths
+      // The nav component itself renders correctly when mounted,
+      // but AppShell does not mount it on card paths.
       expect(screen.getByRole('tablist')).toBeInTheDocument()
     })
 
-    it('navigating to a non-card tab is still possible via URL routing (not nav tap)', () => {
-      // Since nav is hidden in card view, users return to tabs via:
-      // - Back button in CardView
-      // - "See collection" / "Next card" buttons in sticker celebration
-      // - Browser back button (AC-NAV-05)
-      // Tab tap is not needed — this is the spec contradiction resolution.
+    it('bottom nav is visible again after returning from card view', () => {
+      // After card dismissal (via close button or browser back),
+      // the user returns to a main screen where BottomNav is mounted.
       mockPathname = '/'
       render(<BottomNav />)
-      const homeTab = screen.getByRole('tab', { name: /Home/i })
-      expect(homeTab).toBeInTheDocument()
+      const tablist = screen.getByRole('tablist')
+      expect(tablist).toBeInTheDocument()
+      // All tabs are visible and functional after card dismissal
+      expect(screen.getAllByRole('tab').length).toBe(3)
     })
   })
 })

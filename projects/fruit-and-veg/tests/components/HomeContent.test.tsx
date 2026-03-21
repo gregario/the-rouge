@@ -109,7 +109,7 @@ function HomeContentWithUser({ displayName }: { displayName?: string }) {
 
 // ─── AC-ACCT-13: Display name shown in app ──────────────────────────────────
 // @criterion: AC-ACCT-13
-// @criterion-hash: 87e022ee13fa
+// @criterion-hash: bee381621b92
 // GIVEN an account with displayName "Lily"
 // WHEN the app loads
 // THEN the home screen shows "Hi, Lily!" greeting

@@ -32,7 +32,7 @@ describe('progress acceptance criteria', () => {
   })
 
   // @criterion: AC-ACH-06
-  // @criterion-hash: cfbe1348c7bc
+  // @criterion-hash: e6c20990b823
   describe('AC-ACH-06: streak increments on daily play', () => {
     it('increments currentStreak by 1 when lastPlayedDate is yesterday', () => {
       const progress: UserProgress = {
@@ -59,7 +59,7 @@ describe('progress acceptance criteria', () => {
   })
 
   // @criterion: AC-ACH-07
-  // @criterion-hash: 42a63fd6efc7
+  // @criterion-hash: 4f45c9c490ec
   describe('AC-ACH-07: streak resets to 1 after missed day', () => {
     it('resets currentStreak to 1 (not 0) when lastPlayedDate is 2 days ago', () => {
       const progress: UserProgress = {
@@ -92,7 +92,7 @@ describe('progress acceptance criteria', () => {
   })
 
   // @criterion: AC-ACH-08
-  // @criterion-hash: c7a078e5067d
+  // @criterion-hash: 372c08e598de
   describe('AC-ACH-08: longestStreak tracks all-time best', () => {
     it('longestStreak is always >= currentStreak after update', () => {
       const progress: UserProgress = {
@@ -145,7 +145,7 @@ describe('progress acceptance criteria', () => {
   })
 
   // @criterion: AC-ACH-12
-  // @criterion-hash: 1fd4895547b3
+  // @criterion-hash: 8920aefabdba
   describe('AC-ACH-12: daily stamp earned on completing all 3 daily cards', () => {
     it('adds today to dailyStamps on first call', () => {
       const result = addDailyStamp(emptyProgress)
@@ -179,7 +179,7 @@ describe('progress acceptance criteria', () => {
   })
 
   // @criterion: AC-CARD-10
-  // @criterion-hash: 5c55b875f69d
+  // @criterion-hash: 42d6714776db
   describe('AC-CARD-10: re-visit quiz does not re-award sticker', () => {
     it('does not add duplicate to completedItems on revisit', () => {
       const progress: UserProgress = {

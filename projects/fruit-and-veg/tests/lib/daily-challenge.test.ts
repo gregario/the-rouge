@@ -69,7 +69,7 @@ const catalogue = Array.from({ length: 20 }, (_, i) =>
 describe('daily-challenge', () => {
   describe('generateDailyChallenge', () => {
     // @criterion: AC-DAILY-05
-    // @criterion-hash: 139b1cffeb4d
+    // @criterion-hash: a73df50940f5
     it('generates a challenge with featured item for new user', () => {
       const challenge = generateDailyChallenge(catalogue, emptyProgress, '2026-03-20')
       expect(challenge.date).toBe('2026-03-20')
@@ -80,14 +80,14 @@ describe('daily-challenge', () => {
     })
 
     // @criterion: AC-DAILY-02
-    // @criterion-hash: 063747b13750
+    // @criterion-hash: 4352acd7390b
     it('featured item is uncompleted', () => {
       const challenge = generateDailyChallenge(catalogue, emptyProgress, '2026-03-20')
       expect(emptyProgress.completedItems).not.toContain(challenge.featuredItemId)
     })
 
     // @criterion: AC-DAILY-11
-    // @criterion-hash: a870b822583d
+    // @criterion-hash: b1e96e8a14cb
     it('prefers easy items for users with < 10 completions', () => {
       const progress = {
         ...emptyProgress,
@@ -104,7 +104,7 @@ describe('daily-challenge', () => {
     })
 
     // @criterion: AC-DAILY-03
-    // @criterion-hash: 1f90f1a6de25
+    // @criterion-hash: 2687c6f2876f
     it('adds review items from completed', () => {
       const progress = {
         ...emptyProgress,
@@ -123,7 +123,7 @@ describe('daily-challenge', () => {
     })
 
     // @criterion: AC-DAILY-04
-    // @criterion-hash: 8f19443578d1
+    // @criterion-hash: 82904cc696d3
     it('review items are oldest completed first', () => {
       const progress = {
         ...emptyProgress,

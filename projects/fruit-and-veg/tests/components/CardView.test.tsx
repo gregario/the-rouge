@@ -99,7 +99,7 @@ describe('CardView', () => {
   })
 
   // @criterion: AC-CARD-01
-  // @criterion-hash: 0f88250ba94b
+  // @criterion-hash: 1b78f208fea4
   describe('AC-CARD-01: card displays image and name', () => {
     it('renders the item name', () => {
       render(<CardView item={mockItem} />)
@@ -122,8 +122,8 @@ describe('CardView', () => {
   })
 
   // @criterion: AC-CARD-02
-  // @criterion-hash: a8a5a645769a
-  describe('AC-CARD-02: card flip reveals back content', () => {
+  // @criterion-hash: 3ab2004e4b8a
+  describe('AC-CARD-02: card interaction opens detail view', () => {
     beforeEach(() => {
       vi.useFakeTimers()
     })
@@ -132,23 +132,23 @@ describe('CardView', () => {
       vi.useRealTimers()
     })
 
-    it('shows "Tap to learn about me!" text on front before flip', () => {
+    it('shows interactive prompt before detail view is opened', () => {
       render(<CardView item={mockItem} />)
       expect(screen.getByText('Tap to learn about me!')).toBeInTheDocument()
     })
 
-    it('clicking the card triggers the flip and reveals fun facts', async () => {
+    it('tapping card opens detail view with full content (name, facts, quiz)', async () => {
       render(<CardView item={mockItem} />)
       const cardFront = screen.getByRole('button', { name: /Flip card/i })
       fireEvent.click(cardFront)
-      act(() => { vi.advanceTimersByTime(400) })
-      // After flip, Quiz me! button appears (from back side)
+      act(() => { vi.advanceTimersByTime(500) })
+      // Detail view shows full card content including Quiz me! button
       expect(screen.getByText('Quiz me!')).toBeInTheDocument()
     })
   })
 
   // @criterion: AC-CARD-03
-  // @criterion-hash: 1b36f28d2afa
+  // @criterion-hash: d0fc45b180ef
   describe('AC-CARD-03: fun facts display correctly', () => {
     beforeEach(() => {
       vi.useFakeTimers()
@@ -180,7 +180,7 @@ describe('CardView', () => {
   })
 
   // @criterion: AC-CARD-08
-  // @criterion-hash: 203485848eee
+  // @criterion-hash: 9798d37df060
   describe('AC-CARD-08: sticker earned on completion', () => {
     beforeEach(() => {
       vi.useFakeTimers()
@@ -298,7 +298,7 @@ describe('CardView', () => {
   })
 
   // @criterion: AC-CARD-09
-  // @criterion-hash: 9885ec478fec
+  // @criterion-hash: 9ba70cca2200
   describe('AC-CARD-09: completed card shows badge', () => {
     it('shows completed badge indicator when item is a revisit', () => {
       mockIsRevisit.mockReturnValue(true)
@@ -317,7 +317,7 @@ describe('CardView', () => {
   })
 
   // @criterion: AC-CARD-13
-  // @criterion-hash: 263a131709d5
+  // @criterion-hash: 6f1739431c8b
   describe('AC-CARD-13: tap targets meet minimum size', () => {
     it('back button has min-w-[44px] and min-h-[44px]', () => {
       render(<CardView item={mockItem} />)
@@ -328,7 +328,7 @@ describe('CardView', () => {
   })
 
   // @criterion: AC-CARD-15
-  // @criterion-hash: 3b41ba0013f5
+  // @criterion-hash: bb6dc106fc09
   describe('AC-CARD-15: card works with keyboard navigation', () => {
     beforeEach(() => {
       vi.useFakeTimers()
@@ -362,7 +362,7 @@ describe('CardView', () => {
   })
 
   // @criterion: AC-CARD-16
-  // @criterion-hash: a4c58fa511a0
+  // @criterion-hash: f28d0dffb6ff
   describe('AC-CARD-16: image fallback renders on load failure', () => {
     it('renders a fallback div sibling to the img element', () => {
       render(<CardView item={mockItem} />)

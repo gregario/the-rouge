@@ -86,7 +86,7 @@ describe('GardenView', () => {
   })
 
   // @criterion: AC-ACH-11
-  // @criterion-hash: 44c57deedf94
+  // @criterion-hash: 80308cd4a45f
   describe('AC-ACH-11: badge detail shows constituent items', () => {
     it('earned badge is clickable', () => {
       mockProgress = {

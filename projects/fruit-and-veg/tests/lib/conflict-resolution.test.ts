@@ -3,7 +3,7 @@ import type { UserProgress } from '@/lib/types'
 
 // ─── AC-ACCT-07: Conflict resolution prompts user ───────────────────────────
 // @criterion: AC-ACCT-07
-// @criterion-hash: 08ad57bc2e46
+// @criterion-hash: 62d53a581dc6
 // GIVEN a new device has local progress AND server has different progress
 // WHEN parent signs in
 // THEN a prompt asks "Load saved / Keep device / Merge"

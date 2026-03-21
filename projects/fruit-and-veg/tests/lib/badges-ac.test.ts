@@ -6,7 +6,7 @@ describe('Badges & Achievements', () => {
   const badges = generateBadges(catalogue)
 
   // @criterion: AC-ACH-04
-  // @criterion-hash: 7bb5c350f979
+  // @criterion-hash: 4330036652b2
   describe('AC-ACH-04: progress counter accuracy', () => {
     it('badges cover all catalogue items exactly once', () => {
       const allRequiredIds = badges.flatMap(b => b.requiredItemIds)
@@ -24,7 +24,7 @@ describe('Badges & Achievements', () => {
   })
 
   // @criterion: AC-ACH-05
-  // @criterion-hash: 7cc55e564c18
+  // @criterion-hash: 8c153d64ce7d
   describe('AC-ACH-05: category badge earned on full completion', () => {
     it('checkNewBadges returns badge when all items completed', () => {
       const badge = badges.find(b => b.category === 'tropical')!
@@ -48,7 +48,7 @@ describe('Badges & Achievements', () => {
   })
 
   // @criterion: AC-ACH-01
-  // @criterion-hash: 52defcc829ad
+  // @criterion-hash: 7bc57ca63092
   describe('AC-ACH-01: all items represented', () => {
     it('every subcategory has at least one badge', () => {
       const subcategories = new Set(catalogue.map(i => i.subcategory))
