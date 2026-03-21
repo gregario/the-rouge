@@ -253,6 +253,48 @@ describe('CardView', () => {
       const celebration = screen.queryByRole('dialog') ?? screen.queryByText(/New sticker|You remembered/i)
       expect(celebration).toBeInTheDocument()
     })
+
+    it('first completion shows "New sticker!" not "You remembered!" (AC-CARD-08 regression)', () => {
+      // Simulate: isRevisit starts false, but onCardComplete mutates progress
+      // so subsequent calls to isRevisit return true (the bug scenario)
+      mockIsRevisit.mockReturnValue(false)
+      mockOnCardComplete.mockImplementation(() => {
+        // After onCardComplete, isRevisit would return true on re-render
+        mockIsRevisit.mockReturnValue(true)
+        return null
+      })
+
+      render(<CardView item={mockItem} />)
+
+      // Flip card
+      fireEvent.click(screen.getByRole('button', { name: /Flip card/i }))
+      act(() => { vi.advanceTimersByTime(400) })
+
+      // Start quiz
+      fireEvent.click(screen.getByText('Quiz me!'))
+
+      const getAnswerButtons = () =>
+        screen.getAllByRole('button').filter(b =>
+          b.getAttribute('aria-label') !== 'Go back'
+        )
+
+      // Answer Q1
+      act(() => { fireEvent.click(getAnswerButtons()[0]) })
+      act(() => { vi.advanceTimersByTime(1500) })
+
+      // Answer Q2
+      const remaining = getAnswerButtons()
+      if (remaining.length > 0) {
+        act(() => { fireEvent.click(remaining[0]) })
+        act(() => { vi.advanceTimersByTime(1500) })
+      }
+
+      act(() => {})
+
+      // The celebration MUST show "New sticker!" because this was a first completion
+      expect(screen.getByText('New sticker!')).toBeInTheDocument()
+      expect(screen.queryByText('You remembered!')).not.toBeInTheDocument()
+    })
   })
 
   // @criterion: AC-CARD-09
