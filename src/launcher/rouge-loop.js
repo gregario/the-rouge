@@ -117,9 +117,40 @@ function advanceState(projectDir) {
   let next = null;
 
   switch (current) {
-    case 'building':
+    case 'building': {
+      // Deploy to staging after building so QA can test live
+      log(`[${projectName}] Deploying build to staging`);
+      try {
+        execSync('npm run build', { cwd: projectDir, timeout: 120000, stdio: 'pipe' });
+        execSync('npx @opennextjs/cloudflare build', { cwd: projectDir, timeout: 120000, stdio: 'pipe' });
+        const deployOutput = execSync('npx wrangler deploy --env staging', { cwd: projectDir, encoding: 'utf8', timeout: 120000, stdio: 'pipe' });
+        const urlMatch = deployOutput.match(/https:\/\/[^\s]+\.workers\.dev/);
+        if (urlMatch) {
+          log(`[${projectName}] Deployed to ${urlMatch[0]}`);
+          // Update cycle_context with staging URL
+          const ctx = readJson(contextFile);
+          if (ctx) {
+            ctx.infrastructure = ctx.infrastructure || {};
+            ctx.infrastructure.staging_url = urlMatch[0];
+            ctx.deployment_url = urlMatch[0];
+            writeJson(contextFile, ctx);
+          }
+        }
+
+        // Push Supabase migrations if configured
+        const ctx2 = readJson(contextFile);
+        if (ctx2?.supabase?.project_ref) {
+          try {
+            execSync(`supabase db push --project-ref ${ctx2.supabase.project_ref}`, { cwd: projectDir, timeout: 60000, stdio: 'pipe' });
+            log(`[${projectName}] Supabase migrations pushed`);
+          } catch {}
+        }
+      } catch (err) {
+        log(`[${projectName}] Deploy after build failed: ${(err.message || '').slice(0, 200)}`);
+      }
       next = 'test-integrity';
       break;
+    }
 
     case 'test-integrity': {
       const ctx = readJson(contextFile);
@@ -147,9 +178,34 @@ function advanceState(projectDir) {
       break;
     }
 
-    case 'qa-fixing':
+    case 'qa-fixing': {
+      // Redeploy after fixes so QA tests the updated code
+      log(`[${projectName}] Redeploying after QA fixes`);
+      try {
+        // Cloudflare: rebuild and deploy to staging
+        execSync('npm run build', { cwd: projectDir, timeout: 120000, stdio: 'pipe' });
+        execSync('npx @opennextjs/cloudflare build', { cwd: projectDir, timeout: 120000, stdio: 'pipe' });
+        const deployOutput = execSync('npx wrangler deploy --env staging', { cwd: projectDir, encoding: 'utf8', timeout: 120000, stdio: 'pipe' });
+        const urlMatch = deployOutput.match(/https:\/\/[^\s]+\.workers\.dev/);
+        if (urlMatch) log(`[${projectName}] Redeployed to ${urlMatch[0]}`);
+
+        // Supabase: push migrations if any changed
+        const ctx = readJson(contextFile);
+        if (ctx?.supabase?.project_ref) {
+          try {
+            execSync(`supabase db push --project-ref ${ctx.supabase.project_ref}`, { cwd: projectDir, timeout: 60000, stdio: 'pipe' });
+            log(`[${projectName}] Supabase migrations pushed`);
+          } catch {
+            // No migrations to push is fine
+          }
+        }
+      } catch (err) {
+        log(`[${projectName}] Redeploy failed: ${(err.message || '').slice(0, 200)}`);
+        // Continue anyway — QA will catch deploy issues
+      }
       next = 'test-integrity';
       break;
+    }
 
     case 'po-reviewing':
       next = 'analyzing';
