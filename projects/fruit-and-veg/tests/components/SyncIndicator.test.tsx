@@ -11,7 +11,7 @@ import { SyncIndicator } from '@/components/SyncIndicator'
 
 // ─── AC-ACCT-09: Offline mode with sync icon ───────────────────────────────
 // @criterion: AC-ACCT-09
-// @criterion-hash: 2f1cd070746e
+// @criterion-hash: 711a77f2df24
 // GIVEN a verified account and no network connection
 // WHEN kid completes cards
 // THEN progress saves locally, no error shown to child, sync indicator shows offline

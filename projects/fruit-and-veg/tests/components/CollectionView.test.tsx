@@ -85,7 +85,7 @@ describe('CollectionView', () => {
   })
 
   // @criterion: AC-ACH-01
-  // @criterion-hash: c40392dd512b
+  // @criterion-hash: 52defcc829ad
   describe('AC-ACH-01: collection grid shows all catalogue items', () => {
     it('renders the same number of items as the catalogue', () => {
       render(<CollectionView />)
@@ -105,7 +105,7 @@ describe('CollectionView', () => {
   })
 
   // @criterion: AC-ACH-02
-  // @criterion-hash: 02492b06dd8b
+  // @criterion-hash: 5af032f81096
   describe('AC-ACH-02: completed items show colour, uncompleted show grey', () => {
     it('uncompleted items show ? placeholder', () => {
       render(<CollectionView />)
@@ -128,7 +128,7 @@ describe('CollectionView', () => {
   })
 
   // @criterion: AC-ACH-03
-  // @criterion-hash: 0e719344745e
+  // @criterion-hash: 07226b08e6e8
   describe('AC-ACH-03: category filtering works', () => {
     it('renders All, Fruits, Vegetables, Berries tabs', () => {
       render(<CollectionView />)
@@ -173,7 +173,7 @@ describe('CollectionView', () => {
   })
 
   // @criterion: AC-ACH-09
-  // @criterion-hash: 5d941d933937
+  // @criterion-hash: 00707c281312
   describe('AC-ACH-09: zero state shows encouraging prompts', () => {
     it('shows "Tap any fruit to start learning!" when nothing is completed', () => {
       render(<CollectionView />)
@@ -192,7 +192,7 @@ describe('CollectionView', () => {
   })
 
   // @criterion: AC-ACH-10
-  // @criterion-hash: 0ca959504089
+  // @criterion-hash: 1cb6bf06b6ce
   describe('AC-ACH-10: sticker book tapping opens cards', () => {
     it('each item is a link pointing to /card/:id', () => {
       render(<CollectionView />)

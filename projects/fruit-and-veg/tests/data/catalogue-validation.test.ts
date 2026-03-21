@@ -7,13 +7,13 @@ import { catalogue } from '@/data/catalogue'
 
 describe('Catalogue Data Validation', () => {
   // @criterion: AC-CAT-01
-  // @criterion-hash: 67ea2fd8d630
+  // @criterion-hash: e8e62d75f404
   it('AC-CAT-01: All catalogue items load (minimum 60)', () => {
     expect(catalogue.length).toBeGreaterThanOrEqual(60)
   })
 
   // @criterion: AC-CAT-02
-  // @criterion-hash: 531567fd4843
+  // @criterion-hash: e1b737cbfda0
   it('AC-CAT-02: All images have valid paths', () => {
     for (const item of catalogue) {
       expect(item.image).toMatch(/^\/images\/catalogue\/[\w-]+\.webp$/)
@@ -21,7 +21,7 @@ describe('Catalogue Data Validation', () => {
   })
 
   // @criterion: AC-CAT-03
-  // @criterion-hash: 1a5c5c596f14
+  // @criterion-hash: 7adf13b74c59
   it('AC-CAT-03: All questions have valid correct answers', () => {
     for (const item of catalogue) {
       for (const q of item.questions) {
@@ -35,7 +35,7 @@ describe('Catalogue Data Validation', () => {
   })
 
   // @criterion: AC-CAT-04
-  // @criterion-hash: 4ce5a0bac56d
+  // @criterion-hash: 78808fff57b8
   it('AC-CAT-04: Category distribution is balanced', () => {
     const fruits = catalogue.filter((i) => i.category === 'fruit').length
     const vegetables = catalogue.filter((i) => i.category === 'vegetable').length
@@ -46,7 +46,7 @@ describe('Catalogue Data Validation', () => {
   })
 
   // @criterion: AC-CAT-05
-  // @criterion-hash: a6f68c86a2ea
+  // @criterion-hash: a7a43fae1639
   it('AC-CAT-05: Fun facts meet content requirements', () => {
     for (const item of catalogue) {
       expect(
@@ -70,7 +70,7 @@ describe('Catalogue Data Validation', () => {
   })
 
   // @criterion: AC-CAT-06
-  // @criterion-hash: 7e6f615dfaa7
+  // @criterion-hash: caa5b834423b
   it('AC-CAT-06: Questions cover multiple types per item', () => {
     for (const item of catalogue) {
       if (item.questions.length >= 4) {
@@ -84,7 +84,7 @@ describe('Catalogue Data Validation', () => {
   })
 
   // @criterion: AC-CAT-07
-  // @criterion-hash: a6e38cf0b15e
+  // @criterion-hash: ed2bfd304016
   it('AC-CAT-07: No duplicate item IDs', () => {
     const ids = catalogue.map((i) => i.id)
     const uniqueIds = new Set(ids)
@@ -92,7 +92,7 @@ describe('Catalogue Data Validation', () => {
   })
 
   // @criterion: AC-CAT-08
-  // @criterion-hash: 8509f1fb73df
+  // @criterion-hash: b3df15f06b0c
   it('AC-CAT-08: Colour-match questions have valid hex colours', () => {
     const hexRegex = /^#[0-9a-fA-F]{6}$/
     for (const item of catalogue) {

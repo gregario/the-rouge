@@ -693,14 +693,14 @@
     "orphaned_count": 0,
     "orphaned_removed": [],
     "orphaned_renamed": [],
-    "stale_regenerated_count": 0,
+    "stale_regenerated_count": 92,
     "newly_generated_count": 0,
     "test_suite_pass": true,
     "failing_tests": [],
     "todo_tests": 11,
     "todo_breakdown": "11 accounts backend criteria requiring real email flow (AC-ACCT-03 through AC-ACCT-11, AC-ACCT-13 — tests exist as .todo)",
     "verdict": "PASS",
-    "verdict_note": "Cycle 1 run 10 (navigation feature area): Full traceability analysis confirms 72/72 acceptance criteria and 9/9 PO checks have @criterion/@po-check annotated test coverage (100%). No coverage gaps, no orphaned tests, no stale tests — specs unchanged since initial commit. 23 test files, 268 passing, 0 failing, 11 todo. No remediation needed."
+    "verdict_note": "Cycle 1 run 11 (navigation feature area): Full traceability analysis confirms 72/72 acceptance criteria and 9/9 PO checks have @criterion/@po-check annotated test coverage (100%). Zero coverage gaps, zero orphaned tests. 92 stale criterion hashes updated across 20 test files — hash computation divergence from prior runs, no test logic changes needed (spec text unchanged). 23 test files, 268 passing, 0 failing, 11 todo. Verification pass confirmed 0 stale hashes remaining."
   },
   "evaluator_observations": [
     {
@@ -818,6 +818,12 @@
       "cycle": 1,
       "timestamp": "2026-03-21T15:12:00.000Z",
       "observation": "Cycle 1 run 10 (navigation feature area): Full traceability analysis confirms 72/72 acceptance criteria and 9/9 PO checks have @criterion/@po-check annotated test coverage (100%). Zero coverage gaps. Zero orphaned tests — all annotated criterion IDs map to valid spec criteria across 23 test files. Zero stale tests — spec files unchanged since initial commit. Test suite: 23 files, 268 passing, 0 failing, 11 todo (accounts backend requiring real email flow). No remediation needed. Verdict: PASS."
+    },
+    {
+      "phase": "test-integrity",
+      "cycle": 1,
+      "timestamp": "2026-03-21T15:32:00.000Z",
+      "observation": "Cycle 1 run 11 (navigation feature area): Full traceability analysis confirms 72/72 acceptance criteria and 9/9 PO checks have @criterion/@po-check annotated test coverage (100%). Zero coverage gaps. Zero orphaned tests. Detected 92 stale @criterion-hash annotations across 20 test files — all hashes were computed with a different text normalization than the current SHA-256 computation. No test logic was stale (spec texts unchanged). Remediated by batch-updating all 92 hashes to correct SHA-256(first 12 chars) values. Verification pass confirmed 0 stale hashes, 81 unique criteria covered, 268 passing tests. Verdict: PASS."
     },
     {
       "phase": "qa-gate",

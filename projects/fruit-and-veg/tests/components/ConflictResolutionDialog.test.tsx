@@ -4,7 +4,7 @@ import { ConflictResolutionDialog } from '@/components/ConflictResolutionDialog'
 
 // ─── AC-ACCT-07: Conflict resolution prompts user ───────────────────────────
 // @criterion: AC-ACCT-07
-// @criterion-hash: d35f6f812f72
+// @criterion-hash: 08ad57bc2e46
 // GIVEN a new device has local progress AND server has different progress
 // WHEN parent signs in
 // THEN a prompt asks "Load saved / Keep device / Merge"

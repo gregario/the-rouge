@@ -22,7 +22,7 @@ describe('BottomNav — navigation ACs', () => {
   })
 
   // @criterion: AC-NAV-02
-  // @criterion-hash: 318211e0e3dd
+  // @criterion-hash: aa8fadbe7316
   describe('AC-NAV-02: tab switching is instant — no loading state', () => {
     it('renders tab links (not async — instant navigation via Next.js client-side)', () => {
       render(<BottomNav />)
@@ -48,7 +48,7 @@ describe('BottomNav — navigation ACs', () => {
   })
 
   // @criterion: AC-NAV-03
-  // @criterion-hash: 5fd3a9a5c148
+  // @criterion-hash: df0b5945575d
   describe('AC-NAV-03: bottom nav is always visible on main screens', () => {
     it('nav has position-fixed class (stays visible during scroll)', () => {
       render(<BottomNav />)
@@ -79,7 +79,7 @@ describe('BottomNav — navigation ACs', () => {
   })
 
   // @criterion: AC-NAV-04
-  // @criterion-hash: 64ec8bc756e8
+  // @criterion-hash: 6a2d7d9b0a41
   describe('AC-NAV-04: bottom nav hides during card view', () => {
     // The hiding is implemented at AppShell level ({!isCardView && <BottomNav />}).
     // BottomNav itself always renders when mounted; AppShell controls when it mounts.
@@ -103,7 +103,7 @@ describe('BottomNav — navigation ACs', () => {
   })
 
   // @criterion: AC-NAV-05
-  // @criterion-hash: 05b4651535fd
+  // @criterion-hash: 17827adb0dfa
   describe('AC-NAV-05: browser back works from card view', () => {
     // Browser back is a native browser feature. We verify the navigation
     // structure supports it: card view is a full Next.js route (/card/:id),
@@ -128,7 +128,7 @@ describe('BottomNav — navigation ACs', () => {
   })
 
   // @criterion: AC-NAV-06
-  // @criterion-hash: 29c0bac0711f
+  // @criterion-hash: 060d3815da6d
   describe('AC-NAV-06: tab tap during card view returns to tab', () => {
     // SPEC CONTRADICTION NOTE: AC-NAV-04 requires the bottom nav to be hidden
     // during card view (verified above). AC-NAV-06 describes tapping a nav tab

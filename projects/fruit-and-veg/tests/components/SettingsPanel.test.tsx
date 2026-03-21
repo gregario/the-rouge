@@ -32,7 +32,7 @@ import { SettingsPanel } from '@/components/SettingsPanel'
 
 // ─── AC-ACCT-01: Settings accessible from any screen ───────────────────────
 // @criterion: AC-ACCT-01
-// @criterion-hash: 393be5da7083
+// @criterion-hash: 7547ed54278e
 // GIVEN the user is on Home, Collection, or Garden
 // WHEN they tap the settings icon
 // THEN the settings panel opens
@@ -73,7 +73,7 @@ describe('AC-ACCT-01: settings accessible from any screen', () => {
 
 // ─── AC-ACCT-02: Account creation requires email and guardian checkbox ───────
 // @criterion: AC-ACCT-02
-// @criterion-hash: 3f5ab4fbd438
+// @criterion-hash: e0240b012c5c
 // GIVEN the settings panel is open (no account)
 // WHEN email is entered but checkbox is unchecked
 // THEN "Create Account" button remains disabled
@@ -139,7 +139,7 @@ describe('AC-ACCT-02: account creation requires email and guardian checkbox', ()
 
 // ─── AC-ACCT-03: Verification email sent on account creation ─────────────────
 // @criterion: AC-ACCT-03
-// @criterion-hash: 39c2e89f85a0
+// @criterion-hash: d160a3b5e4a5
 // GIVEN valid email and checked guardian checkbox
 // WHEN user taps "Create Account"
 // THEN API call succeeds, verification pending state shown, email sent
@@ -152,7 +152,7 @@ describe('AC-ACCT-03: verification email sent on account creation', () => {
 
 // ─── AC-ACCT-04: Account activates after email verification ──────────────────
 // @criterion: AC-ACCT-04
-// @criterion-hash: 46a17ead4a2f
+// @criterion-hash: 764892a532a8
 // GIVEN account is in pending verification state
 // WHEN parent clicks the verification link
 // THEN account status changes to verified, first sync occurs
@@ -163,7 +163,7 @@ describe('AC-ACCT-04: account activates after email verification', () => {
 
 // ─── AC-ACCT-05: Progress syncs after card completion ────────────────────────
 // @criterion: AC-ACCT-05
-// @criterion-hash: 75269cfcf766
+// @criterion-hash: ab0c8806f615
 // GIVEN a verified account exists
 // WHEN the user completes a card
 // THEN progress is saved locally AND synced to backend
@@ -174,7 +174,7 @@ describe('AC-ACCT-05: progress syncs after card completion', () => {
 
 // ─── AC-ACCT-06: Sign-in on new device loads progress ───────────────────────
 // @criterion: AC-ACCT-06
-// @criterion-hash: 46b607df9231
+// @criterion-hash: d020e384f07c
 // GIVEN a verified account with 10 completed items
 // WHEN parent signs in on a new device
 // THEN server progress is loaded and collection shows 10 completed items
@@ -192,7 +192,7 @@ describe('AC-ACCT-06: sign-in on new device loads progress', () => {
 
 // ─── AC-ACCT-07: Conflict resolution prompts user ───────────────────────────
 // @criterion: AC-ACCT-07
-// @criterion-hash: d35f6f812f72
+// @criterion-hash: 08ad57bc2e46
 // GIVEN a new device has local progress AND server has different progress
 // WHEN parent signs in
 // THEN a prompt asks "Load saved / Keep device / Merge"
@@ -212,7 +212,7 @@ describe('AC-ACCT-07: conflict resolution prompts user', () => {
 
 // ─── AC-ACCT-08: Account deletion removes all server data ───────────────────
 // @criterion: AC-ACCT-08
-// @criterion-hash: 542cf4f47f26
+// @criterion-hash: 3109ab275aa7
 // GIVEN a verified account
 // WHEN parent confirms account deletion
 // THEN Account and SyncedProgress are hard-deleted from server
@@ -223,7 +223,7 @@ describe('AC-ACCT-08: account deletion removes all server data', () => {
 
 // ─── AC-ACCT-09: Offline mode works without disruption ──────────────────────
 // @criterion: AC-ACCT-09
-// @criterion-hash: 2f1cd070746e
+// @criterion-hash: 711a77f2df24
 // GIVEN a verified account and no network connection
 // WHEN kid completes cards
 // THEN progress saves locally, no error shown to child, sync indicator shows offline
@@ -242,7 +242,7 @@ describe('AC-ACCT-09: offline mode works without disruption', () => {
 
 // ─── AC-ACCT-10: Resend verification available ──────────────────────────────
 // @criterion: AC-ACCT-10
-// @criterion-hash: e6c695db1e33
+// @criterion-hash: b2ee95c0893a
 // GIVEN account is pending verification
 // WHEN 30 seconds have passed since creation
 // THEN a "Resend verification email" link appears
@@ -253,7 +253,7 @@ describe('AC-ACCT-10: resend verification available after 30 seconds', () => {
 
 // ─── AC-ACCT-11: Magic link sign-in (passwordless) ──────────────────────────
 // @criterion: AC-ACCT-11
-// @criterion-hash: 1aabfce6c8f9
+// @criterion-hash: 229285744d1a
 // GIVEN a verified account exists
 // WHEN parent enters email and taps "Sign in"
 // THEN a magic link email is sent (no password field)
@@ -264,7 +264,7 @@ describe('AC-ACCT-11: magic link sign-in (passwordless)', () => {
 
 // ─── AC-ACCT-12: No child-facing account UI ─────────────────────────────────
 // @criterion: AC-ACCT-12
-// @criterion-hash: ae0011ad7a06
+// @criterion-hash: 86f5bc6abfe5
 // GIVEN any app state
 // WHEN the child interacts with Home, Collection, Garden, or Card views
 // THEN no account-related UI appears in the main content area
@@ -300,7 +300,7 @@ describe('AC-ACCT-12: no child-facing account UI', () => {
 
 // ─── AC-ACCT-13: Display name shown in app ──────────────────────────────────
 // @criterion: AC-ACCT-13
-// @criterion-hash: 451d60f4bddf
+// @criterion-hash: 87e022ee13fa
 // GIVEN an account with displayName "Lily"
 // WHEN the app loads
 // THEN the home screen shows "Hi, Lily!" greeting
@@ -321,7 +321,7 @@ describe('AC-ACCT-13: display name shown in app', () => {
 
 // ─── AC-ACCT-14: Email validation ───────────────────────────────────────────
 // @criterion: AC-ACCT-14
-// @criterion-hash: 358f5f82c58b
+// @criterion-hash: 5fb79570c270
 // GIVEN the email input field
 // WHEN an invalid email is entered and focus leaves
 // THEN an error message "Please enter a valid email" appears

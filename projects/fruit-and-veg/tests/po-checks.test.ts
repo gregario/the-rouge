@@ -10,7 +10,7 @@ import path from 'path'
 
 // ─── PO-HIER-01: Featured card is most visually prominent on Home ────────────
 // @po-check: PO-HIER-01
-// @criterion-hash: a1b2c3d4e5f6
+// @criterion-hash: bce7cbd47839
 // Check: Fruit of the Day card is the most visually prominent element on /
 // Measurement: Compute rendered size of featured card vs other elements
 // NOTE: Full visual measurement requires browser-based testing (Playwright).
@@ -20,7 +20,7 @@ describe('PO-HIER-01: featured card is most visually prominent on Home', () => {
 
 // ─── PO-HIER-02: Collection grid is primary content area ─────────────────────
 // @po-check: PO-HIER-02
-// @criterion-hash: b2c3d4e5f6a1
+// @criterion-hash: 3a3af7988b03
 // Check: Collection grid is the primary content area on /collection
 // Measurement: Grid area occupies majority of screen below header
 // NOTE: Full layout measurement requires browser-based testing.
@@ -30,7 +30,7 @@ describe('PO-HIER-02: collection grid is primary content area', () => {
 
 // ─── PO-STATE-01: First-time user sees single card with encouraging text ─────
 // @po-check: PO-STATE-01
-// @criterion-hash: c3d4e5f6a1b2
+// @criterion-hash: a12bda730bfe
 // Check: First-time user sees single card with encouraging text on /
 // Measurement: Load app with empty localStorage, verify single card and prompt
 // NOTE: Overlaps with AC-DAILY-05. The AC test verifies the logic layer;
@@ -41,7 +41,7 @@ describe('PO-STATE-01: first-time user sees single card with encouraging text', 
 
 // ─── PO-STATE-02: Empty collection shows grey silhouettes with prompt ────────
 // @po-check: PO-STATE-02
-// @criterion-hash: d4e5f6a1b2c3
+// @criterion-hash: d636b4de087c
 // Check: All items shown as grey silhouettes with prompt on /collection
 // Measurement: Load with zero completions, count grey elements
 // NOTE: Overlaps with AC-ACH-09. The AC test checks prompt presence;
@@ -52,7 +52,7 @@ describe('PO-STATE-02: empty collection shows grey silhouettes', () => {
 
 // ─── PO-STYLE-01: All text colours meet WCAG AA contrast ────────────────────
 // @po-check: PO-STYLE-01
-// @criterion-hash: e5f6a1b2c3d4
+// @criterion-hash: 7d51fa12a090
 // Check: All text/background pairs meet WCAG AA contrast (>= 4.5:1)
 // Measurement: Compute contrast ratios for all text/background pairs
 describe('PO-STYLE-01: text colours meet WCAG AA contrast', () => {
@@ -90,7 +90,7 @@ describe('PO-STYLE-01: text colours meet WCAG AA contrast', () => {
 
 // ─── PO-STYLE-02: Touch targets are minimum 44x44px ─────────────────────────
 // @po-check: PO-STYLE-02
-// @criterion-hash: f6a1b2c3d4e5
+// @criterion-hash: aa0da9795fe7
 // Check: All interactive element dimensions >= 44x44px
 // Measurement: Measure all interactive element dimensions
 describe('PO-STYLE-02: touch targets are minimum 44x44px', () => {
@@ -120,7 +120,7 @@ describe('PO-STYLE-02: touch targets are minimum 44x44px', () => {
 
 // ─── PO-STYLE-03: Incorrect answer feedback uses amber, not red ──────────────
 // @po-check: PO-STYLE-03
-// @criterion-hash: a1c3e5b2d4f6
+// @criterion-hash: c7c5a471506d
 // Check: Incorrect answer UI uses amber (#FFB347), not red
 // Measurement: Trigger incorrect answer, check computed background colour
 describe('PO-STYLE-03: incorrect answer feedback uses amber not red', () => {
@@ -143,7 +143,7 @@ describe('PO-STYLE-03: incorrect answer feedback uses amber not red', () => {
 
 // ─── PO-SLOP-01: No purple gradients ────────────────────────────────────────
 // @po-check: PO-SLOP-01
-// @criterion-hash: b2d4f6a1c3e5
+// @criterion-hash: 2e20e1be798d
 // Check: No purple gradients in UI components
 // Measurement: Parse all background colours and gradients
 describe('PO-SLOP-01: no purple gradients', () => {
@@ -164,7 +164,7 @@ describe('PO-SLOP-01: no purple gradients', () => {
 
 // ─── PO-SLOP-02: No decorative background shapes ───────────────────────────
 // @po-check: PO-SLOP-02
-// @criterion-hash: c3e5a1b2d4f6
+// @criterion-hash: 81fb0d58c774
 // Check: No SVG/canvas background elements with no data purpose
 // Measurement: Scan for decorative background elements
 describe('PO-SLOP-02: no decorative background shapes', () => {

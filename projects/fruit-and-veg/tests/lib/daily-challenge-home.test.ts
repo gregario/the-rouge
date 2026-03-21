@@ -46,7 +46,7 @@ const catalogue = Array.from({ length: 20 }, (_, i) =>
 )
 
 // @criterion: AC-DAILY-01
-// @criterion-hash: 35deacf3e727
+// @criterion-hash: 93d54e85739d
 describe('AC-DAILY-01: home screen shows daily challenge', () => {
   it('generates a daily challenge with a featured item for any user', () => {
     const challenge = generateDailyChallenge(catalogue, emptyProgress, '2026-03-20')

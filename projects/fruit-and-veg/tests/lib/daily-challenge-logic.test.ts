@@ -38,7 +38,7 @@ function emptyProgress(): UserProgress {
 
 describe('Daily Challenge Logic', () => {
   // @criterion: AC-DAILY-02
-  // @criterion-hash: d4dcbab28a96
+  // @criterion-hash: 063747b13750
   describe('AC-DAILY-02: featured item is uncompleted', () => {
     it('picks an uncompleted item as featured', () => {
       const catalogue = makeCatalogue(10)
@@ -68,7 +68,7 @@ describe('Daily Challenge Logic', () => {
   })
 
   // @criterion: AC-DAILY-03
-  // @criterion-hash: b2b54c4b9b61
+  // @criterion-hash: 1f90f1a6de25
   describe('AC-DAILY-03: review items are completed', () => {
     it('only includes completed items in review', () => {
       const catalogue = makeCatalogue(10)
@@ -99,7 +99,7 @@ describe('Daily Challenge Logic', () => {
   })
 
   // @criterion: AC-DAILY-04
-  // @criterion-hash: 0a5e5ef97766
+  // @criterion-hash: 8f19443578d1
   describe('AC-DAILY-04: review items prioritise oldest completions', () => {
     it('selects the two oldest completed items for review', () => {
       const catalogue = makeCatalogue(10)
@@ -126,7 +126,7 @@ describe('Daily Challenge Logic', () => {
   })
 
   // @criterion: AC-DAILY-07
-  // @criterion-hash: 70b86859b610
+  // @criterion-hash: bf0656f4c94d
   describe('AC-DAILY-07: daily challenge resets at midnight', () => {
     it('different dates produce challenges with potentially different featured items', () => {
       const catalogue = makeCatalogue(20)
@@ -144,7 +144,7 @@ describe('Daily Challenge Logic', () => {
   })
 
   // @criterion: AC-DAILY-10
-  // @criterion-hash: 1beedf6a09a5
+  // @criterion-hash: 4090ed8ff497
   describe('AC-DAILY-10: re-discovery mode activates when catalogue exhausted', () => {
     it('picks from completed items when all are completed', () => {
       const catalogue = makeCatalogue(5)
@@ -174,7 +174,7 @@ describe('Daily Challenge Logic', () => {
   })
 
   // @criterion: AC-DAILY-12
-  // @criterion-hash: ba2a6ad06bf4
+  // @criterion-hash: 9c3cd3942d1a
   describe('AC-DAILY-12: featured item not repeated within 7 days', () => {
     it('recordFeaturedItem keeps only last 7 entries', () => {
       let progress = emptyProgress()

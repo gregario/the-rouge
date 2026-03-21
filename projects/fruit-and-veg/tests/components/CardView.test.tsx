@@ -99,7 +99,7 @@ describe('CardView', () => {
   })
 
   // @criterion: AC-CARD-01
-  // @criterion-hash: db82b261ae10
+  // @criterion-hash: 0f88250ba94b
   describe('AC-CARD-01: card displays image and name', () => {
     it('renders the item name', () => {
       render(<CardView item={mockItem} />)
@@ -122,7 +122,7 @@ describe('CardView', () => {
   })
 
   // @criterion: AC-CARD-02
-  // @criterion-hash: 3cd0011924cd
+  // @criterion-hash: a8a5a645769a
   describe('AC-CARD-02: card flip reveals back content', () => {
     beforeEach(() => {
       vi.useFakeTimers()
@@ -148,7 +148,7 @@ describe('CardView', () => {
   })
 
   // @criterion: AC-CARD-03
-  // @criterion-hash: 427b8a755f74
+  // @criterion-hash: 1b36f28d2afa
   describe('AC-CARD-03: fun facts display correctly', () => {
     beforeEach(() => {
       vi.useFakeTimers()
@@ -180,7 +180,7 @@ describe('CardView', () => {
   })
 
   // @criterion: AC-CARD-08
-  // @criterion-hash: 59255f46a048
+  // @criterion-hash: 203485848eee
   describe('AC-CARD-08: sticker earned on completion', () => {
     beforeEach(() => {
       vi.useFakeTimers()
@@ -298,7 +298,7 @@ describe('CardView', () => {
   })
 
   // @criterion: AC-CARD-09
-  // @criterion-hash: 494aa6f7a4ef
+  // @criterion-hash: 9885ec478fec
   describe('AC-CARD-09: completed card shows badge', () => {
     it('shows completed badge indicator when item is a revisit', () => {
       mockIsRevisit.mockReturnValue(true)
@@ -317,7 +317,7 @@ describe('CardView', () => {
   })
 
   // @criterion: AC-CARD-13
-  // @criterion-hash: f5f8d5dac40e
+  // @criterion-hash: 263a131709d5
   describe('AC-CARD-13: tap targets meet minimum size', () => {
     it('back button has min-w-[44px] and min-h-[44px]', () => {
       render(<CardView item={mockItem} />)
@@ -328,7 +328,7 @@ describe('CardView', () => {
   })
 
   // @criterion: AC-CARD-15
-  // @criterion-hash: 652a43bcd933
+  // @criterion-hash: 3b41ba0013f5
   describe('AC-CARD-15: card works with keyboard navigation', () => {
     beforeEach(() => {
       vi.useFakeTimers()
@@ -362,7 +362,7 @@ describe('CardView', () => {
   })
 
   // @criterion: AC-CARD-16
-  // @criterion-hash: 056cf097cd85
+  // @criterion-hash: a4c58fa511a0
   describe('AC-CARD-16: image fallback renders on load failure', () => {
     it('renders a fallback div sibling to the img element', () => {
       render(<CardView item={mockItem} />)
