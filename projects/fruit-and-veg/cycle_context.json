@@ -1651,9 +1651,9 @@
   },
   "qa_fix_results": {
     "phase": "qa-fixing",
-    "run": 6,
+    "run": 7,
     "cycle": 1,
-    "timestamp": "2026-03-21T16:00:00.000Z",
+    "timestamp": "2026-03-21T17:00:00.000Z",
     "criteria_fixed": [],
     "criteria_escalated": [
       {
@@ -1677,7 +1677,7 @@
       {
         "criterion_id": "AC-ACCT-03",
         "attempts_total": 3,
-        "reason": "Code complete (SettingsPanel → createAccount → POST /api/accounts → signInWithOtp). QA cannot browser-verify without real email flow. Not a code bug.",
+        "reason": "Code complete (SettingsPanel → createAccount → POST /api/accounts → signInWithOtp). QA cannot browser-verify without real email flow.",
         "hypothesis": "Needs end-to-end testing with real Supabase email delivery or acceptance of code-review-based verification."
       },
       {
@@ -1695,14 +1695,14 @@
       {
         "criterion_id": "AC-ACCT-06",
         "attempts_total": 5,
-        "reason": "Code fixed in run 4 (getProgress() called on auth). Still PARTIAL because QA cannot browser-verify without real authenticated session.",
-        "hypothesis": "Code is complete and unit-tested. QA gate limitation."
+        "reason": "Code fixed in run 4 (getProgress() called on auth). QA cannot browser-verify without real authenticated session.",
+        "hypothesis": "Code is complete and unit-tested. QA gate limitation — not a code issue."
       },
       {
         "criterion_id": "AC-ACCT-07",
         "attempts_total": 5,
-        "reason": "Code fixed in run 4 (conflict-resolution.ts + ConflictResolutionDialog, 17 tests). Still PARTIAL because QA cannot simulate real multi-device conflict.",
-        "hypothesis": "Code is complete and unit-tested. QA gate limitation."
+        "reason": "Code fixed in run 4 (conflict-resolution.ts + ConflictResolutionDialog, 17 tests). QA cannot simulate real multi-device conflict.",
+        "hypothesis": "Code is complete and unit-tested. QA gate limitation — not a code issue."
       },
       {
         "criterion_id": "AC-ACCT-08",
@@ -1713,8 +1713,8 @@
       {
         "criterion_id": "AC-ACCT-09",
         "attempts_total": 5,
-        "reason": "Code fixed in run 4 (SyncIndicator component, 4 tests). Still PARTIAL because sync indicator only visible with authenticated session.",
-        "hypothesis": "Code is complete and unit-tested. QA gate limitation."
+        "reason": "Code fixed in run 4 (SyncIndicator component, 4 tests). Sync indicator only visible with authenticated session.",
+        "hypothesis": "Code is complete and unit-tested. QA gate limitation — not a code issue."
       },
       {
         "criterion_id": "AC-ACCT-10",
@@ -1733,15 +1733,15 @@
     "deployment_url": "https://fruit-and-veg-staging.gregj64.workers.dev",
     "total_commits": 0,
     "escalation_needed": true,
-    "escalation_summary": "Run 6: All 12 PARTIAL criteria have >= 3 attempts. This is a repeat escalation — run 5 already escalated all criteria. Zero code changes possible. Human decisions required: (1) accept code-review + unit-test verification for 9 account flows, (2) provision Pixabay API for AC-CAT-02, (3) PO ruling on AC-CARD-02 animation divergence and AC-NAV-06 spec contradiction.",
+    "escalation_summary": "Run 7: All 12 PARTIAL criteria have >= 3 attempts. This is the third consecutive no-op escalation (runs 5, 6, 7). Zero code changes possible. The loop MUST break. Human decisions required: (1) accept code-review + unit-test verification for 9 account criteria that are code-complete but untestable by automated QA, (2) provision Pixabay API for AC-CAT-02, (3) PO ruling on AC-CARD-02 animation divergence and AC-NAV-06 spec contradiction.",
     "phase_decisions": [
       {
-        "decision": "Immediate exit — all criteria already escalated in previous run",
-        "rationale": "Run 5 already set escalation_needed=true for all 12 PARTIAL criteria. No new information exists. The qa_report confirms 0 fix_tasks and 'All code-fixable issues resolved.' This run is a no-op by design — the launcher should transition to waiting-for-human.",
+        "decision": "Immediate exit — all criteria already escalated in runs 5 and 6",
+        "rationale": "Runs 5 and 6 both set escalation_needed=true for all 12 PARTIAL criteria. No new information exists. The QA report (run 6) confirms identical results since run 4 — 60 pass, 12 partial, 0 fail, health score 80. All code-fixable issues were resolved in runs 1-4. The remaining 12 are blocked by: (a) QA gate inability to test authenticated flows (9 criteria), (b) infrastructure not provisioned (1 criterion), (c) spec/design issues requiring human judgment (2 criteria). No further automated fixing can improve the score. The launcher must transition to waiting-for-human.",
         "confidence": "high"
       }
     ],
-    "evaluator_observation": "QA-fixing run 6 invoked despite run 5 already escalating all criteria. All 12 PARTIAL criteria have attempts >= 3. No code changes made. No redeploy needed. The loop should break here — the launcher must transition to waiting-for-human or the next cycle phase."
+    "evaluator_observation": "QA-fixing run 7 invoked despite runs 5 and 6 already escalating all criteria with identical results. This is the third consecutive no-op run. The qa-fixing → qa-gate loop has stabilised at health 80 with 12 PARTIAL criteria, none of which are code-fixable. The launcher MUST break this loop and transition to waiting-for-human or proceed to the next feature area."
   },
   "retry_counts": {
     "AC-ACCT-03": {
