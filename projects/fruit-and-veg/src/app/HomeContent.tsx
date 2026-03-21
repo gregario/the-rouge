@@ -10,7 +10,7 @@ import { DailyStampCelebration } from '@/components/DailyStampCelebration'
 
 export function HomeContent() {
   const router = useRouter()
-  const { catalogue, progress, daily, setCardReturnTab } = useApp()
+  const { catalogue, progress, daily, setCardReturnTab, displayName } = useApp()
   const [showStampCelebration, setShowStampCelebration] = useState(false)
   const [prevComplete, setPrevComplete] = useState(daily.isComplete)
 
@@ -42,7 +42,7 @@ export function HomeContent() {
       {/* Greeting */}
       <div>
         <h1 className="text-2xl font-extrabold">
-          Hi there!
+          {displayName ? `Hi, ${displayName}!` : 'Hi there!'}
         </h1>
         {allCompleted && (
           <p className="text-sm font-bold text-accent mt-1">
