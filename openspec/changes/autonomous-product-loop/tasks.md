@@ -431,3 +431,10 @@ Rouge Maintain: autonomous maintenance of deployed production systems.
 - [ ] FW.36 Phase progress streaming — emit periodic progress events (files changed, tests run, etc.) that the Slack newsroom and web dashboard can consume in real-time
 - [ ] FW.37 Handle phase prompts writing state.json — normalize `*-complete` suffixed states back to the expected state, or add pre/post guards that save and restore state.json around phase invocations
 - [ ] FW.38 README disclaimer — "experimental, not for production use, token-intensive" warning
+
+## Future Work — Visual Evolution Record
+
+- [ ] FW.39 QA gate screenshot capture — each QA gate run captures 3-5 representative screenshots of key screens. Store in `projects/<name>/screenshots/loop-<N>/` with descriptive filenames.
+- [ ] FW.40 Screenshot persistence across loops — screenshots persist as visual history. Each loop gets its own dated folder.
+- [ ] FW.41 Visual evolution GIF/timelapse generator — compile matching screenshots across loops into animated GIF or side-by-side comparison. ImageMagick `convert` for GIF generation.
+- [ ] FW.42 GStack browse screenshot integration — use `$B screenshot <path>` during QA gate for each key screen. Full-page capture, not viewport-only.
