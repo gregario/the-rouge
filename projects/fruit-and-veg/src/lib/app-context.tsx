@@ -5,7 +5,9 @@ import type { CatalogueItem, UserProgress, DailyChallenge, CategoryBadge } from 
 import { loadProgress, saveProgress, completeItem, updateStreak, addDailyStamp, getLocalDateString } from './progress'
 import { loadDailyChallenge, saveDailyChallenge, markCardCompleted, recordFeaturedItem } from './daily-challenge'
 import { generateBadges, checkNewBadges } from './badges'
+import { syncProgress } from './accounts'
 import type { TabName } from './navigation'
+import type { User } from '@supabase/supabase-js'
 
 interface AppState {
   catalogue: CatalogueItem[]
@@ -19,6 +21,9 @@ interface AppState {
   onCardComplete: (itemId: string, correctCount: number, totalCount: number) => CategoryBadge | null
   onDailyCardComplete: (cardId: string) => boolean
   dismissBadge: () => void
+  displayName: string | null
+  user: User | null
+  setUser: (user: User | null) => void
 }
 
 const AppContext = createContext<AppState | null>(null)
@@ -48,12 +53,31 @@ export function AppProvider({
   )
   const [newBadge, setNewBadge] = useState<CategoryBadge | null>(null)
   const [cardReturnTab, setCardReturnTab] = useState<TabName>('home')
+  const [user, setUser] = useState<User | null>(null)
+
+  const displayName = user?.user_metadata?.display_name || null
 
   const badges = useMemo(() => generateBadges(catalogue), [catalogue])
 
   useEffect(() => {
     saveProgress(progress)
-  }, [progress])
+    // Background sync if authenticated (AC-ACCT-05)
+    if (user?.email_confirmed_at) {
+      syncProgress({
+        completedItems: progress.completedItems,
+        completedAt: progress.completedAt,
+        categoryBadges: progress.categoryBadges,
+        currentStreak: progress.currentStreak,
+        longestStreak: progress.longestStreak,
+        lastPlayedDate: progress.lastPlayedDate,
+        dailyStamps: progress.dailyStamps,
+        totalQuizCorrect: progress.totalQuizCorrect,
+        totalQuizAnswered: progress.totalQuizAnswered,
+      }).catch(() => {
+        // Silently fail — offline resilience (AC-ACCT-09)
+      })
+    }
+  }, [progress, user])
 
   useEffect(() => {
     saveDailyChallenge(daily)
@@ -119,8 +143,11 @@ export function AppProvider({
       onCardComplete,
       onDailyCardComplete,
       dismissBadge,
+      displayName,
+      user,
+      setUser,
     }),
-    [catalogue, progress, daily, badges, newBadge, cardReturnTab, isRevisit, onCardComplete, onDailyCardComplete, dismissBadge]
+    [catalogue, progress, daily, badges, newBadge, cardReturnTab, isRevisit, onCardComplete, onDailyCardComplete, dismissBadge, displayName, user]
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

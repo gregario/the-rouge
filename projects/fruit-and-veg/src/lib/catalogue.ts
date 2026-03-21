@@ -5,10 +5,6 @@ export async function loadCatalogue(): Promise<CatalogueItem[]> {
   return catalogueData
 }
 
-export function getCatalogueSync(): CatalogueItem[] {
-  return catalogueData
-}
-
 export function getItemById(
   catalogue: CatalogueItem[],
   id: string

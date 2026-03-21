@@ -3,19 +3,9 @@ import type { CatalogueItem } from '@/lib/types'
 
 // This test validates the catalogue data against spec requirements
 // Import the actual catalogue data
-let catalogue: CatalogueItem[]
+import { catalogue } from '@/data/catalogue'
 
-try {
-  // Dynamic import to handle case where JSON doesn't exist yet
-  const data = await import('../../src/data/catalogue.json')
-  catalogue = data.default as CatalogueItem[]
-} catch {
-  catalogue = []
-}
-
-const shouldRun = catalogue.length > 0
-
-describe.skipIf(!shouldRun)('Catalogue Data Validation', () => {
+describe('Catalogue Data Validation', () => {
   // @criterion: AC-CAT-01
   // @criterion-hash: 67ea2fd8d630
   it('AC-CAT-01: All catalogue items load (minimum 60)', () => {
