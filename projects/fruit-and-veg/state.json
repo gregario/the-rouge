@@ -37,6 +37,7 @@
     "test-integrity",
     "qa-gate",
     "qa-fixing",
-    "test-integrity"
+    "test-integrity",
+    "qa-gate"
   ]
 }
