@@ -344,6 +344,19 @@
       ],
       "tests_added": 22,
       "tests_passing": 171
+    },
+    {
+      "task": "navigation-bugfix-and-cleanup",
+      "acceptance_criteria": [
+        "AC-CARD-08"
+      ],
+      "files_changed": [
+        "src/components/CardView.tsx",
+        "tests/components/CardView.test.tsx",
+        "src/app/api/accounts/route.ts"
+      ],
+      "tests_added": 1,
+      "tests_passing": 247
     }
   ],
   "skipped": [
@@ -364,6 +377,12 @@
       "reason": "Tab tap during card view — bottom nav is intentionally hidden during card view per AC-NAV-04. The spec acknowledges this interaction happens 'via swipe or gesture' which is acceptable behavior. The back button and in-card navigation handle card dismissal.",
       "blocker_type": "spec_contradiction",
       "unblocked_by": "Spec clarification on whether nav should be partially accessible during card view"
+    },
+    {
+      "task": "staging-deployment-attempt-2",
+      "reason": "Disk space exhausted (56MB free on /dev/disk3s5, Next.js build requires 500MB+). Build artifacts cleaned but insufficient space remains. The Supabase auth type error was fixed (signUp → signInWithOtp) but could not verify build succeeds due to ENOSPC.",
+      "blocker_type": "infrastructure",
+      "unblocked_by": "Free disk space on build machine (need 500MB+ for Next.js + OpenNext build pipeline)"
     }
   ],
   "divergences": [
@@ -516,6 +535,42 @@
         "src/components/CollectionView.tsx",
         "src/components/CardView.tsx"
       ]
+    },
+    {
+      "decision": "Fixed AC-CARD-08 sticker celebration bug: changed StickerCelebration isRevisit prop from render-time revisit to wasRevisitRef.current",
+      "context": "QA identified that first completions showed \"You remembered!\" instead of \"New sticker!\". Root cause: CardView.tsx line 24 computes revisit at render time, so when onCardComplete updates progress state, React re-renders and recalculates revisit=true before StickerCelebration mounts.",
+      "alternatives_considered": [
+        "Move onCardComplete call after setPhase(celebration)",
+        "Use a separate state variable for celebration revisit status",
+        "Compute revisit inside handleQuizComplete and pass via state"
+      ],
+      "rationale": "wasRevisitRef was already capturing the pre-mutation state on line 46 but was not being used for the celebration prop. Using the ref is the minimal, correct fix — it captures the revisit state before onCardComplete mutates progress.",
+      "confidence": "high",
+      "affects": [
+        "src/components/CardView.tsx"
+      ]
+    },
+    {
+      "decision": "Fixed Supabase auth API route: changed signUp to signInWithOtp for magic link flow",
+      "context": "Build failed because supabase.auth.signUp requires a password parameter, but the accounts feature uses magic link (passwordless) auth. This was blocking staging deployment.",
+      "alternatives_considered": [
+        "Add a dummy password to signUp call",
+        "Use @ts-ignore to suppress the type error",
+        "Remove the API route entirely"
+      ],
+      "rationale": "signInWithOtp is the correct Supabase v2 method for passwordless magic link authentication. This is both the type-correct and semantically correct fix.",
+      "confidence": "high",
+      "affects": [
+        "src/app/api/accounts/route.ts"
+      ]
+    },
+    {
+      "decision": "Dead code already cleaned in prior tasks — no additional cleanup needed",
+      "context": "QA identified dead code: catalogue.json, getCatalogueSync, 3 navigation.ts functions. Verified all were already removed in prior building phase tasks.",
+      "alternatives_considered": [],
+      "rationale": "Prior tasks in this cycle already addressed the dead code. Grep confirmed only references remain in cycle_context.json history.",
+      "confidence": "high",
+      "affects": []
     }
   ],
   "factory_questions": [
@@ -1092,7 +1147,7 @@
       "performance_10pct": 8.5,
       "accessibility_10pct": 8.2,
       "design_10pct": 8.5,
-      "test_coverage_10pct": 9.0,
+      "test_coverage_10pct": 9,
       "ai_code_audit_5pct": 3.85,
       "raw_total": 85.65,
       "deductions": [
@@ -1391,10 +1446,12 @@
   },
   "po_review_report": null,
   "infrastructure": {
-    "staging_url": null,
+    "staging_url": "https://fruit-and-veg-staging.gregj64.workers.dev",
     "production_url": null,
     "supabase_ref": null,
-    "sentry_dsn": null
+    "sentry_dsn": null,
+    "supabase_url": "https://mnasglmapdsrysmrozbh.supabase.co",
+    "supabase_anon_key": null
   },
   "qa_fix_results": {
     "phase": "qa-fixing",
@@ -1801,8 +1858,8 @@
   },
   "previous_cycles": [],
   "supabase": {
-    "project_ref": null,
-    "slot_acquired": false,
-    "connection_string": null
+    "project_ref": "mnasglmapdsrysmrozbh",
+    "slot_acquired": true,
+    "connection_string": "https://mnasglmapdsrysmrozbh.supabase.co"
   }
 }
