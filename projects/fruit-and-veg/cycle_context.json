@@ -700,7 +700,7 @@
     "todo_tests": 11,
     "todo_breakdown": "11 accounts backend criteria requiring real email flow (AC-ACCT-03 through AC-ACCT-11, AC-ACCT-13 — tests exist as .todo)",
     "verdict": "PASS",
-    "verdict_note": "Cycle 1 run 6 (navigation feature area): Full traceability analysis confirms 72/72 acceptance criteria and 9/9 PO checks have @criterion/@po-check annotated test coverage (100%). No coverage gaps, no orphaned tests, no stale tests — specs unchanged since initial commit. 23 test files, 268 passing, 0 failing, 11 todo. No remediation needed."
+    "verdict_note": "Cycle 1 run 7 (navigation feature area): Full traceability analysis confirms 72/72 acceptance criteria and 9/9 PO checks have @criterion/@po-check annotated test coverage (100%). No coverage gaps, no orphaned tests, no stale tests — specs unchanged since initial commit. 23 test files, 268 passing, 0 failing, 11 todo. No remediation needed."
   },
   "evaluator_observations": [
     {
@@ -788,18 +788,30 @@
       "cycle": 1,
       "timestamp": "2026-03-21T14:24:00.000Z",
       "observation": "QA Gate cycle 1 run 5 (post qa-fixing run 5, no code changes): FAIL verdict — 83.3% criteria pass rate (below 90% threshold). Health score 80/100 (unchanged from run 4). Full browser testing on staging via headless Chromium confirms all functionality working: Homepage renders daily challenge with featured card + zero state. Collection page shows 75 items with working category filters (All 75, Fruits 27, Berries 8). Card view: card flip animation works, fun facts display with highlighted words, coloured circle fallback renders. Garden page: streak counter, 10 badge slots, stats section, CTA button. Settings panel: slide-in overlay, form validation (Create Account disabled until valid email + guardian checkbox). API routes respond correctly (401 unauthed, 400 invalid input). Only console errors: expected image 404s (Pixabay not configured). Build clean, 0 npm vulnerabilities, 0 console statements, 0 TODO/FIXME. 268 tests passing, 0 failing, 11 todo. Zero CRITICAL findings. All 12 PARTIAL criteria unchanged — 9 accounts (code-complete, untestable without real email), 1 infrastructure (Pixabay), 1 architectural divergence (card animation), 1 spec contradiction (NAV-06). No code-fixable issues remain. All criteria have >= 3 fix attempts. Escalation to human required for: (1) accepting code-review + unit-test verification for account flows, (2) Pixabay API key, (3) PO ruling on AC-CARD-02 and AC-NAV-06."
+    },
+    {
+      "phase": "test-integrity",
+      "cycle": 1,
+      "timestamp": "2026-03-21T14:35:00.000Z",
+      "observation": "Cycle 1 run 7 (navigation feature area): Full traceability analysis confirms 72/72 acceptance criteria and 9/9 PO checks have @criterion/@po-check annotated test coverage (100%). Zero coverage gaps. Zero orphaned tests — all annotated criterion IDs map to valid spec criteria across 23 test files. Zero stale tests — spec files unchanged since initial commit. Test suite: 23 files, 268 passing, 0 failing, 11 todo (accounts backend requiring real email flow). No remediation needed. Verdict: PASS."
+    },
+    {
+      "phase": "qa-gate",
+      "cycle": 1,
+      "timestamp": "2026-03-21T14:40:00.000Z",
+      "observation": "QA Gate cycle 1 run 6 (no code changes since run 4): FAIL verdict — 83.3% criteria pass rate (below 90% threshold). Health score 80/100 (unchanged). Full interactive browser testing on staging via headless Chromium confirms all functionality working: Homepage loads with daily challenge (150ms TTFB, 611ms full load). Card flow verified end-to-end: card flip → fun facts → Quiz me → colour-match circles → where-grow emoji → auto-advance 1.5s → sticker celebration 'New sticker!' → See collection → Collection shows '1/75 collected'. Category filter: Fruits=27 items. Garden: progress stats update. Settings panel: Create Account correctly disabled until valid email + guardian checkbox. API routes: 401 unauthed, 400 invalid input. 268 tests passing, 0 failing, 11 todo. 0 npm vulnerabilities. Zero code changes since run 4 — results identical to runs 4-5. All 12 PARTIAL criteria are non-code-fixable: 9 accounts (code-complete, untestable without real email), 1 Pixabay infrastructure, 1 spec contradiction (NAV-06), 1 architectural divergence (CARD-02). QA-test-fix loop has stabilised — 3 consecutive runs with identical results. Escalation required: (1) accept code-review verification for account flows, (2) Pixabay API key, (3) PO rulings on AC-CARD-02 and AC-NAV-06."
     }
   ],
   "qa_report": {
     "verdict": "FAIL",
-    "run": 5,
-    "timestamp": "2026-03-21T14:24:00.000Z",
+    "run": 6,
+    "timestamp": "2026-03-21T14:40:00.000Z",
     "diff_scope": {
       "frontend": true,
       "backend": false
     },
     "changes_since_last_run": [
-      "No code changes — qa-fixing run 5 made 0 commits. All remaining PARTIAL criteria are non-code-fixable."
+      "No code changes — qa-fixing run 6 made 0 commits. All remaining PARTIAL criteria are non-code-fixable. This is the 6th QA gate run with identical results since run 4."
     ],
     "criteria_results": [
       {
@@ -1241,7 +1253,7 @@
       "partial": 12,
       "fail": 0,
       "pass_rate_pct": 83.3,
-      "note": "Run 5: No code changes since run 4 — qa-fixing run 5 confirmed no actionable fixes remain. Results identical to run 4. 83.3% pass rate (below 90% threshold). Zero FAIL criteria — all 12 non-pass are PARTIAL. 9 account criteria are code-complete but untestable without real email flow. 3 are documented divergence/spec contradiction/infrastructure. Browser testing on staging confirmed all pages + interactions functional.",
+      "note": "Run 6: No code changes since run 4 — qa-fixing runs 5-6 confirmed no actionable fixes remain. Results identical to runs 4-5. 83.3% pass rate (below 90% threshold). Zero FAIL criteria — all 12 non-pass are PARTIAL. 9 account criteria are code-complete but untestable without real email flow. 3 are documented divergence/spec contradiction/infrastructure. Full browser testing on staging confirmed all pages load, interactive flows work (card flip, quiz auto-advance, celebration, filters, settings validation, progress tracking). Loop should break — escalation required.",
       "fail_root_causes": {
         "code_exists_but_untestable_email_flow": 9,
         "infrastructure_image_sourcing": 1,
@@ -1293,7 +1305,7 @@
       "build_status": "pass",
       "test_status": "268 passing, 0 failing, 11 todo",
       "method": "staging_browser_and_curl",
-      "note": "Run 5: Full browser testing on staging (fruit-and-veg-staging.gregj64.workers.dev) via headless Chromium. All 5 pages HTTP 200 (285ms TTFB). Homepage renders daily challenge (Lettuce featured card), zero state messaging, bottom nav. Collection shows 75 items with working category filters (All/Fruits/Vegetables/Berries). Card view renders with coloured circle fallback, card flip animation works, fun facts display with highlighted words. Garden shows streak counter, 10 badge slots, stats section. Settings panel slides in with form validation (disabled button until valid email + checkbox). API routes: GET /api/progress → 401, DELETE /api/accounts → 401, POST /api/accounts {} → 400. Only console errors are expected image 404s (Pixabay not configured). 268 tests passing, 0 failing, 11 todo. Build clean, TypeScript strict."
+      "note": "Run 6: Full browser testing on staging (fruit-and-veg-staging.gregj64.workers.dev) via headless Chromium. All 5 pages HTTP 200 (150ms TTFB, 611ms full load). Homepage renders daily challenge (Lettuce featured card), '1 cards today!' after Apple completion. Collection shows 75 items with working category filters (Fruits=27 confirmed). Card view: card flip works, fun facts display, quiz auto-advances after 1.5s, colour-match shows circles, where-grow shows emoji, sticker celebration shows 'New sticker!' correctly (AC-CARD-08 verified). Garden shows updated stats ('You've learned 1 fruits and veggies!'). Settings panel: form validation works (Create Account disabled→enabled on valid email + checkbox). API routes: GET /api/progress → 401, POST /api/accounts {} → 400. Only console errors: expected image 404s. 268 tests passing, 0 failing, 11 todo."
     },
     "health_score": 80,
     "health_score_breakdown": {
@@ -1315,7 +1327,7 @@
       ],
       "wtf_per_minute": 0,
       "wtf_deduction": 0,
-      "note": "Run 5: Score holds at 80 (no code changes since run 4). Zero FAIL criteria. Dead code minimal (2 unused types). 268 tests passing. All pages browser-verified on staging. Main gap remains: 9 account criteria code-complete but untestable without real email flow. 3 criteria are spec/infrastructure/divergence issues."
+      "note": "Run 6: Score holds at 80 (no code changes since run 4). Zero FAIL criteria. Dead code minimal (2 unused types). 268 tests passing. Full interactive browser testing on staging verified all flows including quiz completion, celebration, progress tracking, settings validation. Main gap unchanged: 9 account criteria code-complete but untestable without real email flow. 3 criteria are spec/infrastructure/divergence issues. Loop has stabilised — no further score improvement possible without human intervention."
     },
     "performance_baseline": {
       "perf_metrics": {
@@ -1639,9 +1651,9 @@
   },
   "qa_fix_results": {
     "phase": "qa-fixing",
-    "run": 5,
+    "run": 6,
     "cycle": 1,
-    "timestamp": "2026-03-21T15:30:00.000Z",
+    "timestamp": "2026-03-21T16:00:00.000Z",
     "criteria_fixed": [],
     "criteria_escalated": [
       {
@@ -1683,14 +1695,14 @@
       {
         "criterion_id": "AC-ACCT-06",
         "attempts_total": 5,
-        "reason": "Code fixed in run 4 (getProgress() called on auth). Still PARTIAL because QA cannot browser-verify without real authenticated session. No new code fix possible — the implementation is correct.",
-        "hypothesis": "Code is complete and unit-tested. QA gate limitation — cannot create real authenticated sessions for browser verification."
+        "reason": "Code fixed in run 4 (getProgress() called on auth). Still PARTIAL because QA cannot browser-verify without real authenticated session.",
+        "hypothesis": "Code is complete and unit-tested. QA gate limitation."
       },
       {
         "criterion_id": "AC-ACCT-07",
         "attempts_total": 5,
-        "reason": "Code fixed in run 4 (conflict-resolution.ts + ConflictResolutionDialog, 17 tests). Still PARTIAL because QA cannot browser-verify without conflicting data across sessions.",
-        "hypothesis": "Code is complete and unit-tested. QA gate limitation — cannot simulate real multi-device conflict scenario."
+        "reason": "Code fixed in run 4 (conflict-resolution.ts + ConflictResolutionDialog, 17 tests). Still PARTIAL because QA cannot simulate real multi-device conflict.",
+        "hypothesis": "Code is complete and unit-tested. QA gate limitation."
       },
       {
         "criterion_id": "AC-ACCT-08",
@@ -1701,8 +1713,8 @@
       {
         "criterion_id": "AC-ACCT-09",
         "attempts_total": 5,
-        "reason": "Code fixed in run 4 (SyncIndicator component, 4 tests). Still PARTIAL because QA cannot browser-verify sync states without authenticated session.",
-        "hypothesis": "Code is complete and unit-tested. QA gate limitation — sync indicator only visible when user has an account."
+        "reason": "Code fixed in run 4 (SyncIndicator component, 4 tests). Still PARTIAL because sync indicator only visible with authenticated session.",
+        "hypothesis": "Code is complete and unit-tested. QA gate limitation."
       },
       {
         "criterion_id": "AC-ACCT-10",
@@ -1721,15 +1733,15 @@
     "deployment_url": "https://fruit-and-veg-staging.gregj64.workers.dev",
     "total_commits": 0,
     "escalation_needed": true,
-    "escalation_summary": "All 12 remaining PARTIAL criteria have >= 3 attempts. Zero are code bugs. Breakdown: 9 account criteria are code-complete + unit-tested but QA gate cannot browser-verify without real email/auth flow. 1 infrastructure blocker (Pixabay images). 1 architectural divergence (card animation, needs PO). 1 spec contradiction (NAV-04 vs NAV-06, needs spec clarification). No code changes possible — this requires human decisions on: (1) accepting code-review + unit-test verification for account flows, (2) provisioning Pixabay API, (3) PO ruling on card animation and nav spec contradiction.",
+    "escalation_summary": "Run 6: All 12 PARTIAL criteria have >= 3 attempts. This is a repeat escalation — run 5 already escalated all criteria. Zero code changes possible. Human decisions required: (1) accept code-review + unit-test verification for 9 account flows, (2) provision Pixabay API for AC-CAT-02, (3) PO ruling on AC-CARD-02 animation divergence and AC-NAV-06 spec contradiction.",
     "phase_decisions": [
       {
-        "decision": "No code changes made — all remaining PARTIAL criteria are either infrastructure blockers, spec issues, or code-complete but unverifiable by browser QA",
-        "rationale": "The QA report itself notes 'All code-fixable issues resolved' with zero fix_tasks. The 12 PARTIAL criteria break down as: 9 account flows (code exists, tested, needs real email), 1 image infrastructure, 1 architectural divergence, 1 spec contradiction. Retrying any of these would produce no new information.",
+        "decision": "Immediate exit — all criteria already escalated in previous run",
+        "rationale": "Run 5 already set escalation_needed=true for all 12 PARTIAL criteria. No new information exists. The qa_report confirms 0 fix_tasks and 'All code-fixable issues resolved.' This run is a no-op by design — the launcher should transition to waiting-for-human.",
         "confidence": "high"
       }
     ],
-    "evaluator_observation": "QA-fixing run 5 invoked with all criteria at >= 3 attempts. No actionable code fixes remain. The qa_report.fix_tasks_note from run 4 confirms: 'All code-fixable issues resolved.' Transitioning to human escalation."
+    "evaluator_observation": "QA-fixing run 6 invoked despite run 5 already escalating all criteria. All 12 PARTIAL criteria have attempts >= 3. No code changes made. No redeploy needed. The loop should break here — the launcher must transition to waiting-for-human or the next cycle phase."
   },
   "retry_counts": {
     "AC-ACCT-03": {
