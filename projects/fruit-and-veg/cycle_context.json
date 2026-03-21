@@ -700,7 +700,7 @@
     "todo_tests": 11,
     "todo_breakdown": "11 accounts backend criteria requiring real email flow (AC-ACCT-03 through AC-ACCT-11, AC-ACCT-13 — tests exist as .todo)",
     "verdict": "PASS",
-    "verdict_note": "Cycle 1 run 5 (navigation feature area): Full traceability analysis confirms 72/72 acceptance criteria and 9/9 PO checks have @criterion/@po-check annotated test coverage (100%). No coverage gaps, no orphaned tests, no stale tests — specs unchanged since initial commit. 23 test files, 268 passing, 0 failing, 11 todo. No remediation needed."
+    "verdict_note": "Cycle 1 run 6 (navigation feature area): Full traceability analysis confirms 72/72 acceptance criteria and 9/9 PO checks have @criterion/@po-check annotated test coverage (100%). No coverage gaps, no orphaned tests, no stale tests — specs unchanged since initial commit. 23 test files, 268 passing, 0 failing, 11 todo. No remediation needed."
   },
   "evaluator_observations": [
     {
@@ -776,22 +776,30 @@
       "cycle": 1,
       "timestamp": "2026-03-21T14:15:00.000Z",
       "observation": "QA Gate cycle 1 run 4 (post qa-fixing run 4): FAIL verdict — 83.3% criteria pass rate (below 90% threshold). Health score 80/100 (+2 from run 3). Zero FAIL criteria (was 5 in run 3) — all 12 non-pass are PARTIAL. Improvements: AC-ACCT-13 upgraded PARTIAL→PASS (displayName wired + unit tested). AC-ACCT-07 upgraded FAIL→PARTIAL (full conflict resolution with detectConflict/mergeProgress/dialog + 17 tests). AC-ACCT-06 improved (getProgress() now called on auth). AC-ACCT-09 improved (SyncIndicator in AppShell header). Dead code fully resolved: 4 catalogue.ts helpers removed (4→2 minor dead types). AI code audit 83/100 (+2). Security PASS (carried forward, no backend changes). A11y PASS — new ConflictResolutionDialog has role=dialog, aria-label, aria-modal, 44px targets. Build clean, TypeScript strict, 268 tests passing (up from 247), 0 failing, 11 todo. Zero console.log, zero TODO/FIXME, 0 npm vulnerabilities. No code-fixable issues remain — all 12 PARTIAL criteria are infrastructure-blocked (1 Pixabay), spec contradiction (1 NAV-06), architectural divergence (1 CARD-02), or code-complete but untestable without real email flow (9 accounts). Staging verified: all pages HTTP 200, API routes correct status codes. No fix_tasks for builder."
+    },
+    {
+      "phase": "test-integrity",
+      "cycle": 1,
+      "timestamp": "2026-03-21T14:21:00.000Z",
+      "observation": "Cycle 1 run 6 (navigation feature area): Full traceability analysis confirms 72/72 acceptance criteria and 9/9 PO checks have @criterion/@po-check annotated test coverage (100%). Zero coverage gaps. Zero orphaned tests — all annotated criterion IDs map to valid spec criteria. Zero stale tests — spec files unchanged since initial commit. Test suite: 23 files, 268 passing, 0 failing, 11 todo (accounts backend requiring real email flow). No remediation needed. Verdict: PASS."
+    },
+    {
+      "phase": "qa-gate",
+      "cycle": 1,
+      "timestamp": "2026-03-21T14:24:00.000Z",
+      "observation": "QA Gate cycle 1 run 5 (post qa-fixing run 5, no code changes): FAIL verdict — 83.3% criteria pass rate (below 90% threshold). Health score 80/100 (unchanged from run 4). Full browser testing on staging via headless Chromium confirms all functionality working: Homepage renders daily challenge with featured card + zero state. Collection page shows 75 items with working category filters (All 75, Fruits 27, Berries 8). Card view: card flip animation works, fun facts display with highlighted words, coloured circle fallback renders. Garden page: streak counter, 10 badge slots, stats section, CTA button. Settings panel: slide-in overlay, form validation (Create Account disabled until valid email + guardian checkbox). API routes respond correctly (401 unauthed, 400 invalid input). Only console errors: expected image 404s (Pixabay not configured). Build clean, 0 npm vulnerabilities, 0 console statements, 0 TODO/FIXME. 268 tests passing, 0 failing, 11 todo. Zero CRITICAL findings. All 12 PARTIAL criteria unchanged — 9 accounts (code-complete, untestable without real email), 1 infrastructure (Pixabay), 1 architectural divergence (card animation), 1 spec contradiction (NAV-06). No code-fixable issues remain. All criteria have >= 3 fix attempts. Escalation to human required for: (1) accepting code-review + unit-test verification for account flows, (2) Pixabay API key, (3) PO ruling on AC-CARD-02 and AC-NAV-06."
     }
   ],
   "qa_report": {
     "verdict": "FAIL",
-    "run": 4,
-    "timestamp": "2026-03-21T14:15:00.000Z",
+    "run": 5,
+    "timestamp": "2026-03-21T14:24:00.000Z",
     "diff_scope": {
       "frontend": true,
       "backend": false
     },
     "changes_since_last_run": [
-      "AC-ACCT-13 fix: HomeContent greeting now uses displayName from AppContext (commit 25b177d)",
-      "AC-ACCT-07 fix: conflict-resolution.ts (detectConflict + mergeProgress) + ConflictResolutionDialog with 3 options (commit a92ef82)",
-      "AC-ACCT-06 fix: AppProvider now calls getProgress() on auth, loads server data on sign-in (commit a92ef82)",
-      "AC-ACCT-09 fix: SyncIndicator component added to AppShell header with syncStatus tracking (commit d34b53c)",
-      "Dead code fix: 4 unused catalogue.ts helpers removed + catalogue-helpers.test.ts deleted (commit fcb8ae9)"
+      "No code changes — qa-fixing run 5 made 0 commits. All remaining PARTIAL criteria are non-code-fixable."
     ],
     "criteria_results": [
       {
@@ -1233,7 +1241,7 @@
       "partial": 12,
       "fail": 0,
       "pass_rate_pct": 83.3,
-      "note": "Improvement from run 3 (77.8% → 83.3%). AC-ACCT-13 upgraded PARTIAL→PASS (displayName wired + tested). AC-ACCT-07 upgraded FAIL→PARTIAL (full conflict resolution implemented + 17 tests). AC-ACCT-06 improved (getProgress now called on auth). AC-ACCT-09 improved (SyncIndicator in main UI). Zero FAIL criteria — all 12 remaining non-pass are PARTIAL. 9 account criteria are code-complete but untestable without real email flow. 3 are documented divergence/spec contradiction/infrastructure.",
+      "note": "Run 5: No code changes since run 4 — qa-fixing run 5 confirmed no actionable fixes remain. Results identical to run 4. 83.3% pass rate (below 90% threshold). Zero FAIL criteria — all 12 non-pass are PARTIAL. 9 account criteria are code-complete but untestable without real email flow. 3 are documented divergence/spec contradiction/infrastructure. Browser testing on staging confirmed all pages + interactions functional.",
       "fail_root_causes": {
         "code_exists_but_untestable_email_flow": 9,
         "infrastructure_image_sourcing": 1,
@@ -1284,8 +1292,8 @@
       ],
       "build_status": "pass",
       "test_status": "268 passing, 0 failing, 11 todo",
-      "method": "staging_curl_and_code_inspection",
-      "note": "All 5 pages HTTP 200 on staging (fruit-and-veg-staging.gregj64.workers.dev). API routes respond correctly with proper status codes and validation. Build compiles cleanly with TypeScript strict. 268 tests pass (+21 from run 3), 0 failing, 11 todo (down from 15)."
+      "method": "staging_browser_and_curl",
+      "note": "Run 5: Full browser testing on staging (fruit-and-veg-staging.gregj64.workers.dev) via headless Chromium. All 5 pages HTTP 200 (285ms TTFB). Homepage renders daily challenge (Lettuce featured card), zero state messaging, bottom nav. Collection shows 75 items with working category filters (All/Fruits/Vegetables/Berries). Card view renders with coloured circle fallback, card flip animation works, fun facts display with highlighted words. Garden shows streak counter, 10 badge slots, stats section. Settings panel slides in with form validation (disabled button until valid email + checkbox). API routes: GET /api/progress → 401, DELETE /api/accounts → 401, POST /api/accounts {} → 400. Only console errors are expected image 404s (Pixabay not configured). 268 tests passing, 0 failing, 11 todo. Build clean, TypeScript strict."
     },
     "health_score": 80,
     "health_score_breakdown": {
@@ -1307,7 +1315,7 @@
       ],
       "wtf_per_minute": 0,
       "wtf_deduction": 0,
-      "note": "Score improved from 78 → 80 (+2). Zero FAIL criteria (was 5). Dead code fully resolved (4→0 items). AC-ACCT-07 implemented with full test coverage. AC-ACCT-13 fixed. AC-ACCT-06 and AC-ACCT-09 improved. 268 tests passing (up from 247). Main gap remains: account flows code-complete but untestable without real email."
+      "note": "Run 5: Score holds at 80 (no code changes since run 4). Zero FAIL criteria. Dead code minimal (2 unused types). 268 tests passing. All pages browser-verified on staging. Main gap remains: 9 account criteria code-complete but untestable without real email flow. 3 criteria are spec/infrastructure/divergence issues."
     },
     "performance_baseline": {
       "perf_metrics": {
@@ -1631,50 +1639,10 @@
   },
   "qa_fix_results": {
     "phase": "qa-fixing",
+    "run": 5,
     "cycle": 1,
-    "timestamp": "2026-03-21T13:53:00.000Z",
-    "criteria_fixed": [
-      {
-        "criterion_id": "AC-ACCT-13",
-        "root_cause": "code_bug",
-        "hypothesis": "HomeContent.tsx hardcoded 'Hi there!' instead of using displayName from AppContext",
-        "fix_description": "Destructured displayName from useApp() and conditionally rendered 'Hi, [name]!' when set, 'Hi there!' as fallback",
-        "files_changed": ["src/app/HomeContent.tsx"],
-        "test_added": "tests/components/HomeContent.test.tsx — AC-ACCT-13: shows 'Hi, Lily!' when displayName is 'Lily'",
-        "regression_test_added": "tests/components/HomeContent.test.tsx — REGRESSION: AC-ACCT-13 — greeting must not be hardcoded",
-        "commit_sha": "25b177d"
-      },
-      {
-        "criterion_id": "AC-ACCT-07",
-        "root_cause": "missing_implementation",
-        "hypothesis": "No conflict resolution code existed — no UI for comparing local vs server progress",
-        "fix_description": "Created conflict-resolution.ts (detectConflict + mergeProgress), ConflictResolutionDialog component with 3 options (Load saved / Keep device / Merge), wired into AppProvider to trigger on auth state change",
-        "files_changed": ["src/lib/conflict-resolution.ts", "src/components/ConflictResolutionDialog.tsx", "src/lib/app-context.tsx"],
-        "test_added": "tests/lib/conflict-resolution.test.ts (11 tests) + tests/components/ConflictResolutionDialog.test.tsx (6 tests)",
-        "regression_test_added": "tests/components/ConflictResolutionDialog.test.tsx — REGRESSION: AC-ACCT-07 — all three buttons have >=44px tap targets",
-        "commit_sha": "a92ef82"
-      },
-      {
-        "criterion_id": "AC-ACCT-06",
-        "root_cause": "missing_implementation",
-        "hypothesis": "AppProvider never called getProgress() on auth — only synced UP, never pulled DOWN",
-        "fix_description": "Added useEffect in AppProvider that calls getProgress() when user.email_confirmed_at becomes truthy, loads server data if local is empty, triggers conflict dialog if both have differing data",
-        "files_changed": ["src/lib/app-context.tsx"],
-        "test_added": "tests/components/SettingsPanel.test.tsx — AC-ACCT-06: getProgress() called on auth state change",
-        "regression_test_added": "tests/lib/conflict-resolution.test.ts covers the underlying detection logic",
-        "commit_sha": "a92ef82"
-      },
-      {
-        "criterion_id": "AC-ACCT-09",
-        "root_cause": "missing_implementation",
-        "hypothesis": "No sync status indicator in main UI — Cloud/CloudOff icons only visible in SettingsPanel",
-        "fix_description": "Created SyncIndicator component (Cloud/CloudOff/Loader2), added syncStatus to AppContext, wired into AppShell header",
-        "files_changed": ["src/components/SyncIndicator.tsx", "src/components/AppShell.tsx", "src/lib/app-context.tsx"],
-        "test_added": "tests/components/SyncIndicator.test.tsx (4 tests)",
-        "regression_test_added": "tests/components/SyncIndicator.test.tsx — renders nothing when idle (no account)",
-        "commit_sha": "d34b53c"
-      }
-    ],
+    "timestamp": "2026-03-21T15:30:00.000Z",
+    "criteria_fixed": [],
     "criteria_escalated": [
       {
         "criterion_id": "AC-CAT-02",
@@ -1693,49 +1661,75 @@
         "attempts_total": 3,
         "reason": "Spec contradiction — AC-NAV-04 requires bottom nav hidden during card view, making AC-NAV-06 impossible.",
         "hypothesis": "The spec contradicts itself. Needs spec clarification from product owner."
-      }
-    ],
-    "criteria_skipped": [
+      },
       {
         "criterion_id": "AC-ACCT-03",
-        "reason": "Code exists (SettingsPanel → createAccount → POST /api/accounts → signInWithOtp) but untestable without real email flow. Not a code bug."
+        "attempts_total": 3,
+        "reason": "Code complete (SettingsPanel → createAccount → POST /api/accounts → signInWithOtp). QA cannot browser-verify without real email flow. Not a code bug.",
+        "hypothesis": "Needs end-to-end testing with real Supabase email delivery or acceptance of code-review-based verification."
       },
       {
         "criterion_id": "AC-ACCT-04",
-        "reason": "Code exists (/auth/callback exchanges code for session) but untestable without real email verification. Not a code bug."
+        "attempts_total": 3,
+        "reason": "Code complete (/auth/callback exchanges code for session). QA cannot browser-verify without real email verification.",
+        "hypothesis": "Same root cause as AC-ACCT-03 — needs real email flow or alternative verification method."
       },
       {
         "criterion_id": "AC-ACCT-05",
-        "reason": "Code exists (useEffect syncs on progress change when authenticated) but untestable without real session. Not a code bug."
+        "attempts_total": 3,
+        "reason": "Code complete (useEffect syncs on progress change when authenticated). QA cannot browser-verify without authenticated session.",
+        "hypothesis": "Needs real authenticated session to verify sync behavior."
+      },
+      {
+        "criterion_id": "AC-ACCT-06",
+        "attempts_total": 5,
+        "reason": "Code fixed in run 4 (getProgress() called on auth). Still PARTIAL because QA cannot browser-verify without real authenticated session. No new code fix possible — the implementation is correct.",
+        "hypothesis": "Code is complete and unit-tested. QA gate limitation — cannot create real authenticated sessions for browser verification."
+      },
+      {
+        "criterion_id": "AC-ACCT-07",
+        "attempts_total": 5,
+        "reason": "Code fixed in run 4 (conflict-resolution.ts + ConflictResolutionDialog, 17 tests). Still PARTIAL because QA cannot browser-verify without conflicting data across sessions.",
+        "hypothesis": "Code is complete and unit-tested. QA gate limitation — cannot simulate real multi-device conflict scenario."
       },
       {
         "criterion_id": "AC-ACCT-08",
-        "reason": "Code exists (DELETE /api/accounts with confirmation dialog) but untestable without authenticated session. Not a code bug."
+        "attempts_total": 3,
+        "reason": "Code complete (DELETE /api/accounts with confirmation dialog). QA cannot browser-verify without authenticated session.",
+        "hypothesis": "Needs real authenticated session to verify deletion flow."
+      },
+      {
+        "criterion_id": "AC-ACCT-09",
+        "attempts_total": 5,
+        "reason": "Code fixed in run 4 (SyncIndicator component, 4 tests). Still PARTIAL because QA cannot browser-verify sync states without authenticated session.",
+        "hypothesis": "Code is complete and unit-tested. QA gate limitation — sync indicator only visible when user has an account."
       },
       {
         "criterion_id": "AC-ACCT-10",
-        "reason": "Code exists (resend visible after 30s timeout) but untestable without real email flow. Not a code bug."
+        "attempts_total": 3,
+        "reason": "Code complete (resend visible after 30s timeout). QA cannot browser-verify timing without real email flow.",
+        "hypothesis": "Needs real email flow or acceptance of code-review-based verification."
       },
       {
         "criterion_id": "AC-ACCT-11",
-        "reason": "Code exists (sign-in view with signInWithOtp) but untestable without real email flow. Not a code bug."
+        "attempts_total": 3,
+        "reason": "Code complete (sign-in view with signInWithOtp). QA cannot browser-verify without real email delivery.",
+        "hypothesis": "Needs real email flow or acceptance of code-review-based verification."
       }
     ],
+    "criteria_skipped": [],
     "deployment_url": "https://fruit-and-veg-staging.gregj64.workers.dev",
-    "total_commits": 4,
-    "escalation_needed": false,
+    "total_commits": 0,
+    "escalation_needed": true,
+    "escalation_summary": "All 12 remaining PARTIAL criteria have >= 3 attempts. Zero are code bugs. Breakdown: 9 account criteria are code-complete + unit-tested but QA gate cannot browser-verify without real email/auth flow. 1 infrastructure blocker (Pixabay images). 1 architectural divergence (card animation, needs PO). 1 spec contradiction (NAV-04 vs NAV-06, needs spec clarification). No code changes possible — this requires human decisions on: (1) accepting code-review + unit-test verification for account flows, (2) provisioning Pixabay API, (3) PO ruling on card animation and nav spec contradiction.",
     "phase_decisions": [
       {
-        "decision": "Reset retry counts for AC-ACCT-06, AC-ACCT-07, AC-ACCT-09, AC-ACCT-13 despite showing 3 previous attempts",
-        "rationale": "Previous 3 attempts were all 'infrastructure_blocker' assessments — Supabase was not provisioned. The building phase has since provisioned infrastructure and written backend code. Root causes changed from 'no infrastructure' to actual code bugs/missing implementations. Treating these as new issues with fresh attempt counts.",
-        "confidence": "high"
-      },
-      {
-        "decision": "Removed 4 dead catalogue.ts helper functions and their test file",
-        "rationale": "QA code audit flagged getItemById, getItemsByCategory, getItemsBySubcategory, getCategoryColor as dead code. Confirmed via grep — never imported outside catalogue.ts. Tests in catalogue-helpers.test.ts only tested the dead functions.",
+        "decision": "No code changes made — all remaining PARTIAL criteria are either infrastructure blockers, spec issues, or code-complete but unverifiable by browser QA",
+        "rationale": "The QA report itself notes 'All code-fixable issues resolved' with zero fix_tasks. The 12 PARTIAL criteria break down as: 9 account flows (code exists, tested, needs real email), 1 image infrastructure, 1 architectural divergence, 1 spec contradiction. Retrying any of these would produce no new information.",
         "confidence": "high"
       }
-    ]
+    ],
+    "evaluator_observation": "QA-fixing run 5 invoked with all criteria at >= 3 attempts. No actionable code fixes remain. The qa_report.fix_tasks_note from run 4 confirms: 'All code-fixable issues resolved.' Transitioning to human escalation."
   },
   "retry_counts": {
     "AC-ACCT-03": {
@@ -1808,7 +1802,7 @@
       ]
     },
     "AC-ACCT-06": {
-      "attempts": 4,
+      "attempts": 5,
       "history": [
         {
           "cycle": 1,
@@ -1833,11 +1827,17 @@
           "phase": "qa-fixing-run4",
           "what_tried": "Root cause changed: infrastructure now provisioned, code exists but getProgress() was never called on auth. Added useEffect in AppProvider that calls getProgress() when user authenticates. Server data loaded if local empty, conflict dialog shown if both differ.",
           "result": "fixed"
+        },
+        {
+          "cycle": 1,
+          "phase": "qa-fixing-run5",
+          "what_tried": "Code fix from run 4 is correct. QA still marks PARTIAL because it cannot create real authenticated sessions for browser verification. No code change possible. Escalating to human review.",
+          "result": "escalated"
         }
       ]
     },
     "AC-ACCT-07": {
-      "attempts": 4,
+      "attempts": 5,
       "history": [
         {
           "cycle": 1,
@@ -1862,6 +1862,12 @@
           "phase": "qa-fixing-run4",
           "what_tried": "Root cause changed: infrastructure now provisioned but no conflict resolution code existed. Created conflict-resolution.ts (detectConflict + mergeProgress), ConflictResolutionDialog component with 3 options, wired into AppProvider.",
           "result": "fixed"
+        },
+        {
+          "cycle": 1,
+          "phase": "qa-fixing-run5",
+          "what_tried": "Code fix from run 4 is correct (17 tests passing). QA still marks PARTIAL because it cannot simulate real multi-device conflict. No code change possible. Escalating to human review.",
+          "result": "escalated"
         }
       ]
     },
@@ -1889,7 +1895,7 @@
       ]
     },
     "AC-ACCT-09": {
-      "attempts": 4,
+      "attempts": 5,
       "history": [
         {
           "cycle": 1,
@@ -1914,6 +1920,12 @@
           "phase": "qa-fixing-run4",
           "what_tried": "Root cause changed: infrastructure provisioned but no sync indicator in main UI. Created SyncIndicator component (Cloud/CloudOff/Loader2), added syncStatus to AppContext, wired into AppShell header.",
           "result": "fixed"
+        },
+        {
+          "cycle": 1,
+          "phase": "qa-fixing-run5",
+          "what_tried": "Code fix from run 4 is correct (4 tests passing). QA still marks PARTIAL because sync indicator only visible with authenticated account. No code change possible. Escalating to human review.",
+          "result": "escalated"
         }
       ]
     },
