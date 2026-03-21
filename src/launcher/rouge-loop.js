@@ -170,6 +170,7 @@ function advanceState(projectDir) {
       next = 'building';
       state.cycle_number = (state.cycle_number || 0) + 1;
       state.qa_fix_attempts = 0;
+      state.completed_phases = []; // new cycle — reset checkpoints
       writeJson(stateFile, state);
       break;
 
@@ -186,6 +187,7 @@ function advanceState(projectDir) {
         state.current_feature_area = nextArea;
         state.cycle_number = (state.cycle_number || 0) + 1;
         state.qa_fix_attempts = 0;
+        state.completed_phases = []; // new feature area — reset checkpoints
         writeJson(stateFile, state);
         next = 'building';
         log(`[${projectName}] Advancing to feature area: ${nextArea}`);
@@ -203,6 +205,13 @@ function advanceState(projectDir) {
 
   if (next) {
     log(`[${projectName}] State transition: ${current} → ${next}`);
+
+    // Checkpoint: track completed phases in current cycle
+    if (!state.completed_phases) state.completed_phases = [];
+    if (!state.completed_phases.includes(current)) {
+      state.completed_phases.push(current);
+    }
+
     state.current_state = next;
     state.timestamp = new Date().toISOString();
     writeJson(stateFile, state);
@@ -229,10 +238,29 @@ function runPhase(projectDir) {
 
   let currentState = state.current_state;
 
-  // Check for feedback queue
-  if (currentState === 'waiting-for-human' && fs.existsSync(path.join(projectDir, 'feedback.json'))) {
-    log(`[${projectName}] Feedback found, transitioning from waiting-for-human`);
-    currentState = state.paused_from_state || 'building';
+  // Check for feedback queue or resume from waiting-for-human
+  if (currentState === 'waiting-for-human') {
+    // Only resume if there's feedback or if triggered by Slack resume command
+    if (!fs.existsSync(path.join(projectDir, 'feedback.json'))) return true;
+
+    log(`[${projectName}] Feedback found, resuming from checkpoint`);
+
+    // Use checkpoint to determine correct resume point
+    const completed = state.completed_phases || [];
+    const pipeline = ['building', 'test-integrity', 'qa-gate', 'po-reviewing', 'analyzing', 'vision-checking', 'promoting'];
+    let resumeState = state.paused_from_state || 'building';
+
+    // Find the next phase after the last completed checkpoint
+    if (completed.length > 0) {
+      const lastCompleted = completed[completed.length - 1];
+      const lastIdx = pipeline.indexOf(lastCompleted);
+      if (lastIdx >= 0 && lastIdx < pipeline.length - 1) {
+        resumeState = pipeline[lastIdx + 1];
+      }
+    }
+
+    log(`[${projectName}] Checkpoints: [${completed.join(', ')}] → resuming at ${resumeState}`);
+    currentState = resumeState;
     state.current_state = currentState;
     delete state.paused_from_state;
     writeJson(stateFile, state);
