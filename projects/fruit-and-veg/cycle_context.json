@@ -700,7 +700,7 @@
     "todo_tests": 11,
     "todo_breakdown": "11 accounts backend criteria requiring real email flow (AC-ACCT-03 through AC-ACCT-11, AC-ACCT-13 — tests exist as .todo)",
     "verdict": "PASS",
-    "verdict_note": "Cycle 1 run 8 (navigation feature area): Full traceability analysis confirms 72/72 acceptance criteria and 9/9 PO checks have @criterion/@po-check annotated test coverage (100%). No coverage gaps, no orphaned tests, no stale tests — specs unchanged since initial commit. 23 test files, 268 passing, 0 failing, 11 todo. No remediation needed."
+    "verdict_note": "Cycle 1 run 9 (navigation feature area): Full traceability analysis confirms 72/72 acceptance criteria and 9/9 PO checks have @criterion/@po-check annotated test coverage (100%). No coverage gaps, no orphaned tests, no stale tests — specs unchanged since initial commit. 23 test files, 268 passing, 0 failing, 11 todo. No remediation needed."
   },
   "evaluator_observations": [
     {
@@ -806,6 +806,12 @@
       "cycle": 1,
       "timestamp": "2026-03-21T14:55:00.000Z",
       "observation": "Cycle 1 run 8 (navigation feature area): Full traceability analysis confirms 72/72 acceptance criteria and 9/9 PO checks have @criterion/@po-check annotated test coverage (100%). Zero coverage gaps. Zero orphaned tests — all annotated criterion IDs map to valid spec criteria across 23 test files. Zero stale tests — spec files unchanged since initial commit. Test suite: 23 files, 268 passing, 0 failing, 11 todo (accounts backend requiring real email flow). No remediation needed. Verdict: PASS."
+    },
+    {
+      "phase": "test-integrity",
+      "cycle": 1,
+      "timestamp": "2026-03-21T15:03:00.000Z",
+      "observation": "Cycle 1 run 9 (navigation feature area): Full traceability analysis confirms 72/72 acceptance criteria and 9/9 PO checks have @criterion/@po-check annotated test coverage (100%). Zero coverage gaps. Zero orphaned tests — all annotated criterion IDs map to valid spec criteria across 23 test files. Zero stale tests — spec files unchanged since initial commit. Test suite: 23 files, 268 passing, 0 failing, 11 todo (accounts backend requiring real email flow). No remediation needed. Verdict: PASS."
     }
   ],
   "qa_report": {
@@ -1657,9 +1663,9 @@
   },
   "qa_fix_results": {
     "phase": "qa-fixing",
-    "run": 8,
+    "run": 9,
     "cycle": 1,
-    "timestamp": "2026-03-21T17:30:00.000Z",
+    "timestamp": "2026-03-21T18:00:00.000Z",
     "criteria_fixed": [],
     "criteria_escalated": [
       {
@@ -1739,15 +1745,15 @@
     "deployment_url": "https://fruit-and-veg-staging.gregj64.workers.dev",
     "total_commits": 0,
     "escalation_needed": true,
-    "escalation_summary": "Run 8: FOURTH consecutive no-op escalation (runs 5, 6, 7, 8). All 12 PARTIAL criteria have >= 3 attempts. Zero code changes possible. The loop MUST break NOW. Human decisions required: (1) accept code-review + unit-test verification for 9 account criteria that are code-complete but untestable by automated QA, (2) provision Pixabay API for AC-CAT-02, (3) PO ruling on AC-CARD-02 animation divergence and AC-NAV-06 spec contradiction.",
+    "escalation_summary": "Run 9: FIFTH consecutive no-op escalation (runs 5–9). All 12 PARTIAL criteria have >= 3 attempts. Zero code changes possible. The loop MUST break NOW. Human decisions required: (1) accept code-review + unit-test verification for 9 account criteria that are code-complete but untestable by automated QA, (2) provision Pixabay API for AC-CAT-02, (3) PO ruling on AC-CARD-02 animation divergence and AC-NAV-06 spec contradiction.",
     "phase_decisions": [
       {
-        "decision": "Immediate exit — all criteria already escalated in runs 5, 6, and 7",
-        "rationale": "This is the fourth consecutive no-op qa-fixing run. All 12 PARTIAL criteria have been escalated since run 5. The QA report has been identical since run 4 — 60 pass, 12 partial, 0 fail, health score 80. All code-fixable issues were resolved in runs 1-4. The remaining 12 are permanently blocked by: (a) QA gate inability to test authenticated flows (9 criteria — code complete with unit tests), (b) infrastructure not provisioned for image sourcing (1 criterion), (c) spec/design issues requiring human judgment (2 criteria). No further automated fixing can improve the score. The launcher MUST transition to waiting-for-human.",
+        "decision": "Immediate exit — all criteria already escalated in runs 5, 6, 7, and 8",
+        "rationale": "This is the fifth consecutive no-op qa-fixing run. All 12 PARTIAL criteria have been escalated since run 5. The QA report has been identical since run 4 — 60 pass, 12 partial, 0 fail, health score 80. All code-fixable issues were resolved in runs 1-4. The remaining 12 are permanently blocked by: (a) QA gate inability to test authenticated flows (9 criteria — code complete with unit tests), (b) infrastructure not provisioned for image sourcing (1 criterion), (c) spec/design issues requiring human judgment (2 criteria). No further automated fixing can improve the score. The launcher MUST transition to waiting-for-human.",
         "confidence": "high"
       }
     ],
-    "evaluator_observation": "CRITICAL: QA-fixing run 8 invoked despite runs 5, 6, and 7 all escalating all 12 criteria with identical results. This is the fourth consecutive no-op run. The qa-fixing → qa-gate loop is stuck in an infinite cycle at health 80. The launcher MUST break this loop immediately and transition to waiting-for-human or proceed to the next feature area. Continuing to invoke qa-fixing produces zero new information."
+    "evaluator_observation": "CRITICAL: QA-fixing run 9 invoked despite runs 5–8 all escalating all 12 criteria with identical results. This is the FIFTH consecutive no-op run. The qa-fixing → qa-gate loop is stuck in an infinite cycle at health 80. The launcher MUST break this loop immediately and transition to waiting-for-human or proceed to the next feature area. Continuing to invoke qa-fixing produces zero new information."
   },
   "retry_counts": {
     "AC-ACCT-03": {
