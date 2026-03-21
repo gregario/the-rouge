@@ -1,10 +1,30 @@
-import { render, screen, fireEvent, act } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock lucide-react icons
 vi.mock('lucide-react', () => ({
   Settings: () => <svg data-testid="settings-icon" />,
   X: () => <svg data-testid="close-icon" />,
+  Cloud: () => <svg data-testid="cloud-icon" />,
+  CloudOff: () => <svg data-testid="cloudoff-icon" />,
+  Loader2: () => <svg data-testid="loader-icon" />,
+}))
+
+// Mock Supabase client
+vi.mock('@/lib/supabase/client', () => ({
+  createSupabaseBrowser: () => ({
+    auth: {
+      getUser: () => Promise.resolve({ data: { user: null } }),
+      signOut: () => Promise.resolve(),
+    },
+  }),
+}))
+
+// Mock accounts module
+vi.mock('@/lib/accounts', () => ({
+  createAccount: vi.fn(),
+  signIn: vi.fn(),
+  deleteAccount: vi.fn(),
 }))
 
 import { SettingsButton } from '@/components/SettingsButton'
@@ -28,18 +48,23 @@ describe('AC-ACCT-01: settings accessible from any screen', () => {
     expect(screen.queryByText('Settings')).not.toBeInTheDocument()
   })
 
-  it('tapping the settings icon opens the settings panel', () => {
+  it('tapping the settings icon opens the settings panel', async () => {
     render(<SettingsButton />)
     const btn = screen.getByRole('button', { name: /settings/i })
     fireEvent.click(btn)
     expect(screen.getByText('Settings')).toBeInTheDocument()
-    expect(screen.getByText('Save Progress')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('Save Progress')).toBeInTheDocument()
+    })
   })
 
-  it('settings panel can be dismissed by tapping the close button', () => {
+  it('settings panel can be dismissed by tapping the close button', async () => {
     render(<SettingsButton />)
     fireEvent.click(screen.getByRole('button', { name: /settings/i }))
     expect(screen.getByText('Settings')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /close settings/i })).toBeInTheDocument()
+    })
     const closeBtn = screen.getByRole('button', { name: /close settings/i })
     fireEvent.click(closeBtn)
     expect(screen.queryByText('Save Progress')).not.toBeInTheDocument()
@@ -55,30 +80,41 @@ describe('AC-ACCT-01: settings accessible from any screen', () => {
 describe('AC-ACCT-02: account creation requires email and guardian checkbox', () => {
   const onClose = vi.fn()
 
-  it('Create Account button is disabled initially', () => {
+  it('Create Account button is disabled initially', async () => {
     render(<SettingsPanel onClose={onClose} />)
-    const btn = screen.getByRole('button', { name: /create account/i })
-    expect(btn).toBeDisabled()
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /create account/i })).toBeInTheDocument()
+    })
+    expect(screen.getByRole('button', { name: /create account/i })).toBeDisabled()
   })
 
-  it('Create Account button remains disabled with valid email but unchecked checkbox', () => {
+  it('Create Account button remains disabled with valid email but unchecked checkbox', async () => {
     render(<SettingsPanel onClose={onClose} />)
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('parent@example.com')).toBeInTheDocument()
+    })
     const emailInput = screen.getByPlaceholderText('parent@example.com')
     fireEvent.change(emailInput, { target: { value: 'parent@example.com' } })
     const btn = screen.getByRole('button', { name: /create account/i })
     expect(btn).toBeDisabled()
   })
 
-  it('Create Account button remains disabled with checkbox checked but no email', () => {
+  it('Create Account button remains disabled with checkbox checked but no email', async () => {
     render(<SettingsPanel onClose={onClose} />)
+    await waitFor(() => {
+      expect(screen.getByRole('checkbox')).toBeInTheDocument()
+    })
     const checkbox = screen.getByRole('checkbox')
     fireEvent.click(checkbox)
     const btn = screen.getByRole('button', { name: /create account/i })
     expect(btn).toBeDisabled()
   })
 
-  it('Create Account button remains disabled with invalid email and checked checkbox', () => {
+  it('Create Account button remains disabled with invalid email and checked checkbox', async () => {
     render(<SettingsPanel onClose={onClose} />)
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('parent@example.com')).toBeInTheDocument()
+    })
     const emailInput = screen.getByPlaceholderText('parent@example.com')
     fireEvent.change(emailInput, { target: { value: 'not-an-email' } })
     const checkbox = screen.getByRole('checkbox')
@@ -87,8 +123,11 @@ describe('AC-ACCT-02: account creation requires email and guardian checkbox', ()
     expect(btn).toBeDisabled()
   })
 
-  it('Create Account button is enabled with valid email AND checked checkbox', () => {
+  it('Create Account button is enabled with valid email AND checked checkbox', async () => {
     render(<SettingsPanel onClose={onClose} />)
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('parent@example.com')).toBeInTheDocument()
+    })
     const emailInput = screen.getByPlaceholderText('parent@example.com')
     fireEvent.change(emailInput, { target: { value: 'parent@example.com' } })
     const checkbox = screen.getByRole('checkbox')
@@ -208,9 +247,12 @@ describe('AC-ACCT-11: magic link sign-in (passwordless)', () => {
 describe('AC-ACCT-12: no child-facing account UI', () => {
   const onClose = vi.fn()
 
-  it('settings panel does not render inside main content (it is a portal/overlay)', () => {
+  it('settings panel does not render inside main content (it is a portal/overlay)', async () => {
     // SettingsPanel renders as a fixed overlay, not inside any main content area
     render(<SettingsPanel onClose={onClose} />)
+    await waitFor(() => {
+      expect(screen.getByText('Settings')).toBeInTheDocument()
+    })
     const panel = screen.getByText('Settings').closest('[class*="fixed"]')
     expect(panel).toBeInTheDocument()
     // The panel is fixed-positioned (overlay), not a child of main content
@@ -252,23 +294,32 @@ describe('AC-ACCT-13: display name shown in app', () => {
 describe('AC-ACCT-14: email validation', () => {
   const onClose = vi.fn()
 
-  it('shows error message when invalid email loses focus', () => {
+  it('shows error message when invalid email loses focus', async () => {
     render(<SettingsPanel onClose={onClose} />)
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('parent@example.com')).toBeInTheDocument()
+    })
     const emailInput = screen.getByPlaceholderText('parent@example.com')
     fireEvent.change(emailInput, { target: { value: 'not-valid' } })
     fireEvent.blur(emailInput)
     expect(screen.getByText('Please enter a valid email')).toBeInTheDocument()
   })
 
-  it('does not show error on blur when email field is empty', () => {
+  it('does not show error on blur when email field is empty', async () => {
     render(<SettingsPanel onClose={onClose} />)
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('parent@example.com')).toBeInTheDocument()
+    })
     const emailInput = screen.getByPlaceholderText('parent@example.com')
     fireEvent.blur(emailInput)
     expect(screen.queryByText('Please enter a valid email')).not.toBeInTheDocument()
   })
 
-  it('clears error when valid email is entered', () => {
+  it('clears error when valid email is entered', async () => {
     render(<SettingsPanel onClose={onClose} />)
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('parent@example.com')).toBeInTheDocument()
+    })
     const emailInput = screen.getByPlaceholderText('parent@example.com')
     fireEvent.change(emailInput, { target: { value: 'bad' } })
     fireEvent.blur(emailInput)
@@ -278,8 +329,11 @@ describe('AC-ACCT-14: email validation', () => {
     expect(screen.queryByText('Please enter a valid email')).not.toBeInTheDocument()
   })
 
-  it('email input has type="email" for mobile keyboard optimisation', () => {
+  it('email input has type="email" for mobile keyboard optimisation', async () => {
     render(<SettingsPanel onClose={onClose} />)
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('parent@example.com')).toBeInTheDocument()
+    })
     const emailInput = screen.getByPlaceholderText('parent@example.com')
     expect(emailInput).toHaveAttribute('type', 'email')
   })
