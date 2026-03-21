@@ -438,3 +438,14 @@ Rouge Maintain: autonomous maintenance of deployed production systems.
 - [ ] FW.40 Screenshot persistence across loops — screenshots persist as visual history. Each loop gets its own dated folder.
 - [ ] FW.41 Visual evolution GIF/timelapse generator — compile matching screenshots across loops into animated GIF or side-by-side comparison. ImageMagick `convert` for GIF generation.
 - [ ] FW.42 GStack browse screenshot integration — use `$B screenshot <path>` during QA gate for each key screen. Full-page capture, not viewport-only.
+
+## Discussion — Cost-Aware Testing
+
+NEEDS DISCUSSION: Some products built by Rouge will be AI-powered themselves (e.g., LLM API calls in the product). Testing these products during QA gate means the QA phase incurs real API costs from the product under test — not just Claude token costs from the Rouge loop itself.
+
+Questions:
+- How do we cap per-QA-run costs for products that call external APIs?
+- Should the QA gate use mock/stub APIs by default and only hit real APIs in a final validation phase?
+- How do we track and report "product testing cost" separately from "Rouge operating cost"?
+- Should there be a cost budget per loop that triggers waiting-for-human if exceeded?
+- How does this interact with Stripe test mode (we only use sandbox, but test API calls still exist)?
