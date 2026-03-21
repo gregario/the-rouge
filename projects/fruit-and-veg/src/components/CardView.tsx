@@ -22,6 +22,7 @@ export function CardView({ item }: { item: CatalogueItem }) {
   const [phase, setPhase] = useState<CardPhase>('front')
   const [isFlipping, setIsFlipping] = useState(false)
   const revisit = isRevisit(item.id)
+  const wasRevisitRef = useRef(revisit)
   const quizResultRef = useRef({ correct: 0, total: 0 })
   const [earnedBadge, setEarnedBadge] = useState<ReturnType<typeof onCardComplete>>(null)
 
@@ -41,6 +42,8 @@ export function CardView({ item }: { item: CatalogueItem }) {
   const handleQuizComplete = useCallback(
     (correctCount: number, totalCount: number) => {
       quizResultRef.current = { correct: correctCount, total: totalCount }
+      // Capture revisit state BEFORE onCardComplete mutates progress
+      wasRevisitRef.current = isRevisit(item.id)
       const badge = onCardComplete(item.id, correctCount, totalCount)
       setEarnedBadge(badge)
 
@@ -72,7 +75,7 @@ export function CardView({ item }: { item: CatalogueItem }) {
     return (
       <StickerCelebration
         item={item}
-        isRevisit={revisit}
+        isRevisit={wasRevisitRef.current}
         badge={earnedBadge}
         onSeeCollection={() => router.push('/collection')}
         onNextCard={() => router.push(returnPath)}
