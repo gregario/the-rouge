@@ -748,6 +748,12 @@
       "observation": "Cycle 1 run 4 (navigation feature area): Full traceability analysis confirms 72/72 acceptance criteria and 9/9 PO checks have annotated test coverage (100%). Zero coverage gaps. Zero orphaned tests. Zero stale tests — specs unchanged since last integrity run. No remediation needed. Test suite: 20 files, 252 passing, 0 failing, 15 todo (11 accounts backend + 4 Playwright PO checks). Verdict: PASS."
     },
     {
+      "phase": "qa-fixing",
+      "cycle": 1,
+      "timestamp": "2026-03-21T13:53:00.000Z",
+      "observation": "Cycle 1 QA-fixing run 4 (post infrastructure provisioning): 4 criteria fixed with code changes. AC-ACCT-13: HomeContent greeting now uses displayName from context. AC-ACCT-07: Full conflict resolution implemented — detectConflict(), mergeProgress(), ConflictResolutionDialog with 3 options (Load saved / Keep device / Merge). AC-ACCT-06: AppProvider now calls getProgress() on auth, loading server data on sign-in. AC-ACCT-09: SyncIndicator component added to AppShell header (Cloud/CloudOff/Loader2 based on syncStatus). Dead code: removed 4 unused catalogue.ts helpers and their test file. Previous retry_counts (3 attempts each) were all infrastructure_blocker assessments — root causes changed after building phase provisioned Supabase and wrote backend code, so fixes were attempted despite the count. 4 atomic commits, 268 tests pass (up from 247), 0 failing, 11 todo (down from 15). 6 criteria skipped (code exists but untestable without real email flow). 3 criteria still escalated (AC-CAT-02 Pixabay, AC-CARD-02 divergence, AC-NAV-06 spec contradiction). Successfully redeployed to staging."
+    },
+    {
       "phase": "building",
       "cycle": 1,
       "timestamp": "2026-03-21T13:30:00.000Z",
@@ -1654,104 +1660,110 @@
   "qa_fix_results": {
     "phase": "qa-fixing",
     "cycle": 1,
-    "timestamp": "2026-03-20T23:35:00.000Z",
-    "criteria_fixed": [],
-    "criteria_escalated": [
+    "timestamp": "2026-03-21T13:53:00.000Z",
+    "criteria_fixed": [
       {
-        "criterion_id": "AC-ACCT-03",
-        "attempts_total": 3,
-        "reason": "Infrastructure blocker — no Supabase project provisioned. Three attempts, same result each time. Cannot implement without backend.",
-        "hypothesis": "This is not a code issue. The entire accounts backend requires Supabase project provisioning before any account criteria can pass."
-      },
-      {
-        "criterion_id": "AC-ACCT-04",
-        "attempts_total": 3,
-        "reason": "Infrastructure blocker — no auth backend. Email verification requires Supabase Auth which does not exist.",
-        "hypothesis": "Same root cause as AC-ACCT-03. Supabase provisioning unblocks this."
-      },
-      {
-        "criterion_id": "AC-ACCT-05",
-        "attempts_total": 3,
-        "reason": "Infrastructure blocker — no sync backend. Progress sync requires Supabase database and API routes.",
-        "hypothesis": "Same root cause as AC-ACCT-03. Supabase provisioning unblocks this."
-      },
-      {
-        "criterion_id": "AC-ACCT-06",
-        "attempts_total": 3,
-        "reason": "Infrastructure blocker — no auth backend. Cross-device sign-in requires Supabase Auth.",
-        "hypothesis": "Same root cause as AC-ACCT-03. Supabase provisioning unblocks this."
+        "criterion_id": "AC-ACCT-13",
+        "root_cause": "code_bug",
+        "hypothesis": "HomeContent.tsx hardcoded 'Hi there!' instead of using displayName from AppContext",
+        "fix_description": "Destructured displayName from useApp() and conditionally rendered 'Hi, [name]!' when set, 'Hi there!' as fallback",
+        "files_changed": ["src/app/HomeContent.tsx"],
+        "test_added": "tests/components/HomeContent.test.tsx — AC-ACCT-13: shows 'Hi, Lily!' when displayName is 'Lily'",
+        "regression_test_added": "tests/components/HomeContent.test.tsx — REGRESSION: AC-ACCT-13 — greeting must not be hardcoded",
+        "commit_sha": "25b177d"
       },
       {
         "criterion_id": "AC-ACCT-07",
-        "attempts_total": 3,
-        "reason": "Infrastructure blocker — no sync backend. Conflict resolution requires server-side progress storage.",
-        "hypothesis": "Same root cause as AC-ACCT-03. Supabase provisioning unblocks this."
+        "root_cause": "missing_implementation",
+        "hypothesis": "No conflict resolution code existed — no UI for comparing local vs server progress",
+        "fix_description": "Created conflict-resolution.ts (detectConflict + mergeProgress), ConflictResolutionDialog component with 3 options (Load saved / Keep device / Merge), wired into AppProvider to trigger on auth state change",
+        "files_changed": ["src/lib/conflict-resolution.ts", "src/components/ConflictResolutionDialog.tsx", "src/lib/app-context.tsx"],
+        "test_added": "tests/lib/conflict-resolution.test.ts (11 tests) + tests/components/ConflictResolutionDialog.test.tsx (6 tests)",
+        "regression_test_added": "tests/components/ConflictResolutionDialog.test.tsx — REGRESSION: AC-ACCT-07 — all three buttons have >=44px tap targets",
+        "commit_sha": "a92ef82"
       },
       {
-        "criterion_id": "AC-ACCT-08",
-        "attempts_total": 3,
-        "reason": "Infrastructure blocker — no backend. Account deletion requires Supabase Auth + database.",
-        "hypothesis": "Same root cause as AC-ACCT-03. Supabase provisioning unblocks this."
+        "criterion_id": "AC-ACCT-06",
+        "root_cause": "missing_implementation",
+        "hypothesis": "AppProvider never called getProgress() on auth — only synced UP, never pulled DOWN",
+        "fix_description": "Added useEffect in AppProvider that calls getProgress() when user.email_confirmed_at becomes truthy, loads server data if local is empty, triggers conflict dialog if both have differing data",
+        "files_changed": ["src/lib/app-context.tsx"],
+        "test_added": "tests/components/SettingsPanel.test.tsx — AC-ACCT-06: getProgress() called on auth state change",
+        "regression_test_added": "tests/lib/conflict-resolution.test.ts covers the underlying detection logic",
+        "commit_sha": "a92ef82"
       },
       {
         "criterion_id": "AC-ACCT-09",
-        "attempts_total": 3,
-        "reason": "Infrastructure blocker — no backend. Offline mode with sync icon requires online/offline detection against a real server.",
-        "hypothesis": "Same root cause as AC-ACCT-03. Supabase provisioning unblocks this."
-      },
-      {
-        "criterion_id": "AC-ACCT-10",
-        "attempts_total": 3,
-        "reason": "Infrastructure blocker — no auth backend. Resend verification requires Supabase Auth email service.",
-        "hypothesis": "Same root cause as AC-ACCT-03. Supabase provisioning unblocks this."
-      },
-      {
-        "criterion_id": "AC-ACCT-11",
-        "attempts_total": 3,
-        "reason": "Infrastructure blocker — no auth backend. Magic link sign-in requires Supabase Auth.",
-        "hypothesis": "Same root cause as AC-ACCT-03. Supabase provisioning unblocks this."
-      },
-      {
-        "criterion_id": "AC-ACCT-13",
-        "attempts_total": 3,
-        "reason": "Infrastructure blocker — no user profile backend. Display name requires authenticated user profile storage.",
-        "hypothesis": "Same root cause as AC-ACCT-03. Supabase provisioning unblocks this."
-      },
+        "root_cause": "missing_implementation",
+        "hypothesis": "No sync status indicator in main UI — Cloud/CloudOff icons only visible in SettingsPanel",
+        "fix_description": "Created SyncIndicator component (Cloud/CloudOff/Loader2), added syncStatus to AppContext, wired into AppShell header",
+        "files_changed": ["src/components/SyncIndicator.tsx", "src/components/AppShell.tsx", "src/lib/app-context.tsx"],
+        "test_added": "tests/components/SyncIndicator.test.tsx (4 tests)",
+        "regression_test_added": "tests/components/SyncIndicator.test.tsx — renders nothing when idle (no account)",
+        "commit_sha": "d34b53c"
+      }
+    ],
+    "criteria_escalated": [
       {
         "criterion_id": "AC-CAT-02",
         "attempts_total": 3,
-        "reason": "Infrastructure blocker — Pixabay API key not configured. Image sourcing requires API pipeline setup. Fallback renders correctly.",
+        "reason": "Infrastructure blocker — Pixabay API key not configured. Image sourcing requires API pipeline setup.",
         "hypothesis": "Not a code issue. Requires Pixabay API key provisioning and a build-time image sourcing pipeline."
       },
       {
         "criterion_id": "AC-CARD-02",
         "attempts_total": 3,
-        "reason": "Documented architectural divergence — card view uses Next.js route navigation instead of origin-aware scaling animation. Not a bug.",
-        "hypothesis": "This is a design decision, not a defect. Origin-aware animation would require a custom animation system incompatible with Next.js App Router navigation. Needs PO/spec review to accept or redesign."
+        "reason": "Documented architectural divergence — card view uses Next.js route navigation instead of origin-aware scaling animation.",
+        "hypothesis": "Design decision, not a defect. Needs PO/spec review to accept or redesign."
       },
       {
         "criterion_id": "AC-NAV-06",
         "attempts_total": 3,
-        "reason": "Spec contradiction — AC-NAV-04 requires bottom nav hidden during card view, making AC-NAV-06 (tap tab during card view) impossible.",
-        "hypothesis": "The spec contradicts itself. AC-NAV-04 and AC-NAV-06 cannot both be satisfied. Needs spec clarification from product owner."
+        "reason": "Spec contradiction — AC-NAV-04 requires bottom nav hidden during card view, making AC-NAV-06 impossible.",
+        "hypothesis": "The spec contradicts itself. Needs spec clarification from product owner."
       }
     ],
-    "criteria_skipped": [],
+    "criteria_skipped": [
+      {
+        "criterion_id": "AC-ACCT-03",
+        "reason": "Code exists (SettingsPanel → createAccount → POST /api/accounts → signInWithOtp) but untestable without real email flow. Not a code bug."
+      },
+      {
+        "criterion_id": "AC-ACCT-04",
+        "reason": "Code exists (/auth/callback exchanges code for session) but untestable without real email verification. Not a code bug."
+      },
+      {
+        "criterion_id": "AC-ACCT-05",
+        "reason": "Code exists (useEffect syncs on progress change when authenticated) but untestable without real session. Not a code bug."
+      },
+      {
+        "criterion_id": "AC-ACCT-08",
+        "reason": "Code exists (DELETE /api/accounts with confirmation dialog) but untestable without authenticated session. Not a code bug."
+      },
+      {
+        "criterion_id": "AC-ACCT-10",
+        "reason": "Code exists (resend visible after 30s timeout) but untestable without real email flow. Not a code bug."
+      },
+      {
+        "criterion_id": "AC-ACCT-11",
+        "reason": "Code exists (sign-in view with signInWithOtp) but untestable without real email flow. Not a code bug."
+      }
+    ],
     "deployment_url": "https://fruit-and-veg-staging.gregj64.workers.dev",
-    "total_commits": 0,
-    "escalation_needed": true,
-    "escalation_details": {
-      "reason": "All 13 non-passing criteria have now reached 3 attempts with no new information available. Zero code bugs across all QA runs. 10 account criteria require Supabase project provisioning (infrastructure.supabase_ref is null). 1 criterion requires Pixabay API pipeline. 1 criterion is an architectural divergence needing PO acceptance. 1 criterion is a spec contradiction needing clarification. No code fixes are possible — human intervention required.",
-      "infrastructure_required": [
-        "Supabase project creation and configuration (unblocks AC-ACCT-03 through AC-ACCT-11, AC-ACCT-13)",
-        "Pixabay API key and image sourcing pipeline (unblocks AC-CAT-02)",
-        "Cloudflare Workers staging deployment (unblocks browser-based QA testing)"
-      ],
-      "spec_issues": [
-        "AC-NAV-06 contradicts AC-NAV-04 — needs spec clarification",
-        "AC-CARD-02 origin-aware animation — architectural decision needs PO acceptance or redesign"
-      ]
-    }
+    "total_commits": 4,
+    "escalation_needed": false,
+    "phase_decisions": [
+      {
+        "decision": "Reset retry counts for AC-ACCT-06, AC-ACCT-07, AC-ACCT-09, AC-ACCT-13 despite showing 3 previous attempts",
+        "rationale": "Previous 3 attempts were all 'infrastructure_blocker' assessments — Supabase was not provisioned. The building phase has since provisioned infrastructure and written backend code. Root causes changed from 'no infrastructure' to actual code bugs/missing implementations. Treating these as new issues with fresh attempt counts.",
+        "confidence": "high"
+      },
+      {
+        "decision": "Removed 4 dead catalogue.ts helper functions and their test file",
+        "rationale": "QA code audit flagged getItemById, getItemsByCategory, getItemsBySubcategory, getCategoryColor as dead code. Confirmed via grep — never imported outside catalogue.ts. Tests in catalogue-helpers.test.ts only tested the dead functions.",
+        "confidence": "high"
+      }
+    ]
   },
   "retry_counts": {
     "AC-ACCT-03": {
@@ -1824,7 +1836,7 @@
       ]
     },
     "AC-ACCT-06": {
-      "attempts": 3,
+      "attempts": 4,
       "history": [
         {
           "cycle": 1,
@@ -1843,11 +1855,17 @@
           "phase": "qa-fixing-run3",
           "what_tried": "Third assessment — same blocker. Escalating.",
           "result": "escalated"
+        },
+        {
+          "cycle": 1,
+          "phase": "qa-fixing-run4",
+          "what_tried": "Root cause changed: infrastructure now provisioned, code exists but getProgress() was never called on auth. Added useEffect in AppProvider that calls getProgress() when user authenticates. Server data loaded if local empty, conflict dialog shown if both differ.",
+          "result": "fixed"
         }
       ]
     },
     "AC-ACCT-07": {
-      "attempts": 3,
+      "attempts": 4,
       "history": [
         {
           "cycle": 1,
@@ -1866,6 +1884,12 @@
           "phase": "qa-fixing-run3",
           "what_tried": "Third assessment — same blocker. Escalating.",
           "result": "escalated"
+        },
+        {
+          "cycle": 1,
+          "phase": "qa-fixing-run4",
+          "what_tried": "Root cause changed: infrastructure now provisioned but no conflict resolution code existed. Created conflict-resolution.ts (detectConflict + mergeProgress), ConflictResolutionDialog component with 3 options, wired into AppProvider.",
+          "result": "fixed"
         }
       ]
     },
@@ -1893,7 +1917,7 @@
       ]
     },
     "AC-ACCT-09": {
-      "attempts": 3,
+      "attempts": 4,
       "history": [
         {
           "cycle": 1,
@@ -1912,6 +1936,12 @@
           "phase": "qa-fixing-run3",
           "what_tried": "Third assessment — same blocker. Escalating.",
           "result": "escalated"
+        },
+        {
+          "cycle": 1,
+          "phase": "qa-fixing-run4",
+          "what_tried": "Root cause changed: infrastructure provisioned but no sync indicator in main UI. Created SyncIndicator component (Cloud/CloudOff/Loader2), added syncStatus to AppContext, wired into AppShell header.",
+          "result": "fixed"
         }
       ]
     },
@@ -1962,7 +1992,7 @@
       ]
     },
     "AC-ACCT-13": {
-      "attempts": 3,
+      "attempts": 4,
       "history": [
         {
           "cycle": 1,
@@ -1981,6 +2011,12 @@
           "phase": "qa-fixing-run3",
           "what_tried": "Third assessment — same blocker. Escalating.",
           "result": "escalated"
+        },
+        {
+          "cycle": 1,
+          "phase": "qa-fixing-run4",
+          "what_tried": "Root cause changed: infrastructure provisioned, displayName available in AppContext but HomeContent hardcoded 'Hi there!'. Fixed to use conditional greeting with displayName.",
+          "result": "fixed"
         }
       ]
     },
