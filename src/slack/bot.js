@@ -281,6 +281,123 @@ function showHelp(say) {
   ].join('\n'));
 }
 
+// --- FW.14: App Home dashboard ---
+app.event('app_home_opened', async ({ event, client }) => {
+  try {
+    const projects = listProjects();
+
+    const projectBlocks = projects.length === 0
+      ? [{ type: 'section', text: { type: 'mrkdwn', text: '_No projects yet. Use `/rouge new <name>` to create one._' } }]
+      : projects.flatMap(name => {
+          const state = readState(name);
+          const seedState = getSeedingState(name);
+          const emoji = STATE_EMOJI[state?.current_state] || '❓';
+          const cycle = state?.cycle_number || 0;
+          const feature = state?.current_feature_area || 'n/a';
+          const qaAttempts = state?.qa_fix_attempts || 0;
+          const checkpoints = (state?.completed_phases || []).length;
+
+          let statusLine = `${emoji} *${name}* — \`${state?.current_state || 'unknown'}\``;
+          if (state?.current_state === 'seeding') {
+            statusLine += seedState?.status === 'active' ? ' _(active)_' : ' _(paused)_';
+          }
+
+          const blocks = [
+            { type: 'section', text: { type: 'mrkdwn', text: statusLine } },
+            {
+              type: 'context',
+              elements: [
+                { type: 'mrkdwn', text: `Cycle: ${cycle} | Feature: ${feature} | QA attempts: ${qaAttempts} | Checkpoints: ${checkpoints}` },
+              ],
+            },
+          ];
+
+          // Add action buttons based on state
+          const actions = [];
+          if (state?.current_state === 'ready') {
+            actions.push({ type: 'button', text: { type: 'plain_text', text: '🚀 Start' }, action_id: `start_${name}`, value: name, style: 'primary' });
+          }
+          if (state?.current_state !== 'waiting-for-human' && state?.current_state !== 'complete' && state?.current_state !== 'ready') {
+            actions.push({ type: 'button', text: { type: 'plain_text', text: '⏸️ Pause' }, action_id: `pause_${name}`, value: name });
+          }
+          if (state?.current_state === 'waiting-for-human') {
+            actions.push({ type: 'button', text: { type: 'plain_text', text: '▶️ Resume' }, action_id: `resume_${name}`, value: name, style: 'primary' });
+          }
+
+          if (actions.length > 0) {
+            blocks.push({ type: 'actions', elements: actions });
+          }
+
+          blocks.push({ type: 'divider' });
+          return blocks;
+        });
+
+    await client.views.publish({
+      user_id: event.user,
+      view: {
+        type: 'home',
+        blocks: [
+          {
+            type: 'header',
+            text: { type: 'plain_text', text: '🔴 Rouge Dashboard' },
+          },
+          {
+            type: 'context',
+            elements: [
+              { type: 'mrkdwn', text: `_Last updated: ${new Date().toLocaleString()}_` },
+            ],
+          },
+          { type: 'divider' },
+          ...projectBlocks,
+          {
+            type: 'section',
+            text: { type: 'mrkdwn', text: '`/rouge new <name>` to create a project | `/rouge status` for quick check' },
+          },
+        ],
+      },
+    });
+  } catch (err) {
+    console.error('App Home error:', err.message);
+  }
+});
+
+// --- FW.14: Action button handlers ---
+app.action(/^start_/, async ({ action, ack, respond }) => {
+  await ack();
+  const projectName = action.value;
+  const state = readState(projectName);
+  if (state && state.current_state === 'ready') {
+    state.current_state = 'building';
+    writeState(projectName, state);
+    await respond({ text: `🚀 Started \`${projectName}\`.` });
+  }
+});
+
+app.action(/^pause_/, async ({ action, ack, respond }) => {
+  await ack();
+  const projectName = action.value;
+  const state = readState(projectName);
+  if (state) {
+    state.paused_from_state = state.current_state;
+    state.current_state = 'waiting-for-human';
+    writeState(projectName, state);
+    await respond({ text: `⏸️ Paused \`${projectName}\`.` });
+  }
+});
+
+app.action(/^resume_/, async ({ action, ack, respond }) => {
+  await ack();
+  const projectName = action.value;
+  const state = readState(projectName);
+  if (state && state.current_state === 'waiting-for-human') {
+    const resumeTo = state.paused_from_state || 'building';
+    state.current_state = resumeTo;
+    delete state.paused_from_state;
+    writeState(projectName, state);
+    await respond({ text: `▶️ Resumed \`${projectName}\` → \`${resumeTo}\`.` });
+  }
+});
+
 app.event('app_mention', async ({ event, say }) => {
   const text = event.text.replace(/<@[^>]+>\s*/g, '').trim();
   const parts = text.split(/\s+/);
