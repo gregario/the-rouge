@@ -1,17 +1,3 @@
-export type AccountStatus =
-  | 'none'
-  | 'pending_verification'
-  | 'verified'
-  | 'loading'
-  | 'error'
-
-export interface AccountState {
-  status: AccountStatus
-  email: string | null
-  displayName: string | null
-  error: string | null
-}
-
 export async function createAccount(
   email: string,
   displayName: string,
