@@ -522,14 +522,14 @@ function checkBriefing() {
   log('Morning briefing triggered');
   fs.unlinkSync(triggerFile);
 
-  const projects = listProjects();
-  if (projects.length === 0) return;
-
-  const lines = projects.map(name => {
+  const projects = listProjects().map(name => {
     const state = readJson(path.join(PROJECTS_DIR, name, 'state.json'));
-    return `• ${name}: ${state?.current_state || '?'} (cycle ${state?.cycle_number || 0})`;
+    return { name, state: state?.current_state || '?', cycle: state?.cycle_number || 0 };
   });
-  notify(`☀️ Morning Briefing\n${lines.join('\n')}`);
+
+  if (projects.length > 0) {
+    notifyRich('briefing', { projects });
+  }
 }
 
 function listProjects() {
