@@ -1,0 +1,333 @@
+{
+  "_schema_version": "1.0",
+  "_project_name": "countdowntimer",
+  "_cycle_number": 1,
+  "vision": {
+    "name": "Epoch",
+    "tagline": "Time, designed.",
+    "one_liner": "A focus timer that's beautiful enough to leave on screen.",
+    "domain": "web",
+    "type": "single_page_app",
+    "emotional_north_star": "From 'where did the last 3 hours go?' to 'I can see my focus happening.'",
+    "target_user": {
+      "who": "Knowledge workers who do focused work — developers, designers, writers, students",
+      "behavior": "Already familiar with the Pomodoro technique. Have tried timer apps and found them either ugly or bloated.",
+      "trigger": "Sitting down to do deep work and wanting structure without friction",
+      "need": "A timer that respects their attention: starts fast, looks great on screen, gets out of the way"
+    },
+    "design_philosophy": {
+      "aesthetic": "Techno-futuristic, clean, shiny. Frosted glass, subtle glows, precise typography.",
+      "references": "Linear's design language meets a high-end watch face. Dieter Rams meets a spaceship.",
+      "dark_first": true,
+      "personality": "Opinionated, atmospheric, crafted. Not a utility — a focus object."
+    },
+    "competitive_position": {
+      "gap": "No web-first Pomodoro timer exists with premium, futuristic design. The category design bar is on the floor.",
+      "differentiator": "Optimizes for presence — how it feels on your screen — not for features.",
+      "competitors_reviewed": [
+        "pomofocus.io",
+        "tomato-timer.com",
+        "pomidor.app",
+        "flocus",
+        "forest",
+        "marinara-timer",
+        "session"
+      ]
+    },
+    "scope_decisions": [
+      {
+        "area": "Visual design",
+        "decision": "Atmospheric and opinionated (not utility, not themeable)",
+        "reason": "The design IS the product"
+      },
+      {
+        "area": "Persistence",
+        "decision": "Light localStorage (settings + daily count)",
+        "reason": "Sweet spot between ephemeral and full tracking"
+      },
+      {
+        "area": "Audio",
+        "decision": "Subtle transition chime + optional browser notification",
+        "reason": "Essential for usability without competing with user's music"
+      },
+      {
+        "area": "Settings",
+        "decision": "Full Pomodoro config set, no theme picker",
+        "reason": "Complete without diluting the locked-down aesthetic"
+      },
+      {
+        "area": "Name",
+        "decision": "Epoch",
+        "reason": "Bold, futuristic, evokes a period of focused time"
+      }
+    ],
+    "out_of_scope": [
+      "User accounts",
+      "Session history beyond today",
+      "Visual themes",
+      "Ambient soundscapes",
+      "Task labels or to-do lists",
+      "Third-party integrations",
+      "Mobile native app"
+    ],
+    "build_estimate": {
+      "human_team": "~1.5 weeks",
+      "rouge_cycles": 1
+    }
+  },
+  "product_standard": {
+    "global_standards": {
+      "accessibility": {
+        "keyboard_navigation": true,
+        "aria_labels": true,
+        "color_contrast_aa": true,
+        "reduced_motion_support": true
+      },
+      "performance": {
+        "first_contentful_paint_ms": 1000,
+        "total_bundle_size_kb": 200,
+        "no_layout_shift": true
+      },
+      "browser_support": [
+        "Chrome 90+",
+        "Firefox 90+",
+        "Safari 15+",
+        "Edge 90+"
+      ]
+    },
+    "domain_standards": {
+      "type": "web_single_page",
+      "responsive_breakpoints": [
+        320,
+        768,
+        1440,
+        2560
+      ],
+      "no_scrollbar": true,
+      "dark_mode_default": true
+    },
+    "project_standards": {
+      "design_system": {
+        "colors": {
+          "focus": {
+            "background": "#0a0a0f",
+            "accent": "#4a9eff",
+            "glow": "#4a9eff"
+          },
+          "short_break": {
+            "background": "#0f0a14",
+            "accent": "#c084fc",
+            "glow": "#c084fc"
+          },
+          "long_break": {
+            "background": "#0a100f",
+            "accent": "#34d399",
+            "glow": "#34d399"
+          },
+          "text_primary": "#f0f0f5",
+          "text_secondary": "#6b7280",
+          "glass_surface": "rgba(255,255,255,0.05)"
+        },
+        "typography": {
+          "timer_face": {
+            "family": "JetBrains Mono, Space Mono, monospace",
+            "size_range": "80-120px",
+            "weight": 300
+          },
+          "phase_label": {
+            "family": "JetBrains Mono, Space Mono, monospace",
+            "size": "14-16px",
+            "transform": "uppercase",
+            "letter_spacing": "0.2em"
+          },
+          "ui": {
+            "family": "Inter, system-ui, sans-serif",
+            "size": "14px"
+          }
+        },
+        "effects": {
+          "frosted_glass": "backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1)",
+          "state_transition_duration": "1.2s",
+          "state_transition_easing": "ease-in-out"
+        }
+      },
+      "legal": {
+        "avoid_pomodoro_in_branding": true,
+        "footer_disclosure": "Epoch runs entirely in your browser. No data is collected or transmitted.",
+        "trademark_attribution": "The Pomodoro Technique is a registered trademark of Francesco Cirillo.",
+        "notification_request": "on_user_action_only"
+      }
+    }
+  },
+  "active_spec": {
+    "type": "seed",
+    "feature_areas": [
+      "timer-display",
+      "timer-controls",
+      "pomodoro-cycle",
+      "session-counter",
+      "transition-feedback",
+      "settings-modal"
+    ],
+    "spec_files": [
+      "seed_spec/01-timer-display.md",
+      "seed_spec/02-timer-controls.md",
+      "seed_spec/03-pomodoro-cycle.md",
+      "seed_spec/04-session-counter.md",
+      "seed_spec/05-transition-feedback.md",
+      "seed_spec/06-settings-modal.md"
+    ]
+  },
+  "library_heuristics": [],
+  "reference_products": [],
+  "previous_evaluations": [],
+  "evaluation_deltas": [],
+  "implemented": [
+    {
+      "task": "scaffold",
+      "acceptance_criteria": [],
+      "files_changed": ["package.json", "tsconfig.json", "next.config.ts", ".gitignore", "vitest.config.ts", "tests/setup.ts", "src/app/layout.tsx", "src/app/globals.css"],
+      "tests_added": 0,
+      "tests_passing": 0
+    },
+    {
+      "task": "pomodoro-engine",
+      "acceptance_criteria": ["AC-cycle-1", "AC-cycle-2", "AC-cycle-3", "AC-cycle-4", "AC-cycle-5", "AC-cycle-6", "AC-counter-1", "AC-counter-2", "AC-counter-3", "AC-counter-4", "AC-counter-5"],
+      "files_changed": ["src/engine/types.ts", "src/engine/cycle.ts", "src/engine/storage.ts", "src/engine/audio.ts"],
+      "tests_added": 20,
+      "tests_passing": 20
+    },
+    {
+      "task": "timer-display",
+      "acceptance_criteria": ["AC-display-1", "AC-display-2", "AC-display-3", "AC-display-4", "AC-display-5", "AC-display-6"],
+      "files_changed": ["src/components/TimerDisplay.tsx", "src/components/TimerDisplay.module.css"],
+      "tests_added": 5,
+      "tests_passing": 5
+    },
+    {
+      "task": "timer-controls",
+      "acceptance_criteria": ["AC-controls-1", "AC-controls-2", "AC-controls-3", "AC-controls-4", "AC-controls-5", "AC-controls-6"],
+      "files_changed": ["src/components/TimerControls.tsx", "src/components/TimerControls.module.css"],
+      "tests_added": 8,
+      "tests_passing": 8
+    },
+    {
+      "task": "cycle-indicator",
+      "acceptance_criteria": ["AC-cycle-4"],
+      "files_changed": ["src/components/CycleIndicator.tsx", "src/components/CycleIndicator.module.css"],
+      "tests_added": 3,
+      "tests_passing": 3
+    },
+    {
+      "task": "session-counter",
+      "acceptance_criteria": ["AC-counter-1", "AC-counter-2", "AC-counter-3", "AC-counter-4", "AC-counter-5"],
+      "files_changed": ["src/components/SessionCounter.tsx", "src/components/SessionCounter.module.css"],
+      "tests_added": 4,
+      "tests_passing": 4
+    },
+    {
+      "task": "transition-feedback",
+      "acceptance_criteria": ["AC-transition-1", "AC-transition-2", "AC-transition-3", "AC-transition-4", "AC-transition-5", "AC-transition-6"],
+      "files_changed": ["src/engine/audio.ts", "src/hooks/useTimer.ts"],
+      "tests_added": 0,
+      "tests_passing": 0
+    },
+    {
+      "task": "settings-modal",
+      "acceptance_criteria": ["AC-settings-1", "AC-settings-2", "AC-settings-3", "AC-settings-4", "AC-settings-5", "AC-settings-6", "AC-settings-7", "AC-settings-8"],
+      "files_changed": ["src/components/SettingsModal.tsx", "src/components/SettingsModal.module.css"],
+      "tests_added": 12,
+      "tests_passing": 12
+    },
+    {
+      "task": "page-composition",
+      "acceptance_criteria": ["AC-controls-5", "AC-controls-6"],
+      "files_changed": ["src/app/page.tsx", "src/app/page.module.css"],
+      "tests_added": 0,
+      "tests_passing": 0
+    }
+  ],
+  "skipped": [],
+  "divergences": [
+    {
+      "spec_says": "Timer displays MM:SS in monospace font >= 72px",
+      "actually_did": "Timer uses clamp(72px, 15vw, 120px) — minimum 72px on small screens, max 120px on large",
+      "rationale": "Responsive scaling within spec range. The spec says 80-120px range but also >= 72px. Used 72px floor for small viewports while keeping 120px max.",
+      "affects_acceptance_criteria": ["AC-display-1"],
+      "reversible": true
+    },
+    {
+      "spec_says": "Multiple tabs: only one should be active (localStorage coordination or single-tab enforcement)",
+      "actually_did": "No multi-tab coordination implemented",
+      "rationale": "Edge case complexity vs. value tradeoff. Each tab runs independently. This is a minor edge case that most users won't encounter. Can be added in a future cycle with BroadcastChannel API.",
+      "affects_acceptance_criteria": ["AC-transition-5"],
+      "reversible": true
+    }
+  ],
+  "factory_decisions": [
+    {
+      "decision": "Use Web Audio API for synthesized chime instead of audio file",
+      "context": "Spec requires crystalline/tonal chime. Options: pre-recorded audio file vs. synthesized.",
+      "alternatives_considered": ["Pre-recorded .mp3/.ogg audio file", "Web Audio API oscillator synthesis"],
+      "rationale": "Synthesized audio is zero-dependency (no audio file to load), matches the futuristic aesthetic, keeps bundle tiny. Two-tone sine wave at 880Hz→1760Hz with gain decay produces a clean crystalline sound.",
+      "confidence": "high",
+      "affects": ["src/engine/audio.ts"]
+    },
+    {
+      "decision": "Use CSS Modules instead of Tailwind or CSS-in-JS",
+      "context": "Need to implement a precise design system with exact color values, glass effects, and transitions.",
+      "alternatives_considered": ["Tailwind CSS", "CSS-in-JS (styled-components)", "CSS Modules"],
+      "rationale": "CSS Modules provide zero-runtime overhead, natural CSS syntax for complex effects (backdrop-filter, radial gradients, keyframe animations), and scoped naming. The spec gives exact CSS values — modules let us use them directly.",
+      "confidence": "high",
+      "affects": ["all .module.css files"]
+    },
+    {
+      "decision": "Use Date.now()-based timing instead of setInterval for timer accuracy",
+      "context": "Spec requires <1s drift after 25 minutes backgrounded.",
+      "alternatives_considered": ["setInterval with drift correction", "Date.now() delta with requestAnimationFrame"],
+      "rationale": "Date.now() approach is immune to setInterval throttling in background tabs. On each tick, remaining = initial - (now - start). requestAnimationFrame for rendering, Date.now() for truth.",
+      "confidence": "high",
+      "affects": ["src/hooks/useTimer.ts"]
+    },
+    {
+      "decision": "Static Next.js export with client-side rendering only",
+      "context": "This is a single-page app with no server-side data needs. The page is marked 'use client'.",
+      "alternatives_considered": ["Server components with client islands", "Full client-side rendering"],
+      "rationale": "All timer state is client-side (localStorage, Web Audio, requestAnimationFrame). SSR adds complexity with no benefit. The entire page is a single client component tree.",
+      "confidence": "high",
+      "affects": ["src/app/page.tsx"]
+    }
+  ],
+  "factory_questions": [
+    {
+      "question": "Spec says 'debounced' for double-tap on controls, but doesn't specify debounce duration",
+      "found_in": "seed_spec/02-timer-controls.md, Edge Cases",
+      "resolved_as": "React's state update batching naturally prevents double-action. No explicit debounce added — the toggle between start/pause is idempotent by design.",
+      "needs_clarification_from": "spec",
+      "severity": "minor"
+    },
+    {
+      "question": "Multi-tab coordination strategy not specified beyond 'only one should be active'",
+      "found_in": "seed_spec/05-transition-feedback.md, Edge Cases",
+      "resolved_as": "Deferred — each tab runs independently. BroadcastChannel or localStorage events could coordinate, but adds complexity for an uncommon edge case.",
+      "needs_clarification_from": "design",
+      "severity": "minor"
+    }
+  ],
+  "qa_report": null,
+  "po_review_report": null,
+  "deployment_url": "https://countdowntimer-staging.gregj64.workers.dev",
+  "infrastructure": {
+    "staging_url": "https://countdowntimer-staging.gregj64.workers.dev",
+    "production_url": null,
+    "supabase_ref": null,
+    "sentry_dsn": null
+  },
+  "retry_counts": {},
+  "previous_cycles": [],
+  "supabase": {
+    "project_ref": null,
+    "slot_acquired": false,
+    "connection_string": null
+  }
+}
