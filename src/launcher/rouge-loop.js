@@ -4,7 +4,7 @@
  * Node.js rewrite of rouge-loop.sh for reliable child process handling.
  */
 
-const { execFileSync, execSync } = require('child_process');
+const { execFileSync, execSync, execFile } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -284,29 +284,26 @@ function advanceState(projectDir) {
   }
 }
 
-// --- Phase execution ---
+// --- Phase execution (async with streaming output + reliable timeout) ---
 
-function runPhase(projectDir) {
+async function runPhase(projectDir) {
   const projectName = path.basename(projectDir);
   const stateFile = path.join(projectDir, 'state.json');
+  const contextFile = path.join(projectDir, 'cycle_context.json');
   const state = readJson(stateFile);
-  if (!state) return true; // no state file = skip
+  if (!state) return { success: true }; // no state file = skip
 
   let currentState = state.current_state;
 
   // Check for feedback queue or resume from waiting-for-human
   if (currentState === 'waiting-for-human') {
-    // Only resume if there's feedback or if triggered by Slack resume command
-    if (!fs.existsSync(path.join(projectDir, 'feedback.json'))) return true;
+    if (!fs.existsSync(path.join(projectDir, 'feedback.json'))) return { success: true };
 
     log(`[${projectName}] Feedback found, resuming from checkpoint`);
-
-    // Use checkpoint to determine correct resume point
     const completed = state.completed_phases || [];
     const pipeline = ['building', 'test-integrity', 'qa-gate', 'po-reviewing', 'analyzing', 'vision-checking', 'promoting'];
     let resumeState = state.paused_from_state || 'building';
 
-    // Find the next phase after the last completed checkpoint
     if (completed.length > 0) {
       const lastCompleted = completed[completed.length - 1];
       const lastIdx = pipeline.indexOf(lastCompleted);
@@ -322,57 +319,57 @@ function runPhase(projectDir) {
     writeJson(stateFile, state);
   }
 
-  if (SKIP_STATES.has(currentState)) return true;
+  if (SKIP_STATES.has(currentState)) return { success: true };
 
-  // Normalize *-complete states (phase prompts sometimes write these)
+  // Normalize *-complete states
   if (currentState.endsWith('-complete')) {
     const baseState = currentState.replace('-complete', '');
     log(`[${projectName}] Normalizing state: ${currentState} → advancing from ${baseState}`);
     state.current_state = baseState;
     writeJson(stateFile, state);
-    currentState = baseState;
     advanceState(projectDir);
-    return true; // will pick up the new state on next iteration
+    return { success: true };
   }
 
-  // Infrastructure provisioning: run before building if not yet provisioned
+  // Infrastructure provisioning before building if not yet provisioned
   if (currentState === 'building') {
-    const ctx = readJson(path.join(projectDir, 'cycle_context.json'));
+    const ctx = readJson(contextFile);
     if (ctx && !ctx.infrastructure?.staging_url) {
       log(`[${projectName}] Infrastructure not provisioned — running provisioning`);
       try {
         execFileSync('node', [path.join(__dirname, 'provision-infrastructure.js'), projectDir], {
-          encoding: 'utf8',
-          timeout: 300000, // 5 min for provisioning
-          stdio: 'inherit',
+          encoding: 'utf8', timeout: 300000, stdio: 'inherit',
         });
       } catch (err) {
         log(`[${projectName}] Provisioning failed: ${(err.message || '').slice(0, 200)}`);
-        // Continue anyway — building can still work without staging, just QA will be limited
       }
     }
   }
 
   const promptRelPath = STATE_TO_PROMPT[currentState];
-  if (!promptRelPath) return true;
+  if (!promptRelPath) return { success: true };
 
   const promptFile = path.join(ROUGE_ROOT, 'src/prompts', promptRelPath);
   if (!fs.existsSync(promptFile)) {
     log(`[${projectName}] Prompt file not found: ${promptFile}`);
-    return false;
+    return { success: false };
   }
 
   const model = MODEL;
-    const timeout = PHASE_TIMEOUT[currentState] || 10 * 60 * 1000;
+  const timeout = PHASE_TIMEOUT[currentState] || 10 * 60 * 1000;
   const phaseLog = path.join(LOG_DIR, `${projectName}-${currentState}.log`);
 
   log(`[${projectName}] Running phase: ${currentState} (model: ${model}, timeout: ${timeout / 60000}min)`);
 
   const filesBefore = countFiles(projectDir);
 
-  try {
-    // The key fix: execFileSync with proper args array, no shell interpretation
-    const output = execFileSync('claude', [
+  // FIX-1 + FIX-2: Async execFile with streaming output + reliable SIGKILL timeout
+  return new Promise((resolve) => {
+    const logStream = fs.createWriteStream(phaseLog, { flags: 'a' });
+    let stderrChunks = [];
+    let killed = false;
+
+    const child = execFile('claude', [
       '-p',
       `Read the phase prompt at ${promptFile} and execute it. The project directory is ${projectDir}. Read cycle_context.json and state.json for context.`,
       '--dangerously-skip-permissions',
@@ -380,57 +377,89 @@ function runPhase(projectDir) {
       '--max-turns', '200',
     ], {
       cwd: projectDir,
-      encoding: 'utf8',
-      timeout,
-      stdio: ['pipe', 'pipe', 'pipe'], // capture all streams
       env: { ...process.env },
+      maxBuffer: 50 * 1024 * 1024, // 50MB buffer
+      detached: true, // own process group for reliable kill
     });
 
-    // Append output to phase log
-    fs.appendFileSync(phaseLog, output);
-
-    const filesAfter = countFiles(projectDir);
-    const delta = filesAfter - filesBefore;
-    log(`[${projectName}] Phase ${currentState} completed (files: ${filesBefore} → ${filesAfter}, delta: +${delta})`);
-
-    // Log last meaningful line
-    const lines = output.trim().split('\n').filter(l => l.trim());
-    if (lines.length > 0) {
-      log(`[${projectName}] Output: ${lines[lines.length - 1].slice(0, 200)}`);
+    // Stream stdout to log file in real-time (FIX-2: partial output always saved)
+    if (child.stdout) {
+      child.stdout.pipe(logStream);
     }
 
-    // NOTE: Do NOT check stdout for rate limits — phase prompts may mention
-    // "rate limit" in their output text (false positive). Rate limits are
-    // detected in the catch block via stderr or exit code.
-
-    // Advance state machine
-    advanceState(projectDir);
-    return true;
-
-  } catch (err) {
-    const stdout = err.stdout || '';
-    const stderr = err.stderr || '';
-
-    // Append whatever output we got
-    if (stdout) fs.appendFileSync(phaseLog, stdout);
-    if (stderr) fs.appendFileSync(phaseLog, '\n--- STDERR ---\n' + stderr);
-
-    // Check for rate limiting
-    if (isRateLimited(stdout) || isRateLimited(stderr)) {
-      log(`[${projectName}] Rate limited — backing off`);
-      return false;
+    // Capture stderr for rate limit detection
+    if (child.stderr) {
+      child.stderr.on('data', (chunk) => {
+        stderrChunks.push(chunk);
+        logStream.write('\n[STDERR] ' + chunk);
+      });
     }
 
-    // Check for timeout
-    if (err.message && (err.message.includes('ETIMEDOUT') || err.message.includes('timed out'))) {
-      log(`[${projectName}] Phase ${currentState} timed out`);
-      return false;
-    }
+    // FIX-1: Reliable timeout with SIGKILL
+    const timer = setTimeout(() => {
+      killed = true;
+      log(`[${projectName}] Phase ${currentState} timeout (${timeout / 60000}min) — killing process`);
+      try {
+        // Kill the entire process tree
+        process.kill(-child.pid, 'SIGKILL');
+      } catch {
+        try { child.kill('SIGKILL'); } catch {}
+      }
+    }, timeout);
 
-    const errorLine = (stderr || stdout || err.message || '').split('\n').filter(l => l.trim()).pop() || 'unknown error';
-    log(`[${projectName}] Phase ${currentState} failed: ${errorLine.slice(0, 200)}`);
-    return false;
-  }
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      logStream.end();
+
+      const stderr = Buffer.concat(stderrChunks).toString();
+
+      if (killed) {
+        log(`[${projectName}] Phase ${currentState} timed out after ${timeout / 60000}min`);
+        resolve({ success: false, timedOut: true });
+        return;
+      }
+
+      // FIX-3 (partial): Check stderr for rate limits, not stdout
+      if (isRateLimited(stderr)) {
+        log(`[${projectName}] Rate limited (detected in stderr)`);
+        resolve({ success: false, rateLimited: true });
+        return;
+      }
+
+      if (code !== 0) {
+        const errorLine = stderr.split('\n').filter(l => l.trim()).pop() || `exit code ${code}`;
+        log(`[${projectName}] Phase ${currentState} failed: ${errorLine.slice(0, 200)}`);
+        resolve({ success: false });
+        return;
+      }
+
+      // Success
+      const filesAfter = countFiles(projectDir);
+      const delta = filesAfter - filesBefore;
+      log(`[${projectName}] Phase ${currentState} completed (files: ${filesBefore} → ${filesAfter}, delta: +${delta})`);
+
+      // Log last line from the log file
+      try {
+        const logContent = fs.readFileSync(phaseLog, 'utf8');
+        const lines = logContent.trim().split('\n').filter(l => l.trim() && !l.startsWith('[STDERR]'));
+        if (lines.length > 0) {
+          log(`[${projectName}] Output: ${lines[lines.length - 1].slice(0, 200)}`);
+        }
+      } catch {}
+
+      // Advance state machine
+      advanceState(projectDir);
+      resolve({ success: true });
+    });
+
+    // Handle spawn errors
+    child.on('error', (err) => {
+      clearTimeout(timer);
+      logStream.end();
+      log(`[${projectName}] Phase ${currentState} spawn error: ${err.message.slice(0, 200)}`);
+      resolve({ success: false });
+    });
+  });
 }
 
 // --- Auth expiry check ---
@@ -492,9 +521,19 @@ async function main() {
       let retries = 0;
 
       while (retries < MAX_RETRIES) {
-        const success = runPhase(projectDir);
-        if (success) break;
+        const result = await runPhase(projectDir);
 
+        if (result.success) break;
+
+        // FIX-3: Rate limits do NOT count toward retry limit
+        if (result.rateLimited) {
+          const backoff = 60000 * (retries + 1); // escalating backoff without incrementing retries
+          log(`[${projectName}] Rate limited. Backing off ${backoff / 1000}s. (retries NOT incremented: ${retries}/${MAX_RETRIES})`);
+          await sleep(backoff);
+          continue; // retry without incrementing
+        }
+
+        // Real failure — increment retries
         retries++;
         log(`[${projectName}] Retry ${retries}/${MAX_RETRIES}`);
 
@@ -511,18 +550,7 @@ async function main() {
           notify(`⚠️ [${projectName}] Phase failed ${MAX_RETRIES} times. Moved to waiting-for-human.`);
         }
 
-        // Rate limit backoff
-        const phaseLog = path.join(LOG_DIR, `${projectName}-${readJson(path.join(projectDir, 'state.json'))?.current_state || 'unknown'}.log`);
-        let logContent = '';
-        try { logContent = fs.readFileSync(phaseLog, 'utf8'); } catch {}
-
-        if (isRateLimited(logContent)) {
-          const backoff = 60000 * retries;
-          log(`[${projectName}] Rate limited. Backing off ${backoff / 1000}s.`);
-          await sleep(backoff);
-        } else {
-          await sleep(30000);
-        }
+        await sleep(30000); // 30s between real retries
       }
     }
 
