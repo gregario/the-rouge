@@ -255,12 +255,15 @@ function advanceState(projectDir) {
 
     // Notify on significant transitions
     const notifications = {
-      'qa-gate': `🔍 [${projectName}] Build complete → QA gate starting`,
+      'qa-gate': `🔍 [${projectName}] ${current} complete → QA gate starting`,
       'po-review-journeys': `👀 [${projectName}] QA passed → PO review (journeys)`,
       'po-review-screens': `👀 [${projectName}] PO review: journeys done → screens`,
       'po-review-heuristics': `👀 [${projectName}] PO review: screens done → heuristics`,
-      'promoting': `🚀 [${projectName}] Vision check passed → promoting`,
-      'complete': `✅ [${projectName}] All feature areas complete!`,
+      'qa-fixing': `🔧 [${projectName}] QA failed → fixing issues`,
+      'analyzing': `🧠 [${projectName}] PO review complete → analyzing results`,
+      'vision-checking': `🔭 [${projectName}] Analysis complete → vision check`,
+      'promoting': `🚀 [${projectName}] Vision check passed → promoting to production`,
+      'complete': `✅ [${projectName}] All feature areas complete! Product ready.`,
       'waiting-for-human': `⏸️ [${projectName}] Needs human input (from: ${current})`,
     };
     if (notifications[next]) notify(notifications[next]);
