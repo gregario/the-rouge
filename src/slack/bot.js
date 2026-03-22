@@ -642,7 +642,17 @@ app.event('app_mention', async ({ event, say }) => {
       const seedState = getSeedingState(seedProject);
       const projectDir = path.join(PROJECTS_DIR, seedProject);
 
+      // 👀 React to show message received — removed when response arrives
+      try {
+        await app.client.reactions.add({ channel: event.channel, timestamp: event.ts, name: 'eyes' });
+      } catch {}
+
       const result = invokeClaudeSeeding(projectDir, text, seedState.session_id);
+
+      // Remove 👀 — processing complete
+      try {
+        await app.client.reactions.remove({ channel: event.channel, timestamp: event.ts, name: 'eyes' });
+      } catch {}
 
       // FIX Bug 1: Handle rate limiting gracefully
       if (result.rate_limited) {
@@ -801,7 +811,17 @@ app.event('message', async ({ event, say }) => {
     const seedState = getSeedingState(seedProject);
     const projectDir = path.join(PROJECTS_DIR, seedProject);
 
+    // 👀 React to show message received
+    try {
+      await app.client.reactions.add({ channel: event.channel, timestamp: event.ts, name: 'eyes' });
+    } catch {}
+
     const result = invokeClaudeSeeding(projectDir, text, seedState.session_id);
+
+    // Remove 👀
+    try {
+      await app.client.reactions.remove({ channel: event.channel, timestamp: event.ts, name: 'eyes' });
+    } catch {}
 
     if (result.rate_limited) {
       seedState.status = 'paused';
