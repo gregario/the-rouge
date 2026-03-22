@@ -800,9 +800,49 @@ app.command('/rouge', async ({ command, ack, respond }) => {
   }
 });
 
+// --- FW.25-27: Bot self-setup on first run ---
+async function selfSetup() {
+  try {
+    // Check existing channels
+    const result = await app.client.conversations.list({ types: 'public_channel', limit: 200 });
+    const channels = result.channels || [];
+    const channelNames = channels.map(c => c.name);
+
+    const requiredChannels = [
+      { name: 'rouge-feed', topic: 'Rouge Build: live phase updates and progress', purpose: 'Autonomous product development feed. Phase transitions, QA results, deployments.' },
+      { name: 'rouge-alerts', topic: 'Rouge: critical alerts only', purpose: 'Rate limits, failures, escalations. Low volume.' },
+    ];
+
+    for (const ch of requiredChannels) {
+      if (!channelNames.includes(ch.name)) {
+        console.log(`Creating channel: #${ch.name}`);
+        try {
+          const created = await app.client.conversations.create({ name: ch.name, is_private: false });
+          if (created.channel) {
+            await app.client.conversations.setTopic({ channel: created.channel.id, topic: ch.topic });
+            await app.client.conversations.setPurpose({ channel: created.channel.id, purpose: ch.purpose });
+            // Pin welcome message
+            const welcome = await app.client.chat.postMessage({
+              channel: created.channel.id,
+              text: `\u{1F44B} *Welcome to #${ch.name}*\n\n${ch.purpose}\n\nThis channel was auto-created by Rouge on first run.`,
+            });
+            await app.client.pins.add({ channel: created.channel.id, timestamp: welcome.ts });
+          }
+        } catch (err) {
+          // Channel might already exist but bot isn't a member, or missing scope
+          console.log(`Could not create #${ch.name}: ${err.message}`);
+        }
+      }
+    }
+  } catch (err) {
+    console.log(`Self-setup skipped: ${err.message}`);
+  }
+}
+
 (async () => {
   await app.start();
   console.log('\u26A1 Rouge Slack bot is running (Socket Mode)');
+  await selfSetup();
 })();
 
 // Check for seeding timeouts every 10 minutes
