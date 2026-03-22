@@ -703,6 +703,79 @@ app.event('app_mention', async ({ event, say }) => {
   }
 });
 
+// --- FW.21: DM support for seeding ---
+app.event('message', async ({ event, say }) => {
+  // Only handle DMs (not channel messages, which are handled by app_mention)
+  if (event.channel_type !== 'im') return;
+  if (event.subtype) return; // ignore edits, joins, etc.
+  if (event.bot_id) return; // ignore own messages
+
+  const text = event.text?.trim() || '';
+
+  // Check for active seeding session from this user in DMs
+  const activeSeedings = listProjects().filter(name => {
+    const ss = getSeedingState(name);
+    return ss && ss.status === 'active' && ss.channel_id === event.channel;
+  });
+
+  if (activeSeedings.length > 0) {
+    const seedProject = activeSeedings[0];
+    const seedState = getSeedingState(seedProject);
+    const projectDir = path.join(PROJECTS_DIR, seedProject);
+
+    const result = invokeClaudeSeeding(projectDir, text, seedState.session_id);
+
+    if (result.rate_limited) {
+      seedState.status = 'paused';
+      writeSeedingState(seedProject, seedState);
+      await say(`⏱️ Rate limited. Resume: \`/rouge seed ${seedProject}\``);
+      return;
+    }
+
+    if (result.timeout) {
+      await say(`⏳ ${result.error}`);
+      return;
+    }
+
+    if (result.error) {
+      await say(`❌ ${result.error}`);
+      return;
+    }
+
+    seedState.last_activity = new Date().toISOString();
+    if (result.session_id) seedState.session_id = result.session_id;
+
+    const response = result.result || result.message || JSON.stringify(result);
+    const isComplete = response.includes('SEEDING_COMPLETE') ||
+                     (response.includes('approved') && response.includes('ready'));
+
+    if (isComplete) {
+      const stats = generateCycleContext(seedProject);
+      const state = readState(seedProject);
+      state.current_state = 'ready';
+      writeState(seedProject, state);
+      seedState.status = 'complete';
+    }
+
+    writeSeedingState(seedProject, seedState);
+
+    if (response.length > 3000) {
+      const chunks = response.match(/.{1,3000}/gs) || [response];
+      for (const chunk of chunks) await say(chunk);
+    } else {
+      await say(response);
+    }
+
+    if (isComplete) {
+      await say(`\n✅ Seeding complete! Use \`/rouge start ${seedProject}\` in a channel.`);
+    }
+    return;
+  }
+
+  // No active seeding — show help
+  await say('👋 DM me during an active seeding session to continue the conversation.\nUse `/rouge new <name>` in a channel to start.');
+});
+
 // --- Slash command handler (FW.11) ---
 app.command('/rouge', async ({ command, ack, respond }) => {
   await ack(); // Must ack within 3 seconds
