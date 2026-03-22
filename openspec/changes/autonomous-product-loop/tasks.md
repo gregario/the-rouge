@@ -419,17 +419,17 @@ Rouge Maintain: autonomous maintenance of deployed production systems.
 
 ## Future Work — Rate Limit Handling Rethink
 
-- [ ] FW.29 Distinguish rate limits from real failures — rate limits should NEVER count toward the 3-retry limit. They're temporary, not errors.
-- [ ] FW.30 Rate limit detection without log content — check Claude CLI exit code or stderr directly, not just log file grep (log may be empty if redirect fails)
+- [x] FW.29 Distinguish rate limits from real failures — rate limits should NEVER count toward the 3-retry limit. They're temporary, not errors.
+- [x] FW.30 Rate limit detection without log content — check Claude CLI exit code or stderr directly, not just log file grep (log may be empty if redirect fails)
 - [ ] FW.31 Rate limit backoff should pause ALL projects — if one project hits rate limit, others will too. Pause the entire loop, not just the current project.
 - [ ] FW.32 Rate limit reset detection — parse "resets Xpm" from Claude output, sleep until reset time instead of arbitrary backoff
 - [x] FW.33 Document rate limit interaction between Rouge Spec (interactive) and Rouge Build (autonomous) — if a human is seeding via Slack and the build loop is running, they compete for the same rate limit budget
 
 ## Future Work — Launcher Improvements
 
-- [ ] FW.35 Replace timeout-based phase monitoring with heartbeat/progress detection — periodically check if Claude is still producing output (file changes, log growth, tool calls) rather than using a fixed timeout. If no progress for N minutes, then timeout. This is more resilient than fixed timeouts and provides observability data for the dashboard.
+- [x] FW.35 Replace timeout-based phase monitoring with heartbeat/progress detection — periodically check if Claude is still producing output (file changes, log growth, tool calls) rather than using a fixed timeout. If no progress for N minutes, then timeout. This is more resilient than fixed timeouts and provides observability data for the dashboard.
 - [x] FW.36 Phase progress streaming — emit periodic progress events (files changed, tests run, etc.) that the Slack newsroom and web dashboard can consume in real-time
-- [ ] FW.37 Handle phase prompts writing state.json — normalize `*-complete` suffixed states back to the expected state, or add pre/post guards that save and restore state.json around phase invocations
+- [x] FW.37 Handle phase prompts writing state.json — normalize `*-complete` suffixed states back to the expected state, or add pre/post guards that save and restore state.json around phase invocations
 - [x] FW.38 README disclaimer — "experimental, not for production use, token-intensive" warning
 
 ## Future Work — Visual Evolution Record
@@ -452,7 +452,7 @@ Questions:
 
 ## Future Work — PO Review Fixes (Critical)
 
-- [ ] FW.43 Split PO review into sub-phases — journey quality, screen quality, interaction quality, heuristic eval as separate lighter invocations instead of one mega-session. Each sub-phase writes partial results, next sub-phase reads them.
+- [x] FW.43 Split PO review into sub-phases — journey quality, screen quality, interaction quality, heuristic eval as separate lighter invocations instead of one mega-session. Each sub-phase writes partial results, next sub-phase reads them.
 - [ ] FW.44 Quick PO review mode — review 1 journey + 1 screen only. For testing and fast iteration cycles.
-- [ ] FW.45 Fix execFileSync output capture — switch to async execFile with streaming output to log file. Partial output must be saved even if the process dies. Current: all-or-nothing means hours of work lost on timeout.
+- [x] FW.45 Fix execFileSync output capture — switch to async execFile with streaming output to log file. Partial output must be saved even if the process dies. Current: all-or-nothing means hours of work lost on timeout.
 - [ ] FW.46 Guard against synthetic data propagation — when po_review_report.synthetic is true, downstream phases must NOT generate change specs or make product modifications based on synthetic data. Analyzing phase should check this flag.
