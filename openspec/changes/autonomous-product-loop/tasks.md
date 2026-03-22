@@ -366,7 +366,7 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 
 ## Future Work — Slack UX Polish
 
-- [ ] FW.1 Thread-based bot replies — use `thread_ts` so seeding conversations and notifications don't flood the channel
+- [x] FW.1 Thread-based bot replies — use `thread_ts` so seeding conversations and notifications don't flood the channel
 - [ ] FW.2 Per-loop status notifications — "Loop N: building → QA passed → PO review in progress" at each phase transition
 - [ ] FW.3 Phase transition notifications — notify channel when a phase starts/completes with brief summary
 - [ ] FW.4 Confidence trend in notifications — include confidence score and delta in loop completion messages
@@ -376,17 +376,17 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 ## Future Work — Slack UX (Boil the Lake)
 
 ### Foundation
-- [ ] FW.10 Create Slack App manifest YAML — one-click app setup for new users. All slash commands, event subscriptions, scopes, and permissions declared.
-- [ ] FW.11 Implement slash commands — /rouge new, /rouge status, /rouge start, /rouge pause, /rouge resume, /rouge seed, /rouge feedback. Requires Interactivity & Shortcuts enabled.
-- [ ] FW.12 Threaded seeding conversations — /rouge new starts a thread, all seeding back-and-forth lives in the thread, channel gets a summary on completion
+- [x] FW.10 Create Slack App manifest YAML — one-click app setup for new users. All slash commands, event subscriptions, scopes, and permissions declared.
+- [x] FW.11 Implement slash commands — /rouge new, /rouge status, /rouge start, /rouge pause, /rouge resume, /rouge seed, /rouge feedback. Requires Interactivity & Shortcuts enabled.
+- [x] FW.12 Threaded seeding conversations — /rouge new starts a thread, all seeding back-and-forth lives in the thread, channel gets a summary on completion
 - [ ] FW.13 Modal for project creation — /rouge new opens a form: project name, one-line description, domain (web/game/artifact), template. Not free-text.
 
 ### Dashboard & Visibility
-- [ ] FW.14 App Home tab as live dashboard — click Rouge in sidebar → see all projects with state, confidence trend, last activity, action buttons
-- [ ] FW.15 Ephemeral status messages — /rouge status shows results only to the requesting user, no channel spam
+- [x] FW.14 App Home tab as live dashboard — click Rouge in sidebar → see all projects with state, confidence trend, last activity, action buttons
+- [x] FW.15 Ephemeral status messages — /rouge status shows results only to the requesting user, no channel spam
 
 ### Rich Interactions
-- [ ] FW.16 Interactive Block Kit notifications — structured cards with progress indicators, confidence trends, screenshots, action buttons (Start, Pause, Approve, Reject)
+- [x] FW.16 Interactive Block Kit notifications — structured cards with progress indicators, confidence trends, screenshots, action buttons (Start, Pause, Approve, Reject)
 - [ ] FW.17 Block Kit morning briefing — multi-section card with per-project blocks, confidence charts, screenshot thumbnails
 - [ ] FW.18 Block Kit PO Review scorecard — journey/screen/interaction quality breakdown with pass/fail indicators
 - [ ] FW.19 Inline action buttons — "Start" button on ready notifications, "Investigate" button on rollback alerts, "Approve/Reject" on seeding completion
@@ -399,10 +399,10 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 - [ ] FW.24 Confidence trend sparkline in notifications (Unicode block characters)
 
 ### Self-Configuration
-- [ ] FW.25 Bot self-setup on first run — detect no channels exist, create #rouge-feed (newsroom), #rouge-seeding (conversations), #rouge-alerts (critical only), set topics, pin welcome messages
-- [ ] FW.26 Add channels:manage scope to manifest for channel creation
-- [ ] FW.27 First-run welcome flow — bot explains itself in each channel with pinned usage guide
-- [ ] FW.28 Document 5-step new user setup — create workspace, import manifest, install app, copy 3 tokens, start bot (everything else auto-configures)
+- [x] FW.25 Bot self-setup on first run — detect no channels exist, create #rouge-feed (newsroom), #rouge-seeding (conversations), #rouge-alerts (critical only), set topics, pin welcome messages
+- [x] FW.26 Add channels:manage scope to manifest for channel creation
+- [x] FW.27 First-run welcome flow — bot explains itself in each channel with pinned usage guide
+- [x] FW.28 Document 5-step new user setup — create workspace, import manifest, install app, copy 3 tokens, start bot (everything else auto-configures)
 
 ## Future Work — Rouge Maintain (Closed Source)
 
