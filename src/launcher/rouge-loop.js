@@ -65,7 +65,7 @@ const PHASE_TIMEOUT = {
   'rolling-back': 5 * 60 * 1000,      // 5 min — revert
 };
 
-const SKIP_STATES = new Set(['ready', 'waiting-for-human', 'complete']);
+const SKIP_STATES = new Set(['seeding', 'ready', 'waiting-for-human', 'complete']);
 
 function readJson(filePath) {
   try {
