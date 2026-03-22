@@ -599,6 +599,9 @@ function sleep(ms) {
 }
 
 async function main() {
+  // Keep the event loop alive — prevents Node from exiting when child process completes
+  const keepAlive = setInterval(() => {}, 60000);
+
   log(`Rouge launcher starting. Projects dir: ${PROJECTS_DIR}`);
   checkAuthExpiry();
 
