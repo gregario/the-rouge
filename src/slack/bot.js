@@ -434,20 +434,32 @@ app.event('app_mention', async ({ event, say }) => {
             return;
           }
 
+          // FW.1: Post first response as a new message (to get thread_ts)
+          const response = result.result || result.message || (typeof result === 'string' ? result : JSON.stringify(result));
+          const firstMsg = await app.client.chat.postMessage({
+            channel: event.channel,
+            text: response.length > 3000 ? response.slice(0, 3000) + '...' : response,
+          });
+
           writeSeedingState(projectName, {
             session_id: result.session_id || null,
             channel_id: event.channel,
+            thread_ts: firstMsg.ts, // thread anchor
             started_at: new Date().toISOString(),
             last_activity: new Date().toISOString(),
             status: 'active',
           });
 
-          const response = result.result || result.message || (typeof result === 'string' ? result : JSON.stringify(result));
+          // Post remaining chunks in thread if needed
           if (response.length > 3000) {
-            const chunks = response.match(/.{1,3000}/gs) || [response];
-            for (const chunk of chunks) await say(chunk);
-          } else {
-            await say(response);
+            const chunks = response.slice(3000).match(/.{1,3000}/gs) || [];
+            for (const chunk of chunks) {
+              await app.client.chat.postMessage({
+                channel: event.channel,
+                thread_ts: firstMsg.ts,
+                text: chunk,
+              });
+            }
           }
           return;
         }
@@ -528,18 +540,26 @@ app.event('app_mention', async ({ event, say }) => {
 
       writeSeedingState(seedProject, seedState);
 
+      // FW.1: Reply in thread
+      const threadTs = seedState.thread_ts;
+      const sayInThread = (text) => app.client.chat.postMessage({
+        channel: event.channel,
+        thread_ts: threadTs || undefined,
+        text,
+      });
+
       if (response.length > 3000) {
         const chunks = response.match(/.{1,3000}/gs) || [response];
-        for (const chunk of chunks) await say(chunk);
+        for (const chunk of chunks) await sayInThread(chunk);
       } else {
-        await say(response);
+        await sayInThread(response);
       }
 
       if (isComplete) {
         const stats = JSON.parse(fs.readFileSync(path.join(PROJECTS_DIR, seedProject, 'cycle_context.json'), 'utf8'));
         const faCount = stats.active_spec?.feature_areas?.length || 0;
         const specCount = stats.active_spec?.spec_files?.length || 0;
-        await say(`\n\u2705 Seeding complete for \`${seedProject}\`!\n\u{1F4CB} ${faCount} feature areas, ${specCount} spec files, cycle_context.json generated.\nUse \`rouge start ${seedProject}\` when ready.`);
+        await sayInThread(`\n\u2705 Seeding complete for \`${seedProject}\`!\n\u{1F4CB} ${faCount} feature areas, ${specCount} spec files, cycle_context.json generated.\nUse \`rouge start ${seedProject}\` when ready.`);
       }
       return;
     }
@@ -719,14 +739,32 @@ app.command('/rouge', async ({ command, ack, respond }) => {
           return;
         }
 
-        writeSeedingState(projectName, { session_id: result.session_id || null, channel_id: command.channel_id, started_at: new Date().toISOString(), last_activity: new Date().toISOString(), status: 'active' });
-
+        // FW.1: Post first response as a new message (to get thread_ts)
         const response = result.result || result.message || (typeof result === 'string' ? result : JSON.stringify(result));
+        const firstMsg = await app.client.chat.postMessage({
+          channel: command.channel_id,
+          text: response.length > 3000 ? response.slice(0, 3000) + '...' : response,
+        });
+
+        writeSeedingState(projectName, {
+          session_id: result.session_id || null,
+          channel_id: command.channel_id,
+          thread_ts: firstMsg.ts, // thread anchor
+          started_at: new Date().toISOString(),
+          last_activity: new Date().toISOString(),
+          status: 'active',
+        });
+
+        // Post remaining chunks in thread if needed
         if (response.length > 3000) {
-          const chunks = response.match(/.{1,3000}/gs) || [response];
-          for (const chunk of chunks) await respond({ text: chunk });
-        } else {
-          await respond({ text: response });
+          const chunks = response.slice(3000).match(/.{1,3000}/gs) || [];
+          for (const chunk of chunks) {
+            await app.client.chat.postMessage({
+              channel: command.channel_id,
+              thread_ts: firstMsg.ts,
+              text: chunk,
+            });
+          }
         }
         break;
       }
