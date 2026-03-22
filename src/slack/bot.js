@@ -635,10 +635,21 @@ app.event('app_mention', async ({ event, say }) => {
       }
     }
 
-    // Seeding relay: if there's an active seeding session in this channel, relay messages
+    // Seeding relay: check for active OR paused sessions in this channel
+    // Auto-resume paused sessions when user talks (no need for /rouge seed)
     const activeSeedings = listProjects().filter(name => {
       const ss = getSeedingState(name);
-      return ss && ss.status === 'active' && ss.channel_id === event.channel;
+      if (!ss || ss.channel_id !== event.channel) return false;
+      if (ss.status === 'active') return true;
+      // Auto-resume paused sessions when user @mentions in the same channel/thread
+      if (ss.status === 'paused') {
+        ss.status = 'active';
+        ss.last_activity = new Date().toISOString();
+        writeSeedingState(name, ss);
+        log(`[${name}] Auto-resumed seeding (user talked)`);
+        return true;
+      }
+      return false;
     });
 
     if (activeSeedings.length > 0) {
