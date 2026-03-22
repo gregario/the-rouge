@@ -219,4 +219,64 @@ function seedingComplete(projectName, featureCount, specCount) {
   };
 }
 
-module.exports = { sparkline, confidenceTrend, phaseTransition, phaseComplete, qaResult, escalation, morningBriefing, rollbackAlert, seedingComplete };
+function poReviewScorecard(projectName, report) {
+  const verdict = report.verdict || 'UNKNOWN';
+  const confidence = report.confidence || 0;
+  const verdictEmoji = { PRODUCTION_READY: '✅', NEEDS_IMPROVEMENT: '🟡', NOT_READY: '❌' };
+
+  const blocks = [
+    {
+      type: 'header',
+      text: { type: 'plain_text', text: `${verdictEmoji[verdict] || '❓'} PO Review: ${projectName}` },
+    },
+    {
+      type: 'section',
+      fields: [
+        { type: 'mrkdwn', text: `*Verdict*\n${verdict}` },
+        { type: 'mrkdwn', text: `*Confidence*\n${(confidence * 100).toFixed(0)}%` },
+      ],
+    },
+  ];
+
+  // Journey quality summary
+  if (report.journey_quality && report.journey_quality.length > 0) {
+    const jVerdicts = report.journey_quality.map(j => {
+      const emoji = j.verdict === 'production-ready' ? '✅' : j.verdict === 'acceptable-with-improvements' ? '🟡' : '❌';
+      return `${emoji} ${j.journey_name}`;
+    });
+    blocks.push({
+      type: 'section',
+      text: { type: 'mrkdwn', text: `*Journey Quality*\n${jVerdicts.join('\n')}` },
+    });
+  }
+
+  // Screen quality summary
+  if (report.screen_quality && report.screen_quality.length > 0) {
+    const screens = report.screen_quality.map(s => {
+      const dims = ['hierarchy', 'layout', 'consistency', 'density', 'mobile'];
+      const issues = dims.filter(d => s[d] === 'needs-work' || s[d] === 'failing');
+      const emoji = issues.length === 0 ? '✅' : '🟡';
+      return `${emoji} ${s.screen_url}${issues.length > 0 ? ` (${issues.join(', ')})` : ''}`;
+    });
+    blocks.push({
+      type: 'section',
+      text: { type: 'mrkdwn', text: `*Screen Quality*\n${screens.join('\n')}` },
+    });
+  }
+
+  // Heuristic pass rate
+  if (report.heuristic_results) {
+    const hr = report.heuristic_results;
+    blocks.push({
+      type: 'section',
+      fields: [
+        { type: 'mrkdwn', text: `*Heuristics*\n${hr.passed}/${hr.total} pass (${hr.pass_rate_pct?.toFixed(0) || '?'}%)` },
+        { type: 'mrkdwn', text: `*Action*\n${report.recommended_action || 'n/a'}` },
+      ],
+    });
+  }
+
+  return { blocks };
+}
+
+module.exports = { sparkline, confidenceTrend, phaseTransition, phaseComplete, qaResult, escalation, morningBriefing, rollbackAlert, seedingComplete, poReviewScorecard };
