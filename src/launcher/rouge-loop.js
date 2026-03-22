@@ -4,7 +4,7 @@
  * Node.js rewrite of rouge-loop.sh for reliable child process handling.
  */
 
-const { execFileSync, execSync, execFile } = require('child_process');
+const { execFileSync, execSync, spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -403,7 +403,8 @@ async function runPhase(projectDir) {
     // FIX-6: Save state.json before phase — restore if phase overwrites it
     const stateBeforePhase = JSON.stringify(readJson(stateFile));
 
-    const child = execFile('claude', [
+    // spawn (not execFile) for real-time stdout streaming
+    const child = spawn('claude', [
       '-p',
       promptInstruction,
       '--dangerously-skip-permissions',
@@ -412,8 +413,7 @@ async function runPhase(projectDir) {
     ], {
       cwd: projectDir,
       env: { ...process.env },
-      maxBuffer: 50 * 1024 * 1024, // 50MB buffer
-      // NOTE: not detached — detached causes parent to exit when child completes
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     // Stream stdout to log file in real-time (FIX-2: partial output always saved)
