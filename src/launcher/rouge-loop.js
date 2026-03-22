@@ -413,7 +413,7 @@ async function runPhase(projectDir) {
       cwd: projectDir,
       env: { ...process.env },
       maxBuffer: 50 * 1024 * 1024, // 50MB buffer
-      detached: true, // own process group for reliable kill
+      // NOTE: not detached — detached causes parent to exit when child completes
     });
 
     // Stream stdout to log file in real-time (FIX-2: partial output always saved)
@@ -475,12 +475,11 @@ async function runPhase(projectDir) {
       killed = true;
       clearInterval(heartbeat);
       log(`[${projectName}] Phase ${currentState} timeout (${timeout / 60000}min) — killing process`);
-      try {
-        // Kill the entire process tree
-        process.kill(-child.pid, 'SIGKILL');
-      } catch {
+      try { child.kill('SIGTERM'); } catch {}
+      // Give it 5s to clean up, then force kill
+      setTimeout(() => {
         try { child.kill('SIGKILL'); } catch {}
-      }
+      }, 5000);
     }, timeout);
 
     child.on('close', (code) => {
