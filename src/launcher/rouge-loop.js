@@ -406,6 +406,9 @@ async function runPhase(projectDir) {
       promptInstruction += '\n\n' + poSubPhaseScope[currentState];
     }
 
+    // FIX-6: Save state.json before phase — restore if phase overwrites it
+    const stateBeforePhase = JSON.stringify(readJson(stateFile));
+
     const child = execFile('claude', [
       '-p',
       promptInstruction,
@@ -483,6 +486,15 @@ async function runPhase(projectDir) {
           log(`[${projectName}] Output: ${lines[lines.length - 1].slice(0, 200)}`);
         }
       } catch {}
+
+      // FIX-6: Restore state.json if the phase overwrote it
+      const stateAfterPhase = readJson(stateFile);
+      if (stateAfterPhase && stateAfterPhase.current_state !== currentState) {
+        log(`[${projectName}] Phase wrote state.json (${stateAfterPhase.current_state}) — restoring to ${currentState}`);
+        const restored = JSON.parse(stateBeforePhase);
+        restored.current_state = currentState; // keep the state the launcher set
+        writeJson(stateFile, restored);
+      }
 
       // Advance state machine
       advanceState(projectDir);
