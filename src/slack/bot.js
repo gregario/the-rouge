@@ -156,11 +156,14 @@ function generateCycleContext(projectName) {
 
 function isRateLimited(text) {
   if (!text) return false;
+  // Only detect rate limits in SHORT responses (< 200 chars).
+  // Real rate limit messages from Claude Code are brief error messages.
+  // Long responses that mention "rate limit" are actual content, not errors.
+  if (text.length > 200) return false;
   const lower = text.toLowerCase();
   return lower.includes('hit your limit') ||
-         lower.includes('rate limit') ||
          lower.includes('too many requests') ||
-         lower.includes('resets ');
+         (lower.includes('resets ') && lower.includes('limit'));
 }
 
 function tryParseClaudeOutput(raw) {
