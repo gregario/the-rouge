@@ -133,4 +133,67 @@ function morningBriefing(projects) {
   };
 }
 
-module.exports = { phaseTransition, phaseComplete, qaResult, escalation, morningBriefing };
+function rollbackAlert(projectName, reason) {
+  return {
+    blocks: [
+      {
+        type: 'section',
+        text: { type: 'mrkdwn', text: `⏪ *${projectName}* rolled back` },
+      },
+      {
+        type: 'section',
+        text: { type: 'mrkdwn', text: reason },
+      },
+      {
+        type: 'actions',
+        elements: [
+          {
+            type: 'button',
+            text: { type: 'plain_text', text: '🔍 Investigate' },
+            action_id: `investigate_${projectName}`,
+            value: projectName,
+          },
+          {
+            type: 'button',
+            text: { type: 'plain_text', text: '▶️ Retry' },
+            action_id: `resume_${projectName}`,
+            value: projectName,
+            style: 'primary',
+          },
+        ],
+      },
+    ],
+  };
+}
+
+function seedingComplete(projectName, featureCount, specCount) {
+  return {
+    blocks: [
+      {
+        type: 'section',
+        text: { type: 'mrkdwn', text: `🌱 *${projectName}* seeding complete!` },
+      },
+      {
+        type: 'section',
+        fields: [
+          { type: 'mrkdwn', text: `*Feature Areas*\n${featureCount}` },
+          { type: 'mrkdwn', text: `*Spec Files*\n${specCount}` },
+        ],
+      },
+      {
+        type: 'actions',
+        elements: [
+          {
+            type: 'button',
+            text: { type: 'plain_text', text: '🚀 Start Building' },
+            action_id: `start_${projectName}`,
+            value: projectName,
+            style: 'primary',
+          },
+        ],
+      },
+    ],
+  };
+}
+
+module.exports = { phaseTransition, phaseComplete, qaResult, escalation, morningBriefing, rollbackAlert, seedingComplete };
