@@ -398,9 +398,34 @@ async function runPhase(projectDir) {
       });
     }
 
+    // FIX-11: Heartbeat — extend timeout if log file is growing
+    let lastLogSize = 0;
+    let staleChecks = 0;
+    const STALE_THRESHOLD = 3; // 3 consecutive checks with no growth = stale
+    const HEARTBEAT_INTERVAL = 60000; // check every 60s
+
+    const heartbeat = setInterval(() => {
+      try {
+        const currentSize = fs.statSync(phaseLog).size;
+        if (currentSize > lastLogSize) {
+          lastLogSize = currentSize;
+          staleChecks = 0;
+          // Log file is growing — phase is active
+        } else {
+          staleChecks++;
+          if (staleChecks >= STALE_THRESHOLD) {
+            log(`[${projectName}] Phase ${currentState} stale (no output for ${staleChecks * HEARTBEAT_INTERVAL / 1000}s)`);
+          }
+        }
+      } catch {
+        // Log file doesn't exist yet — that's fine
+      }
+    }, HEARTBEAT_INTERVAL);
+
     // FIX-1: Reliable timeout with SIGKILL
     const timer = setTimeout(() => {
       killed = true;
+      clearInterval(heartbeat);
       log(`[${projectName}] Phase ${currentState} timeout (${timeout / 60000}min) — killing process`);
       try {
         // Kill the entire process tree
@@ -412,6 +437,7 @@ async function runPhase(projectDir) {
 
     child.on('close', (code) => {
       clearTimeout(timer);
+      clearInterval(heartbeat);
       logStream.end();
 
       const stderr = Buffer.concat(stderrChunks).toString();
@@ -467,6 +493,7 @@ async function runPhase(projectDir) {
     // Handle spawn errors
     child.on('error', (err) => {
       clearTimeout(timer);
+      clearInterval(heartbeat);
       logStream.end();
       log(`[${projectName}] Phase ${currentState} spawn error: ${err.message.slice(0, 200)}`);
       resolve({ success: false });
