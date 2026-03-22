@@ -1,0 +1,19 @@
+.counter {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: 13px;
+}
+
+.count {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.label {
+  opacity: 0.7;
+}
