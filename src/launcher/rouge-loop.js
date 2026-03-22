@@ -156,6 +156,16 @@ function advanceState(projectDir) {
 
     // QA PASS → po-review sub-phases instead of monolithic po-reviewing
     case 'qa-gate': {
+      // FW.40: Capture screenshots after QA gate (pass or fail)
+      try {
+        const { captureScreenshots } = require('./capture-screenshots');
+        const loopNum = state.cycle_number || 0;
+        const screenshots = captureScreenshots(projectDir, loopNum);
+        log(`[${projectName}] Screenshots captured for loop ${loopNum}: ${screenshots.length}`);
+      } catch (err) {
+        log(`[${projectName}] Screenshot capture failed: ${(err.message || '').slice(0, 100)}`);
+      }
+
       const ctx = readJson(contextFile);
       const verdict = ctx?.qa_report?.verdict || 'PASS';
       if (verdict === 'FAIL') {
