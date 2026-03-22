@@ -32,6 +32,8 @@ oauth_config:
       - channels:join
       - app_mentions:read
       - commands
+      - im:history
+      - im:read
       - files:write
       - users:read
 
@@ -41,6 +43,7 @@ settings:
       - app_home_opened
       - app_mention
       - message.channels
+      - message.im
   interactivity:
     is_enabled: true
   org_deploy_enabled: false
