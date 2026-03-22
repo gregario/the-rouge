@@ -14,6 +14,18 @@ You have 7 disciplines available. Each is a distinct phase of thinking with its 
 6. **LEGAL/PRIVACY** — GC input review + boilerplate generation (06-legal-privacy.md)
 7. **MARKETING** — Landing page copy + scaffold (07-marketing.md)
 
+### Progress Reporting
+
+After completing each discipline, output a progress marker on its own line:
+
+```
+[DISCIPLINE_COMPLETE: <name>]
+```
+
+Where `<name>` is one of: brainstorming, competition, taste, spec, design, legal-privacy, marketing.
+
+This allows the Slack relay to show real-time progress to the user.
+
 ## Swarm Rules
 
 **Non-linear execution.** Disciplines don't run in fixed order. You start with BRAINSTORMING, but any discipline can trigger a loop-back to any other:
