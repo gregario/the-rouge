@@ -487,7 +487,7 @@ async function runPhase(projectDir) {
       try { clearInterval(heartbeat); } catch {}
       try { logStream.end(); } catch {}
 
-      const stderr = Buffer.concat(stderrChunks).toString();
+      const stderr = stderrChunks.map(c => typeof c === 'string' ? c : c.toString()).join('');
 
       if (killed) {
         log(`[${projectName}] Phase ${currentState} timed out after ${timeout / 60000}min`);
