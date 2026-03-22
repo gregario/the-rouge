@@ -657,6 +657,14 @@ app.event('app_mention', async ({ event, say }) => {
 
       writeSeedingState(seedProject, seedState);
 
+      // FW.6: Parse discipline progress markers
+      const DISCIPLINES = ['brainstorming', 'competition', 'taste', 'spec', 'design', 'legal-privacy', 'marketing'];
+      const completedDisciplines = [];
+      const progressMatches = response.matchAll(/\[DISCIPLINE_COMPLETE:\s*(\S+)\]/g);
+      for (const match of progressMatches) {
+        completedDisciplines.push(match[1]);
+      }
+
       // FW.1: Reply in thread
       const threadTs = seedState.thread_ts;
       const sayInThread = (text) => app.client.chat.postMessage({
@@ -665,11 +673,29 @@ app.event('app_mention', async ({ event, say }) => {
         text,
       });
 
-      if (response.length > 3000) {
-        const chunks = response.match(/.{1,3000}/gs) || [response];
+      // Show progress bar if any disciplines completed
+      if (completedDisciplines.length > 0) {
+        const progressLine = DISCIPLINES.map(d => {
+          const done = completedDisciplines.includes(d);
+          return done ? `✅ ${d}` : `⬜ ${d}`;
+        }).join(' → ');
+
+        const progressMsg = `📊 *Seeding Progress* (${completedDisciplines.length}/${DISCIPLINES.length})\n${progressLine}`;
+
+        // Post progress as a separate message in thread
+        try {
+          await sayInThread(progressMsg);
+        } catch {}
+      }
+
+      // Strip progress markers from the response before showing to user
+      const cleanResponse = response.replace(/\[DISCIPLINE_COMPLETE:\s*\S+\]/g, '').trim();
+
+      if (cleanResponse.length > 3000) {
+        const chunks = cleanResponse.match(/.{1,3000}/gs) || [cleanResponse];
         for (const chunk of chunks) await sayInThread(chunk);
       } else {
-        await sayInThread(response);
+        await sayInThread(cleanResponse);
       }
 
       if (isComplete) {
@@ -759,11 +785,36 @@ app.event('message', async ({ event, say }) => {
 
     writeSeedingState(seedProject, seedState);
 
-    if (response.length > 3000) {
-      const chunks = response.match(/.{1,3000}/gs) || [response];
+    // FW.6: Parse discipline progress markers
+    const DM_DISCIPLINES = ['brainstorming', 'competition', 'taste', 'spec', 'design', 'legal-privacy', 'marketing'];
+    const dmCompletedDisciplines = [];
+    const dmProgressMatches = response.matchAll(/\[DISCIPLINE_COMPLETE:\s*(\S+)\]/g);
+    for (const match of dmProgressMatches) {
+      dmCompletedDisciplines.push(match[1]);
+    }
+
+    // Show progress bar if any disciplines completed
+    if (dmCompletedDisciplines.length > 0) {
+      const progressLine = DM_DISCIPLINES.map(d => {
+        const done = dmCompletedDisciplines.includes(d);
+        return done ? `✅ ${d}` : `⬜ ${d}`;
+      }).join(' → ');
+
+      const progressMsg = `📊 *Seeding Progress* (${dmCompletedDisciplines.length}/${DM_DISCIPLINES.length})\n${progressLine}`;
+
+      try {
+        await say(progressMsg);
+      } catch {}
+    }
+
+    // Strip progress markers from the response before showing to user
+    const cleanResponse = response.replace(/\[DISCIPLINE_COMPLETE:\s*\S+\]/g, '').trim();
+
+    if (cleanResponse.length > 3000) {
+      const chunks = cleanResponse.match(/.{1,3000}/gs) || [cleanResponse];
       for (const chunk of chunks) await say(chunk);
     } else {
-      await say(response);
+      await say(cleanResponse);
     }
 
     if (isComplete) {
