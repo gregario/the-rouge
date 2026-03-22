@@ -1008,6 +1008,9 @@
     ]
   },
   "po_review_report": {
+    "verdict": "NEEDS_IMPROVEMENT",
+    "confidence": 0.83,
+    "recommended_action": "deepen:accessibility-polish",
     "journey_quality": [
       {
         "journey_name": "First-time user landing",
@@ -1222,8 +1225,130 @@
       "areas_for_minor_improvement": [
         "Settings modal could benefit from slightly more vertical breathing room between sections on desktop viewports (low priority polish opportunity)"
       ]
-    }
+    },
+    "heuristic_results": {
+      "source": "standard_nielsens_10_plus_a11y",
+      "note": "library_heuristics was empty — applied standard Nielsen's 10 Usability Heuristics plus accessibility compliance rules",
+      "total": 42,
+      "passed": 31,
+      "failed": 11,
+      "pass_rate_pct": 73.8,
+      "failures": [
+        {"heuristic_id": "H4", "rule_id": "H4-R4", "rule": "Semantic HTML landmarks present (h1, header, main, footer)", "measured": "No h1 element, no header or footer landmarks", "threshold": "All landmark roles present", "gap": "Missing h1, header, footer"},
+        {"heuristic_id": "H4", "rule_id": "H4-R5", "rule": "Standard browser conventions (favicon, page title)", "measured": "No favicon, no <link rel='icon'>", "threshold": "Favicon present", "gap": "Missing favicon"},
+        {"heuristic_id": "H5", "rule_id": "H5-R3", "rule": "React Error Boundary catches component crashes", "measured": "No ErrorBoundary component in tree", "threshold": "Error boundary wrapping main content", "gap": "Unhandled crash shows blank page"},
+        {"heuristic_id": "H5", "rule_id": "H5-R4", "rule": "localStorage schema validation on read", "measured": "Raw JSON.parse without validation", "threshold": "Schema validation or safe parsing", "gap": "Corrupted localStorage could crash app"},
+        {"heuristic_id": "H9", "rule_id": "H9-R1", "rule": "Graceful crash recovery UI", "measured": "No error boundary fallback UI", "threshold": "User-friendly error message with recovery option", "gap": "React crash results in blank page"},
+        {"heuristic_id": "H10", "rule_id": "H10-R1", "rule": "Keyboard shortcuts discoverable", "measured": "No visible hint that Space/R/S shortcuts exist", "threshold": "Visual hint, tooltip, or help text", "gap": "Shortcuts completely hidden"},
+        {"heuristic_id": "H10", "rule_id": "H10-R2", "rule": "First-use guidance for primary action", "measured": "No onboarding hint, though timer is self-evident", "threshold": "Subtle first-use affordance", "gap": "Minor — timer is intuitive enough"},
+        {"heuristic_id": "HA11y", "rule_id": "HA-R1", "rule": "Modal focus trap prevents Tab escape", "measured": "Tab escapes modal after 15 presses", "threshold": "Focus cycles within modal when open", "gap": "Focus escapes to background elements"},
+        {"heuristic_id": "HA11y", "rule_id": "HA-R2", "rule": "Color contrast meets WCAG AA (4.5:1)", "measured": "Session counter ~3.2:1 (rgb(107,114,128) on #0a0a0f), modal footer opacity 0.6", "threshold": "4.5:1 minimum for normal text", "gap": "~1.3:1 below threshold on session counter"},
+        {"heuristic_id": "HA11y", "rule_id": "HA-R4", "rule": "ARIA roles on custom interactive elements", "measured": "CycleIndicator dots have aria-label but no valid role", "threshold": "role='img' or equivalent", "gap": "Missing role attribute"},
+        {"heuristic_id": "HA11y", "rule_id": "HA-R5", "rule": "Focus-visible indicator on interactive elements", "measured": "Number inputs in settings lack :focus-visible styling", "threshold": "Visible focus ring on all focusable elements", "gap": "No outline on keyboard focus"}
+      ]
+    },
+    "reference_comparison": {
+      "status": "skipped",
+      "reason": "reference_products array is empty — no pairwise comparison possible",
+      "default_score": 7.0,
+      "note": "Neutral 7.0/10 used in confidence calculation"
+    },
+    "spec_compliance": {
+      "criteria_pass_rate_pct": 100,
+      "criteria_total": 37,
+      "criteria_passed": 37,
+      "partial_criteria": 0,
+      "divergences_reviewed": 2,
+      "divergences_acceptable": 2,
+      "divergence_notes": [
+        "Timer size clamp(72px, 15vw, 120px): acceptable — responsive improvement within spec range",
+        "Multi-tab coordination deferred: acceptable — edge case, low user impact, noted for future cycle"
+      ],
+      "normalized_score": 10.0
+    },
+    "quality_gaps": [
+      {
+        "id": "qg-001",
+        "category": "interaction_improvement",
+        "severity": "medium",
+        "description": "Keyboard shortcuts (Space for start/pause, R for reset, S for skip) exist but are completely undiscoverable. No tooltip, legend, help overlay, or first-use hint indicates their existence. Power users would benefit but new users will never find them.",
+        "evidence": "Code confirms keydown handler maps Space/R/S. No visual element references shortcuts. Journey walkthrough did not naturally discover them.",
+        "what_good_looks_like": "Subtle shortcut hints next to button labels (e.g., 'Start [Space]'), or a small '?' icon that reveals a keyboard shortcut legend on hover/click.",
+        "affected_screens": ["/"],
+        "affected_journeys": ["Start a focus session", "Reset current phase timer"]
+      },
+      {
+        "id": "qg-002",
+        "category": "design_change",
+        "severity": "medium",
+        "description": "Settings modal is functional but lacks the delight and personality of the main timer screen. Journey quality scored 6-7/10 on delight dimension for settings steps. The modal feels like a utility form dropped into a premium product — the glass and dark theme are present but the interaction experience is flat.",
+        "evidence": "Journey quality: settings steps averaged 6.3 on delight vs 8.0+ on main screen steps. Screen quality: settings modal density scored 7/10.",
+        "what_good_looks_like": "Subtle section reveal animations on open, smooth slider interactions with value tooltips, toggle switches with micro-animation, section dividers that feel designed rather than structural.",
+        "affected_screens": ["settings modal"],
+        "affected_journeys": ["Configure Pomodoro settings"]
+      },
+      {
+        "id": "qg-003",
+        "category": "design_change",
+        "severity": "low",
+        "description": "Settings modal density slightly high on desktop — TIMING, BEHAVIOR, SOUND, NOTIFICATIONS sections are packed tightly. The vertical breathing room between groups is insufficient for a premium aesthetic.",
+        "evidence": "Screen quality: density scored 7/10 for settings modal. 'Slightly information-dense' noted.",
+        "what_good_looks_like": "24-32px gap between section groups instead of current spacing. Sections feel like distinct zones rather than a continuous form.",
+        "affected_screens": ["settings modal"],
+        "affected_journeys": ["Configure Pomodoro settings"]
+      },
+      {
+        "id": "qg-004",
+        "category": "interaction_improvement",
+        "severity": "low",
+        "description": "Reset button icon affordance is ambiguous. Not immediately recognizable as 'reset' without prior knowledge or experimentation.",
+        "evidence": "Journey quality: clarity scored 8/10 for reset step (slightly below 9-10 for other control actions). Notes mention 'gear/cycle icon' — icon identity unclear even to reviewer.",
+        "what_good_looks_like": "A universally recognized reset icon (circular arrow) or a tooltip on hover that says 'Reset timer (R)' — combining affordance with shortcut discovery.",
+        "affected_screens": ["/"],
+        "affected_journeys": ["Reset current phase timer"]
+      },
+      {
+        "id": "qg-005",
+        "category": "design_change",
+        "severity": "low",
+        "description": "No favicon or branded browser tab presence. For a product named 'Epoch' positioned as premium and designed to be 'left on screen', the browser tab is a missed brand touchpoint.",
+        "evidence": "QA Gate flagged: 'Missing /favicon.ico — no <link rel=\"icon\"> in document'. Lighthouse SEO impacted.",
+        "what_good_looks_like": "A minimal SVG favicon — perhaps a stylized clock or the 'E' lettermark — that adapts to light/dark browser chrome. Bonus: dynamic favicon showing timer state.",
+        "affected_screens": ["browser tab"],
+        "affected_journeys": ["First-time user landing"]
+      }
+    ],
+    "latent_space_activation": {
+      "dieter_rams": "Main screen embodies 'as little design as possible' — every element serves purpose. Glow is both aesthetic and functional. Settings modal breaks the principle with dense utility controls. Missing favicon is an omission Rams would notice.",
+      "don_norman": "Affordances mostly visible: play/pause icon, skip arrow. Reset button lacks clear mental model. Keyboard shortcuts are invisible affordances — a Norman red flag. Conceptual model of Pomodoro cycle well-communicated through 4-dot indicator.",
+      "julie_zhuo": "Core problem solved — 'I can see my focus happening' is delivered. Aesthetic would generate word-of-mouth. But accessibility gaps (contrast, focus trap) alienate assistive tech users. Core experience strong, edges rough.",
+      "joe_gebbia": "First impression memorable — dark glass with blue glow creates 'this is different' moment. Phase transition color shift is genuine delight. No second surprise — settings modal is where magic could continue but doesn't.",
+      "jony_ive": "Unifying principle clear: 'focus object, not utility.' Simplicity from genuine restraint (no task lists, accounts, themes), not from ignoring complexity. Settings modal introduces utility-mode tension with the identity."
+    },
+    "confidence_breakdown": {
+      "journey_quality_avg": {"value": 8.6, "weight": 0.30, "weighted": 2.580},
+      "screen_quality_avg": {"value": 8.55, "weight": 0.20, "weighted": 1.710},
+      "heuristic_pass_rate": {"value": 7.38, "weight": 0.20, "weighted": 1.476, "note": "73.8% pass rate, below 80% threshold"},
+      "spec_compliance_pct": {"value": 10.0, "weight": 0.15, "weighted": 1.500},
+      "reference_comparison": {"value": 7.0, "weight": 0.15, "weighted": 1.050, "note": "neutral default, no reference products defined"},
+      "total": 8.316,
+      "confidence": 0.83
+    },
+    "verdict_rationale": "Confidence 0.83 clears the 0.80 PRODUCTION_READY threshold, but heuristic pass rate 73.8% falls below the 80% minimum. 11 of 42 heuristic rules failed, clustering in accessibility (5) and robustness (3). The QA Gate's 8 unresolved fix tasks (error boundary, focus trap, 2× contrast, localStorage validation, AudioContext, landmarks, :focus-visible) directly account for 8 of the 11 heuristic failures. Resolving those QA fixes would push pass rate to ~86%, clearing the threshold. The 5 PO quality gaps (0 critical, 0 high, 2 medium, 3 low) are polish items, not blockers."
   },
+  "evaluator_observations": [
+    "Test Integrity (cycle 1): All 37 acceptance criteria now have @criterion-annotated tests with SHA-256 hashes. No orphaned or stale tests found (first integrity pass). 22 new tests generated for previously uncovered criteria: AC-display-3 through AC-display-6 (visual/responsive), AC-cycle-5 (mid-session settings isolation), AC-counter-1 (daily count display), AC-counter-5 (localStorage fallback x4), AC-transition-4 (drift architecture note), AC-transition-5 (no permission on load), AC-transition-6 (data-phase attribute), AC-settings-2 (persistence), AC-settings-3 (modal animation), AC-settings-7 (notification permission prompt x2), AC-settings-8 (next-phase application). 67 existing tests annotated with criterion IDs and hashes. All 89 tests pass. Some visual criteria (viewport responsiveness, CSS transitions, scrollbar absence) have structural unit tests; full visual verification requires Playwright/browser QA.",
+    "Test Integrity re-verification (cycle 1): Re-ran full traceability analysis. All 37 criteria remain covered across 9 test files (89 tests). No spec changes detected — zero coverage gaps, zero orphaned tests, zero stale tests. All 89 tests pass. No remediation needed.",
+    "QA Gate (cycle 1, run 1): Verdict PASS, health score 72/100. Initial QA pass — see run 2 for corrected scoring.",
+    "QA Gate (cycle 1, run 2): Verdict FAIL, health score 68/100. All 37/37 acceptance criteria pass (100%) — functionality is complete. Zero console errors, zero dead elements, 317ms page load, 43ms TTFB. Lighthouse: perf 91, a11y 89 (flagged <90), best practices 96, SEO 100. AI code audit: 90/100, zero CRITICAL findings. Corrected from run 1: reclassified 'number input :focus-visible' from LOW to MEDIUM (WCAG 2.4.7 AA requirement) and found 2 additional LOW items missed in run 1 (cycle dots missing role, <time> missing datetime). 2 HIGH findings (-10): no React Error Boundary, no modal focus trap. 6 MEDIUM findings (-12): session counter contrast failure, modal footer contrast failure (verified: opacity 0.6 at 11px), localStorage no schema validation, AudioContext suspended state, missing landmarks/h1, number inputs :focus-visible missing. 10 LOW findings (-10, capped): missing favicon, ESLint unconfigured, 4 dead code items, unused enum, aria-expanded missing, Google Fonts FOIT risk, coverage tool missing, cycle dots no role, time missing datetime, duplicate import. WTF heuristic: 0-1 WTF/min, no deduction. Design review: 82/100, AI slop 10/100. Code quality: 0% duplication, 0 circular deps, 89/89 tests pass. Security: SKIP (no backend). 8 fix tasks issued to builder, prioritized: Error Boundary, focus trap, 2× contrast fixes, localStorage validation, AudioContext resume, semantic landmarks, :focus-visible styles.",
+    "QA Gate (cycle 1, run 3): Re-verification with no code changes. Verdict FAIL, health 68/100. Fresh browser testing confirms all prior findings: zero console errors, zero dead elements, 212ms load (improved from 317ms — caching), 49ms TTFB. All 37/37 criteria still pass (100%). Focus trap still missing (Tab escapes modal after 15 presses — landed on 'Skip to next phase'). Session counter contrast still rgb(107,114,128) on dark bg. No h1, no header/footer landmarks. 89/89 tests pass. 0% duplication, 0 circular deps. Fresh AI code audit: 87/100 (vs 90 prior) — identified additional MEDIUM findings: handlePhaseComplete state coupling, useTimer god hook at 155 lines, localStorage writes unthrottled on slider drag. Dead code unchanged: open-next.config.ts, 2 unused devDeps, 1 unused type export. npm audit: 5 moderate (esbuild via vitest — dev only). Responsive layouts verified at 375x812, 768x1024, 1280x720 — all clean, no scrollbars. Design: 82/100, AI slop 10/100. Lighthouse carry-forward (no code change): perf 91, a11y 89, best practices 96, SEO 100. All 8 fix tasks from run 2 remain valid and unaddressed. Verdict unchanged — health 68 < 70 threshold.",
+    "PO Review (cycle 1): Verdict NEEDS_IMPROVEMENT, confidence 0.83. Journey quality 8.6/10 (polished), screen quality 8.55/10 (polished) — design taste and core experience are strong. Heuristic pass rate 73.8% (42 rules, 31 passed, 11 failed) triggers NEEDS_IMPROVEMENT despite confidence clearing 0.80. Failures cluster in accessibility (5: focus trap, contrast ×2, ARIA roles, :focus-visible) and robustness (3: error boundary ×2, localStorage validation). These align directly with the 8 unresolved QA fix tasks — resolving them would push heuristic rate to ~86%. 5 PO quality gaps identified (0 critical, 0 high, 2 medium, 3 low): keyboard shortcut discoverability, settings modal delight deficit, settings density, reset button affordance, missing favicon. Latent space activation found no fundamental design issues — core concept is sound. Recommended action: deepen:accessibility-polish."
+  ],
+  "evaluator_questions": [
+    "Should keyboard shortcuts be made discoverable (visible hints) or kept hidden as power-user features? The current approach is invisible — which aligns with 'as little design as possible' but hurts discoverability.",
+    "Is the settings modal delight gap worth addressing in cycle 1, or should accessibility fixes take full priority? The modal is functional but breaks the premium aesthetic somewhat.",
+    "Should the product have a favicon that dynamically shows timer state (e.g., countdown in tab), or is a static brand mark sufficient?"
+  ],
   "deployment_url": "https://countdowntimer-staging.gregj64.workers.dev",
   "infrastructure": {
     "staging_url": "https://countdowntimer-staging.gregj64.workers.dev",
