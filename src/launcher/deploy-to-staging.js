@@ -58,10 +58,16 @@ function deploy(projectDir) {
   const ctx = readJson(ctxFile);
   if (ctx?.supabase?.project_ref) {
     try {
-      run(`supabase db push --project-ref ${ctx.supabase.project_ref}`, { cwd: projectDir, timeout: 60000 });
-      log('Supabase migrations pushed');
-    } catch {
-      // No migrations to push is fine
+      const migrationDir = path.join(projectDir, 'supabase', 'migrations');
+      const hasMigrations = fs.existsSync(migrationDir) && fs.readdirSync(migrationDir).some(f => f.endsWith('.sql'));
+      if (hasMigrations) {
+        run(`supabase db push --project-ref ${ctx.supabase.project_ref}`, { cwd: projectDir, timeout: 60000 });
+        log('Supabase migrations pushed');
+      } else {
+        log('Supabase: no migrations to push');
+      }
+    } catch (err) {
+      log(`Supabase migration push failed: ${(err.message || '').slice(0, 200)}`);
     }
   }
 
