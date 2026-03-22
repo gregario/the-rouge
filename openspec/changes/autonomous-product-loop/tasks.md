@@ -456,3 +456,10 @@ Questions:
 - [x] FW.44 Quick PO review mode — review 1 journey + 1 screen only. For testing and fast iteration cycles.
 - [x] FW.45 Fix execFileSync output capture — switch to async execFile with streaming output to log file. Partial output must be saved even if the process dies. Current: all-or-nothing means hours of work lost on timeout.
 - [x] FW.46 Guard against synthetic data propagation — when po_review_report.synthetic is true, downstream phases must NOT generate change specs or make product modifications based on synthetic data. Analyzing phase should check this flag.
+
+## Future Work — Session Feedback (2026-03-22)
+
+- [ ] FW.47 Add /rouge respond command — alternative to @mention for replying during seeding. Cleaner UX than @mention in threads.
+- [ ] FW.48 Slack markdown sanitization — convert Claude's markdown (headers, code blocks, tables) to Slack-compatible mrkdwn before posting. Strip unsupported syntax.
+- [ ] FW.49 Per-project status detail — `/rouge status <project>` shows detailed view (current phase, cycle, confidence, last action, staging URL) vs the current list view.
+- [ ] FW.50 API/integration-aware seeding — seeding swarm asks about integrations (Stripe, Supabase, third-party APIs, OAuth, webhooks) and incorporates them into the spec. Products built on integrations need them specced from the start.
