@@ -371,7 +371,7 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 - [x] FW.3 Phase transition notifications — notify channel when a phase starts/completes with brief summary
 - [x] FW.4 Confidence trend in notifications — include confidence score and delta in loop completion messages
 - [x] FW.5 Screenshot attachments in notifications — capture primary screen + feature screens, attach to Slack messages via file upload
-- [ ] FW.6 Seeding swarm progress — "Discipline 3/7 complete (brainstorming → competition → taste)" during seeding loops
+- [x] FW.6 Seeding swarm progress — "Discipline 3/7 complete (brainstorming → competition → taste)" during seeding loops
 
 ## Future Work — Slack UX (Boil the Lake)
 
@@ -390,7 +390,7 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 - [x] FW.17 Block Kit morning briefing — multi-section card with per-project blocks, confidence charts, screenshot thumbnails
 - [x] FW.18 Block Kit PO Review scorecard — journey/screen/interaction quality breakdown with pass/fail indicators
 - [x] FW.19 Inline action buttons — "Start" button on ready notifications, "Investigate" button on rollback alerts, "Approve/Reject" on seeding completion
-- [ ] FW.20 Dropdown menus for feedback classification — when sending feedback, select type (product-change, global-learning, etc.) from a menu instead of relying on LLM classification
+- [x] FW.20 Dropdown menus for feedback classification — when sending feedback, select type (product-change, global-learning, etc.) from a menu instead of relying on LLM classification
 
 ### Polish
 - [x] FW.21 DM support — seed from DMs with the bot for private brainstorming, channel notifications for team visibility
