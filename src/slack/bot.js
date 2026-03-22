@@ -2,6 +2,7 @@ const { App } = require('@slack/bolt');
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { markdownToSlack } = require('./format');
 
 const app = new App({
   token: process.env.SLACK_BOT_TOKEN,
@@ -240,7 +241,7 @@ function invokeClaudeSeeding(projectDir, prompt, sessionId) {
 }
 
 function sendSeedingResponse(say, result, seedProject) {
-  const response = result.result || result.message || (typeof result === 'string' ? result : JSON.stringify(result));
+  const response = markdownToSlack(result.result || result.message || (typeof result === 'string' ? result : JSON.stringify(result)));
 
   // Detect seeding completion
   const isComplete = response.includes('SEEDING_COMPLETE') ||
@@ -578,7 +579,7 @@ app.event('app_mention', async ({ event, say }) => {
           }
 
           // FW.1: Post first response as a new message (to get thread_ts)
-          const response = result.result || result.message || (typeof result === 'string' ? result : JSON.stringify(result));
+          const response = markdownToSlack(result.result || result.message || (typeof result === 'string' ? result : JSON.stringify(result)));
           const firstMsg = await app.client.chat.postMessage({
             channel: event.channel,
             text: response.length > 3000 ? response.slice(0, 3000) + '...' : response,
@@ -676,7 +677,7 @@ app.event('app_mention', async ({ event, say }) => {
       seedState.last_activity = new Date().toISOString();
       if (result.session_id) seedState.session_id = result.session_id;
 
-      const response = result.result || result.message || (typeof result === 'string' ? result : JSON.stringify(result));
+      const response = markdownToSlack(result.result || result.message || (typeof result === 'string' ? result : JSON.stringify(result)));
 
       const isComplete = response.includes('SEEDING_COMPLETE') ||
                        (response.includes('approved') && response.includes('ready'));
@@ -843,7 +844,7 @@ app.event('message', async ({ event, say }) => {
     seedState.last_activity = new Date().toISOString();
     if (result.session_id) seedState.session_id = result.session_id;
 
-    const response = result.result || result.message || JSON.stringify(result);
+    const response = markdownToSlack(result.result || result.message || JSON.stringify(result));
     const isComplete = response.includes('SEEDING_COMPLETE') ||
                      (response.includes('approved') && response.includes('ready'));
 
@@ -1154,7 +1155,7 @@ app.view('create_project', async ({ ack, view, client }) => {
     return;
   }
 
-  const response = result.result || result.message || JSON.stringify(result);
+  const response = markdownToSlack(result.result || result.message || JSON.stringify(result));
   const firstMsg = await client.chat.postMessage({
     channel: channel_id,
     text: response.length > 3000 ? response.slice(0, 3000) + '...' : response,
