@@ -162,6 +162,14 @@ function advanceState(projectDir) {
         const loopNum = state.cycle_number || 0;
         const screenshots = captureScreenshots(projectDir, loopNum);
         log(`[${projectName}] Screenshots captured for loop ${loopNum}: ${screenshots.length}`);
+        if (screenshots.length > 0) {
+          notifyRich('screenshots', {
+            project: projectName,
+            loop: loopNum,
+            count: screenshots.length,
+            screens: screenshots.map(s => s.name),
+          });
+        }
       } catch (err) {
         log(`[${projectName}] Screenshot capture failed: ${(err.message || '').slice(0, 100)}`);
       }
