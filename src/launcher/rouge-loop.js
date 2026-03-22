@@ -399,11 +399,9 @@ function runPhase(projectDir) {
       log(`[${projectName}] Output: ${lines[lines.length - 1].slice(0, 200)}`);
     }
 
-    // Check for rate limiting in output
-    if (isRateLimited(output)) {
-      log(`[${projectName}] Rate limited during phase ${currentState}`);
-      return false;
-    }
+    // NOTE: Do NOT check stdout for rate limits — phase prompts may mention
+    // "rate limit" in their output text (false positive). Rate limits are
+    // detected in the catch block via stderr or exit code.
 
     // Advance state machine
     advanceState(projectDir);
