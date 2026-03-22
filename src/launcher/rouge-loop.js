@@ -422,7 +422,7 @@ async function runPhase(projectDir) {
         return;
       }
 
-      // FIX-3 (partial): Check stderr for rate limits, not stdout
+      // FIX-3 + FIX-10: Rate limit detection only from stderr, never stdout
       if (isRateLimited(stderr)) {
         log(`[${projectName}] Rate limited (detected in stderr)`);
         resolve({ success: false, rateLimited: true });
