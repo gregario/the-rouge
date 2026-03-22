@@ -3,7 +3,10 @@ import { render, screen } from '@testing-library/react';
 import { CycleIndicator } from '@/components/CycleIndicator';
 import { DEFAULT_SETTINGS } from '@/engine/types';
 
-describe('CycleIndicator', () => {
+// @criterion: AC-cycle-4
+// Cycle position indicator shows correct position (1 through N)
+// @criterion-hash: 68fc7ead4d6c
+describe('[AC-cycle-4] cycle position indicator', () => {
   it('renders correct number of dots based on longBreakInterval', () => {
     const cycle = { phase: 'focus' as const, focusCount: 0, cyclePosition: 1 };
     render(<CycleIndicator cycle={cycle} settings={DEFAULT_SETTINGS} />);

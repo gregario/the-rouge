@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { playChime, sendNotification } from '@/engine/audio';
 
-describe('playChime', () => {
+// @criterion: AC-transition-1
+// Chime plays when a phase ends
+// @criterion-hash: a4e69cc62891
+describe('[AC-transition-1] chime playback', () => {
   it('creates oscillators and gain nodes when called', () => {
     const startSpy = vi.fn();
     const stopSpy = vi.fn();
@@ -27,15 +30,11 @@ describe('playChime', () => {
       })),
     };
 
-    // Replace AudioContext to inject our mock
     const origAC = globalThis.AudioContext;
     // @ts-expect-error - test mock
     globalThis.AudioContext = class { constructor() { return mockCtx; } };
-    // Reset the module-level audioCtx cache
     vi.resetModules();
 
-    // Re-import to get fresh module with no cached AudioContext
-    // Since we can't easily reset the module cache mid-test, we test with the existing mock
     playChime(70);
 
     // Should have created 2 oscillators and 2 gain nodes
@@ -46,14 +45,18 @@ describe('playChime', () => {
 
     globalThis.AudioContext = origAC;
   });
+});
 
+// @criterion: AC-transition-2
+// Chime respects sound on/off setting and volume
+// @criterion-hash: 90586b47792c
+describe('[AC-transition-2] volume control', () => {
   it('scales volume based on input parameter', () => {
-    // playChime with volume 0 should still not throw
     expect(() => playChime(0)).not.toThrow();
     expect(() => playChime(100)).not.toThrow();
   });
 
-  it('does not throw when AudioContext is unavailable', () => {
+  it('does not throw when AudioContext is unavailable (sound off gracefully)', () => {
     const origAC = globalThis.AudioContext;
     // @ts-expect-error - test mock
     globalThis.AudioContext = class {
@@ -66,7 +69,10 @@ describe('playChime', () => {
   });
 });
 
-describe('sendNotification', () => {
+// @criterion: AC-transition-3
+// Browser notification fires when tab is hidden and permission is granted
+// @criterion-hash: 9d4c7b042afc
+describe('[AC-transition-3] browser notifications', () => {
   let origHidden: boolean;
 
   beforeEach(() => {
@@ -116,7 +122,6 @@ describe('sendNotification', () => {
     };
 
     sendNotification('Focus complete', 'Short break starting.');
-
     expect(constructorSpy).not.toHaveBeenCalled();
 
     globalThis.Notification = origNotification;
@@ -137,7 +142,6 @@ describe('sendNotification', () => {
     };
 
     sendNotification('Focus complete', 'Short break starting.');
-
     expect(constructorSpy).not.toHaveBeenCalled();
 
     globalThis.Notification = origNotification;

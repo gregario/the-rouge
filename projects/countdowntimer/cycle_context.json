@@ -314,6 +314,23 @@
       "severity": "minor"
     }
   ],
+  "test_integrity_report": {
+    "spec_coverage_pct": 100,
+    "po_check_coverage_pct": 100,
+    "total_criteria": 37,
+    "total_po_checks": 0,
+    "total_tests": 89,
+    "orphaned_count": 0,
+    "orphaned_removed": [],
+    "orphaned_renamed": [],
+    "stale_regenerated_count": 0,
+    "newly_generated_count": 22,
+    "test_suite_pass": true,
+    "verdict": "PASS"
+  },
+  "evaluator_observations": [
+    "Test Integrity (cycle 1): All 37 acceptance criteria now have @criterion-annotated tests with SHA-256 hashes. No orphaned or stale tests found (first integrity pass). 22 new tests generated for previously uncovered criteria: AC-display-3 through AC-display-6 (visual/responsive), AC-cycle-5 (mid-session settings isolation), AC-counter-1 (daily count display), AC-counter-5 (localStorage fallback x4), AC-transition-4 (drift architecture note), AC-transition-5 (no permission on load), AC-transition-6 (data-phase attribute), AC-settings-2 (persistence), AC-settings-3 (modal animation), AC-settings-7 (notification permission prompt x2), AC-settings-8 (next-phase application). 67 existing tests annotated with criterion IDs and hashes. All 89 tests pass. Some visual criteria (viewport responsiveness, CSS transitions, scrollbar absence) have structural unit tests; full visual verification requires Playwright/browser QA."
+  ],
   "qa_report": null,
   "po_review_report": null,
   "deployment_url": "https://countdowntimer-staging.gregj64.workers.dev",

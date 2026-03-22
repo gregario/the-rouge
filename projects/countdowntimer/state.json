@@ -1,0 +1,41 @@
+{
+  "current_state": "test-integrity",
+  "cycle_number": 1,
+  "feature_areas": [
+    {
+      "name": "timer-display",
+      "status": "pending"
+    },
+    {
+      "name": "timer-controls",
+      "status": "pending"
+    },
+    {
+      "name": "pomodoro-cycle",
+      "status": "pending"
+    },
+    {
+      "name": "session-counter",
+      "status": "pending"
+    },
+    {
+      "name": "transition-feedback",
+      "status": "pending"
+    },
+    {
+      "name": "settings-modal",
+      "status": "pending"
+    }
+  ],
+  "current_feature_area": "timer-display",
+  "confidence_history": [],
+  "domain": "web",
+  "name": "Epoch",
+  "description": "A focus timer that's beautiful enough to leave on screen.",
+  "timestamp": "2026-03-22T21:54:03.712Z",
+  "seeded_at": "2026-03-22T15:45:00.000Z",
+  "completed_phases": [
+    "building",
+    "test-integrity"
+  ]
+}
