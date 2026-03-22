@@ -406,9 +406,26 @@ async function runPhase(projectDir) {
       try {
         const currentSize = fs.statSync(phaseLog).size;
         if (currentSize > lastLogSize) {
+          // Log file is growing — extract progress events
+          try {
+            const newContent = fs.readFileSync(phaseLog, 'utf8').slice(lastLogSize);
+            const { extractEvents } = require('./progress-streamer');
+            const events = extractEvents(newContent);
+            if (events.length > 0) {
+              log(`[${projectName}] Progress: ${events.join(' | ')}`);
+              // Post to Slack if configured
+              if (process.env.ROUGE_SLACK_WEBHOOK) {
+                notifyRich('transition', {
+                  project: projectName,
+                  from: currentState,
+                  to: currentState,
+                  details: events.join(' | '),
+                });
+              }
+            }
+          } catch {}
           lastLogSize = currentSize;
           staleChecks = 0;
-          // Log file is growing — phase is active
         } else {
           staleChecks++;
           if (staleChecks >= STALE_THRESHOLD) {
