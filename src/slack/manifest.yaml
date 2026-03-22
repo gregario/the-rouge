@@ -1,12 +1,13 @@
+_metadata:
+  major_version: 1
+  minor_version: 1
+
 display_information:
   name: Rouge
   description: Autonomous product development system
   background_color: "#dc2626"
   long_description: |
-    Rouge builds products autonomously. Seed a product idea via conversation,
-    then let the Karpathy Loop build, test, evaluate, and ship it.
-
-    Commands: /rouge new, /rouge status, /rouge start, /rouge pause, /rouge resume, /rouge seed
+    Rouge builds products autonomously. Seed a product idea via Slack conversation, then let the Karpathy Loop build, test, evaluate, and ship it. Rouge Spec handles interactive seeding with a swarm of disciplines (brainstorming, competition analysis, product taste, spec writing, design, legal, marketing). Rouge Build runs the autonomous loop: building with TDD, test integrity verification, QA gate with browser testing, PO review for quality assessment, and promotion to production. Control everything from Slack with slash commands.
 
 features:
   app_home:
