@@ -1,5 +1,5 @@
 {
-  "current_state": "qa-gate",
+  "current_state": "promoting",
   "cycle_number": 1,
   "feature_areas": [
     {
@@ -28,10 +28,17 @@
     }
   ],
   "current_feature_area": "navigation",
-  "confidence_history": [],
-  "qa_fix_attempts": 3,
+  "confidence_history": [
+    {
+      "cycle": 1,
+      "confidence": 0.88,
+      "timestamp": "2026-03-22T14:30:00.000Z",
+      "trajectory": "converging"
+    }
+  ],
+  "qa_fix_attempts": 0,
   "po_review_cycles": 0,
-  "timestamp": "2026-03-21T14:42:00.000Z",
+  "timestamp": "2026-03-22T14:20:39.108Z",
   "completed_phases": [
     "building",
     "test-integrity",
@@ -44,6 +51,10 @@
     "test-integrity",
     "qa-gate",
     "test-integrity",
-    "qa-gate"
+    "qa-gate",
+    "test-integrity",
+    "test-integrity",
+    "analyzing",
+    "vision-checking"
   ]
 }
