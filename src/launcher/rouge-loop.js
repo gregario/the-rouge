@@ -483,9 +483,9 @@ async function runPhase(projectDir) {
     }, timeout);
 
     child.on('close', (code) => {
-      clearTimeout(timer);
-      clearInterval(heartbeat);
-      logStream.end();
+      try { clearTimeout(timer); } catch {}
+      try { clearInterval(heartbeat); } catch {}
+      try { logStream.end(); } catch {}
 
       const stderr = Buffer.concat(stderrChunks).toString();
 
@@ -533,7 +533,11 @@ async function runPhase(projectDir) {
       }
 
       // Advance state machine
-      advanceState(projectDir);
+      try {
+        advanceState(projectDir);
+      } catch (err) {
+        log(`[${projectName}] advanceState error: ${(err.message || '').slice(0, 200)}`);
+      }
       resolve({ success: true });
     });
 
@@ -667,6 +671,14 @@ async function main() {
     await sleep(LOOP_DELAY);
   }
 }
+
+// Prevent unhandled errors from crashing the launcher
+process.on('unhandledRejection', (err) => {
+  log(`Unhandled rejection: ${err?.message || err}`);
+});
+process.on('uncaughtException', (err) => {
+  log(`Uncaught exception: ${err?.message || err}`);
+});
 
 main().catch(err => {
   log(`FATAL: ${err.message}`);
