@@ -566,6 +566,202 @@ app.event('app_mention', async ({ event, say }) => {
   }
 });
 
+// --- Slash command handler (FW.11) ---
+app.command('/rouge', async ({ command, ack, respond }) => {
+  await ack(); // Must ack within 3 seconds
+
+  const text = command.text?.trim() || '';
+  const parts = text.split(/\s+/);
+  const cmd = parts[0]?.toLowerCase() || 'help';
+  const projectName = parts[1];
+
+  try {
+    switch (cmd) {
+      case 'help': {
+        await respond({
+          response_type: 'ephemeral',
+          text: [
+            '*Rouge Commands:*',
+            '\u2022 `/rouge status` \u2014 Show all projects and their states',
+            '\u2022 `/rouge new <name>` \u2014 Create a new project and start seeding',
+            '\u2022 `/rouge seed <name>` \u2014 Resume a paused seeding session',
+            '\u2022 `/rouge start <project>` \u2014 Start a ready project',
+            '\u2022 `/rouge pause <project>` \u2014 Pause an active project',
+            '\u2022 `/rouge resume <project>` \u2014 Resume a paused project',
+          ].join('\n'),
+        });
+        break;
+      }
+
+      case 'status': {
+        const projects = listProjects();
+        if (projects.length === 0) {
+          await respond({ response_type: 'ephemeral', text: 'No projects found.' });
+          return;
+        }
+        const lines = projects.map(name => {
+          const state = readState(name);
+          const seedState = getSeedingState(name);
+          const emoji = STATE_EMOJI[state?.current_state] || '\u2753';
+          let extra = '';
+          if (state?.current_state === 'seeding' && seedState?.status === 'active') extra = ' _(seeding active)_';
+          else if (state?.current_state === 'seeding' && seedState?.status === 'paused') extra = ' _(seeding paused)_';
+          return `${emoji} *${name}*: \`${state?.current_state || 'unknown'}\` (cycle ${state?.cycle_number || 0})${extra}`;
+        });
+        await respond({ response_type: 'ephemeral', text: lines.join('\n') });
+        break;
+      }
+
+      case 'start': {
+        if (!projectName) { await respond({ response_type: 'ephemeral', text: 'Usage: `/rouge start <project>`' }); return; }
+        const state = readState(projectName);
+        if (!state) { await respond({ response_type: 'ephemeral', text: `Project \`${projectName}\` not found.` }); return; }
+        if (state.current_state !== 'ready') {
+          await respond({ response_type: 'ephemeral', text: `\`${projectName}\` is \`${state.current_state}\`, not \`ready\`.` });
+          return;
+        }
+        state.current_state = 'building';
+        writeState(projectName, state);
+        await respond({ response_type: 'in_channel', text: `\u{1F680} Started \`${projectName}\`. Launcher will pick it up on next iteration.` });
+        break;
+      }
+
+      case 'pause': {
+        if (!projectName) { await respond({ response_type: 'ephemeral', text: 'Usage: `/rouge pause <project>`' }); return; }
+        const state = readState(projectName);
+        if (!state) { await respond({ response_type: 'ephemeral', text: `Project \`${projectName}\` not found.` }); return; }
+        const nonPausable = ['waiting-for-human', 'complete', 'ready'];
+        if (nonPausable.includes(state.current_state)) {
+          await respond({ response_type: 'ephemeral', text: `\`${projectName}\` is already \`${state.current_state}\`.` });
+          return;
+        }
+        if (state.current_state === 'seeding') {
+          const seedState = getSeedingState(projectName);
+          if (seedState && seedState.status === 'active') {
+            seedState.status = 'paused';
+            writeSeedingState(projectName, seedState);
+          }
+        }
+        const wasState = state.current_state;
+        state.paused_from_state = wasState;
+        state.current_state = 'waiting-for-human';
+        writeState(projectName, state);
+        await respond({ response_type: 'in_channel', text: `\u23F8\uFE0F Paused \`${projectName}\` (was: \`${wasState}\`). Use \`/rouge resume ${projectName}\` to continue.` });
+        break;
+      }
+
+      case 'resume': {
+        if (!projectName) { await respond({ response_type: 'ephemeral', text: 'Usage: `/rouge resume <project>`' }); return; }
+        const state = readState(projectName);
+        if (!state) { await respond({ response_type: 'ephemeral', text: `Project \`${projectName}\` not found.` }); return; }
+        if (state.current_state !== 'waiting-for-human') {
+          await respond({ response_type: 'ephemeral', text: `\`${projectName}\` is not paused.` });
+          return;
+        }
+        const resumeTo = state.paused_from_state || 'building';
+        state.current_state = resumeTo;
+        delete state.paused_from_state;
+        if (resumeTo === 'seeding') {
+          const seedState = getSeedingState(projectName);
+          if (seedState && seedState.status === 'paused') {
+            seedState.status = 'active';
+            seedState.channel_id = command.channel_id;
+            seedState.last_activity = new Date().toISOString();
+            writeSeedingState(projectName, seedState);
+          }
+        }
+        writeState(projectName, state);
+        await respond({ response_type: 'in_channel', text: `\u25B6\uFE0F Resumed \`${projectName}\` \u2192 \`${resumeTo}\`.` });
+        break;
+      }
+
+      case 'new': {
+        if (!projectName) { await respond({ response_type: 'ephemeral', text: 'Usage: `/rouge new <project-name>`' }); return; }
+        if (!/^[a-z][a-z0-9-]*$/.test(projectName)) {
+          await respond({ response_type: 'ephemeral', text: 'Project name must be kebab-case (e.g., `my-cool-app`).' });
+          return;
+        }
+        const projectDir = path.join(PROJECTS_DIR, projectName);
+        if (fs.existsSync(projectDir)) {
+          await respond({ response_type: 'ephemeral', text: `Project \`${projectName}\` already exists.` });
+          return;
+        }
+
+        fs.mkdirSync(projectDir, { recursive: true });
+        writeState(projectName, {
+          current_state: 'seeding',
+          cycle_number: 0,
+          feature_areas: [],
+          current_feature_area: null,
+          confidence_history: [],
+        });
+
+        const promptPath = path.join(__dirname, '../prompts/seeding/00-swarm-orchestrator.md');
+        if (!fs.existsSync(promptPath)) {
+          await respond({ response_type: 'ephemeral', text: '\u274C Seeding prompt not found.' });
+          return;
+        }
+
+        await respond({ response_type: 'in_channel', text: `\u{1F331} Creating project \`${projectName}\`. Starting seeding session...\n_Tell me about your product idea. Responses take 30-60 seconds._` });
+
+        const seedPrompt = fs.readFileSync(promptPath, 'utf8');
+        const initPrompt = seedPrompt + '\n\n---\n\nThe user wants to build a product called "' + projectName + '". Start the seeding swarm. Ask the first question.';
+        const result = invokeClaudeSeeding(projectDir, initPrompt, null);
+
+        if (result.rate_limited) {
+          writeSeedingState(projectName, { session_id: null, channel_id: command.channel_id, started_at: new Date().toISOString(), last_activity: new Date().toISOString(), status: 'paused' });
+          await respond({ text: `\u23F1\uFE0F Rate limited. Seeding paused. Resume after reset with \`/rouge seed ${projectName}\`.` });
+          return;
+        }
+
+        if (result.error) {
+          await respond({ text: `\u274C Seeding failed: ${result.error}` });
+          return;
+        }
+
+        writeSeedingState(projectName, { session_id: result.session_id || null, channel_id: command.channel_id, started_at: new Date().toISOString(), last_activity: new Date().toISOString(), status: 'active' });
+
+        const response = result.result || result.message || (typeof result === 'string' ? result : JSON.stringify(result));
+        if (response.length > 3000) {
+          const chunks = response.match(/.{1,3000}/gs) || [response];
+          for (const chunk of chunks) await respond({ text: chunk });
+        } else {
+          await respond({ text: response });
+        }
+        break;
+      }
+
+      case 'seed': {
+        if (!projectName) { await respond({ response_type: 'ephemeral', text: 'Usage: `/rouge seed <project>`' }); return; }
+        const seedState = getSeedingState(projectName);
+        if (!seedState || seedState.status !== 'paused') {
+          await respond({ response_type: 'ephemeral', text: `No paused seeding session for \`${projectName}\`.` });
+          return;
+        }
+        seedState.status = 'active';
+        seedState.channel_id = command.channel_id;
+        seedState.last_activity = new Date().toISOString();
+        writeSeedingState(projectName, seedState);
+        const state = readState(projectName);
+        if (state && state.current_state !== 'seeding') {
+          state.current_state = 'seeding';
+          delete state.paused_from_state;
+          writeState(projectName, state);
+        }
+        await respond({ response_type: 'in_channel', text: `\u{1F331} Resumed seeding for \`${projectName}\`. Continue the conversation.` });
+        break;
+      }
+
+      default: {
+        await respond({ response_type: 'ephemeral', text: `Unknown command: \`${cmd}\`. Try \`/rouge help\`.` });
+      }
+    }
+  } catch (err) {
+    console.error('Slash command error:', err);
+    await respond({ response_type: 'ephemeral', text: `\u274C Error: ${err.message}` });
+  }
+});
+
 (async () => {
   await app.start();
   console.log('\u26A1 Rouge Slack bot is running (Socket Mode)');
