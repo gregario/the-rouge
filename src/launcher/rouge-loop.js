@@ -91,6 +91,16 @@ function notify(msg) {
   } catch {}
 }
 
+function notifyRich(type, args) {
+  try {
+    execFileSync('node', [
+      path.join(__dirname, 'notify-slack.js'),
+      type,
+      JSON.stringify(args),
+    ], { env: process.env, timeout: 15000, stdio: 'pipe' });
+  } catch {}
+}
+
 function isRateLimited(text) {
   if (!text) return false;
   const lower = text.toLowerCase();
@@ -253,20 +263,8 @@ function advanceState(projectDir) {
     state.timestamp = new Date().toISOString();
     writeJson(stateFile, state);
 
-    // Notify on significant transitions
-    const notifications = {
-      'qa-gate': `🔍 [${projectName}] ${current} complete → QA gate starting`,
-      'po-review-journeys': `👀 [${projectName}] QA passed → PO review (journeys)`,
-      'po-review-screens': `👀 [${projectName}] PO review: journeys done → screens`,
-      'po-review-heuristics': `👀 [${projectName}] PO review: screens done → heuristics`,
-      'qa-fixing': `🔧 [${projectName}] QA failed → fixing issues`,
-      'analyzing': `🧠 [${projectName}] PO review complete → analyzing results`,
-      'vision-checking': `🔭 [${projectName}] Analysis complete → vision check`,
-      'promoting': `🚀 [${projectName}] Vision check passed → promoting to production`,
-      'complete': `✅ [${projectName}] All feature areas complete! Product ready.`,
-      'waiting-for-human': `⏸️ [${projectName}] Needs human input (from: ${current})`,
-    };
-    if (notifications[next]) notify(notifications[next]);
+    // FW.2 + FW.3: Rich Block Kit notifications
+    notifyRich('transition', { project: projectName, from: current, to: next });
   }
 }
 
@@ -586,7 +584,7 @@ async function main() {
             state.timestamp = new Date().toISOString();
             writeJson(stateFile, state);
           }
-          notify(`⚠️ [${projectName}] Phase failed ${MAX_RETRIES} times. Moved to waiting-for-human.`);
+          notifyRich('escalation', { project: projectName, phase: state.current_state, reason: `Failed ${MAX_RETRIES} times` });
         }
 
         await sleep(30000); // 30s between real retries
