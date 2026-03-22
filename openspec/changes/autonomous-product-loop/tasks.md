@@ -370,7 +370,7 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 - [x] FW.2 Per-loop status notifications — "Loop N: building → QA passed → PO review in progress" at each phase transition
 - [x] FW.3 Phase transition notifications — notify channel when a phase starts/completes with brief summary
 - [x] FW.4 Confidence trend in notifications — include confidence score and delta in loop completion messages
-- [ ] FW.5 Screenshot attachments in notifications — capture primary screen + feature screens, attach to Slack messages via file upload
+- [x] FW.5 Screenshot attachments in notifications — capture primary screen + feature screens, attach to Slack messages via file upload
 - [ ] FW.6 Seeding swarm progress — "Discipline 3/7 complete (brainstorming → competition → taste)" during seeding loops
 
 ## Future Work — Slack UX (Boil the Lake)
@@ -394,8 +394,8 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 
 ### Polish
 - [x] FW.21 DM support — seed from DMs with the bot for private brainstorming, channel notifications for team visibility
-- [ ] FW.22 Phase completion notifications with before/after screenshots embedded
-- [ ] FW.23 Rollback alerts with evidence summary and action buttons
+- [x] FW.22 Phase completion notifications with before/after screenshots embedded
+- [x] FW.23 Rollback alerts with evidence summary and action buttons
 - [x] FW.24 Confidence trend sparkline in notifications (Unicode block characters)
 
 ### Self-Configuration
@@ -421,8 +421,8 @@ Rouge Maintain: autonomous maintenance of deployed production systems.
 
 - [x] FW.29 Distinguish rate limits from real failures — rate limits should NEVER count toward the 3-retry limit. They're temporary, not errors.
 - [x] FW.30 Rate limit detection without log content — check Claude CLI exit code or stderr directly, not just log file grep (log may be empty if redirect fails)
-- [ ] FW.31 Rate limit backoff should pause ALL projects — if one project hits rate limit, others will too. Pause the entire loop, not just the current project.
-- [ ] FW.32 Rate limit reset detection — parse "resets Xpm" from Claude output, sleep until reset time instead of arbitrary backoff
+- [x] FW.31 Rate limit backoff should pause ALL projects — if one project hits rate limit, others will too. Pause the entire loop, not just the current project.
+- [x] FW.32 Rate limit reset detection — parse "resets Xpm" from Claude output, sleep until reset time instead of arbitrary backoff
 - [x] FW.33 Document rate limit interaction between Rouge Spec (interactive) and Rouge Build (autonomous) — if a human is seeding via Slack and the build loop is running, they compete for the same rate limit budget
 
 ## Future Work — Launcher Improvements
@@ -434,10 +434,10 @@ Rouge Maintain: autonomous maintenance of deployed production systems.
 
 ## Future Work — Visual Evolution Record
 
-- [ ] FW.39 QA gate screenshot capture — each QA gate run captures 3-5 representative screenshots of key screens. Store in `projects/<name>/screenshots/loop-<N>/` with descriptive filenames.
-- [ ] FW.40 Screenshot persistence across loops — screenshots persist as visual history. Each loop gets its own dated folder.
-- [ ] FW.41 Visual evolution GIF/timelapse generator — compile matching screenshots across loops into animated GIF or side-by-side comparison. ImageMagick `convert` for GIF generation.
-- [ ] FW.42 GStack browse screenshot integration — use `$B screenshot <path>` during QA gate for each key screen. Full-page capture, not viewport-only.
+- [x] FW.39 QA gate screenshot capture — each QA gate run captures 3-5 representative screenshots of key screens. Store in `projects/<name>/screenshots/loop-<N>/` with descriptive filenames.
+- [x] FW.40 Screenshot persistence across loops — screenshots persist as visual history. Each loop gets its own dated folder.
+- [x] FW.41 Visual evolution GIF/timelapse generator — compile matching screenshots across loops into animated GIF or side-by-side comparison. ImageMagick `convert` for GIF generation.
+- [x] FW.42 GStack browse screenshot integration — use `$B screenshot <path>` during QA gate for each key screen. Full-page capture, not viewport-only.
 
 ## Discussion — Cost-Aware Testing
 
@@ -453,6 +453,6 @@ Questions:
 ## Future Work — PO Review Fixes (Critical)
 
 - [x] FW.43 Split PO review into sub-phases — journey quality, screen quality, interaction quality, heuristic eval as separate lighter invocations instead of one mega-session. Each sub-phase writes partial results, next sub-phase reads them.
-- [ ] FW.44 Quick PO review mode — review 1 journey + 1 screen only. For testing and fast iteration cycles.
+- [x] FW.44 Quick PO review mode — review 1 journey + 1 screen only. For testing and fast iteration cycles.
 - [x] FW.45 Fix execFileSync output capture — switch to async execFile with streaming output to log file. Partial output must be saved even if the process dies. Current: all-or-nothing means hours of work lost on timeout.
-- [ ] FW.46 Guard against synthetic data propagation — when po_review_report.synthetic is true, downstream phases must NOT generate change specs or make product modifications based on synthetic data. Analyzing phase should check this flag.
+- [x] FW.46 Guard against synthetic data propagation — when po_review_report.synthetic is true, downstream phases must NOT generate change specs or make product modifications based on synthetic data. Analyzing phase should check this flag.
