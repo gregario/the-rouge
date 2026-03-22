@@ -222,6 +222,12 @@ function advanceState(projectDir) {
 
     case 'analyzing': {
       const ctx = readJson(contextFile);
+      // FW.46: Don't generate change specs from synthetic data
+      if (ctx?.po_review_report?.synthetic) {
+        log(`[${projectName}] PO report is synthetic — skipping change spec generation`);
+        next = 'vision-checking';
+        break;
+      }
       const action = ctx?.po_review_report?.recommended_action || 'continue';
       if (action === 'continue') next = 'vision-checking';
       else if (action.startsWith('deepen') || action === 'broaden') next = 'generating-change-spec';
@@ -374,11 +380,20 @@ async function runPhase(projectDir) {
     // Build the prompt instruction — add scope for PO review sub-phases
     let promptInstruction = `Read the phase prompt at ${promptFile} and execute it. The project directory is ${projectDir}. Read cycle_context.json and state.json for context.`;
 
+    // FW.44: Quick PO review mode — reduces scope for fast iteration
+    const quickMode = process.env.ROUGE_PO_QUICK === '1';
+
     // FIX-4: Scope PO review sub-phases to specific sections
     const poSubPhaseScope = {
-      'po-review-journeys': 'SCOPE: Only evaluate JOURNEY QUALITY (Sub-Check 7.1-7.4 from the prompt). Walk each journey as a first-time user, assess per-step quality. Write journey_quality to po_review_report in cycle_context.json. Do NOT assess screens, interactions, or heuristics — those are separate phases.',
-      'po-review-screens': 'SCOPE: Only evaluate SCREEN QUALITY (Sub-Check 8.1-8.3 from the prompt). Assess each screen for hierarchy, layout, consistency, density, mobile. Write screen_quality to po_review_report in cycle_context.json. Read journey_quality from prior sub-phase. Do NOT re-walk journeys or run heuristics.',
-      'po-review-heuristics': 'SCOPE: Only evaluate HEURISTICS + GENERATE REPORT (Sub-Checks 10.1-11.6 from the prompt). Run Library heuristics, aggregate results, generate verdict, confidence, recommended_action. Write final po_review_report to cycle_context.json. Read journey_quality and screen_quality from prior sub-phases.',
+      'po-review-journeys': quickMode
+        ? 'QUICK MODE: Evaluate only the FIRST journey. Write journey_quality (1 entry) to po_review_report in cycle_context.json. Do NOT assess screens, interactions, or heuristics.'
+        : 'SCOPE: Only evaluate JOURNEY QUALITY (Sub-Check 7.1-7.4 from the prompt). Walk each journey as a first-time user, assess per-step quality. Write journey_quality to po_review_report in cycle_context.json. Do NOT assess screens, interactions, or heuristics — those are separate phases.',
+      'po-review-screens': quickMode
+        ? 'QUICK MODE: Evaluate only the HOME screen. Write screen_quality (1 entry) to po_review_report in cycle_context.json. Read journey_quality from prior sub-phase. Do NOT re-walk journeys or run heuristics.'
+        : 'SCOPE: Only evaluate SCREEN QUALITY (Sub-Check 8.1-8.3 from the prompt). Assess each screen for hierarchy, layout, consistency, density, mobile. Write screen_quality to po_review_report in cycle_context.json. Read journey_quality from prior sub-phase. Do NOT re-walk journeys or run heuristics.',
+      'po-review-heuristics': quickMode
+        ? 'QUICK MODE: Run ONLY Nielsen heuristics (skip Library-specific). Aggregate, generate verdict, confidence, recommended_action. Write final po_review_report to cycle_context.json. Read journey_quality and screen_quality from prior sub-phases.'
+        : 'SCOPE: Only evaluate HEURISTICS + GENERATE REPORT (Sub-Checks 10.1-11.6 from the prompt). Run Library heuristics, aggregate results, generate verdict, confidence, recommended_action. Write final po_review_report to cycle_context.json. Read journey_quality and screen_quality from prior sub-phases.',
     };
 
     if (poSubPhaseScope[currentState]) {
@@ -584,8 +599,18 @@ async function main() {
   log(`Rouge launcher starting. Projects dir: ${PROJECTS_DIR}`);
   checkAuthExpiry();
 
+  let globalRateLimitUntil = 0; // FW.31: timestamp when global rate limit expires
+
   while (true) {
     checkBriefing();
+
+    // FW.31: Global rate limit — skip all projects until limit resets
+    if (Date.now() < globalRateLimitUntil) {
+      const waitSec = Math.ceil((globalRateLimitUntil - Date.now()) / 1000);
+      log(`Global rate limit active — waiting ${waitSec}s`);
+      await sleep(globalRateLimitUntil - Date.now());
+      globalRateLimitUntil = 0;
+    }
 
     const projects = listProjects();
     for (const projectName of projects) {
@@ -600,7 +625,20 @@ async function main() {
         // FIX-3: Rate limits do NOT count toward retry limit
         if (result.rateLimited) {
           const backoff = 60000 * (retries + 1); // escalating backoff without incrementing retries
-          log(`[${projectName}] Rate limited. Backing off ${backoff / 1000}s. (retries NOT incremented: ${retries}/${MAX_RETRIES})`);
+          globalRateLimitUntil = Date.now() + backoff; // FW.31: pause ALL projects
+          log(`[${projectName}] Rate limited. Backing off ${backoff / 1000}s (global). (retries NOT incremented: ${retries}/${MAX_RETRIES})`);
+
+          // FW.32: Try to parse reset time from phase log
+          try {
+            const phaseState = readJson(path.join(projectDir, 'state.json'));
+            const logFile = path.join(LOG_DIR, `${projectName}-${phaseState?.current_state || 'unknown'}.log`);
+            const logContent = fs.readFileSync(logFile, 'utf8').slice(-2000); // last 2KB
+            const resetMatch = logContent.match(/resets?\s+(?:at\s+)?(\d{1,2}(?::\d{2})?\s*(?:am|pm))/i);
+            if (resetMatch) {
+              log(`[${projectName}] Rate limit resets at: ${resetMatch[1]}`);
+            }
+          } catch {}
+
           await sleep(backoff);
           continue; // retry without incrementing
         }
