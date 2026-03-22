@@ -646,7 +646,7 @@ app.event('app_mention', async ({ event, say }) => {
         ss.status = 'active';
         ss.last_activity = new Date().toISOString();
         writeSeedingState(name, ss);
-        log(`[${name}] Auto-resumed seeding (user talked)`);
+        console.log(`[${name}] Auto-resumed seeding (user talked)`);
         return true;
       }
       return false;
