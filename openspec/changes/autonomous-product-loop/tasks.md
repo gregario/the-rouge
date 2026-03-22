@@ -459,7 +459,7 @@ Questions:
 
 ## Future Work — Session Feedback (2026-03-22)
 
-- [ ] FW.47 Add /rouge respond command — alternative to @mention for replying during seeding. Cleaner UX than @mention in threads.
+- [x] FW.47 DROPPED — slash commands control, @mentions converse. No need for /rouge respond.
 - [ ] FW.48 Slack markdown sanitization — convert Claude's markdown (headers, code blocks, tables) to Slack-compatible mrkdwn before posting. Strip unsupported syntax.
 - [ ] FW.49 Per-project status detail — `/rouge status <project>` shows detailed view (current phase, cycle, confidence, last action, staging URL) vs the current list view.
 - [ ] FW.50 API/integration-aware seeding — seeding swarm asks about integrations (Stripe, Supabase, third-party APIs, OAuth, webhooks) and incorporates them into the spec. Products built on integrations need them specced from the start.
