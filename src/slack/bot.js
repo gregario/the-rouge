@@ -398,6 +398,32 @@ app.action(/^resume_/, async ({ action, ack, respond }) => {
   }
 });
 
+// --- FW.20: Feedback classification handler ---
+app.action(/^classify_feedback_/, async ({ action, ack, respond }) => {
+  await ack();
+  const projectName = action.action_id.replace('classify_feedback_', '');
+  const [classification, ...feedbackParts] = action.selected_option.value.split('|');
+  const feedbackText = feedbackParts.join('|');
+
+  writeFeedback(projectName, JSON.stringify({
+    text: feedbackText,
+    classification: classification === 'auto' ? null : classification,
+    classified_by: classification === 'auto' ? 'llm' : 'human',
+    timestamp: new Date().toISOString(),
+  }));
+
+  const classLabel = {
+    'product-change': '🔧 Product Change',
+    'global-learning': '🌍 Global Learning',
+    'domain-learning': '🏷️ Domain Learning',
+    'personal-preference': '👤 Personal Preference',
+    'direction': '🧭 Direction',
+    'auto': '🤖 Auto-classify',
+  }[classification] || classification;
+
+  await respond({ text: `✅ Feedback recorded as *${classLabel}* for \`${projectName}\`. Launcher will process it.` });
+});
+
 app.event('app_mention', async ({ event, say }) => {
   const text = event.text.replace(/<@[^>]+>\s*/g, '').trim();
   const parts = text.split(/\s+/);
@@ -713,8 +739,34 @@ app.event('app_mention', async ({ event, say }) => {
       if (state?.current_state === 'waiting-for-human') {
         const feedback = parts.slice(1).join(' ');
         if (feedback) {
-          writeFeedback(projectName, feedback);
-          await say(`\u{1F4DD} Feedback recorded for \`${projectName}\`. Launcher will process it on next iteration.`);
+          // FW.20: Show classification dropdown with the feedback
+          await app.client.chat.postMessage({
+            channel: event.channel,
+            text: `Feedback for \`${projectName}\`: "${feedback}"`,
+            blocks: [
+              {
+                type: 'section',
+                text: { type: 'mrkdwn', text: `📝 *Feedback for \`${projectName}\`*\n> ${feedback}` },
+              },
+              {
+                type: 'section',
+                text: { type: 'mrkdwn', text: 'How should this feedback be classified?' },
+                accessory: {
+                  type: 'static_select',
+                  action_id: `classify_feedback_${projectName}`,
+                  placeholder: { type: 'plain_text', text: 'Select type...' },
+                  options: [
+                    { text: { type: 'plain_text', text: '🔧 Product Change' }, value: `product-change|${feedback}` },
+                    { text: { type: 'plain_text', text: '🌍 Global Learning' }, value: `global-learning|${feedback}` },
+                    { text: { type: 'plain_text', text: '🏷️ Domain Learning' }, value: `domain-learning|${feedback}` },
+                    { text: { type: 'plain_text', text: '👤 Personal Preference' }, value: `personal-preference|${feedback}` },
+                    { text: { type: 'plain_text', text: '🧭 Direction' }, value: `direction|${feedback}` },
+                    { text: { type: 'plain_text', text: '🤖 Auto-classify' }, value: `auto|${feedback}` },
+                  ],
+                },
+              },
+            ],
+          });
           return;
         }
       }
