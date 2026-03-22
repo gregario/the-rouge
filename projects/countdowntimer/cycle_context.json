@@ -229,8 +229,8 @@
       "task": "transition-feedback",
       "acceptance_criteria": ["AC-transition-1", "AC-transition-2", "AC-transition-3", "AC-transition-4", "AC-transition-5", "AC-transition-6"],
       "files_changed": ["src/engine/audio.ts", "src/hooks/useTimer.ts"],
-      "tests_added": 0,
-      "tests_passing": 0
+      "tests_added": 7,
+      "tests_passing": 7
     },
     {
       "task": "settings-modal",
@@ -243,8 +243,8 @@
       "task": "page-composition",
       "acceptance_criteria": ["AC-controls-5", "AC-controls-6"],
       "files_changed": ["src/app/page.tsx", "src/app/page.module.css"],
-      "tests_added": 0,
-      "tests_passing": 0
+      "tests_added": 8,
+      "tests_passing": 8
     }
   ],
   "skipped": [],
