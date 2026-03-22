@@ -1,5 +1,5 @@
 {
-  "current_state": "test-integrity",
+  "current_state": "qa-gate",
   "cycle_number": 1,
   "feature_areas": [
     {
@@ -36,6 +36,7 @@
   "seeded_at": "2026-03-22T15:45:00.000Z",
   "completed_phases": [
     "building",
-    "test-integrity"
+    "test-integrity",
+    "qa-gate"
   ]
 }
