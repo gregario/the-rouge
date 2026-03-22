@@ -44,6 +44,23 @@ switch (type) {
   case 'briefing':
     send(blockKit.morningBriefing(args.projects));
     break;
+  case 'screenshots':
+    send({
+      text: `📸 *${args.project}* — ${args.count} screenshots captured (loop ${args.loop})`,
+      blocks: [
+        {
+          type: 'section',
+          text: { type: 'mrkdwn', text: `📸 *${args.project}* — Screenshots captured` },
+        },
+        {
+          type: 'context',
+          elements: [
+            { type: 'mrkdwn', text: `Loop ${args.loop} | ${args.screens.join(', ')} | Saved to \`screenshots/loop-${args.loop}/\`` },
+          ],
+        },
+      ],
+    });
+    break;
   default:
     // Plain text fallback
     send({ text: args.text || type });
