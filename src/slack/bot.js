@@ -813,76 +813,55 @@ app.command('/rouge', async ({ command, ack, respond }) => {
       }
 
       case 'new': {
-        if (!projectName) { await respond({ response_type: 'ephemeral', text: 'Usage: `/rouge new <project-name>`' }); return; }
-        if (!/^[a-z][a-z0-9-]*$/.test(projectName)) {
-          await respond({ response_type: 'ephemeral', text: 'Project name must be kebab-case (e.g., `my-cool-app`).' });
-          return;
-        }
-        const projectDir = path.join(PROJECTS_DIR, projectName);
-        if (fs.existsSync(projectDir)) {
-          await respond({ response_type: 'ephemeral', text: `Project \`${projectName}\` already exists.` });
-          return;
-        }
-
-        fs.mkdirSync(projectDir, { recursive: true });
-        writeState(projectName, {
-          current_state: 'seeding',
-          cycle_number: 0,
-          feature_areas: [],
-          current_feature_area: null,
-          confidence_history: [],
+        // FW.13: Open modal for project creation
+        await app.client.views.open({
+          trigger_id: command.trigger_id,
+          view: {
+            type: 'modal',
+            callback_id: 'create_project',
+            title: { type: 'plain_text', text: 'New Rouge Project' },
+            submit: { type: 'plain_text', text: 'Create & Seed' },
+            close: { type: 'plain_text', text: 'Cancel' },
+            blocks: [
+              {
+                type: 'input',
+                block_id: 'project_name',
+                label: { type: 'plain_text', text: 'Project Name' },
+                element: {
+                  type: 'plain_text_input',
+                  action_id: 'name_input',
+                  placeholder: { type: 'plain_text', text: 'my-cool-app (kebab-case)' },
+                },
+              },
+              {
+                type: 'input',
+                block_id: 'description',
+                label: { type: 'plain_text', text: 'One-line Description' },
+                element: {
+                  type: 'plain_text_input',
+                  action_id: 'desc_input',
+                  placeholder: { type: 'plain_text', text: 'What does this product do?' },
+                },
+              },
+              {
+                type: 'input',
+                block_id: 'domain',
+                label: { type: 'plain_text', text: 'Domain' },
+                element: {
+                  type: 'static_select',
+                  action_id: 'domain_input',
+                  options: [
+                    { text: { type: 'plain_text', text: '🌐 Web App' }, value: 'web' },
+                    { text: { type: 'plain_text', text: '🎮 Game' }, value: 'game' },
+                    { text: { type: 'plain_text', text: '📦 Artifact (book, image, etc.)' }, value: 'artifact' },
+                  ],
+                  initial_option: { text: { type: 'plain_text', text: '🌐 Web App' }, value: 'web' },
+                },
+              },
+            ],
+            private_metadata: JSON.stringify({ channel_id: command.channel_id }),
+          },
         });
-
-        const promptPath = path.join(__dirname, '../prompts/seeding/00-swarm-orchestrator.md');
-        if (!fs.existsSync(promptPath)) {
-          await respond({ response_type: 'ephemeral', text: '\u274C Seeding prompt not found.' });
-          return;
-        }
-
-        await respond({ response_type: 'in_channel', text: `\u{1F331} Creating project \`${projectName}\`. Starting seeding session...\n_Tell me about your product idea. Responses take 30-60 seconds._` });
-
-        const seedPrompt = fs.readFileSync(promptPath, 'utf8');
-        const initPrompt = seedPrompt + '\n\n---\n\nThe user wants to build a product called "' + projectName + '". Start the seeding swarm. Ask the first question.';
-        const result = invokeClaudeSeeding(projectDir, initPrompt, null);
-
-        if (result.rate_limited) {
-          writeSeedingState(projectName, { session_id: null, channel_id: command.channel_id, started_at: new Date().toISOString(), last_activity: new Date().toISOString(), status: 'paused' });
-          await respond({ text: `\u23F1\uFE0F Rate limited. Seeding paused. Resume after reset with \`/rouge seed ${projectName}\`.` });
-          return;
-        }
-
-        if (result.error) {
-          await respond({ text: `\u274C Seeding failed: ${result.error}` });
-          return;
-        }
-
-        // FW.1: Post first response as a new message (to get thread_ts)
-        const response = result.result || result.message || (typeof result === 'string' ? result : JSON.stringify(result));
-        const firstMsg = await app.client.chat.postMessage({
-          channel: command.channel_id,
-          text: response.length > 3000 ? response.slice(0, 3000) + '...' : response,
-        });
-
-        writeSeedingState(projectName, {
-          session_id: result.session_id || null,
-          channel_id: command.channel_id,
-          thread_ts: firstMsg.ts, // thread anchor
-          started_at: new Date().toISOString(),
-          last_activity: new Date().toISOString(),
-          status: 'active',
-        });
-
-        // Post remaining chunks in thread if needed
-        if (response.length > 3000) {
-          const chunks = response.slice(3000).match(/.{1,3000}/gs) || [];
-          for (const chunk of chunks) {
-            await app.client.chat.postMessage({
-              channel: command.channel_id,
-              thread_ts: firstMsg.ts,
-              text: chunk,
-            });
-          }
-        }
         break;
       }
 
@@ -915,6 +894,84 @@ app.command('/rouge', async ({ command, ack, respond }) => {
     console.error('Slash command error:', err);
     await respond({ response_type: 'ephemeral', text: `\u274C Error: ${err.message}` });
   }
+});
+
+// --- FW.13: Modal submission handler ---
+app.view('create_project', async ({ ack, view, client }) => {
+  const name = view.state.values.project_name.name_input.value.trim().toLowerCase().replace(/\s+/g, '-');
+  const description = view.state.values.description.desc_input.value.trim();
+  const domain = view.state.values.domain.domain_input.selected_option.value;
+  const { channel_id } = JSON.parse(view.private_metadata);
+
+  // Validate
+  if (!/^[a-z][a-z0-9-]*$/.test(name)) {
+    await ack({
+      response_action: 'errors',
+      errors: { project_name: 'Must be kebab-case (lowercase, hyphens only)' },
+    });
+    return;
+  }
+
+  const projectDir = path.join(PROJECTS_DIR, name);
+  if (fs.existsSync(projectDir)) {
+    await ack({
+      response_action: 'errors',
+      errors: { project_name: 'Project already exists' },
+    });
+    return;
+  }
+
+  await ack(); // Close modal
+
+  // Create project
+  fs.mkdirSync(projectDir, { recursive: true });
+  writeState(name, {
+    current_state: 'seeding',
+    cycle_number: 0,
+    feature_areas: [],
+    current_feature_area: null,
+    confidence_history: [],
+    domain,
+    description,
+  });
+
+  // Post to channel
+  await client.chat.postMessage({
+    channel: channel_id,
+    text: `🌱 Creating project \`${name}\` (${domain}): _${description}_\nStarting seeding session...`,
+  });
+
+  // Start seeding
+  const promptPath = path.join(__dirname, '../prompts/seeding/00-swarm-orchestrator.md');
+  if (!fs.existsSync(promptPath)) {
+    await client.chat.postMessage({ channel: channel_id, text: '❌ Seeding prompt not found.' });
+    return;
+  }
+
+  const seedPrompt = fs.readFileSync(promptPath, 'utf8');
+  const initPrompt = seedPrompt + `\n\n---\n\nThe user wants to build a ${domain} product called "${name}". Description: "${description}". Start the seeding swarm. Ask the first question.`;
+  const result = invokeClaudeSeeding(projectDir, initPrompt, null);
+
+  if (result.error || result.rate_limited) {
+    writeSeedingState(name, { session_id: null, channel_id, started_at: new Date().toISOString(), last_activity: new Date().toISOString(), status: 'paused' });
+    await client.chat.postMessage({ channel: channel_id, text: result.rate_limited ? `⏱️ Rate limited. Resume: \`/rouge seed ${name}\`` : `❌ ${result.error}` });
+    return;
+  }
+
+  const response = result.result || result.message || JSON.stringify(result);
+  const firstMsg = await client.chat.postMessage({
+    channel: channel_id,
+    text: response.length > 3000 ? response.slice(0, 3000) + '...' : response,
+  });
+
+  writeSeedingState(name, {
+    session_id: result.session_id || null,
+    channel_id,
+    thread_ts: firstMsg.ts,
+    started_at: new Date().toISOString(),
+    last_activity: new Date().toISOString(),
+    status: 'active',
+  });
 });
 
 // --- FW.25-27: Bot self-setup on first run ---
