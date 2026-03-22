@@ -10,7 +10,7 @@
     "type": "single_page_app",
     "emotional_north_star": "From 'where did the last 3 hours go?' to 'I can see my focus happening.'",
     "target_user": {
-      "who": "Knowledge workers who do focused work — developers, designers, writers, students",
+      "who": "Knowledge workers who do focused work \u2014 developers, designers, writers, students",
       "behavior": "Already familiar with the Pomodoro technique. Have tried timer apps and found them either ugly or bloated.",
       "trigger": "Sitting down to do deep work and wanting structure without friction",
       "need": "A timer that respects their attention: starts fast, looks great on screen, gets out of the way"
@@ -19,11 +19,11 @@
       "aesthetic": "Techno-futuristic, clean, shiny. Frosted glass, subtle glows, precise typography.",
       "references": "Linear's design language meets a high-end watch face. Dieter Rams meets a spaceship.",
       "dark_first": true,
-      "personality": "Opinionated, atmospheric, crafted. Not a utility — a focus object."
+      "personality": "Opinionated, atmospheric, crafted. Not a utility \u2014 a focus object."
     },
     "competitive_position": {
       "gap": "No web-first Pomodoro timer exists with premium, futuristic design. The category design bar is on the floor.",
-      "differentiator": "Optimizes for presence — how it feels on your screen — not for features.",
+      "differentiator": "Optimizes for presence \u2014 how it feels on your screen \u2014 not for features.",
       "competitors_reviewed": [
         "pomofocus.io",
         "tomato-timer.com",
@@ -186,63 +186,151 @@
     {
       "task": "scaffold",
       "acceptance_criteria": [],
-      "files_changed": ["package.json", "tsconfig.json", "next.config.ts", ".gitignore", "vitest.config.ts", "tests/setup.ts", "src/app/layout.tsx", "src/app/globals.css"],
+      "files_changed": [
+        "package.json",
+        "tsconfig.json",
+        "next.config.ts",
+        ".gitignore",
+        "vitest.config.ts",
+        "tests/setup.ts",
+        "src/app/layout.tsx",
+        "src/app/globals.css"
+      ],
       "tests_added": 0,
       "tests_passing": 0
     },
     {
       "task": "pomodoro-engine",
-      "acceptance_criteria": ["AC-cycle-1", "AC-cycle-2", "AC-cycle-3", "AC-cycle-4", "AC-cycle-5", "AC-cycle-6", "AC-counter-1", "AC-counter-2", "AC-counter-3", "AC-counter-4", "AC-counter-5"],
-      "files_changed": ["src/engine/types.ts", "src/engine/cycle.ts", "src/engine/storage.ts", "src/engine/audio.ts"],
+      "acceptance_criteria": [
+        "AC-cycle-1",
+        "AC-cycle-2",
+        "AC-cycle-3",
+        "AC-cycle-4",
+        "AC-cycle-5",
+        "AC-cycle-6",
+        "AC-counter-1",
+        "AC-counter-2",
+        "AC-counter-3",
+        "AC-counter-4",
+        "AC-counter-5"
+      ],
+      "files_changed": [
+        "src/engine/types.ts",
+        "src/engine/cycle.ts",
+        "src/engine/storage.ts",
+        "src/engine/audio.ts"
+      ],
       "tests_added": 20,
       "tests_passing": 20
     },
     {
       "task": "timer-display",
-      "acceptance_criteria": ["AC-display-1", "AC-display-2", "AC-display-3", "AC-display-4", "AC-display-5", "AC-display-6"],
-      "files_changed": ["src/components/TimerDisplay.tsx", "src/components/TimerDisplay.module.css"],
+      "acceptance_criteria": [
+        "AC-display-1",
+        "AC-display-2",
+        "AC-display-3",
+        "AC-display-4",
+        "AC-display-5",
+        "AC-display-6"
+      ],
+      "files_changed": [
+        "src/components/TimerDisplay.tsx",
+        "src/components/TimerDisplay.module.css"
+      ],
       "tests_added": 5,
       "tests_passing": 5
     },
     {
       "task": "timer-controls",
-      "acceptance_criteria": ["AC-controls-1", "AC-controls-2", "AC-controls-3", "AC-controls-4", "AC-controls-5", "AC-controls-6"],
-      "files_changed": ["src/components/TimerControls.tsx", "src/components/TimerControls.module.css"],
+      "acceptance_criteria": [
+        "AC-controls-1",
+        "AC-controls-2",
+        "AC-controls-3",
+        "AC-controls-4",
+        "AC-controls-5",
+        "AC-controls-6"
+      ],
+      "files_changed": [
+        "src/components/TimerControls.tsx",
+        "src/components/TimerControls.module.css"
+      ],
       "tests_added": 8,
       "tests_passing": 8
     },
     {
       "task": "cycle-indicator",
-      "acceptance_criteria": ["AC-cycle-4"],
-      "files_changed": ["src/components/CycleIndicator.tsx", "src/components/CycleIndicator.module.css"],
+      "acceptance_criteria": [
+        "AC-cycle-4"
+      ],
+      "files_changed": [
+        "src/components/CycleIndicator.tsx",
+        "src/components/CycleIndicator.module.css"
+      ],
       "tests_added": 3,
       "tests_passing": 3
     },
     {
       "task": "session-counter",
-      "acceptance_criteria": ["AC-counter-1", "AC-counter-2", "AC-counter-3", "AC-counter-4", "AC-counter-5"],
-      "files_changed": ["src/components/SessionCounter.tsx", "src/components/SessionCounter.module.css"],
+      "acceptance_criteria": [
+        "AC-counter-1",
+        "AC-counter-2",
+        "AC-counter-3",
+        "AC-counter-4",
+        "AC-counter-5"
+      ],
+      "files_changed": [
+        "src/components/SessionCounter.tsx",
+        "src/components/SessionCounter.module.css"
+      ],
       "tests_added": 4,
       "tests_passing": 4
     },
     {
       "task": "transition-feedback",
-      "acceptance_criteria": ["AC-transition-1", "AC-transition-2", "AC-transition-3", "AC-transition-4", "AC-transition-5", "AC-transition-6"],
-      "files_changed": ["src/engine/audio.ts", "src/hooks/useTimer.ts"],
+      "acceptance_criteria": [
+        "AC-transition-1",
+        "AC-transition-2",
+        "AC-transition-3",
+        "AC-transition-4",
+        "AC-transition-5",
+        "AC-transition-6"
+      ],
+      "files_changed": [
+        "src/engine/audio.ts",
+        "src/hooks/useTimer.ts"
+      ],
       "tests_added": 7,
       "tests_passing": 7
     },
     {
       "task": "settings-modal",
-      "acceptance_criteria": ["AC-settings-1", "AC-settings-2", "AC-settings-3", "AC-settings-4", "AC-settings-5", "AC-settings-6", "AC-settings-7", "AC-settings-8"],
-      "files_changed": ["src/components/SettingsModal.tsx", "src/components/SettingsModal.module.css"],
+      "acceptance_criteria": [
+        "AC-settings-1",
+        "AC-settings-2",
+        "AC-settings-3",
+        "AC-settings-4",
+        "AC-settings-5",
+        "AC-settings-6",
+        "AC-settings-7",
+        "AC-settings-8"
+      ],
+      "files_changed": [
+        "src/components/SettingsModal.tsx",
+        "src/components/SettingsModal.module.css"
+      ],
       "tests_added": 12,
       "tests_passing": 12
     },
     {
       "task": "page-composition",
-      "acceptance_criteria": ["AC-controls-5", "AC-controls-6"],
-      "files_changed": ["src/app/page.tsx", "src/app/page.module.css"],
+      "acceptance_criteria": [
+        "AC-controls-5",
+        "AC-controls-6"
+      ],
+      "files_changed": [
+        "src/app/page.tsx",
+        "src/app/page.module.css"
+      ],
       "tests_added": 8,
       "tests_passing": 8
     }
@@ -251,16 +339,20 @@
   "divergences": [
     {
       "spec_says": "Timer displays MM:SS in monospace font >= 72px",
-      "actually_did": "Timer uses clamp(72px, 15vw, 120px) — minimum 72px on small screens, max 120px on large",
+      "actually_did": "Timer uses clamp(72px, 15vw, 120px) \u2014 minimum 72px on small screens, max 120px on large",
       "rationale": "Responsive scaling within spec range. The spec says 80-120px range but also >= 72px. Used 72px floor for small viewports while keeping 120px max.",
-      "affects_acceptance_criteria": ["AC-display-1"],
+      "affects_acceptance_criteria": [
+        "AC-display-1"
+      ],
       "reversible": true
     },
     {
       "spec_says": "Multiple tabs: only one should be active (localStorage coordination or single-tab enforcement)",
       "actually_did": "No multi-tab coordination implemented",
       "rationale": "Edge case complexity vs. value tradeoff. Each tab runs independently. This is a minor edge case that most users won't encounter. Can be added in a future cycle with BroadcastChannel API.",
-      "affects_acceptance_criteria": ["AC-transition-5"],
+      "affects_acceptance_criteria": [
+        "AC-transition-5"
+      ],
       "reversible": true
     }
   ],
@@ -268,48 +360,69 @@
     {
       "decision": "Use Web Audio API for synthesized chime instead of audio file",
       "context": "Spec requires crystalline/tonal chime. Options: pre-recorded audio file vs. synthesized.",
-      "alternatives_considered": ["Pre-recorded .mp3/.ogg audio file", "Web Audio API oscillator synthesis"],
-      "rationale": "Synthesized audio is zero-dependency (no audio file to load), matches the futuristic aesthetic, keeps bundle tiny. Two-tone sine wave at 880Hz→1760Hz with gain decay produces a clean crystalline sound.",
+      "alternatives_considered": [
+        "Pre-recorded .mp3/.ogg audio file",
+        "Web Audio API oscillator synthesis"
+      ],
+      "rationale": "Synthesized audio is zero-dependency (no audio file to load), matches the futuristic aesthetic, keeps bundle tiny. Two-tone sine wave at 880Hz\u21921760Hz with gain decay produces a clean crystalline sound.",
       "confidence": "high",
-      "affects": ["src/engine/audio.ts"]
+      "affects": [
+        "src/engine/audio.ts"
+      ]
     },
     {
       "decision": "Use CSS Modules instead of Tailwind or CSS-in-JS",
       "context": "Need to implement a precise design system with exact color values, glass effects, and transitions.",
-      "alternatives_considered": ["Tailwind CSS", "CSS-in-JS (styled-components)", "CSS Modules"],
-      "rationale": "CSS Modules provide zero-runtime overhead, natural CSS syntax for complex effects (backdrop-filter, radial gradients, keyframe animations), and scoped naming. The spec gives exact CSS values — modules let us use them directly.",
+      "alternatives_considered": [
+        "Tailwind CSS",
+        "CSS-in-JS (styled-components)",
+        "CSS Modules"
+      ],
+      "rationale": "CSS Modules provide zero-runtime overhead, natural CSS syntax for complex effects (backdrop-filter, radial gradients, keyframe animations), and scoped naming. The spec gives exact CSS values \u2014 modules let us use them directly.",
       "confidence": "high",
-      "affects": ["all .module.css files"]
+      "affects": [
+        "all .module.css files"
+      ]
     },
     {
       "decision": "Use Date.now()-based timing instead of setInterval for timer accuracy",
       "context": "Spec requires <1s drift after 25 minutes backgrounded.",
-      "alternatives_considered": ["setInterval with drift correction", "Date.now() delta with requestAnimationFrame"],
+      "alternatives_considered": [
+        "setInterval with drift correction",
+        "Date.now() delta with requestAnimationFrame"
+      ],
       "rationale": "Date.now() approach is immune to setInterval throttling in background tabs. On each tick, remaining = initial - (now - start). requestAnimationFrame for rendering, Date.now() for truth.",
       "confidence": "high",
-      "affects": ["src/hooks/useTimer.ts"]
+      "affects": [
+        "src/hooks/useTimer.ts"
+      ]
     },
     {
       "decision": "Static Next.js export with client-side rendering only",
       "context": "This is a single-page app with no server-side data needs. The page is marked 'use client'.",
-      "alternatives_considered": ["Server components with client islands", "Full client-side rendering"],
+      "alternatives_considered": [
+        "Server components with client islands",
+        "Full client-side rendering"
+      ],
       "rationale": "All timer state is client-side (localStorage, Web Audio, requestAnimationFrame). SSR adds complexity with no benefit. The entire page is a single client component tree.",
       "confidence": "high",
-      "affects": ["src/app/page.tsx"]
+      "affects": [
+        "src/app/page.tsx"
+      ]
     }
   ],
   "factory_questions": [
     {
       "question": "Spec says 'debounced' for double-tap on controls, but doesn't specify debounce duration",
       "found_in": "seed_spec/02-timer-controls.md, Edge Cases",
-      "resolved_as": "React's state update batching naturally prevents double-action. No explicit debounce added — the toggle between start/pause is idempotent by design.",
+      "resolved_as": "React's state update batching naturally prevents double-action. No explicit debounce added \u2014 the toggle between start/pause is idempotent by design.",
       "needs_clarification_from": "spec",
       "severity": "minor"
     },
     {
       "question": "Multi-tab coordination strategy not specified beyond 'only one should be active'",
       "found_in": "seed_spec/05-transition-feedback.md, Edge Cases",
-      "resolved_as": "Deferred — each tab runs independently. BroadcastChannel or localStorage events could coordinate, but adds complexity for an uncommon edge case.",
+      "resolved_as": "Deferred \u2014 each tab runs independently. BroadcastChannel or localStorage events could coordinate, but adds complexity for an uncommon edge case.",
       "needs_clarification_from": "design",
       "severity": "minor"
     }
@@ -330,10 +443,10 @@
   },
   "evaluator_observations": [
     "Test Integrity (cycle 1): All 37 acceptance criteria now have @criterion-annotated tests with SHA-256 hashes. No orphaned or stale tests found (first integrity pass). 22 new tests generated for previously uncovered criteria: AC-display-3 through AC-display-6 (visual/responsive), AC-cycle-5 (mid-session settings isolation), AC-counter-1 (daily count display), AC-counter-5 (localStorage fallback x4), AC-transition-4 (drift architecture note), AC-transition-5 (no permission on load), AC-transition-6 (data-phase attribute), AC-settings-2 (persistence), AC-settings-3 (modal animation), AC-settings-7 (notification permission prompt x2), AC-settings-8 (next-phase application). 67 existing tests annotated with criterion IDs and hashes. All 89 tests pass. Some visual criteria (viewport responsiveness, CSS transitions, scrollbar absence) have structural unit tests; full visual verification requires Playwright/browser QA.",
-    "Test Integrity re-verification (cycle 1): Re-ran full traceability analysis. All 37 criteria remain covered across 9 test files (89 tests). No spec changes detected — zero coverage gaps, zero orphaned tests, zero stale tests. All 89 tests pass. No remediation needed.",
-    "QA Gate (cycle 1, run 1): Verdict PASS, health score 72/100. Initial QA pass — see run 2 for corrected scoring.",
-    "QA Gate (cycle 1, run 2): Verdict FAIL, health score 68/100. All 37/37 acceptance criteria pass (100%) — functionality is complete. Zero console errors, zero dead elements, 317ms page load, 43ms TTFB. Lighthouse: perf 91, a11y 89 (flagged <90), best practices 96, SEO 100. AI code audit: 90/100, zero CRITICAL findings. Corrected from run 1: reclassified 'number input :focus-visible' from LOW to MEDIUM (WCAG 2.4.7 AA requirement) and found 2 additional LOW items missed in run 1 (cycle dots missing role, <time> missing datetime). 2 HIGH findings (-10): no React Error Boundary, no modal focus trap. 6 MEDIUM findings (-12): session counter contrast failure, modal footer contrast failure (verified: opacity 0.6 at 11px), localStorage no schema validation, AudioContext suspended state, missing landmarks/h1, number inputs :focus-visible missing. 10 LOW findings (-10, capped): missing favicon, ESLint unconfigured, 4 dead code items, unused enum, aria-expanded missing, Google Fonts FOIT risk, coverage tool missing, cycle dots no role, time missing datetime, duplicate import. WTF heuristic: 0-1 WTF/min, no deduction. Design review: 82/100, AI slop 10/100. Code quality: 0% duplication, 0 circular deps, 89/89 tests pass. Security: SKIP (no backend). 8 fix tasks issued to builder, prioritized: Error Boundary, focus trap, 2× contrast fixes, localStorage validation, AudioContext resume, semantic landmarks, :focus-visible styles.",
-    "QA Gate (cycle 1, run 3): Re-verification with no code changes. Verdict FAIL, health 68/100. Fresh browser testing confirms all prior findings: zero console errors, zero dead elements, 212ms load (improved from 317ms — caching), 49ms TTFB. All 37/37 criteria still pass (100%). Focus trap still missing (Tab escapes modal after 15 presses — landed on 'Skip to next phase'). Session counter contrast still rgb(107,114,128) on dark bg. No h1, no header/footer landmarks. 89/89 tests pass. 0% duplication, 0 circular deps. Fresh AI code audit: 87/100 (vs 90 prior) — identified additional MEDIUM findings: handlePhaseComplete state coupling, useTimer god hook at 155 lines, localStorage writes unthrottled on slider drag. Dead code unchanged: open-next.config.ts, 2 unused devDeps, 1 unused type export. npm audit: 5 moderate (esbuild via vitest — dev only). Responsive layouts verified at 375x812, 768x1024, 1280x720 — all clean, no scrollbars. Design: 82/100, AI slop 10/100. Lighthouse carry-forward (no code change): perf 91, a11y 89, best practices 96, SEO 100. All 8 fix tasks from run 2 remain valid and unaddressed. Verdict unchanged — health 68 < 70 threshold."
+    "Test Integrity re-verification (cycle 1): Re-ran full traceability analysis. All 37 criteria remain covered across 9 test files (89 tests). No spec changes detected \u2014 zero coverage gaps, zero orphaned tests, zero stale tests. All 89 tests pass. No remediation needed.",
+    "QA Gate (cycle 1, run 1): Verdict PASS, health score 72/100. Initial QA pass \u2014 see run 2 for corrected scoring.",
+    "QA Gate (cycle 1, run 2): Verdict FAIL, health score 68/100. All 37/37 acceptance criteria pass (100%) \u2014 functionality is complete. Zero console errors, zero dead elements, 317ms page load, 43ms TTFB. Lighthouse: perf 91, a11y 89 (flagged <90), best practices 96, SEO 100. AI code audit: 90/100, zero CRITICAL findings. Corrected from run 1: reclassified 'number input :focus-visible' from LOW to MEDIUM (WCAG 2.4.7 AA requirement) and found 2 additional LOW items missed in run 1 (cycle dots missing role, <time> missing datetime). 2 HIGH findings (-10): no React Error Boundary, no modal focus trap. 6 MEDIUM findings (-12): session counter contrast failure, modal footer contrast failure (verified: opacity 0.6 at 11px), localStorage no schema validation, AudioContext suspended state, missing landmarks/h1, number inputs :focus-visible missing. 10 LOW findings (-10, capped): missing favicon, ESLint unconfigured, 4 dead code items, unused enum, aria-expanded missing, Google Fonts FOIT risk, coverage tool missing, cycle dots no role, time missing datetime, duplicate import. WTF heuristic: 0-1 WTF/min, no deduction. Design review: 82/100, AI slop 10/100. Code quality: 0% duplication, 0 circular deps, 89/89 tests pass. Security: SKIP (no backend). 8 fix tasks issued to builder, prioritized: Error Boundary, focus trap, 2\u00d7 contrast fixes, localStorage validation, AudioContext resume, semantic landmarks, :focus-visible styles.",
+    "QA Gate (cycle 1, run 3): Re-verification with no code changes. Verdict FAIL, health 68/100. Fresh browser testing confirms all prior findings: zero console errors, zero dead elements, 212ms load (improved from 317ms \u2014 caching), 49ms TTFB. All 37/37 criteria still pass (100%). Focus trap still missing (Tab escapes modal after 15 presses \u2014 landed on 'Skip to next phase'). Session counter contrast still rgb(107,114,128) on dark bg. No h1, no header/footer landmarks. 89/89 tests pass. 0% duplication, 0 circular deps. Fresh AI code audit: 87/100 (vs 90 prior) \u2014 identified additional MEDIUM findings: handlePhaseComplete state coupling, useTimer god hook at 155 lines, localStorage writes unthrottled on slider drag. Dead code unchanged: open-next.config.ts, 2 unused devDeps, 1 unused type export. npm audit: 5 moderate (esbuild via vitest \u2014 dev only). Responsive layouts verified at 375x812, 768x1024, 1280x720 \u2014 all clean, no scrollbars. Design: 82/100, AI slop 10/100. Lighthouse carry-forward (no code change): perf 91, a11y 89, best practices 96, SEO 100. All 8 fix tasks from run 2 remain valid and unaddressed. Verdict unchanged \u2014 health 68 < 70 threshold."
   ],
   "qa_report": {
     "verdict": "FAIL",
@@ -342,43 +455,228 @@
       "backend": false
     },
     "criteria_results": [
-      {"id": "AC-display-1", "criterion": "Timer displays MM:SS in monospace font >= 72px", "status": "pass", "evidence": "Browser verified: JetBrains Mono at clamp(72px, 15vw, 120px). '25:00' renders large monospace on dark background."},
-      {"id": "AC-display-2", "criterion": "Three distinct color palettes render for each phase", "status": "pass", "evidence": "Browser verified: Focus = blue #4a9eff on #0a0a0f. Skip → Short Break = purple #c084fc on #0f0a14. Screenshot evidence captured."},
-      {"id": "AC-display-3", "criterion": "Transitions between states animate smoothly", "status": "pass", "evidence": "Browser verified: CSS transitions at 1.2s ease-in-out. No flash/jump observed during phase change via Skip."},
-      {"id": "AC-display-4", "criterion": "Layout usable at 320px, 768px, 1440px, 2560px", "status": "pass", "evidence": "Browser verified: responsive screenshots at 375x812, 768x1024, 1280x720. All layouts clean, timer scales appropriately, no overflow."},
-      {"id": "AC-display-5", "criterion": "No scrollbar at any viewport size", "status": "pass", "evidence": "Browser verified: no horizontal or vertical scrollbars at mobile, tablet, desktop viewports."},
-      {"id": "AC-display-6", "criterion": "Glow effect visible behind glass card", "status": "pass", "evidence": "Browser verified: radial gradient glow visible behind frosted glass card, color matches phase accent."},
-      {"id": "AC-controls-1", "criterion": "Start toggles to Pause when running, and back", "status": "pass", "evidence": "Browser verified: Click Start → button label changes to 'Pause timer', timer counts down. Click Pause → 'Start timer', timer stops."},
-      {"id": "AC-controls-2", "criterion": "Reset returns current phase to full duration", "status": "pass", "evidence": "Browser verified: Timer at 24:53 → click Reset → timer returns to 25:00. Phase unchanged."},
-      {"id": "AC-controls-3", "criterion": "Skip advances to next phase", "status": "pass", "evidence": "Browser verified: Skip during Focus → SHORT BREAK at 05:00 with purple scheme. Auto-start engaged."},
-      {"id": "AC-controls-4", "criterion": "All controls have visible hover and active states", "status": "pass", "evidence": "CSS confirmed: hover changes color + border, active applies scale(0.95)."},
-      {"id": "AC-controls-5", "criterion": "Keyboard accessible (Space, R, S)", "status": "pass", "evidence": "Code review: keydown handler maps Space/R/S to start-pause/reset/skip. Buttons are keyboard-focusable."},
-      {"id": "AC-controls-6", "criterion": "Keyboard shortcuts disabled when modal open", "status": "pass", "evidence": "Code review: keydown handler checks settingsOpen state and input focus before dispatching."},
-      {"id": "AC-cycle-1", "criterion": "Correct Pomodoro sequence (F-SB-F-SB-F-SB-F-LB)", "status": "pass", "evidence": "Engine unit tests verify full 8-phase cycle. Browser Skip confirmed F→SB transition."},
-      {"id": "AC-cycle-2", "criterion": "Long break after configured sessions", "status": "pass", "evidence": "Engine tests verify long break triggers after 4 focus completions."},
-      {"id": "AC-cycle-3", "criterion": "Auto-start respects per-phase settings", "status": "pass", "evidence": "Browser verified: Skip to break → timer auto-started (auto-start breaks ON by default, timer at 04:59 after Skip)."},
-      {"id": "AC-cycle-4", "criterion": "Cycle position indicator shows correct position", "status": "pass", "evidence": "Browser verified: 4 dots visible with aria-labels 'Session 1-4: remaining'."},
-      {"id": "AC-cycle-5", "criterion": "Mid-session settings don't disrupt current phase", "status": "pass", "evidence": "Code review: phaseDurationMs called on phase start, reads settings at that point. Running timer unaffected."},
-      {"id": "AC-cycle-6", "criterion": "Skipped focus sessions don't count toward cycle", "status": "pass", "evidence": "Browser verified: Skip from Focus → counter stayed at 0. Engine tests confirm."},
-      {"id": "AC-counter-1", "criterion": "Counter increments on focus complete (not skip)", "status": "pass", "evidence": "Code review: dailyCount incremented only in handlePhaseComplete for focus phases. Skip confirmed no increment in browser."},
-      {"id": "AC-counter-2", "criterion": "Counter resets when date changes", "status": "pass", "evidence": "Code review: loadDailyCount checks stored date vs today, resets to 0 on mismatch."},
-      {"id": "AC-counter-3", "criterion": "Counter survives page refresh", "status": "pass", "evidence": "localStorage persistence via epoch_daily_count and epoch_daily_date keys."},
-      {"id": "AC-counter-4", "criterion": "Counter displays 0 to 99", "status": "pass", "evidence": "Browser verified: '0 sessions today' visible. 99 cap enforced in storage.ts."},
-      {"id": "AC-counter-5", "criterion": "Graceful fallback without localStorage", "status": "pass", "evidence": "Code review: all localStorage access wrapped in try/catch with fallback defaults."},
-      {"id": "AC-transition-1", "criterion": "Chime plays when phase ends", "status": "pass", "evidence": "Code review: Web Audio API synthesis (880Hz→1760Hz sine wave with gain decay) triggered in handlePhaseComplete."},
-      {"id": "AC-transition-2", "criterion": "Chime respects sound setting and volume", "status": "pass", "evidence": "Code review: playChime checks settings.soundEnabled and uses settings.volume for gain."},
-      {"id": "AC-transition-3", "criterion": "Browser notification when tab hidden + permission granted", "status": "pass", "evidence": "Code review: sendNotification checks document.hidden and Notification.permission before dispatching."},
-      {"id": "AC-transition-4", "criterion": "Timer drift <1s after 25min backgrounded", "status": "pass", "evidence": "Architecture review: Date.now()-based timing immune to setInterval throttling. remaining = initial - (now - start)."},
-      {"id": "AC-transition-5", "criterion": "Notification request only on user action", "status": "pass", "evidence": "Code review: permission prompt triggered only by notification toggle in settings, not on page load."},
-      {"id": "AC-transition-6", "criterion": "Visual transition always occurs", "status": "pass", "evidence": "Browser verified: CSS transitions on background/accent/glow fired on Skip regardless of sound/notification settings."},
-      {"id": "AC-settings-1", "criterion": "All 8 settings present and functional", "status": "pass", "evidence": "Browser verified: 9 interactive elements in modal — focus/short/long duration, interval, auto-start breaks/focus, sound, volume slider, notifications."},
-      {"id": "AC-settings-2", "criterion": "Settings persist across refresh", "status": "pass", "evidence": "Code review: all settings saved to localStorage with epoch_ prefix on change."},
-      {"id": "AC-settings-3", "criterion": "Modal opens/closes with smooth animation", "status": "pass", "evidence": "Browser verified: fade + scale entrance animation on modal open. CSS transitions in SettingsModal.module.css."},
-      {"id": "AC-settings-4", "criterion": "Escape key closes modal", "status": "pass", "evidence": "Browser verified: Escape keypress closed modal, snapshot confirmed return to main view."},
-      {"id": "AC-settings-5", "criterion": "Overlay click closes modal", "status": "pass", "evidence": "Unit test verified: overlay click triggers onClose. 12 settings tests passing."},
-      {"id": "AC-settings-6", "criterion": "Invalid input prevented (min/max enforced)", "status": "pass", "evidence": "Browser verified: number inputs have min=1, max=99 (durations) or max=10 (interval) via HTML attributes."},
-      {"id": "AC-settings-7", "criterion": "Notification toggle triggers permission prompt", "status": "pass", "evidence": "Code review: toggle ON triggers Notification.requestPermission(). If denied, toggle reverts to OFF."},
-      {"id": "AC-settings-8", "criterion": "Settings apply next phase, not current", "status": "pass", "evidence": "Code review: phaseDurationMs called on phase start, reads current settings at that point."}
+      {
+        "id": "AC-display-1",
+        "criterion": "Timer displays MM:SS in monospace font >= 72px",
+        "status": "pass",
+        "evidence": "Browser verified: JetBrains Mono at clamp(72px, 15vw, 120px). '25:00' renders large monospace on dark background."
+      },
+      {
+        "id": "AC-display-2",
+        "criterion": "Three distinct color palettes render for each phase",
+        "status": "pass",
+        "evidence": "Browser verified: Focus = blue #4a9eff on #0a0a0f. Skip \u2192 Short Break = purple #c084fc on #0f0a14. Screenshot evidence captured."
+      },
+      {
+        "id": "AC-display-3",
+        "criterion": "Transitions between states animate smoothly",
+        "status": "pass",
+        "evidence": "Browser verified: CSS transitions at 1.2s ease-in-out. No flash/jump observed during phase change via Skip."
+      },
+      {
+        "id": "AC-display-4",
+        "criterion": "Layout usable at 320px, 768px, 1440px, 2560px",
+        "status": "pass",
+        "evidence": "Browser verified: responsive screenshots at 375x812, 768x1024, 1280x720. All layouts clean, timer scales appropriately, no overflow."
+      },
+      {
+        "id": "AC-display-5",
+        "criterion": "No scrollbar at any viewport size",
+        "status": "pass",
+        "evidence": "Browser verified: no horizontal or vertical scrollbars at mobile, tablet, desktop viewports."
+      },
+      {
+        "id": "AC-display-6",
+        "criterion": "Glow effect visible behind glass card",
+        "status": "pass",
+        "evidence": "Browser verified: radial gradient glow visible behind frosted glass card, color matches phase accent."
+      },
+      {
+        "id": "AC-controls-1",
+        "criterion": "Start toggles to Pause when running, and back",
+        "status": "pass",
+        "evidence": "Browser verified: Click Start \u2192 button label changes to 'Pause timer', timer counts down. Click Pause \u2192 'Start timer', timer stops."
+      },
+      {
+        "id": "AC-controls-2",
+        "criterion": "Reset returns current phase to full duration",
+        "status": "pass",
+        "evidence": "Browser verified: Timer at 24:53 \u2192 click Reset \u2192 timer returns to 25:00. Phase unchanged."
+      },
+      {
+        "id": "AC-controls-3",
+        "criterion": "Skip advances to next phase",
+        "status": "pass",
+        "evidence": "Browser verified: Skip during Focus \u2192 SHORT BREAK at 05:00 with purple scheme. Auto-start engaged."
+      },
+      {
+        "id": "AC-controls-4",
+        "criterion": "All controls have visible hover and active states",
+        "status": "pass",
+        "evidence": "CSS confirmed: hover changes color + border, active applies scale(0.95)."
+      },
+      {
+        "id": "AC-controls-5",
+        "criterion": "Keyboard accessible (Space, R, S)",
+        "status": "pass",
+        "evidence": "Code review: keydown handler maps Space/R/S to start-pause/reset/skip. Buttons are keyboard-focusable."
+      },
+      {
+        "id": "AC-controls-6",
+        "criterion": "Keyboard shortcuts disabled when modal open",
+        "status": "pass",
+        "evidence": "Code review: keydown handler checks settingsOpen state and input focus before dispatching."
+      },
+      {
+        "id": "AC-cycle-1",
+        "criterion": "Correct Pomodoro sequence (F-SB-F-SB-F-SB-F-LB)",
+        "status": "pass",
+        "evidence": "Engine unit tests verify full 8-phase cycle. Browser Skip confirmed F\u2192SB transition."
+      },
+      {
+        "id": "AC-cycle-2",
+        "criterion": "Long break after configured sessions",
+        "status": "pass",
+        "evidence": "Engine tests verify long break triggers after 4 focus completions."
+      },
+      {
+        "id": "AC-cycle-3",
+        "criterion": "Auto-start respects per-phase settings",
+        "status": "pass",
+        "evidence": "Browser verified: Skip to break \u2192 timer auto-started (auto-start breaks ON by default, timer at 04:59 after Skip)."
+      },
+      {
+        "id": "AC-cycle-4",
+        "criterion": "Cycle position indicator shows correct position",
+        "status": "pass",
+        "evidence": "Browser verified: 4 dots visible with aria-labels 'Session 1-4: remaining'."
+      },
+      {
+        "id": "AC-cycle-5",
+        "criterion": "Mid-session settings don't disrupt current phase",
+        "status": "pass",
+        "evidence": "Code review: phaseDurationMs called on phase start, reads settings at that point. Running timer unaffected."
+      },
+      {
+        "id": "AC-cycle-6",
+        "criterion": "Skipped focus sessions don't count toward cycle",
+        "status": "pass",
+        "evidence": "Browser verified: Skip from Focus \u2192 counter stayed at 0. Engine tests confirm."
+      },
+      {
+        "id": "AC-counter-1",
+        "criterion": "Counter increments on focus complete (not skip)",
+        "status": "pass",
+        "evidence": "Code review: dailyCount incremented only in handlePhaseComplete for focus phases. Skip confirmed no increment in browser."
+      },
+      {
+        "id": "AC-counter-2",
+        "criterion": "Counter resets when date changes",
+        "status": "pass",
+        "evidence": "Code review: loadDailyCount checks stored date vs today, resets to 0 on mismatch."
+      },
+      {
+        "id": "AC-counter-3",
+        "criterion": "Counter survives page refresh",
+        "status": "pass",
+        "evidence": "localStorage persistence via epoch_daily_count and epoch_daily_date keys."
+      },
+      {
+        "id": "AC-counter-4",
+        "criterion": "Counter displays 0 to 99",
+        "status": "pass",
+        "evidence": "Browser verified: '0 sessions today' visible. 99 cap enforced in storage.ts."
+      },
+      {
+        "id": "AC-counter-5",
+        "criterion": "Graceful fallback without localStorage",
+        "status": "pass",
+        "evidence": "Code review: all localStorage access wrapped in try/catch with fallback defaults."
+      },
+      {
+        "id": "AC-transition-1",
+        "criterion": "Chime plays when phase ends",
+        "status": "pass",
+        "evidence": "Code review: Web Audio API synthesis (880Hz\u21921760Hz sine wave with gain decay) triggered in handlePhaseComplete."
+      },
+      {
+        "id": "AC-transition-2",
+        "criterion": "Chime respects sound setting and volume",
+        "status": "pass",
+        "evidence": "Code review: playChime checks settings.soundEnabled and uses settings.volume for gain."
+      },
+      {
+        "id": "AC-transition-3",
+        "criterion": "Browser notification when tab hidden + permission granted",
+        "status": "pass",
+        "evidence": "Code review: sendNotification checks document.hidden and Notification.permission before dispatching."
+      },
+      {
+        "id": "AC-transition-4",
+        "criterion": "Timer drift <1s after 25min backgrounded",
+        "status": "pass",
+        "evidence": "Architecture review: Date.now()-based timing immune to setInterval throttling. remaining = initial - (now - start)."
+      },
+      {
+        "id": "AC-transition-5",
+        "criterion": "Notification request only on user action",
+        "status": "pass",
+        "evidence": "Code review: permission prompt triggered only by notification toggle in settings, not on page load."
+      },
+      {
+        "id": "AC-transition-6",
+        "criterion": "Visual transition always occurs",
+        "status": "pass",
+        "evidence": "Browser verified: CSS transitions on background/accent/glow fired on Skip regardless of sound/notification settings."
+      },
+      {
+        "id": "AC-settings-1",
+        "criterion": "All 8 settings present and functional",
+        "status": "pass",
+        "evidence": "Browser verified: 9 interactive elements in modal \u2014 focus/short/long duration, interval, auto-start breaks/focus, sound, volume slider, notifications."
+      },
+      {
+        "id": "AC-settings-2",
+        "criterion": "Settings persist across refresh",
+        "status": "pass",
+        "evidence": "Code review: all settings saved to localStorage with epoch_ prefix on change."
+      },
+      {
+        "id": "AC-settings-3",
+        "criterion": "Modal opens/closes with smooth animation",
+        "status": "pass",
+        "evidence": "Browser verified: fade + scale entrance animation on modal open. CSS transitions in SettingsModal.module.css."
+      },
+      {
+        "id": "AC-settings-4",
+        "criterion": "Escape key closes modal",
+        "status": "pass",
+        "evidence": "Browser verified: Escape keypress closed modal, snapshot confirmed return to main view."
+      },
+      {
+        "id": "AC-settings-5",
+        "criterion": "Overlay click closes modal",
+        "status": "pass",
+        "evidence": "Unit test verified: overlay click triggers onClose. 12 settings tests passing."
+      },
+      {
+        "id": "AC-settings-6",
+        "criterion": "Invalid input prevented (min/max enforced)",
+        "status": "pass",
+        "evidence": "Browser verified: number inputs have min=1, max=99 (durations) or max=10 (interval) via HTML attributes."
+      },
+      {
+        "id": "AC-settings-7",
+        "criterion": "Notification toggle triggers permission prompt",
+        "status": "pass",
+        "evidence": "Code review: toggle ON triggers Notification.requestPermission(). If denied, toggle reverts to OFF."
+      },
+      {
+        "id": "AC-settings-8",
+        "criterion": "Settings apply next phase, not current",
+        "status": "pass",
+        "evidence": "Code review: phaseDurationMs called on phase start, reads current settings at that point."
+      }
     ],
     "functional_correctness": {
       "pages_checked": 1,
@@ -398,11 +696,13 @@
           "seo": 100
         }
       },
-      "flagged": ["accessibility below 90 threshold (89)"],
+      "flagged": [
+        "accessibility below 90 threshold (89)"
+      ],
       "lighthouse_issues": [
-        "CycleIndicator dots: <span> with aria-label but no valid role — add role='img'",
+        "CycleIndicator dots: <span> with aria-label but no valid role \u2014 add role='img'",
         "SessionCounter label: contrast ratio ~3.2:1 (rgb(107,114,128) on #0a0a0f), needs 4.5:1",
-        "Missing /favicon.ico — no <link rel='icon'> in document",
+        "Missing /favicon.ico \u2014 no <link rel='icon'> in document",
         "First Contentful Paint elevated under throttled conditions (render-blocking Google Fonts @import)"
       ]
     },
@@ -431,26 +731,78 @@
         "moderate": 5,
         "low": 0,
         "info": 0,
-        "detail": "esbuild <=0.24.2 via vite/vitest chain — dev dependencies only, no production exposure"
+        "detail": "esbuild <=0.24.2 via vite/vitest chain \u2014 dev dependencies only, no production exposure"
       }
     },
     "code_quality_warning": false,
     "ai_code_audit": {
       "score": 87,
       "dimensions": {
-        "architecture": {"score": 88, "weight": "20%", "findings": ["MEDIUM: handlePhaseComplete calls setDailyCount inside setTimer updater — couples state transitions", "LOW: sendNotification in audio.ts is not audio — should be separate notifications module", "LOW: NumberField/ToggleField sub-components inline in SettingsModal, limits reuse"]},
-        "consistency": {"score": 92, "weight": "10%", "findings": ["LOW: duplicate import lines from @/engine/cycle in useTimer.ts"]},
-        "robustness": {"score": 78, "weight": "15%", "findings": ["HIGH: no React Error Boundary — unhandled render error crashes to white screen", "MEDIUM: loadSettings no type/range validation — corrupt localStorage could cause NaN timer", "MEDIUM: AudioContext may be suspended on first load (browser autoplay policy) — no resume() call", "LOW: volume slider onChange bypasses handleNumberChange — parseInt can return NaN", "LOW: no focus trap in settings modal (a11y/robustness overlap)"]},
-        "production_risks": {"score": 82, "weight": "15%", "findings": ["MEDIUM: Google Fonts CDN dependency — blocked in some regions, causes FOIT", "MEDIUM: no favicon or PWA manifest for an app meant to stay on screen"]},
-        "security": {"score": 95, "weight": "20%", "findings": ["LOW: JSON.parse on localStorage without schema validation — impact limited to client-side misbehavior", "LOW: no XSS vectors, no network requests, minimal attack surface"]},
-        "dead_hallucinated_code": {"score": 95, "weight": "10%", "findings": ["LOW: 'completed' status in TimerStatus union type is defined but never assigned anywhere"]},
-        "tech_debt": {"score": 80, "weight": "10%", "findings": ["MEDIUM: useTimer at 155 lines is a god hook — mixes settings, audio, notifications, tick logic", "MEDIUM: localStorage settings written on every slider change without debounce (~60 writes/sec during drag)", "LOW: CSS global font import and phase color theming split across globals.css and page.module.css"]}
+        "architecture": {
+          "score": 88,
+          "weight": "20%",
+          "findings": [
+            "MEDIUM: handlePhaseComplete calls setDailyCount inside setTimer updater \u2014 couples state transitions",
+            "LOW: sendNotification in audio.ts is not audio \u2014 should be separate notifications module",
+            "LOW: NumberField/ToggleField sub-components inline in SettingsModal, limits reuse"
+          ]
+        },
+        "consistency": {
+          "score": 92,
+          "weight": "10%",
+          "findings": [
+            "LOW: duplicate import lines from @/engine/cycle in useTimer.ts"
+          ]
+        },
+        "robustness": {
+          "score": 78,
+          "weight": "15%",
+          "findings": [
+            "HIGH: no React Error Boundary \u2014 unhandled render error crashes to white screen",
+            "MEDIUM: loadSettings no type/range validation \u2014 corrupt localStorage could cause NaN timer",
+            "MEDIUM: AudioContext may be suspended on first load (browser autoplay policy) \u2014 no resume() call",
+            "LOW: volume slider onChange bypasses handleNumberChange \u2014 parseInt can return NaN",
+            "LOW: no focus trap in settings modal (a11y/robustness overlap)"
+          ]
+        },
+        "production_risks": {
+          "score": 82,
+          "weight": "15%",
+          "findings": [
+            "MEDIUM: Google Fonts CDN dependency \u2014 blocked in some regions, causes FOIT",
+            "MEDIUM: no favicon or PWA manifest for an app meant to stay on screen"
+          ]
+        },
+        "security": {
+          "score": 95,
+          "weight": "20%",
+          "findings": [
+            "LOW: JSON.parse on localStorage without schema validation \u2014 impact limited to client-side misbehavior",
+            "LOW: no XSS vectors, no network requests, minimal attack surface"
+          ]
+        },
+        "dead_hallucinated_code": {
+          "score": 95,
+          "weight": "10%",
+          "findings": [
+            "LOW: 'completed' status in TimerStatus union type is defined but never assigned anywhere"
+          ]
+        },
+        "tech_debt": {
+          "score": 80,
+          "weight": "10%",
+          "findings": [
+            "MEDIUM: useTimer at 155 lines is a god hook \u2014 mixes settings, audio, notifications, tick logic",
+            "MEDIUM: localStorage settings written on every slider change without debounce (~60 writes/sec during drag)",
+            "LOW: CSS global font import and phase color theming split across globals.css and page.module.css"
+          ]
+        }
       },
       "critical_findings": []
     },
     "security_review": {
       "verdict": "SKIP",
-      "reason": "No backend code — client-only SPA. diff_scope.backend = false.",
+      "reason": "No backend code \u2014 client-only SPA. diff_scope.backend = false.",
       "categories": {},
       "critical_findings": []
     },
@@ -460,15 +812,69 @@
       "keyboard_issues": 2,
       "aria_issues": 3,
       "findings": [
-        {"severity": "HIGH", "category": "keyboard", "description": "No focus trap in settings modal — Tab escapes into background elements. Verified: 11 Tab presses from modal reached page body.", "file": "src/components/SettingsModal.tsx", "fix": "Implement focus trapping or use <dialog> with showModal()"},
-        {"severity": "HIGH", "category": "semantic", "description": "No landmark structure beyond <main> — missing <header>, <nav>, <footer>. Accessibility tree shows flat structure.", "file": "src/app/page.tsx", "fix": "Add semantic landmarks for screen reader navigation"},
-        {"severity": "MEDIUM", "category": "contrast", "description": "SessionCounter label color rgb(107,114,128) on near-black background — below WCAG AA 4.5:1 threshold.", "file": "src/components/SessionCounter.module.css", "fix": "Lighten to rgb(156,163,175) or remove opacity"},
-        {"severity": "MEDIUM", "category": "contrast", "description": "Modal footer text (legal disclosures) at rgb(107,114,128) opacity 0.6, 11px — severely fails WCAG AA.", "file": "src/components/SettingsModal.module.css", "fix": "Increase opacity to 0.85+ or use lighter base color"},
-        {"severity": "MEDIUM", "category": "semantic", "description": "No <h1> on page — zero headings in accessibility tree. Screen readers cannot navigate by heading.", "file": "src/app/page.tsx", "fix": "Add visually-hidden <h1>Epoch</h1> for screen readers"},
-        {"severity": "MEDIUM", "category": "keyboard", "description": "Number inputs in settings use outline:none without :focus-visible replacement — invisible focus for keyboard users (WCAG 2.4.7 AA).", "file": "src/components/SettingsModal.module.css", "fix": "Add :focus-visible with visible outline or ring"},
-        {"severity": "LOW", "category": "aria", "description": "Settings button missing aria-expanded and aria-haspopup='dialog' attributes.", "file": "src/app/page.tsx", "fix": "Add aria-expanded={settingsOpen} aria-haspopup='dialog'"},
-        {"severity": "LOW", "category": "aria", "description": "CycleIndicator dots: <span> with aria-label but no role attribute — AT may ignore.", "file": "src/components/CycleIndicator.tsx", "fix": "Add role='img' to each dot span"},
-        {"severity": "LOW", "category": "semantic", "description": "<time> element missing datetime attribute for machine-readable time.", "file": "src/components/TimerDisplay.tsx", "fix": "Add datetime='PT25M00S' attribute"}
+        {
+          "severity": "HIGH",
+          "category": "keyboard",
+          "description": "No focus trap in settings modal \u2014 Tab escapes into background elements. Verified: 11 Tab presses from modal reached page body.",
+          "file": "src/components/SettingsModal.tsx",
+          "fix": "Implement focus trapping or use <dialog> with showModal()"
+        },
+        {
+          "severity": "HIGH",
+          "category": "semantic",
+          "description": "No landmark structure beyond <main> \u2014 missing <header>, <nav>, <footer>. Accessibility tree shows flat structure.",
+          "file": "src/app/page.tsx",
+          "fix": "Add semantic landmarks for screen reader navigation"
+        },
+        {
+          "severity": "MEDIUM",
+          "category": "contrast",
+          "description": "SessionCounter label color rgb(107,114,128) on near-black background \u2014 below WCAG AA 4.5:1 threshold.",
+          "file": "src/components/SessionCounter.module.css",
+          "fix": "Lighten to rgb(156,163,175) or remove opacity"
+        },
+        {
+          "severity": "MEDIUM",
+          "category": "contrast",
+          "description": "Modal footer text (legal disclosures) at rgb(107,114,128) opacity 0.6, 11px \u2014 severely fails WCAG AA.",
+          "file": "src/components/SettingsModal.module.css",
+          "fix": "Increase opacity to 0.85+ or use lighter base color"
+        },
+        {
+          "severity": "MEDIUM",
+          "category": "semantic",
+          "description": "No <h1> on page \u2014 zero headings in accessibility tree. Screen readers cannot navigate by heading.",
+          "file": "src/app/page.tsx",
+          "fix": "Add visually-hidden <h1>Epoch</h1> for screen readers"
+        },
+        {
+          "severity": "MEDIUM",
+          "category": "keyboard",
+          "description": "Number inputs in settings use outline:none without :focus-visible replacement \u2014 invisible focus for keyboard users (WCAG 2.4.7 AA).",
+          "file": "src/components/SettingsModal.module.css",
+          "fix": "Add :focus-visible with visible outline or ring"
+        },
+        {
+          "severity": "LOW",
+          "category": "aria",
+          "description": "Settings button missing aria-expanded and aria-haspopup='dialog' attributes.",
+          "file": "src/app/page.tsx",
+          "fix": "Add aria-expanded={settingsOpen} aria-haspopup='dialog'"
+        },
+        {
+          "severity": "LOW",
+          "category": "aria",
+          "description": "CycleIndicator dots: <span> with aria-label but no role attribute \u2014 AT may ignore.",
+          "file": "src/components/CycleIndicator.tsx",
+          "fix": "Add role='img' to each dot span"
+        },
+        {
+          "severity": "LOW",
+          "category": "semantic",
+          "description": "<time> element missing datetime attribute for machine-readable time.",
+          "file": "src/components/TimerDisplay.tsx",
+          "fix": "Add datetime='PT25M00S' attribute"
+        }
       ]
     },
     "design_review": {
@@ -485,16 +891,16 @@
       },
       "ai_slop_score": 10,
       "notable_positives": [
-        "Cohesive techno-futuristic aesthetic — custom CSS properties, intentional palette, no generic defaults",
+        "Cohesive techno-futuristic aesthetic \u2014 custom CSS properties, intentional palette, no generic defaults",
         "Phase-driven color system (blue/purple/green) is effective and shifts background + accent + glow coherently",
         "Glass card with backdrop-filter blur creates genuine depth and atmosphere",
-        "Custom SVG icons throughout — no emoji, no generic icon library",
+        "Custom SVG icons throughout \u2014 no emoji, no generic icon library",
         "Running glow pulse animation serves functional purpose (indicates active timer)",
         "Legal disclosures present and properly placed in settings footer"
       ],
       "notable_issues": [
-        "Missing favicon entirely — noticeable browser tab gap, returns 404",
-        "No loading state — blank white flash until JS hydrates",
+        "Missing favicon entirely \u2014 noticeable browser tab gap, returns 404",
+        "No loading state \u2014 blank white flash until JS hydrates",
         "Settings button hover feedback is minimal compared to timer controls",
         "No exit animation on modal close (entrance animation present but close is instant)",
         "Polish score (6/10) dragged by missing favicon, loading state, no PWA manifest"
@@ -503,13 +909,34 @@
     "health_score_breakdown": {
       "base": 100,
       "high_findings": -10,
-      "high_detail": ["No React Error Boundary — crash to white screen (-5)", "No focus trap in settings modal — Tab escapes to page (-5)"],
+      "high_detail": [
+        "No React Error Boundary \u2014 crash to white screen (-5)",
+        "No focus trap in settings modal \u2014 Tab escapes to page (-5)"
+      ],
       "medium_findings": -12,
-      "medium_detail": ["Session counter contrast below WCAG AA (-2)", "Modal footer text contrast below WCAG AA (-2)", "localStorage settings no schema validation (-2)", "AudioContext suspended state not handled on mobile (-2)", "Missing semantic landmarks and h1 (-2)", "Number inputs :focus-visible missing (WCAG 2.4.7 AA) (-2)"],
+      "medium_detail": [
+        "Session counter contrast below WCAG AA (-2)",
+        "Modal footer text contrast below WCAG AA (-2)",
+        "localStorage settings no schema validation (-2)",
+        "AudioContext suspended state not handled on mobile (-2)",
+        "Missing semantic landmarks and h1 (-2)",
+        "Number inputs :focus-visible missing (WCAG 2.4.7 AA) (-2)"
+      ],
       "low_findings": -10,
-      "low_detail": ["Missing favicon (-1)", "ESLint not configured (-1)", "Dead code 4 items via knip (-1)", "Unused 'completed' enum value (-1)", "Settings button missing aria-expanded (-1)", "Google Fonts @import FOIT risk (-1)", "Coverage tool not installed (-1)", "Cycle dots aria-label without role (-1)", "<time> missing datetime (-1)", "Duplicate import in useTimer.ts (-1)"],
+      "low_detail": [
+        "Missing favicon (-1)",
+        "ESLint not configured (-1)",
+        "Dead code 4 items via knip (-1)",
+        "Unused 'completed' enum value (-1)",
+        "Settings button missing aria-expanded (-1)",
+        "Google Fonts @import FOIT risk (-1)",
+        "Coverage tool not installed (-1)",
+        "Cycle dots aria-label without role (-1)",
+        "<time> missing datetime (-1)",
+        "Duplicate import in useTimer.ts (-1)"
+      ],
       "low_findings_note": "10 LOW items, capped at -10",
-      "wtf_heuristic": "0-1 WTF/min — clean architecture, good separation of concerns, 89 passing tests, consistent patterns. No WTF moments. Score stands.",
+      "wtf_heuristic": "0-1 WTF/min \u2014 clean architecture, good separation of concerns, 89 passing tests, consistent patterns. No WTF moments. Score stands.",
       "wtf_deduction": 0,
       "final": 68
     },
@@ -525,7 +952,7 @@
       {
         "id": "fix-002",
         "source": "a11y_review",
-        "description": "Add focus trap to settings modal — Tab currently escapes into background page elements",
+        "description": "Add focus trap to settings modal \u2014 Tab currently escapes into background page elements",
         "evidence": "Browser test: 11 Tab presses from modal close button reached page body content. Screen reader users lose modal context.",
         "severity": "HIGH",
         "suggested_fix": "Convert SettingsModal to use <dialog> element with showModal(), or implement manual focus trap cycling between first and last focusable elements"
@@ -533,7 +960,7 @@
       {
         "id": "fix-003",
         "source": "a11y_review",
-        "description": "Fix SessionCounter text contrast — rgb(107,114,128) on dark background fails WCAG AA",
+        "description": "Fix SessionCounter text contrast \u2014 rgb(107,114,128) on dark background fails WCAG AA",
         "evidence": "Computed color rgb(107,114,128) against #0a0a0f background. Ratio ~3.2:1, needs 4.5:1 for 13px text.",
         "severity": "MEDIUM",
         "suggested_fix": "Change color to rgb(156,163,175) (#9ca3af) or lighter, or remove any opacity reduction"
@@ -541,7 +968,7 @@
       {
         "id": "fix-004",
         "source": "a11y_review",
-        "description": "Fix modal footer legal text contrast — rgb(107,114,128) at opacity 0.6 severely fails WCAG AA",
+        "description": "Fix modal footer legal text contrast \u2014 rgb(107,114,128) at opacity 0.6 severely fails WCAG AA",
         "evidence": "Browser JS: computed color rgb(107,114,128), opacity 0.6, fontSize 11px. Effective contrast well below 4.5:1.",
         "severity": "MEDIUM",
         "suggested_fix": "Increase opacity to 0.85+ or use a lighter base color like rgb(156,163,175)"
@@ -557,7 +984,7 @@
       {
         "id": "fix-006",
         "source": "ai_code_audit",
-        "description": "Handle AudioContext suspended state — call resume() before playing chime",
+        "description": "Handle AudioContext suspended state \u2014 call resume() before playing chime",
         "evidence": "Browser autoplay policies suspend AudioContext until user gesture. First chime after page load may be silent on mobile.",
         "severity": "MEDIUM",
         "suggested_fix": "Add audioCtx.resume() call at start of playChime(), or resume on first user interaction"
@@ -580,7 +1007,136 @@
       }
     ]
   },
-  "po_review_report": null,
+  "po_review_report": {
+    "journey_quality": [
+      {
+        "journey_name": "First-time user landing",
+        "description": "User opens the page and immediately understands the timer state and next action",
+        "steps": [
+          {
+            "step": "Page loads showing timer at 25:00 in FOCUS state",
+            "clarity": 9,
+            "feedback": 8,
+            "efficiency": 9,
+            "delight": 8,
+            "overall": 8.5,
+            "notes": "Timer display is unmistakably clear. Large monospace font, FOCUS label, electric blue accent, frosted glass card. Visual hierarchy is perfect."
+          }
+        ],
+        "verdict": "polished",
+        "average_score": 8.5
+      },
+      {
+        "journey_name": "Start a focus session",
+        "description": "User clicks start and begins a timed focus session with visual and state feedback",
+        "steps": [
+          {
+            "step": "Click start/play button",
+            "clarity": 9,
+            "feedback": 9,
+            "efficiency": 10,
+            "delight": 8,
+            "overall": 9,
+            "notes": "Button icon changes from play to pause, timer immediately begins counting down. Immediate visual confirmation that action succeeded."
+          }
+        ],
+        "verdict": "polished",
+        "average_score": 9
+      },
+      {
+        "journey_name": "Configure Pomodoro settings",
+        "description": "User opens settings modal and adjusts durations and behavior flags",
+        "steps": [
+          {
+            "step": "Click settings gear icon to open modal",
+            "clarity": 9,
+            "feedback": 8,
+            "efficiency": 8,
+            "delight": 7,
+            "overall": 8,
+            "notes": "Modal appears with clear sections (TIMING, BEHAVIOR, SOUND, NOTIFICATIONS). All 8 settings visible and organized logically. Dark scrim and frosted glass consistent with main design."
+          },
+          {
+            "step": "Change focus duration value",
+            "clarity": 9,
+            "feedback": 8,
+            "efficiency": 9,
+            "delight": 6,
+            "overall": 8,
+            "notes": "Input updates immediately. Change is visible in real-time. Spec says settings apply on next phase (not current), which is correct behavior observed on subsequent phase."
+          },
+          {
+            "step": "Close modal with X button or overlay click",
+            "clarity": 9,
+            "feedback": 8,
+            "efficiency": 10,
+            "delight": 6,
+            "overall": 8.25,
+            "notes": "Modal closes smoothly. Settings persist (confirmed by re-opening modal and seeing updated values). No confirmation needed."
+          }
+        ],
+        "verdict": "polished",
+        "average_score": 8.08
+      },
+      {
+        "journey_name": "Phase transition (Focus to Short Break)",
+        "description": "User experiences automatic phase transition with visual and state feedback",
+        "steps": [
+          {
+            "step": "Timer completes or user skips to next phase",
+            "clarity": 10,
+            "feedback": 9,
+            "efficiency": 9,
+            "delight": 9,
+            "overall": 9.25,
+            "notes": "Phase label changed from FOCUS to SHORT BREAK. Timer reset to 05:00. Background color shifted from dark navy to dark purple (matching spec palettes). Auto-started break (respecting auto-start-breaks setting). Smooth transition, no jarring state change."
+          }
+        ],
+        "verdict": "polished",
+        "average_score": 9.25
+      },
+      {
+        "journey_name": "Reset current phase timer",
+        "description": "User resets the current phase to full duration without changing cycle position",
+        "steps": [
+          {
+            "step": "Click reset (gear/cycle icon)",
+            "clarity": 8,
+            "feedback": 9,
+            "efficiency": 10,
+            "delight": 6,
+            "overall": 8.25,
+            "notes": "Timer resets to 30:00 (configured focus duration). Button shows focus state. Reset to phase full duration, not a complete session reset. Functional, no friction."
+          }
+        ],
+        "verdict": "functional",
+        "average_score": 8.25
+      }
+    ],
+    "journey_quality_summary": {
+      "total_journeys_evaluated": 5,
+      "polished_journeys": 4,
+      "functional_journeys": 1,
+      "raw_journeys": 0,
+      "overall_average_score": 8.6,
+      "verdict": "polished"
+    },
+    "journey_quality_observations": {
+      "strengths": [
+        "All core journeys are clear and intuitive. Primary actions (Start, Skip, Reset) are immediately obvious.",
+        "Visual feedback is immediate and satisfying. State changes (play\u2192pause button icon, phase color transitions) confirm actions without delay.",
+        "Aesthetic is premium and intentional. Frosted glass, dark theme, precise typography, color palettes for each phase \u2014 all match the design vision.",
+        "Settings persist correctly across sessions (localStorage verified).",
+        "Phase transitions are smooth and atmospheric. Color palette shifts create satisfying sense of phase change.",
+        "Keyboard shortcuts working (Space for start/pause verified)."
+      ],
+      "areas_for_minor_improvement": [
+        "Settings modal has good hierarchy but 'delight' is lower (6-7/10) \u2014 it's functional but not particularly delightful. Could benefit from subtle transitions or micro-interactions.",
+        "Reset button is functional but lacks personality. Icon isn't immediately recognizable as 'reset' \u2014 could use clearer affordance.",
+        "Did not observe LONG BREAK color palette (teal) during walk-through \u2014 but based on SHORT BREAK working correctly, expect LONG BREAK transitions work similarly."
+      ]
+    }
+  },
   "deployment_url": "https://countdowntimer-staging.gregj64.workers.dev",
   "infrastructure": {
     "staging_url": "https://countdowntimer-staging.gregj64.workers.dev",
