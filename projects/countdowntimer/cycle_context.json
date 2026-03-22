@@ -1342,7 +1342,8 @@
     "QA Gate (cycle 1, run 1): Verdict PASS, health score 72/100. Initial QA pass — see run 2 for corrected scoring.",
     "QA Gate (cycle 1, run 2): Verdict FAIL, health score 68/100. All 37/37 acceptance criteria pass (100%) — functionality is complete. Zero console errors, zero dead elements, 317ms page load, 43ms TTFB. Lighthouse: perf 91, a11y 89 (flagged <90), best practices 96, SEO 100. AI code audit: 90/100, zero CRITICAL findings. Corrected from run 1: reclassified 'number input :focus-visible' from LOW to MEDIUM (WCAG 2.4.7 AA requirement) and found 2 additional LOW items missed in run 1 (cycle dots missing role, <time> missing datetime). 2 HIGH findings (-10): no React Error Boundary, no modal focus trap. 6 MEDIUM findings (-12): session counter contrast failure, modal footer contrast failure (verified: opacity 0.6 at 11px), localStorage no schema validation, AudioContext suspended state, missing landmarks/h1, number inputs :focus-visible missing. 10 LOW findings (-10, capped): missing favicon, ESLint unconfigured, 4 dead code items, unused enum, aria-expanded missing, Google Fonts FOIT risk, coverage tool missing, cycle dots no role, time missing datetime, duplicate import. WTF heuristic: 0-1 WTF/min, no deduction. Design review: 82/100, AI slop 10/100. Code quality: 0% duplication, 0 circular deps, 89/89 tests pass. Security: SKIP (no backend). 8 fix tasks issued to builder, prioritized: Error Boundary, focus trap, 2× contrast fixes, localStorage validation, AudioContext resume, semantic landmarks, :focus-visible styles.",
     "QA Gate (cycle 1, run 3): Re-verification with no code changes. Verdict FAIL, health 68/100. Fresh browser testing confirms all prior findings: zero console errors, zero dead elements, 212ms load (improved from 317ms — caching), 49ms TTFB. All 37/37 criteria still pass (100%). Focus trap still missing (Tab escapes modal after 15 presses — landed on 'Skip to next phase'). Session counter contrast still rgb(107,114,128) on dark bg. No h1, no header/footer landmarks. 89/89 tests pass. 0% duplication, 0 circular deps. Fresh AI code audit: 87/100 (vs 90 prior) — identified additional MEDIUM findings: handlePhaseComplete state coupling, useTimer god hook at 155 lines, localStorage writes unthrottled on slider drag. Dead code unchanged: open-next.config.ts, 2 unused devDeps, 1 unused type export. npm audit: 5 moderate (esbuild via vitest — dev only). Responsive layouts verified at 375x812, 768x1024, 1280x720 — all clean, no scrollbars. Design: 82/100, AI slop 10/100. Lighthouse carry-forward (no code change): perf 91, a11y 89, best practices 96, SEO 100. All 8 fix tasks from run 2 remain valid and unaddressed. Verdict unchanged — health 68 < 70 threshold.",
-    "PO Review (cycle 1): Verdict NEEDS_IMPROVEMENT, confidence 0.83. Journey quality 8.6/10 (polished), screen quality 8.55/10 (polished) — design taste and core experience are strong. Heuristic pass rate 73.8% (42 rules, 31 passed, 11 failed) triggers NEEDS_IMPROVEMENT despite confidence clearing 0.80. Failures cluster in accessibility (5: focus trap, contrast ×2, ARIA roles, :focus-visible) and robustness (3: error boundary ×2, localStorage validation). These align directly with the 8 unresolved QA fix tasks — resolving them would push heuristic rate to ~86%. 5 PO quality gaps identified (0 critical, 0 high, 2 medium, 3 low): keyboard shortcut discoverability, settings modal delight deficit, settings density, reset button affordance, missing favicon. Latent space activation found no fundamental design issues — core concept is sound. Recommended action: deepen:accessibility-polish."
+    "PO Review (cycle 1): Verdict NEEDS_IMPROVEMENT, confidence 0.83. Journey quality 8.6/10 (polished), screen quality 8.55/10 (polished) — design taste and core experience are strong. Heuristic pass rate 73.8% (42 rules, 31 passed, 11 failed) triggers NEEDS_IMPROVEMENT despite confidence clearing 0.80. Failures cluster in accessibility (5: focus trap, contrast ×2, ARIA roles, :focus-visible) and robustness (3: error boundary ×2, localStorage validation). These align directly with the 8 unresolved QA fix tasks — resolving them would push heuristic rate to ~86%. 5 PO quality gaps identified (0 critical, 0 high, 2 medium, 3 low): keyboard shortcut discoverability, settings modal delight deficit, settings density, reset button affordance, missing favicon. Latent space activation found no fundamental design issues — core concept is sound. Recommended action: deepen:accessibility-polish.",
+    "Analysis (cycle 1): Recommendation DEEPEN:ACCESSIBILITY-ROBUSTNESS. Root cause breakdown: 8 QA fix tasks classified as implementation_bug (should have been caught/fixed in QA-fixing phase that didn't run), 2 PO gaps classified as spec_ambiguity (keyboard shortcut discoverability, favicon — specs didn't specify), 3 PO gaps classified as design_choice (settings modal delight, density, reset icon — require design mode revision). Critical path: resolve 8 QA fix tasks to push heuristic pass rate from 73.8% to ~86%, clearing 80% threshold. This alone could flip verdict to PRODUCTION_READY. 5 PO quality gaps are secondary polish. No cross-cycle patterns yet (first cycle), but noted that QA-fixing phase gap is a process issue — 8 fix tasks were identified but never executed. 13 total change spec briefs generated: 8 implementation fixes (no design mode needed) + 5 polish items (3 require design mode). No escalations. Confidence trend: baseline (no history). No regression, no plateau."
   ],
   "evaluator_questions": [
     "Should keyboard shortcuts be made discoverable (visible hints) or kept hidden as power-user features? The current approach is invisible — which aligns with 'as little design as possible' but hurts discoverability.",
@@ -1355,6 +1356,353 @@
     "production_url": null,
     "supabase_ref": null,
     "sentry_dsn": null
+  },
+  "analysis_result": {
+    "phase": "analyzing",
+    "cycle": 1,
+    "timestamp": "2026-03-22T23:55:00.000Z",
+
+    "confidence_trend": {
+      "current": 0.83,
+      "previous": null,
+      "delta": null,
+      "direction": "baseline",
+      "consecutive_same_direction": 0,
+      "flags": ["none"]
+    },
+
+    "recommendation": "deepen:accessibility-robustness",
+    "recommendation_reasoning": "Confidence 0.83 sits in the DEEPEN band (0.7–0.9). The PO verdict is NEEDS_IMPROVEMENT, driven by heuristic pass rate 73.8% — below the 80% threshold. 8 of 11 heuristic failures map directly to the 8 unresolved QA fix tasks (error boundary, focus trap, 2× contrast, localStorage validation, AudioContext, landmarks, :focus-visible). These are concentrated in two areas: accessibility (5 failures) and robustness (3 failures). All are addressable without new capabilities — they are implementation fixes, not scope expansion. Resolving the 8 QA fix tasks would push heuristic pass rate to ~86%, clearing the threshold. The 5 PO quality gaps (keyboard shortcut discoverability, settings modal delight, settings density, reset icon affordance, favicon) are secondary polish items that can be addressed alongside. The PO Review recommended 'deepen:accessibility-polish' — I validate this but broaden the label to 'accessibility-robustness' since error boundary and localStorage validation are robustness concerns, not pure a11y. No alternative recommendation applies: PROMOTE is blocked by heuristic threshold; BROADEN is unnecessary (no missing capabilities); NOTIFY-HUMAN is unwarranted (gaps are clear and actionable); ROLLBACK has no basis (first cycle, no regression).",
+
+    "root_cause_analysis": [
+      {
+        "gap_id": "qg-001",
+        "gap_description": "Keyboard shortcuts (Space/R/S) exist but are completely undiscoverable",
+        "root_cause": "spec_ambiguity",
+        "classification_confidence": 0.85,
+        "evidence": "Spec AC-controls-5 says 'Keyboard accessible (Space, R, S)' — specifies the shortcuts exist but says nothing about discoverability. The spec treats keyboard access as a functional requirement, not a UX requirement. Any builder would implement the shortcuts without visible hints because the spec didn't ask for them. The gap is about WHAT should be communicated to users, not HOW shortcuts were implemented.",
+        "related_factory_decision": null,
+        "related_factory_question": null,
+        "qa_coverage_gap": false
+      },
+      {
+        "gap_id": "qg-002",
+        "gap_description": "Settings modal lacks delight and personality compared to main timer screen",
+        "root_cause": "design_choice",
+        "classification_confidence": 0.75,
+        "evidence": "The seed spec for settings (06-settings-modal.md) defines functional requirements (8 settings, persistence, modal open/close) but not interaction design quality targets. The builder implemented a functional modal with the correct glass-and-dark aesthetic, but the design approach treated settings as a utility form rather than extending the premium experience. Journey delight scored 6-7/10 for settings vs 8+ for main screen. This is a design-level gap — a different builder with the same spec would likely produce a similarly functional-but-flat modal. Requires design mode to specify micro-interactions, animations, and polish targets.",
+        "related_factory_decision": null,
+        "related_factory_question": null,
+        "qa_coverage_gap": false
+      },
+      {
+        "gap_id": "qg-003",
+        "gap_description": "Settings modal density slightly high on desktop — sections packed tightly",
+        "root_cause": "design_choice",
+        "classification_confidence": 0.80,
+        "evidence": "Spacing and density are design decisions not specified in the seed spec. The builder used reasonable defaults but didn't optimize for premium breathing room. Screen quality density scored 7/10. This is a design refinement — the change spec should provide specific spacing targets (24-32px section gaps).",
+        "related_factory_decision": null,
+        "related_factory_question": null,
+        "qa_coverage_gap": false
+      },
+      {
+        "gap_id": "qg-004",
+        "gap_description": "Reset button icon affordance is ambiguous — not immediately recognizable",
+        "root_cause": "design_choice",
+        "classification_confidence": 0.75,
+        "evidence": "The spec says 'Reset returns current phase to full duration' — defines behavior, not iconography. The builder chose an icon that the PO reviewer described as 'gear/cycle icon' — the reviewer couldn't even name it confidently. Icon selection was a design judgment call. A different builder might have chosen a circular arrow (more universally recognized). The factory_decisions log doesn't mention icon selection, suggesting it was an implicit choice rather than a deliberated one.",
+        "related_factory_decision": null,
+        "related_factory_question": null,
+        "qa_coverage_gap": false
+      },
+      {
+        "gap_id": "qg-005",
+        "gap_description": "No favicon or branded browser tab presence",
+        "root_cause": "spec_ambiguity",
+        "classification_confidence": 0.70,
+        "evidence": "The seed spec never mentions favicon. The product standard doesn't list it. For a product positioned as 'beautiful enough to leave on screen,' browser tab presence is an implied requirement the spec failed to make explicit. The QA Gate flagged this as LOW (missing /favicon.ico). Any builder would skip favicon if it's not in the spec — this is a spec gap, not an implementation oversight. The vision document's emphasis on 'presence — how it feels on your screen' makes this a meaningful omission.",
+        "related_factory_decision": null,
+        "related_factory_question": null,
+        "qa_coverage_gap": false
+      }
+    ],
+
+    "cross_cycle_patterns": [
+      {
+        "pattern": "QA fix tasks not addressed before PO Review — 8 unresolved fixes from QA Gate carried through to evaluation",
+        "frequency": 1,
+        "systemic_cause": "No QA-fixing phase ran between QA Gate and PO Review. The QA Gate identified 8 fix tasks (2 HIGH, 6 MEDIUM) but they were not executed before evaluation proceeded. This caused 8 of 11 heuristic failures in the PO Review.",
+        "recommended_action": "Ensure the QA-fixing phase runs and resolves fix tasks before PO Review in cycle 2. The 8 fix tasks are well-defined with clear suggested fixes — they should be straightforward implementation work."
+      },
+      {
+        "pattern": "Accessibility gaps dominate heuristic failures (5 of 11 failures are a11y)",
+        "frequency": 1,
+        "systemic_cause": "The seed spec defines accessibility as a global standard (keyboard_navigation, aria_labels, color_contrast_aa, reduced_motion_support) but doesn't translate these into specific, testable per-component requirements. The builder met the letter of the spec (keyboard shortcuts exist, aria-labels present) but not the spirit (focus trapping, contrast ratios, semantic landmarks).",
+        "recommended_action": "The change spec for cycle 2 must include explicit a11y requirements with measurable thresholds (e.g., 'all text contrast ≥ 4.5:1', 'modal focus trapped', 'semantic landmarks: header, main, footer, h1'). Consider adding a11y requirements to the product_standard for future products."
+      }
+    ],
+
+    "change_spec_briefs": [
+      {
+        "gap_id": "fix-001",
+        "root_cause": "implementation_bug",
+        "priority": "high",
+        "affected_screens": ["/"],
+        "affected_journeys": ["all — crash recovery affects every journey"],
+        "what_good_looks_like": "React Error Boundary wrapping main content tree. On unhandled render error, shows a styled fallback UI (consistent with Epoch aesthetic) with a 'Reload' button. Never shows a blank white page.",
+        "requires_design_mode": false,
+        "approach_hint": "Create ErrorBoundary component in src/components/ErrorBoundary.tsx. Wrap children in layout.tsx. Fallback UI should match dark theme with accent color and a clear recovery action.",
+        "do_not_repeat": []
+      },
+      {
+        "gap_id": "fix-002",
+        "root_cause": "implementation_bug",
+        "priority": "high",
+        "affected_screens": ["settings modal"],
+        "affected_journeys": ["Configure Pomodoro settings"],
+        "what_good_looks_like": "When settings modal is open, Tab/Shift+Tab cycle within modal elements only. Focus never escapes to background page. On close, focus returns to the settings trigger button.",
+        "requires_design_mode": false,
+        "approach_hint": "Convert SettingsModal to use native <dialog> element with showModal() — this provides focus trapping, Escape-to-close, and inert background for free. Alternatively, implement manual focus trap with first/last focusable element cycling.",
+        "do_not_repeat": []
+      },
+      {
+        "gap_id": "fix-003",
+        "root_cause": "implementation_bug",
+        "priority": "medium",
+        "affected_screens": ["/"],
+        "affected_journeys": ["First-time user landing"],
+        "what_good_looks_like": "Session counter text has contrast ratio ≥ 4.5:1 against background. Use rgb(156,163,175) (#9ca3af) or lighter.",
+        "requires_design_mode": false,
+        "approach_hint": "Change SessionCounter.module.css color from rgb(107,114,128) to rgb(156,163,175). Verify contrast ratio against #0a0a0f background.",
+        "do_not_repeat": []
+      },
+      {
+        "gap_id": "fix-004",
+        "root_cause": "implementation_bug",
+        "priority": "medium",
+        "affected_screens": ["settings modal"],
+        "affected_journeys": ["Configure Pomodoro settings"],
+        "what_good_looks_like": "Modal footer legal text readable with contrast ≥ 4.5:1. Opacity increased to 0.85+ or base color lightened.",
+        "requires_design_mode": false,
+        "approach_hint": "In SettingsModal.module.css, increase footer text opacity from 0.6 to 0.85, or switch base color to rgb(156,163,175).",
+        "do_not_repeat": []
+      },
+      {
+        "gap_id": "fix-005",
+        "root_cause": "implementation_bug",
+        "priority": "medium",
+        "affected_screens": ["/", "settings modal"],
+        "affected_journeys": ["all — corrupt settings affects all journeys"],
+        "what_good_looks_like": "loadSettings() validates each parsed field: type check (number/boolean), range clamp (duration 1-99, interval 1-10, volume 0-1). Invalid values fall back to defaults. No NaN timer possible.",
+        "requires_design_mode": false,
+        "approach_hint": "Add validation function in storage.ts that type-checks and range-clamps each field after JSON.parse. Merge validated values with defaults.",
+        "do_not_repeat": []
+      },
+      {
+        "gap_id": "fix-006",
+        "root_cause": "implementation_bug",
+        "priority": "medium",
+        "affected_screens": ["/"],
+        "affected_journeys": ["Phase transition (Focus to Short Break)"],
+        "what_good_looks_like": "AudioContext.resume() called before playChime(). First chime after page load plays successfully on mobile browsers with autoplay restrictions.",
+        "requires_design_mode": false,
+        "approach_hint": "Add await audioCtx.resume() at start of playChime(), or resume AudioContext on first user interaction (start button click).",
+        "do_not_repeat": []
+      },
+      {
+        "gap_id": "fix-007",
+        "root_cause": "implementation_bug",
+        "priority": "medium",
+        "affected_screens": ["/"],
+        "affected_journeys": ["First-time user landing"],
+        "what_good_looks_like": "Page has <header> (containing settings button), visually-hidden <h1>Epoch</h1>, <main> (timer content), <footer> (session counter). Screen readers can navigate by landmark and heading.",
+        "requires_design_mode": false,
+        "approach_hint": "Wrap existing elements in semantic landmarks in page.tsx. Add visually-hidden h1 with CSS (position: absolute, clip: rect(0,0,0,0), etc.).",
+        "do_not_repeat": []
+      },
+      {
+        "gap_id": "fix-008",
+        "root_cause": "implementation_bug",
+        "priority": "medium",
+        "affected_screens": ["settings modal"],
+        "affected_journeys": ["Configure Pomodoro settings"],
+        "what_good_looks_like": "All focusable elements in settings modal show visible focus indicator on keyboard navigation. :focus-visible with 2px accent outline.",
+        "requires_design_mode": false,
+        "approach_hint": "Replace outline:none with :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; } in SettingsModal.module.css.",
+        "do_not_repeat": []
+      },
+      {
+        "gap_id": "qg-001",
+        "root_cause": "spec_ambiguity",
+        "priority": "medium",
+        "affected_screens": ["/"],
+        "affected_journeys": ["Start a focus session", "Reset current phase timer"],
+        "what_good_looks_like": "Subtle shortcut hints visible near controls (e.g., small text 'Space' near play/pause, 'R' near reset, 'S' near skip) or a '?' toggle that reveals a shortcut legend. Hints should feel integrated, not bolted on — matching the minimal aesthetic.",
+        "requires_design_mode": true,
+        "approach_hint": "Design mode should determine the right discoverability pattern: inline hints vs. help overlay vs. tooltip. The approach must balance the 'as little design as possible' aesthetic with discoverability. Consider showing hints only on first visit or on keyboard use.",
+        "do_not_repeat": []
+      },
+      {
+        "gap_id": "qg-002",
+        "root_cause": "design_choice",
+        "priority": "low",
+        "affected_screens": ["settings modal"],
+        "affected_journeys": ["Configure Pomodoro settings"],
+        "what_good_looks_like": "Settings modal has micro-interactions: section reveal animations on open, toggle switches with smooth state transitions, slider with value tooltip, exit animation on close matching entrance. The modal feels like a continuation of the premium experience, not a utility form.",
+        "requires_design_mode": true,
+        "approach_hint": "Design mode should specify: (1) section-by-section stagger animation on open, (2) toggle switch micro-animation, (3) slider value feedback, (4) modal close animation (reverse of open). Keep it subtle — the goal is polish, not showiness.",
+        "do_not_repeat": []
+      },
+      {
+        "gap_id": "qg-003",
+        "root_cause": "design_choice",
+        "priority": "low",
+        "affected_screens": ["settings modal"],
+        "affected_journeys": ["Configure Pomodoro settings"],
+        "what_good_looks_like": "24-32px vertical gap between section groups (TIMING, BEHAVIOR, SOUND, NOTIFICATIONS). Sections feel like distinct visual zones rather than a continuous form.",
+        "requires_design_mode": true,
+        "approach_hint": "Increase section gap in SettingsModal.module.css. Design mode should specify exact spacing values that balance breathing room with modal height constraints.",
+        "do_not_repeat": []
+      },
+      {
+        "gap_id": "qg-004",
+        "root_cause": "design_choice",
+        "priority": "low",
+        "affected_screens": ["/"],
+        "affected_journeys": ["Reset current phase timer"],
+        "what_good_looks_like": "Reset button uses a universally recognized icon (circular arrow / counterclockwise arrow). Optionally shows tooltip 'Reset (R)' on hover, combining affordance with shortcut discovery.",
+        "requires_design_mode": true,
+        "approach_hint": "Replace current icon with circular arrow SVG. If qg-001 adds shortcut hints, combine the reset hint here. Design mode should approve the icon change to ensure it fits the design system.",
+        "do_not_repeat": []
+      },
+      {
+        "gap_id": "qg-005",
+        "root_cause": "spec_ambiguity",
+        "priority": "low",
+        "affected_screens": ["browser tab"],
+        "affected_journeys": ["First-time user landing"],
+        "what_good_looks_like": "SVG favicon present — minimal, matches Epoch brand. Could be a stylized 'E' or abstract clock mark. Renders well at 16x16 and 32x32. Adapts to light/dark browser chrome if feasible.",
+        "requires_design_mode": true,
+        "approach_hint": "Design mode should create or specify a favicon concept. Implementation is simple (add SVG favicon to public/ and link in layout.tsx). A static brand mark is sufficient — dynamic timer-in-tab is out of scope for this cycle.",
+        "do_not_repeat": []
+      }
+    ],
+
+    "escalations": [],
+
+    "phase_decisions": [
+      {
+        "decision": "Chose deepen:accessibility-robustness over deepen:accessibility-polish",
+        "reasoning": "The PO Review recommended 'deepen:accessibility-polish' but I broadened to 'accessibility-robustness' because 3 of 11 heuristic failures are robustness issues (error boundary ×2, localStorage validation), not accessibility. The label should reflect the full scope of work."
+      },
+      {
+        "decision": "Classified 8 QA fix tasks as implementation_bug with high/medium priority",
+        "reasoning": "All 8 QA fix tasks should have been caught and resolved in a QA-fixing phase that didn't run. The specs (global standards + product standards) clearly require accessibility compliance and error handling. The builder had the context — these are implementation gaps, not spec ambiguity. QA coverage gap is implicitly true for all 8 since the QA Gate identified them but they weren't fixed."
+      },
+      {
+        "decision": "Prioritized QA fix tasks over PO quality gaps in change spec briefs",
+        "reasoning": "The 8 QA fixes are the critical path to promotion. They directly cause 8 of 11 heuristic failures, which is the sole reason the verdict is NEEDS_IMPROVEMENT. Resolving them pushes heuristic pass rate from 73.8% to ~86%. The 5 PO quality gaps are polish items — important but not blocking. Fixing the QA tasks alone could enable PRODUCTION_READY verdict."
+      },
+      {
+        "decision": "Marked qg-002, qg-003, qg-004 as requires_design_mode: true despite being low priority",
+        "reasoning": "These are design-level gaps where the current implementation follows a reasonable design approach that doesn't meet the premium bar. Simply re-implementing without revised design input would produce the same result. Design mode is needed to specify what 'better' looks like for micro-interactions, spacing, and iconography."
+      },
+      {
+        "decision": "Did not recommend PROMOTE despite confidence 0.83 clearing 0.80",
+        "reasoning": "PROMOTE requires ALL of: PRODUCTION_READY verdict, confidence ≥ 0.9, no critical gaps, no regression. The verdict is NEEDS_IMPROVEMENT (not PRODUCTION_READY) due to heuristic pass rate 73.8% < 80%. Confidence 0.83 < 0.9. Two conditions fail. The anti-pattern 'optimistic promotion' warns: when on the fence, default to deepen."
+      }
+    ]
+  },
+  "change_specs_pending": [
+    {
+      "spec_path": "openspec/changes/epoch-loop-2-robustness/spec.md",
+      "gap_ids": ["fix-001", "fix-005", "fix-006"],
+      "priority": "high",
+      "requires_design_mode": false,
+      "design_passes_needed": [],
+      "criteria_count": 8,
+      "root_cause": "implementation_bug",
+      "affected_screens": ["/", "settings modal"],
+      "affected_journeys": ["all — crash recovery", "Phase transition (Focus to Short Break)"],
+      "approach_summary": "Add React Error Boundary with styled fallback, localStorage schema validation with type/range clamping, AudioContext.resume() before chime playback"
+    },
+    {
+      "spec_path": "openspec/changes/epoch-loop-2-main-a11y/spec.md",
+      "gap_ids": ["fix-003", "fix-007"],
+      "priority": "medium",
+      "requires_design_mode": false,
+      "design_passes_needed": [],
+      "criteria_count": 7,
+      "root_cause": "implementation_bug",
+      "affected_screens": ["/"],
+      "affected_journeys": ["First-time user landing"],
+      "approach_summary": "Fix session counter contrast to ≥4.5:1, add semantic landmarks (header/footer/h1) without visual changes"
+    },
+    {
+      "spec_path": "openspec/changes/epoch-loop-2-settings-a11y/spec.md",
+      "gap_ids": ["fix-002", "fix-004", "fix-008"],
+      "priority": "high",
+      "requires_design_mode": false,
+      "design_passes_needed": [],
+      "criteria_count": 10,
+      "root_cause": "implementation_bug",
+      "affected_screens": ["settings modal"],
+      "affected_journeys": ["Configure Pomodoro settings"],
+      "approach_summary": "Convert modal to <dialog> with showModal() for native focus trap, fix footer text contrast, add :focus-visible styles to all inputs"
+    },
+    {
+      "spec_path": "openspec/changes/epoch-loop-2-shortcut-discovery/spec.md",
+      "gap_ids": ["qg-001"],
+      "priority": "medium",
+      "requires_design_mode": true,
+      "design_passes_needed": ["component-design", "visual-design"],
+      "criteria_count": 5,
+      "root_cause": "spec_ambiguity",
+      "affected_screens": ["/"],
+      "affected_journeys": ["Start a focus session", "Reset current phase timer"],
+      "approach_summary": "Add visual shortcut hints near control buttons (design mode determines exact approach), hidden on mobile"
+    }
+  ],
+  "change_spec_generation_summary": {
+    "phase": "change-spec-generation",
+    "cycle": 1,
+    "timestamp": "2026-03-23T00:15:00.000Z",
+    "total_specs_generated": 4,
+    "total_criteria_across_specs": 30,
+    "gaps_addressed": 9,
+    "gaps_deferred": [
+      {
+        "gap_id": "qg-002",
+        "reason": "Low priority — settings modal delight deficit is polish, not blocking. Requires design mode. Deferred to next cycle."
+      },
+      {
+        "gap_id": "qg-003",
+        "reason": "Low priority — settings modal density is minor polish. Requires design mode. Deferred to next cycle."
+      },
+      {
+        "gap_id": "qg-004",
+        "reason": "Low priority — reset icon affordance is minor UX polish. Requires design mode. Deferred to next cycle."
+      },
+      {
+        "gap_id": "qg-005",
+        "reason": "Low priority — favicon is missing but not blocking production readiness. Requires design mode. Deferred to next cycle."
+      }
+    ],
+    "gaps_escalated": [],
+    "phase_decisions": [
+      {
+        "decision": "Separated implementation-bug specs from design-mode specs despite affecting same screens",
+        "reasoning": "The 8 QA fix tasks (implementation bugs) are the critical path to clearing the heuristic pass rate threshold. They do not require design mode review. Grouping them with design-mode items (qg-001) would delay the critical path by requiring design mode for the entire group. Instead, fix-003 and fix-007 (main screen fixes) are in a separate spec from qg-001 (main screen shortcut discovery, requires design mode), allowing the builder to address a11y fixes immediately while qg-001 waits for design review."
+      },
+      {
+        "decision": "Deferred all 4 LOW priority quality gaps to next cycle",
+        "reasoning": "The 8 QA fix tasks + 1 medium PO gap (qg-001) are sufficient to push heuristic pass rate from 73.8% to ~86% and address the primary PO Review concerns. The 4 LOW items (settings delight, settings density, reset icon, favicon) are polish that won't affect the PRODUCTION_READY verdict threshold. They all require design mode, which would add cycle time for marginal quality improvement. Better to fix the critical path first, re-evaluate after cycle 2."
+      },
+      {
+        "decision": "Grouped fix-001, fix-005, fix-006 as cross-cutting robustness despite affecting different files",
+        "reasoning": "These three fixes are thematically related (app resilience: crash recovery, data integrity, audio reliability) and none touch the same files as each other or the a11y fixes. Grouping them creates a clear 'robustness hardening' task for the builder, distinct from the a11y-focused specs."
+      }
+    ]
   },
   "retry_counts": {},
   "previous_cycles": [],
