@@ -367,8 +367,8 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 ## Future Work — Slack UX Polish
 
 - [x] FW.1 Thread-based bot replies — use `thread_ts` so seeding conversations and notifications don't flood the channel
-- [ ] FW.2 Per-loop status notifications — "Loop N: building → QA passed → PO review in progress" at each phase transition
-- [ ] FW.3 Phase transition notifications — notify channel when a phase starts/completes with brief summary
+- [x] FW.2 Per-loop status notifications — "Loop N: building → QA passed → PO review in progress" at each phase transition
+- [x] FW.3 Phase transition notifications — notify channel when a phase starts/completes with brief summary
 - [ ] FW.4 Confidence trend in notifications — include confidence score and delta in loop completion messages
 - [ ] FW.5 Screenshot attachments in notifications — capture primary screen + feature screens, attach to Slack messages via file upload
 - [ ] FW.6 Seeding swarm progress — "Discipline 3/7 complete (brainstorming → competition → taste)" during seeding loops
@@ -387,9 +387,9 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 
 ### Rich Interactions
 - [x] FW.16 Interactive Block Kit notifications — structured cards with progress indicators, confidence trends, screenshots, action buttons (Start, Pause, Approve, Reject)
-- [ ] FW.17 Block Kit morning briefing — multi-section card with per-project blocks, confidence charts, screenshot thumbnails
+- [x] FW.17 Block Kit morning briefing — multi-section card with per-project blocks, confidence charts, screenshot thumbnails
 - [ ] FW.18 Block Kit PO Review scorecard — journey/screen/interaction quality breakdown with pass/fail indicators
-- [ ] FW.19 Inline action buttons — "Start" button on ready notifications, "Investigate" button on rollback alerts, "Approve/Reject" on seeding completion
+- [x] FW.19 Inline action buttons — "Start" button on ready notifications, "Investigate" button on rollback alerts, "Approve/Reject" on seeding completion
 - [ ] FW.20 Dropdown menus for feedback classification — when sending feedback, select type (product-change, global-learning, etc.) from a menu instead of relying on LLM classification
 
 ### Polish
@@ -430,7 +430,7 @@ Rouge Maintain: autonomous maintenance of deployed production systems.
 - [ ] FW.35 Replace timeout-based phase monitoring with heartbeat/progress detection — periodically check if Claude is still producing output (file changes, log growth, tool calls) rather than using a fixed timeout. If no progress for N minutes, then timeout. This is more resilient than fixed timeouts and provides observability data for the dashboard.
 - [ ] FW.36 Phase progress streaming — emit periodic progress events (files changed, tests run, etc.) that the Slack newsroom and web dashboard can consume in real-time
 - [ ] FW.37 Handle phase prompts writing state.json — normalize `*-complete` suffixed states back to the expected state, or add pre/post guards that save and restore state.json around phase invocations
-- [ ] FW.38 README disclaimer — "experimental, not for production use, token-intensive" warning
+- [x] FW.38 README disclaimer — "experimental, not for production use, token-intensive" warning
 
 ## Future Work — Visual Evolution Record
 
