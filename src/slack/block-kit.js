@@ -2,7 +2,26 @@
  * Block Kit message builders for Rouge notifications.
  */
 
-function phaseTransition(projectName, fromState, toState, details) {
+// Unicode sparkline from confidence history array (0.0-1.0 values)
+function sparkline(values) {
+  if (!values || values.length === 0) return '';
+  const blocks = ' ▁▂▃▄▅▆▇█';
+  return values.map(v => {
+    const idx = Math.round(Math.min(1, Math.max(0, v)) * 8);
+    return blocks[idx];
+  }).join('');
+}
+
+function confidenceTrend(history) {
+  if (!history || history.length < 2) return '';
+  const current = history[history.length - 1];
+  const prev = history[history.length - 2];
+  const delta = current - prev;
+  const arrow = delta > 0.02 ? '↑' : delta < -0.02 ? '↓' : '→';
+  return `${(current * 100).toFixed(0)}% ${arrow} ${sparkline(history)}`;
+}
+
+function phaseTransition(projectName, fromState, toState, details, confidenceHistory) {
   const emoji = {
     'test-integrity': '🧪', 'qa-gate': '🔍', 'qa-fixing': '🔧',
     'po-review-journeys': '👀', 'po-review-screens': '👀', 'po-review-heuristics': '👀',
@@ -19,6 +38,10 @@ function phaseTransition(projectName, fromState, toState, details) {
           text: `${emoji[toState] || '❓'} *${projectName}*: \`${fromState}\` → \`${toState}\``,
         },
       },
+      ...(confidenceHistory && confidenceHistory.length > 0 ? [{
+        type: 'context',
+        elements: [{ type: 'mrkdwn', text: `📊 Confidence: ${confidenceTrend(confidenceHistory)}` }],
+      }] : []),
       ...(details ? [{
         type: 'context',
         elements: [{ type: 'mrkdwn', text: details }],
@@ -196,4 +219,4 @@ function seedingComplete(projectName, featureCount, specCount) {
   };
 }
 
-module.exports = { phaseTransition, phaseComplete, qaResult, escalation, morningBriefing, rollbackAlert, seedingComplete };
+module.exports = { sparkline, confidenceTrend, phaseTransition, phaseComplete, qaResult, escalation, morningBriefing, rollbackAlert, seedingComplete };
