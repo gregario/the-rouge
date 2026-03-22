@@ -33,7 +33,11 @@ const STATE_TO_PROMPT = {
   'test-integrity': 'loop/02a-test-integrity.md',
   'qa-gate': 'loop/02b-qa-gate.md',
   'qa-fixing': 'loop/03-qa-fixing.md',
-  'po-reviewing': 'loop/02c-po-review.md',
+  // PO review split into sub-phases (FIX-4)
+  'po-reviewing': 'loop/02c-po-review.md', // kept as fallback
+  'po-review-journeys': 'loop/02c-po-review.md',
+  'po-review-screens': 'loop/02c-po-review.md',
+  'po-review-heuristics': 'loop/02c-po-review.md',
   analyzing: 'loop/04-analyzing.md',
   'generating-change-spec': 'loop/05-change-spec-generation.md',
   'vision-checking': 'loop/06-vision-check.md',
@@ -50,7 +54,10 @@ const PHASE_TIMEOUT = {
   'test-integrity': 15 * 60 * 1000,   // 15 min — scanning tests, generating gaps
   'qa-gate': 25 * 60 * 1000,          // 25 min — browser QA, Lighthouse, code quality, security
   'qa-fixing': 15 * 60 * 1000,        // 15 min — debugging, fixing, redeploying
-  'po-reviewing': 15 * 60 * 1000,     // 15 min — journey walks, screen analysis
+  'po-reviewing': 15 * 60 * 1000,     // 15 min — legacy single-phase (fallback)
+  'po-review-journeys': 10 * 60 * 1000,  // 10 min — journey quality walks
+  'po-review-screens': 10 * 60 * 1000,   // 10 min — screen quality assessment
+  'po-review-heuristics': 10 * 60 * 1000, // 10 min — heuristic eval + reference comparison
   analyzing: 10 * 60 * 1000,          // 10 min — reading reports, deciding action
   'generating-change-spec': 10 * 60 * 1000, // 10 min — writing specs
   'vision-checking': 10 * 60 * 1000,  // 10 min — alignment check
@@ -160,6 +167,7 @@ function advanceState(projectDir) {
       break;
     }
 
+    // QA PASS → po-review sub-phases instead of monolithic po-reviewing
     case 'qa-gate': {
       const ctx = readJson(contextFile);
       const verdict = ctx?.qa_report?.verdict || 'PASS';
@@ -173,10 +181,23 @@ function advanceState(projectDir) {
           writeJson(stateFile, state);
         }
       } else {
-        next = 'po-reviewing';
+        next = 'po-review-journeys'; // FIX-4: start with journeys sub-phase
       }
       break;
     }
+
+    // FIX-4: PO review sub-phase chain
+    case 'po-review-journeys':
+      next = 'po-review-screens';
+      break;
+
+    case 'po-review-screens':
+      next = 'po-review-heuristics';
+      break;
+
+    case 'po-review-heuristics':
+      next = 'analyzing'; // all sub-phases done → analyzing
+      break;
 
     case 'qa-fixing': {
       // Redeploy after fixes so QA tests the updated code
@@ -275,7 +296,9 @@ function advanceState(projectDir) {
     // Notify on significant transitions
     const notifications = {
       'qa-gate': `🔍 [${projectName}] Build complete → QA gate starting`,
-      'po-reviewing': `👀 [${projectName}] QA passed → PO review starting`,
+      'po-review-journeys': `👀 [${projectName}] QA passed → PO review (journeys)`,
+      'po-review-screens': `👀 [${projectName}] PO review: journeys done → screens`,
+      'po-review-heuristics': `👀 [${projectName}] PO review: screens done → heuristics`,
       'promoting': `🚀 [${projectName}] Vision check passed → promoting`,
       'complete': `✅ [${projectName}] All feature areas complete!`,
       'waiting-for-human': `⏸️ [${projectName}] Needs human input (from: ${current})`,
@@ -369,9 +392,23 @@ async function runPhase(projectDir) {
     let stderrChunks = [];
     let killed = false;
 
+    // Build the prompt instruction — add scope for PO review sub-phases
+    let promptInstruction = `Read the phase prompt at ${promptFile} and execute it. The project directory is ${projectDir}. Read cycle_context.json and state.json for context.`;
+
+    // FIX-4: Scope PO review sub-phases to specific sections
+    const poSubPhaseScope = {
+      'po-review-journeys': 'SCOPE: Only evaluate JOURNEY QUALITY (Sub-Check 7.1-7.4 from the prompt). Walk each journey as a first-time user, assess per-step quality. Write journey_quality to po_review_report in cycle_context.json. Do NOT assess screens, interactions, or heuristics — those are separate phases.',
+      'po-review-screens': 'SCOPE: Only evaluate SCREEN QUALITY (Sub-Check 8.1-8.3 from the prompt). Assess each screen for hierarchy, layout, consistency, density, mobile. Write screen_quality to po_review_report in cycle_context.json. Read journey_quality from prior sub-phase. Do NOT re-walk journeys or run heuristics.',
+      'po-review-heuristics': 'SCOPE: Only evaluate HEURISTICS + GENERATE REPORT (Sub-Checks 10.1-11.6 from the prompt). Run Library heuristics, aggregate results, generate verdict, confidence, recommended_action. Write final po_review_report to cycle_context.json. Read journey_quality and screen_quality from prior sub-phases.',
+    };
+
+    if (poSubPhaseScope[currentState]) {
+      promptInstruction += '\n\n' + poSubPhaseScope[currentState];
+    }
+
     const child = execFile('claude', [
       '-p',
-      `Read the phase prompt at ${promptFile} and execute it. The project directory is ${projectDir}. Read cycle_context.json and state.json for context.`,
+      promptInstruction,
       '--dangerously-skip-permissions',
       '--model', model,
       '--max-turns', '200',
