@@ -470,12 +470,19 @@ app.event('app_mention', async ({ event, say }) => {
           if (!projectName) { await say('Usage: `rouge start <project>`'); return; }
           const state = readState(projectName);
           if (!state) { await say(`Project \`${projectName}\` not found.`); return; }
-          if (state.current_state !== 'ready') {
-            await say(`\`${projectName}\` is \`${state.current_state}\`, not \`ready\`. Can only start ready projects.`);
+          if (state.current_state !== 'ready' && state.current_state !== 'seeding') {
+            await say(`\`${projectName}\` is \`${state.current_state}\`. Can only start ready or seeding projects.`);
             return;
+          }
+          // Generate cycle_context.json if missing
+          const projectDir2 = path.join(PROJECTS_DIR, projectName);
+          if (!fs.existsSync(path.join(projectDir2, 'cycle_context.json'))) {
+            try { generateCycleContext(projectName); } catch {}
           }
           state.current_state = 'building';
           writeState(projectName, state);
+          const seedState2 = getSeedingState(projectName);
+          if (seedState2) { seedState2.status = 'complete'; writeSeedingState(projectName, seedState2); }
           await say(`\u{1F680} Started \`${projectName}\`. Launcher will pick it up on next iteration.`);
           return;
         }
@@ -964,12 +971,42 @@ app.command('/rouge', async ({ command, ack, respond }) => {
         if (!projectName) { await respond({ response_type: 'ephemeral', text: 'Usage: `/rouge start <project>`' }); return; }
         const state = readState(projectName);
         if (!state) { await respond({ response_type: 'ephemeral', text: `Project \`${projectName}\` not found.` }); return; }
-        if (state.current_state !== 'ready') {
-          await respond({ response_type: 'ephemeral', text: `\`${projectName}\` is \`${state.current_state}\`, not \`ready\`.` });
+        // Allow start from 'ready' OR 'seeding' (user decides when seeding is done)
+        if (state.current_state !== 'ready' && state.current_state !== 'seeding') {
+          await respond({ response_type: 'ephemeral', text: `\`${projectName}\` is \`${state.current_state}\`. Can only start ready or seeding projects.` });
           return;
         }
+
+        // Check that seeding actually produced artifacts before allowing start
+        const projectDir = path.join(PROJECTS_DIR, projectName);
+        const specDir = path.join(projectDir, 'seed_spec');
+        const hasSpecs = fs.existsSync(specDir) && fs.readdirSync(specDir).some(f => f.endsWith('.md'));
+        if (!hasSpecs) {
+          await respond({ response_type: 'ephemeral', text: `\`${projectName}\` has no specs yet. Finish the seeding conversation first.` });
+          return;
+        }
+
+        // Generate cycle_context.json from seed artifacts (the real fix for missing context)
+        const ctxPath = path.join(projectDir, 'cycle_context.json');
+        if (!fs.existsSync(ctxPath)) {
+          try {
+            const stats = generateCycleContext(projectName);
+            await respond({ response_type: 'ephemeral', text: `📋 Generated cycle context: ${stats.featureAreas} feature areas, ${stats.specFiles} specs.` });
+          } catch (err) {
+            await respond({ response_type: 'ephemeral', text: `⚠️ Could not generate cycle context: ${err.message}. Starting anyway.` });
+          }
+        }
+
         state.current_state = 'building';
         writeState(projectName, state);
+
+        // Mark seeding as complete
+        const seedState = getSeedingState(projectName);
+        if (seedState) {
+          seedState.status = 'complete';
+          writeSeedingState(projectName, seedState);
+        }
+
         await respond({ response_type: 'in_channel', text: `\u{1F680} Started \`${projectName}\`. Launcher will pick it up on next iteration.` });
         break;
       }
