@@ -15,6 +15,7 @@ export function CycleIndicator({ cycle, settings }: CycleIndicatorProps) {
       <span
         key={i}
         className={`${styles.dot} ${filled ? styles.filled : ''}`}
+        role="img"
         aria-label={filled ? `Session ${i + 1}: completed` : `Session ${i + 1}: remaining`}
       />
     );

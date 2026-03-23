@@ -11,10 +11,14 @@
   transition: background var(--transition-duration) var(--transition-easing);
 }
 
-.settingsButton {
+.settingsHeader {
   position: absolute;
   top: 20px;
   right: 20px;
+  z-index: 10;
+}
+
+.settingsButton {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -28,7 +32,6 @@
   transition: all 0.2s ease;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  z-index: 10;
 }
 
 .settingsButton:hover {
@@ -51,4 +54,16 @@
 .controlsArea {
   display: flex;
   justify-content: center;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }

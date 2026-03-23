@@ -41,23 +41,28 @@ export default function Home() {
   }, [handleKeyDown]);
 
   return (
-    <main
+    <div
       className={styles.main}
       data-phase={timer.cycle.phase}
     >
-      <button
-        className={styles.settingsButton}
-        onClick={() => setSettingsOpen(true)}
-        aria-label="Open settings"
-        data-testid="settings-trigger"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-        </svg>
-      </button>
+      <header className={styles.settingsHeader}>
+        <button
+          className={styles.settingsButton}
+          onClick={() => setSettingsOpen(true)}
+          aria-label="Open settings"
+          aria-expanded={settingsOpen}
+          aria-haspopup="dialog"
+          data-testid="settings-trigger"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+          </svg>
+        </button>
+      </header>
 
-      <div className={styles.content}>
+      <main className={styles.content}>
+        <h1 className={styles.srOnly}>Epoch</h1>
         <TimerDisplay
           phase={timer.cycle.phase}
           displayTime={displayTime}
@@ -76,8 +81,10 @@ export default function Home() {
 
         <CycleIndicator cycle={timer.cycle} settings={settings} />
 
-        <SessionCounter count={dailyCount} />
-      </div>
+        <footer>
+          <SessionCounter count={dailyCount} />
+        </footer>
+      </main>
 
       <SettingsModal
         isOpen={settingsOpen}
@@ -85,6 +92,6 @@ export default function Home() {
         onClose={() => setSettingsOpen(false)}
         onUpdate={updateSettings}
       />
-    </main>
+    </div>
   );
 }

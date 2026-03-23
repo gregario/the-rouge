@@ -53,8 +53,8 @@ describe('Home page', () => {
   // @criterion-hash: 7d9f91a18712
   it('[AC-transition-6] sets data-phase attribute for visual transitions', () => {
     render(<Home />);
-    const main = document.querySelector('main');
-    expect(main?.getAttribute('data-phase')).toBe('focus');
+    const container = document.querySelector('[data-phase]');
+    expect(container?.getAttribute('data-phase')).toBe('focus');
   });
 
   it('[AC-transition-6] data-phase reflects different phases', () => {
@@ -66,8 +66,8 @@ describe('Home page', () => {
       },
     };
     render(<Home />);
-    const main = document.querySelector('main');
-    expect(main?.getAttribute('data-phase')).toBe('short-break');
+    const container = document.querySelector('[data-phase]');
+    expect(container?.getAttribute('data-phase')).toBe('short-break');
   });
 
   it('renders all main components', () => {
@@ -136,11 +136,12 @@ describe('Home page', () => {
   it('[AC-settings-3] settings modal opens and closes', () => {
     render(<Home />);
 
-    expect(screen.queryByText('Settings')).not.toBeInTheDocument();
+    const dialog = screen.getByTestId('settings-modal');
+    expect(dialog).not.toHaveAttribute('open');
 
     fireEvent.click(screen.getByTestId('settings-trigger'));
 
-    expect(screen.getByText('Settings')).toBeInTheDocument();
+    expect(dialog).toHaveAttribute('open');
   });
 
   // @criterion: AC-counter-1
