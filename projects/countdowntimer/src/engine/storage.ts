@@ -13,7 +13,7 @@ function validateBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
 }
 
-export function validateSettings(parsed: Record<string, unknown>): TimerSettings {
+function validateSettings(parsed: Record<string, unknown>): TimerSettings {
   return {
     focusDuration: clampNumber(parsed.focusDuration, 1, 99, DEFAULT_SETTINGS.focusDuration),
     shortBreakDuration: clampNumber(parsed.shortBreakDuration, 1, 99, DEFAULT_SETTINGS.shortBreakDuration),

@@ -7,7 +7,7 @@ import { loadSettings, saveSettings, loadDailyCount, saveDailyCount } from '@/en
 import { playChime, sendNotification } from '@/engine/audio';
 import { phaseLabel } from '@/engine/cycle';
 
-export interface UseTimerReturn {
+interface UseTimerReturn {
   timer: TimerState;
   settings: TimerSettings;
   dailyCount: number;
