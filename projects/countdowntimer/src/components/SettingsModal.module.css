@@ -18,6 +18,22 @@
   color: inherit;
 }
 
+.dialog[data-closing] {
+  animation: scaleOut 0.2s ease forwards;
+}
+
+@media (max-width: 767px) {
+  .dialog {
+    background: rgb(20, 20, 30);
+    max-height: 100vh;
+    height: 100%;
+    max-height: 100dvh;
+    border-radius: 0;
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
 .dialog::backdrop {
   background: rgba(0, 0, 0, 0.6);
   animation: fadeIn 0.2s ease;
@@ -35,6 +51,11 @@
 @keyframes scaleIn {
   from { transform: scale(0.95); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes scaleOut {
+  from { transform: scale(1); opacity: 1; }
+  to { transform: scale(0.95); opacity: 0; }
 }
 
 .header {
@@ -80,7 +101,7 @@
 }
 
 .section {
-  padding: 16px 0;
+  padding: 24px 0;
 }
 
 .section + .section {

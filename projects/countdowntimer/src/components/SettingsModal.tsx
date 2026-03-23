@@ -21,16 +21,33 @@ export function SettingsModal({ isOpen, settings, onClose, onUpdate }: SettingsM
 
     if (isOpen) {
       previousFocusRef.current = document.activeElement as HTMLElement;
+      dialog.removeAttribute('data-closing');
       if (!dialog.open) {
         dialog.showModal();
       }
     } else {
       if (dialog.open) {
-        dialog.close();
-      }
-      if (previousFocusRef.current) {
-        previousFocusRef.current.focus();
-        previousFocusRef.current = null;
+        dialog.setAttribute('data-closing', '');
+        const onEnd = () => {
+          dialog.removeAttribute('data-closing');
+          dialog.close();
+          if (previousFocusRef.current) {
+            previousFocusRef.current.focus();
+            previousFocusRef.current = null;
+          }
+        };
+        dialog.addEventListener('animationend', onEnd, { once: true });
+        // Fallback if animation doesn't fire (e.g. reduced motion, test env)
+        const fallback = setTimeout(onEnd, 250);
+        return () => {
+          clearTimeout(fallback);
+          dialog.removeEventListener('animationend', onEnd);
+        };
+      } else {
+        if (previousFocusRef.current) {
+          previousFocusRef.current.focus();
+          previousFocusRef.current = null;
+        }
       }
     }
   }, [isOpen]);
