@@ -460,7 +460,8 @@
     "QA Gate (cycle 2): Verdict PASS, health score 82/100. 66/67 criteria pass (98.5%), 1 PARTIAL (AC-settings-a11y-5: footer contrast ~3.1:1, needs 4.5:1 — opacity improved 0.6→0.85 but base color still #6b7280 instead of #9ca3af). All 37 seed spec criteria pass (regression clean). All 30 cycle 2 criteria verified: 8 robustness (ErrorBoundary with styled fallback, localStorage validateSettings with type/range clamping, AudioContext.resume() before chime), 10 settings-a11y (<dialog showModal()> focus trap, previousFocusRef focus return, :focus-visible on all inputs/toggles/slider, entrance animation preserved), 7 main-a11y (session counter #9ca3af ~6.2:1 contrast, <header>/<main>/<footer> landmarks, sr-only <h1>Epoch, CycleIndicator role='img', settings button aria-expanded/aria-haspopup), 5 shortcut-discovery (inline 'R'/'Space'/'S' hints at 10px #9ca3af, hidden <768px, subordinate to icons). Zero console errors, zero dead elements. AI code audit: 91/100. 4 MEDIUM findings: footer contrast partial, notifications not gated on notificationsEnabled (useTimer.ts:64), 'completed' TimerStatus unused, useTimer god hook 154 lines. 10 LOW findings (capped -10). Code quality: 0% duplication, 0 circular deps, 89/89 tests pass, 4 dead code items (unchanged from cycle 1). Security: SKIP (no backend). A11y verdict: PASS (0 CRITICAL, bulk of cycle 1 issues resolved). Design: 84/100 (up from 82, shortcut hints add polish, favicon still missing). WTF heuristic: 0 WTF/min, no deduction. Process note: test integrity removed 29 cycle 2 tests as orphans because active_spec only contains 37 seed criteria — cycle 2 change spec criteria need to be added to active_spec for test traceability.",
     "PO Review (cycle 2): Verdict PRODUCTION_READY, confidence 0.86. Journey quality 8.42/10 (6 polished, 1 functional), screen quality 8.77/10 (3 polished). Heuristic pass rate 92.9% (39/42, up from 73.8% — 8 of 11 failures resolved). 4 quality gaps: 1 medium (footer contrast recurring, partial fix), 3 low (favicon, settings density, settings delight). All carried from cycle 1. Confidence breakdown: journey 2.526/3.0, screen 1.754/2.0, heuristic 1.858/2.0, spec 1.425/1.5, reference 1.05/1.5 (neutral default). The reference_comparison drag (7.0 neutral) accounts for ~0.03 of the gap to 0.9 threshold. Key improvements: heuristic pass rate +19.1pp, health score +14 (68→82), AI code audit +4 (87→91), design review +2 (82→84).",
     "Analysis (cycle 2): Recommendation DEEPEN:SETTINGS-POLISH-AND-FINAL-FIXES. Confidence 0.86, trending improving (+0.03 from 0.83). PO verdict is PRODUCTION_READY but confidence < 0.9 PROMOTE threshold. Root cause breakdown: 2 implementation_bug (footer contrast partial fix, notification gating oversight — both QA coverage gaps), 1 spec_ambiguity (favicon not in spec), 2 design_choice (settings density and delight — deferred 2 cycles). Cross-cycle patterns: footer contrast recurring 2 cycles (opacity approach failed, must change base color to #9ca3af with do_not_repeat directive), settings polish deferred 2 cycles (acceptable prioritization but must be addressed or accepted now). 5 change spec briefs: 2 medium implementation fixes (footer contrast with explicit do_not_repeat, notification gating), 1 low spec_ambiguity requiring design mode (favicon), 2 low design_choice requiring design mode (settings density + delight). The product is very close to promotion — fixing the 2 medium items alone could push confidence toward 0.9 if combined with resolving the reference_comparison structural gap. No escalations.",
-    "Test Integrity (cycle 3): All 37 seed-spec acceptance criteria remain covered with matching SHA-256 hashes — zero coverage gaps, zero stale tests. Removed 6 orphaned criteria in cycle3-fixes.test.tsx (AC-c3-footer-contrast, AC-c3-notification-gating, AC-c3-favicon, AC-c3-datetime, AC-c3-dead-code-cleanup, AC-c3-settings-spacing). These were cycle 3 build-phase tests using non-spec criterion IDs that were never added to active_spec. Deleted the entire file as all tests within it were orphaned. No fuzzy matches to existing spec criteria. The underlying cycle 3 fixes (footer contrast, notification gating, favicon, datetime attribute, dead code cleanup, settings spacing) remain in production code — they are tested indirectly by existing spec-traced tests or are implementation details not requiring spec coverage. Post-remediation: 9 test files, 89 tests, all passing. Spec coverage 100%, PO check coverage 100%. Verdict: PASS."
+    "Test Integrity (cycle 3): All 37 seed-spec acceptance criteria remain covered with matching SHA-256 hashes — zero coverage gaps, zero stale tests. Removed 6 orphaned criteria in cycle3-fixes.test.tsx (AC-c3-footer-contrast, AC-c3-notification-gating, AC-c3-favicon, AC-c3-datetime, AC-c3-dead-code-cleanup, AC-c3-settings-spacing). These were cycle 3 build-phase tests using non-spec criterion IDs that were never added to active_spec. Deleted the entire file as all tests within it were orphaned. No fuzzy matches to existing spec criteria. The underlying cycle 3 fixes (footer contrast, notification gating, favicon, datetime attribute, dead code cleanup, settings spacing) remain in production code — they are tested indirectly by existing spec-traced tests or are implementation details not requiring spec coverage. Post-remediation: 9 test files, 89 tests, all passing. Spec coverage 100%, PO check coverage 100%. Verdict: PASS.",
+    "PO Review (cycle 3): Verdict PRODUCTION_READY, confidence 0.88. Journey quality 8.40/10 (6 polished, 1 functional — stable), screen quality 8.67/10 (2 polished, 1 functional — slight dip from mobile settings discovery). Heuristic pass rate 97.6% (41/42, up from 92.9% — 2 of 3 remaining failures resolved: favicon added, footer contrast fixed). Spec compliance 100% (67/67, up from 98.5%). 4 quality gaps: 1 medium (NEW: settings modal mobile bleed-through at 375px — timer content visible through 95% opacity dialog), 3 low (settings density, settings delight, session counter delight — all recurring 3 cycles). 2 prior gaps RESOLVED: footer contrast definitively fixed (base color #9ca3af), favicon added (SVG clock-face). Confidence breakdown: journey 2.520/3.0, screen 1.734/2.0, heuristic 1.952/2.0, spec 1.500/1.5, reference 1.050/1.5 (neutral default). Confidence trend improving: 0.83 → 0.86 → 0.88. Recommended action: continue (ship it)."
   ],
   "qa_report": {
     "verdict": "PASS",
@@ -1158,7 +1159,7 @@
   },
   "po_review_report": {
     "verdict": "PRODUCTION_READY",
-    "confidence": 0.86,
+    "confidence": 0.88,
     "recommended_action": "continue",
     "journey_quality": [
       {
@@ -1506,61 +1507,33 @@
     },
     "heuristic_results": {
       "source": "standard_nielsens_10_plus_a11y",
-      "note": "library_heuristics was empty — applied standard Nielsen’s 10 Usability Heuristics plus accessibility compliance rules. Cycle 2 re-evaluation against staging build after fix implementations.",
+      "note": "library_heuristics was empty — applied standard Nielsen’s 10 Usability Heuristics plus accessibility compliance rules. Cycle 3 re-evaluation after favicon, footer contrast, notification gating, and datetime fixes.",
       "total": 42,
-      "passed": 39,
-      "failed": 3,
-      "pass_rate_pct": 92.9,
-      "cycle_1_comparison": {
-        "previous_passed": 31,
-        "previous_failed": 11,
-        "previous_pass_rate_pct": 73.8,
-        "delta": "+19.1pp",
+      "passed": 41,
+      "failed": 1,
+      "pass_rate_pct": 97.6,
+      "cycle_2_comparison": {
+        "previous_passed": 39,
+        "previous_failed": 3,
+        "previous_pass_rate_pct": 92.9,
+        "delta": "+4.7pp",
         "resolved_failures": [
-          "H4-R4 (semantic landmarks → fixed by fix-007: header/main/footer/h1 added)",
-          "H5-R3 (ErrorBoundary → fixed by fix-001: styled fallback UI)",
-          "H5-R4 (localStorage validation → fixed by fix-005: type/range clamping)",
-          "H9-R1 (crash recovery → fixed by fix-001: ErrorBoundary fallback)",
-          "H10-R1 (shortcut discovery → fixed by qg-001: inline hints below buttons)",
-          "HA-R1 (focus trap → fixed by fix-002: native <dialog> with showModal())",
-          "HA-R4 (ARIA roles → fixed by main-a11y: role=img on cycle dots)",
-          "HA-R5 (focus-visible → fixed by fix-008: :focus-visible with accent outline)"
+          "H4-R5 (favicon → fixed by cycle 3: SVG clock-face favicon in accent blue, <link rel=icon> in layout.tsx)",
+          "HA-R2 (color contrast → fixed by cycle 3: footer text base color changed to #9ca3af, ~6.2:1 contrast, matching session counter and shortcut hints)"
         ]
       },
       "failures": [
         {
-          "heuristic_id": "H4",
-          "rule_id": "H4-R5",
-          "rule": "Standard browser conventions (favicon, page title)",
-          "measured": "No favicon, no <link rel=icon>. Page title present (Epoch).",
-          "threshold": "Favicon present",
-          "gap": "Missing favicon — deferred from cycle 1 (qg-005, low priority, requires design mode)",
-          "severity": "low",
-          "recurring": true,
-          "cycles_open": 2
-        },
-        {
-          "heuristic_id": "HA11y",
-          "rule_id": "HA-R2",
-          "rule": "Color contrast meets WCAG AA (4.5:1)",
-          "measured": "Session counter fixed to #9ca3af (~6.2:1 ✓). Modal footer text still ~3.1:1 — opacity improved 0.6→0.85 but base color remains rgb(107,114,128) on dark background.",
-          "threshold": "4.5:1 minimum for normal text",
-          "gap": "Footer legal text ~1.4:1 below threshold. Needs base color change to #9ca3af instead of opacity adjustment.",
-          "severity": "medium",
-          "recurring": true,
-          "cycles_open": 2,
-          "retry_note": "fix-004 attempted in cycle 2 — partial fix. Base color must change, not just opacity."
-        },
-        {
           "heuristic_id": "H10",
           "rule_id": "H10-R2",
           "rule": "First-use guidance for primary action",
-          "measured": "No explicit onboarding hint. Timer is self-evident (large play button, intuitive layout). Keyboard shortcut hints (cycle 2 addition) provide additional affordance but are not first-use guidance.",
+          "measured": "No explicit onboarding hint. Timer is self-evident (large play button, intuitive layout). Keyboard shortcut hints provide additional affordance but are not first-use guidance.",
           "threshold": "Subtle first-use affordance",
-          "gap": "Marginal — the product simplicity makes explicit guidance unnecessary. Timer single-action UI is its own affordance.",
+          "gap": "Marginal — the product simplicity makes explicit guidance unnecessary. Timer single-action UI is its own affordance. The large play button with blue accent ring and ‘Space’ hint below is a strong implicit affordance. This is an acceptable trade-off for a minimal product.",
           "severity": "low",
           "recurring": true,
-          "cycles_open": 2
+          "cycles_open": 3,
+          "accepted_rationale": "The product’s single-screen, single-action design IS its onboarding. Adding explicit first-use guidance would contradict the minimal aesthetic and solve a problem users don’t have."
         }
       ]
     },
@@ -1571,11 +1544,11 @@
       "note": "Neutral 7.0/10 used in confidence calculation"
     },
     "spec_compliance": {
-      "criteria_pass_rate_pct": 98.5,
+      "criteria_pass_rate_pct": 100,
       "criteria_total": 67,
-      "criteria_passed": 66,
-      "partial_criteria": 1,
-      "partial_details": "fix-004 (footer contrast): opacity improved but base color unchanged, still below 4.5:1 threshold",
+      "criteria_passed": 67,
+      "partial_criteria": 0,
+      "partial_details": "Previously partial fix-004 (footer contrast) now resolved — base color changed to #9ca3af in cycle 3, ~6.2:1 contrast verified.",
       "divergences_reviewed": 3,
       "divergences_acceptable": 3,
       "divergence_notes": [
@@ -1583,139 +1556,158 @@
         "Multi-tab coordination deferred: acceptable — edge case, low user impact (from cycle 1)",
         "Shortcut discovery implemented as Option A without design mode pass: acceptable — spec preferred Option A and provided specific enough design constraints that design mode would confirm, not change the approach"
       ],
-      "normalized_score": 9.5
+      "normalized_score": 10.0
     },
     "quality_gaps": [
       {
-        "id": "qg-c2-001",
+        "id": "qg-c3-001",
         "category": "design_change",
         "severity": "medium",
-        "description": "Settings modal footer legal text still fails WCAG AA contrast after fix attempt. Opacity improved from 0.6 to 0.85 but the base color rgb(107,114,128) yields ~3.1:1 against dark background. Needs base color change to #9ca3af to match session counter treatment.",
-        "evidence": "Measured contrast ~3.1:1 vs 4.5:1 threshold. This is a recurring issue (cycle 1 fix-004, partially addressed).",
-        "what_good_looks_like": "Footer text uses #9ca3af (same as session counter and shortcut hints), providing ~6.2:1 contrast. Consistent secondary text color across entire app.",
+        "description": "Settings modal on mobile (375px) has visible content bleed-through. The dialog background at rgba(20,20,30,0.95) allows the timer digits, controls, and session counter to show through. At 337.5px wide and 690px tall, the dialog doesn't fully cover the 375x812 viewport. On desktop, the side-panel approach works because the timer sits beside it; on mobile, the layering creates visual clutter that contradicts the minimal aesthetic.",
+        "evidence": "Screen quality mobile dimension scored 6/10 for settings modal. Timer content clearly legible through the dialog — visual noise and competing focal points.",
+        "what_good_looks_like": "On mobile viewports (<768px), dialog background should be fully opaque (rgba(20,20,30,1.0)) or use a solid backdrop to prevent content bleed-through. Dialog should cover the full viewport height on mobile.",
+        "affected_screens": [
+          "settings modal (mobile)"
+        ],
+        "affected_journeys": [
+          "Configure settings"
+        ],
+        "new_in_cycle": 3
+      },
+      {
+        "id": "qg-c3-002",
+        "category": "design_change",
+        "severity": "low",
+        "description": "Settings modal density slightly high on desktop — sections packed tightly. Section spacing improved from 12px to 16px in cycle 3 but still below the 24-32px needed for distinct visual zones.",
+        "evidence": "Screen quality density scored 7/10 for settings modal. Recurring from cycle 1.",
+        "what_good_looks_like": "24-32px gap between section groups. Sections feel like distinct visual zones rather than a continuous compressed form.",
         "affected_screens": [
           "settings modal"
         ],
         "affected_journeys": [
-          "Configure Pomodoro settings"
+          "Configure settings"
         ],
         "recurring": true,
-        "retry_count": 1
+        "from_cycle": 1,
+        "cycles_open": 3
+      },
+      {
+        "id": "qg-c3-003",
+        "category": "interaction_improvement",
+        "severity": "low",
+        "description": "Settings modal lacks delight and personality compared to main timer screen. Functional but utilitarian. Delight scores 6-7/10 vs 8+ on main screen.",
+        "evidence": "Journey quality: settings steps averaged 6-7 on delight dimension. Recurring from cycle 1.",
+        "what_good_looks_like": "Subtle micro-interactions: exit animation on close, section reveal stagger, toggle micro-animation. Modal feels like a continuation of the premium experience.",
+        "affected_screens": [
+          "settings modal"
+        ],
+        "affected_journeys": [
+          "Configure settings"
+        ],
+        "recurring": true,
+        "from_cycle": 1,
+        "cycles_open": 3
+      },
+      {
+        "id": "qg-c3-004",
+        "category": "design_change",
+        "severity": "low",
+        "description": "Session counter ('0 sessions today') remains the weakest journey (7.75/10, 'functional' verdict). It communicates information without celebrating progress or motivating the user.",
+        "evidence": "Journey quality: session counter step scored 7.75 overall, delight 6/10. Only journey with 'functional' rather than 'polished' verdict.",
+        "what_good_looks_like": "A micro-animation on session increment, or slightly stronger visual treatment on the count itself. The counter should feel like a small reward, not just information.",
+        "affected_screens": [
+          "/"
+        ],
+        "affected_journeys": [
+          "Track daily progress via session counter"
+        ],
+        "recurring": true,
+        "from_cycle": 1,
+        "cycles_open": 3
+      }
+    ],
+    "resolved_quality_gaps": [
+      {
+        "id": "qg-c2-001",
+        "resolution": "FIXED in cycle 3. Footer text base color changed to #9ca3af (~6.2:1 contrast). The 2-cycle recurring contrast issue is definitively resolved.",
+        "cycles_to_resolve": 3
       },
       {
         "id": "qg-c2-002",
-        "category": "design_change",
-        "severity": "low",
-        "description": "No favicon or branded browser tab presence. For a product designed to be left on screen, the browser tab is a missed brand touchpoint.",
-        "evidence": "No <link rel=icon> in document. Deferred from cycle 1 qg-005.",
-        "what_good_looks_like": "Minimal SVG favicon — stylized E or abstract clock mark — renders well at 16x16 and 32x32.",
-        "affected_screens": [
-          "browser tab"
-        ],
-        "affected_journeys": [
-          "First-time user landing"
-        ],
-        "recurring": true,
-        "from_cycle": 1
-      },
-      {
-        "id": "qg-c2-003",
-        "category": "design_change",
-        "severity": "low",
-        "description": "Settings modal density slightly high on desktop — sections packed tightly. Vertical breathing room between section groups insufficient for a premium aesthetic.",
-        "evidence": "Screen quality density scored 7/10 for settings modal. Deferred from cycle 1 qg-003.",
-        "what_good_looks_like": "24-32px gap between section groups. Sections feel like distinct visual zones.",
-        "affected_screens": [
-          "settings modal"
-        ],
-        "affected_journeys": [
-          "Configure Pomodoro settings"
-        ],
-        "recurring": true,
-        "from_cycle": 1
-      },
-      {
-        "id": "qg-c2-004",
-        "category": "design_change",
-        "severity": "low",
-        "description": "Settings modal lacks the delight and personality of the main timer screen. Functional but utilitarian. Deferred from cycle 1 qg-002.",
-        "evidence": "Journey quality: settings steps averaged 6-7 on delight vs 8+ on main screen.",
-        "what_good_looks_like": "Subtle section reveal animations, micro-interactions on toggles, slider value feedback.",
-        "affected_screens": [
-          "settings modal"
-        ],
-        "affected_journeys": [
-          "Configure Pomodoro settings"
-        ],
-        "recurring": true,
-        "from_cycle": 1
+        "resolution": "FIXED in cycle 3. SVG clock-face favicon in accent blue added. Browser tab now has branded presence.",
+        "cycles_to_resolve": 3
       }
     ],
     "latent_space_activation": {
-      "dieter_rams": "Main screen continues to embody as little design as possible. The inline shortcut hints are the right addition — they add information without visual noise (10px, muted color, hidden on mobile). Settings modal still the weakest surface — Rams would say the density issue makes it feel un-designed rather than minimally designed. Favicon absence remains an omission.",
-      "don_norman": "Affordances dramatically improved. Keyboard shortcuts are now discoverable via inline hints — a direct fix for the Norman red flag from cycle 1. Focus trapping in native <dialog> is correct constraint behavior. ErrorBoundary provides recovery affordance on crash. The conceptual model is complete and well-communicated.",
-      "julie_zhuo": "The core problem is definitively solved. Accessibility fixes (landmarks, contrast, focus rings, ARIA roles) expand the user base without compromising the experience for sighted users. The footer contrast gap is the one remaining Zhuo concern — small but it signals incomplete attention to inclusive design.",
-      "joe_gebbia": "First impression remains strong. Phase transition color shift is still the standout delight moment. The shortcut hints add a subtle second surprise for keyboard users. Trust improved via ErrorBoundary (graceful failure) and localStorage validation (data integrity). The favicon gap means the browser tab first impression is generic.",
-      "jony_ive": "Unifying principle (focus object, not utility) is preserved through cycle 2. The additions (hints, landmarks, error boundary) are invisible-unless-needed — complexity resolved, not displayed. Settings modal tension with the identity persists but is a polish issue, not a principle violation."
+      "dieter_rams": "The product is now complete in its minimalism. Favicon resolves the last Rams omission — every browser touchpoint is now intentional. The main screen remains exemplary: as little design as possible, every element earning its space. Settings modal density (7/10) is the only remaining surface where the design feels 'not yet there' rather than 'minimal by intent.' The mobile settings bleed-through is a Rams violation — it adds visual noise where none should exist.",
+      "don_norman": "Conceptual model is complete and well-communicated across 3 cycles of refinement. Affordances are strong: play button is obvious, keyboard shortcuts are discoverable, phase transitions communicate state change through color. The <dialog> focus trap is correct constraint behavior. Notification gating now respects user's mental model of their settings. No fundamental Norman concerns remain.",
+      "julie_zhuo": "The core problem is definitively solved. Would a user recommend it? Yes — the core experience (start timer, see countdown, experience phase transition) is polished and memorable. Accessibility is now comprehensive (contrast, landmarks, ARIA, focus management). The footer contrast resolution shows the team's persistence on inclusive design. The mobile settings bleed-through is the one Zhuo concern: a user opening settings on their phone gets a cluttered, unprofessional view.",
+      "joe_gebbia": "First impression is now complete — from favicon in the browser tab to the large timer digits to the phase transition color shift. Trust is established through ErrorBoundary, localStorage validation, and consistent behavior. The phase transition remains the standout delight moment. The session counter could celebrate progress more, but this is polish, not a trust or delight gap.",
+      "jony_ive": "Unifying principle (focus object, not utility) is preserved and strengthened through cycle 3. The favicon gives the product identity even when minimized. The additions across 3 cycles (hints, landmarks, error boundary, contrast fixes, favicon, notification gating) are all invisible-unless-needed — complexity resolved, not displayed. The settings modal mobile bleed-through breaks the principle on one viewport: the user should see settings OR the timer, not both superimposed. This is the one remaining principle tension."
     },
     "confidence_breakdown": {
       "journey_quality_avg": {
-        "value": 8.42,
+        "value": 8.40,
         "weight": 0.3,
-        "weighted": 2.526,
-        "note": "From journey quality sub-phase. 6 polished, 1 functional."
+        "weighted": 2.520,
+        "note": "From cycle 3 journey quality sub-phase. 6 polished, 1 functional. Effectively flat from cycle 2 (8.42 → 8.40, -0.02)."
       },
       "screen_quality_avg": {
-        "value": 8.77,
+        "value": 8.67,
         "weight": 0.2,
-        "weighted": 1.754,
-        "note": "From screen quality sub-phase. 3 polished, +0.22 from cycle 1."
+        "weighted": 1.734,
+        "note": "From cycle 3 screen quality sub-phase. 2 polished, 1 functional. Slight dip from cycle 2 (8.77 → 8.67) due to mobile settings bleed-through discovery."
       },
       "heuristic_pass_rate": {
-        "value": 9.29,
+        "value": 9.76,
         "weight": 0.2,
-        "weighted": 1.858,
-        "note": "92.9% pass rate (39/42). Up from 73.8% in cycle 1. 8 of 11 failures resolved."
+        "weighted": 1.952,
+        "note": "97.6% pass rate (41/42). Up from 92.9% in cycle 2. 2 of 3 remaining failures resolved (favicon, footer contrast). 1 marginal failure remains (first-use guidance — accepted as design intent)."
       },
       "spec_compliance_pct": {
-        "value": 9.5,
+        "value": 10.0,
         "weight": 0.15,
-        "weighted": 1.425,
-        "note": "98.5% (66/67 criteria). 1 partial: footer contrast fix incomplete."
+        "weighted": 1.500,
+        "note": "100% (67/67 criteria). Previously partial footer contrast fix now complete."
       },
       "reference_comparison": {
-        "value": 7,
+        "value": 7.0,
         "weight": 0.15,
-        "weighted": 1.05,
-        "note": "Neutral default — no reference products defined."
+        "weighted": 1.050,
+        "note": "Neutral default — no reference products defined. This structural drag accounts for ~0.015 gap vs achievable maximum."
       },
-      "total": 8.613,
-      "confidence": 0.86
+      "total": 8.756,
+      "confidence": 0.88
     },
-    "verdict_rationale": "Confidence 0.86 clears the 0.80 PRODUCTION_READY threshold. Heuristic pass rate 92.9% clears the 80% minimum (up from 73.8% in cycle 1 — a +19.1pp improvement). All 6 PRODUCTION_READY criteria met: confidence >= 0.8 (✓), zero critical gaps (✓), zero high gaps (✓), all core journeys polished/functional with avg >= 7 (✓, 8.42 avg), heuristic pass rate >= 80% (✓, 92.9%), no significantly-below reference comparisons (✓). The 4 remaining quality gaps are 1 medium (footer contrast) and 3 low (favicon, settings density, settings delight) — all are polish items, none block production. The medium footer contrast gap is a recurring partial fix that should be addressed but does not degrade the core user experience (affects legal text in settings footer only). Cycle 2 resolved the primary blocker (heuristic pass rate) by fixing 8 of 11 failures across accessibility, robustness, and discoverability.",
+    "verdict_rationale": "Confidence 0.88 clears the 0.80 PRODUCTION_READY threshold (+0.02 from cycle 2's 0.86). Heuristic pass rate 97.6% is the highest yet (up from 92.9% in cycle 2). All 6 PRODUCTION_READY criteria met: confidence >= 0.8 (✓, 0.88), zero critical gaps (✓), zero high gaps (✓), all core journeys polished/functional with avg >= 7 (✓, 8.40 avg), heuristic pass rate >= 80% (✓, 97.6%), no significantly-below reference comparisons (✓, N/A). The 4 remaining quality gaps are 1 medium (mobile settings bleed-through — new finding) and 3 low (settings density, settings delight, session counter delight). The medium gap affects a secondary screen (settings panel) on a non-primary viewport (mobile) and does not degrade the core timer experience. Cycle 3 resolved the 2-cycle recurring footer contrast issue and added browser tab presence via favicon — both were the last remaining heuristic failures from cycle 2. Spec compliance is now 100% (67/67). The product has improved every cycle: confidence 0.83 → 0.86 → 0.88, heuristic pass rate 73.8% → 92.9% → 97.6%.",
     "evaluator_observations": {
-      "cycle_2_summary": "Cycle 2 was a targeted accessibility and robustness hardening pass. It resolved 8 of 11 heuristic failures from cycle 1, pushing pass rate from 73.8% to 92.9%. The 4 change specs (robustness, settings-a11y, main-a11y, shortcut-discovery) were well-scoped and well-executed. 29 new tests added, all passing (118 total).",
+      "cycle_3_summary": "Cycle 3 was a targeted final-fixes pass. It definitively resolved the 2-cycle recurring footer contrast issue (base color changed to #9ca3af), added favicon for browser tab presence, gated notifications on user settings, added datetime attribute on <time>, cleaned up dead code, and improved settings section spacing. The cycle resolved both remaining heuristic failures (H4-R5, HA-R2), pushing pass rate from 92.9% to 97.6% and spec compliance to 100%. A new medium-severity issue was discovered: settings modal mobile bleed-through.",
       "strengths": [
-        "The cycle 2 fixes are invisible to the happy-path user but dramatically improve robustness and accessibility. ErrorBoundary, localStorage validation, AudioContext.resume(), focus trapping, ARIA roles, semantic landmarks, contrast fixes — all correct and well-implemented.",
-        "Keyboard shortcut hints (R, Space, S) are the most visible cycle 2 change and they strike the right balance: discoverable but not noisy, hidden on mobile, consistent secondary text color.",
-        "Native <dialog> conversion for settings modal is the correct architectural choice — provides focus trapping, backdrop, Escape handling, and inert background for free.",
-        "The product now passes all PRODUCTION_READY criteria. It is genuinely ready to ship."
+        "Footer contrast is definitively resolved after 3 cycles. The base color change to #9ca3af (~6.2:1 contrast) matches session counter and shortcut hints — consistent secondary text layer across the entire app. The do_not_repeat directive from analysis worked.",
+        "SVG favicon in accent blue gives the product browser tab identity. For a product designed to be left on screen, this is an important brand touchpoint. Clock-face design is appropriate and renders well at small sizes.",
+        "Notification gating now respects user's notificationsEnabled setting — the same gating pattern as soundEnabled. A simple but important behavioral fix.",
+        "Heuristic pass rate 97.6% (41/42) — only 1 marginal failure remains (first-use guidance, accepted as design intent). This is the highest quality signal across all 3 cycles.",
+        "Spec compliance 100% — all 67 criteria now fully pass. No partial implementations remain.",
+        "Confidence trend is consistently improving: 0.83 → 0.86 → 0.88 across 3 cycles."
       ],
       "remaining_concerns": [
-        "Footer contrast is a recurring partial fix (2 cycles). The next attempt must change the base color to #9ca3af, not adjust opacity further. This is a 1-line CSS change.",
-        "Favicon remains missing. For a product positioning as premium and designed to be left on screen, the generic browser tab icon is a missed brand moment.",
-        "Settings modal remains the least polished surface (density 7/10, delight 6-7/10). This is acceptable for v1.0 but should be the focus of a future polish cycle.",
-        "Long break phase (teal/green palette) has not been visually verified in any PO review cycle — reaching it requires completing 4 full focus sessions. Should be verified before or shortly after launch."
+        "NEW: Settings modal on mobile (375px) has visible content bleed-through — timer content shows through the 95% opacity dialog background. On mobile the dialog should be fully opaque. This was not caught in prior cycles (screen quality mobile dimension dropped from 8 to 6).",
+        "Settings modal remains the least polished surface (density 7/10, delight 6-7/10). This is a 3-cycle recurring gap. Acceptable for v1.0 but should be addressed in a future polish cycle.",
+        "Session counter remains the weakest journey (7.75/10, only 'functional' verdict). Communicates information without celebration.",
+        "Long break phase (teal/green palette) has never been visually verified — requires completing 4 full focus sessions. Carried from cycle 2."
       ],
-      "qa_gate_misses": [
-        "Footer contrast fix-004 was marked as addressed by QA gate but the fix was partial (opacity change instead of base color change). The QA gate should validate measured contrast ratios, not just whether a change was made."
-      ]
+      "cycle_3_resolved": [
+        "qg-c2-001: Footer contrast — FIXED. Base color changed to #9ca3af (was #6b7280 with opacity adjustments). 3-cycle issue closed.",
+        "qg-c2-002: Favicon — FIXED. SVG clock-face in accent blue. 2-cycle issue closed.",
+        "fix-c2-002: Notification gating — FIXED. sendNotification() gated on notificationsEnabled."
+      ],
+      "qa_gate_misses": []
     }
   },
   "evaluator_questions": [
-    "Footer contrast has been partially fixed twice. Should this be escalated to a blocking issue for cycle 3, or is the legal text contrast acceptable for v1.0 launch?",
-    "Is the product ready for production deployment as-is, or should the favicon be created first? The favicon requires design mode (visual design decision).",
-    "Long break phase has never been visually verified. Should this be a pre-launch requirement or a post-launch follow-up?"
+    "Settings modal mobile bleed-through (qg-c3-001, medium): Should this be resolved before promotion, or is it acceptable for v1.0 given that the settings panel is a secondary surface and mobile is a secondary viewport for a desktop-first focus timer?",
+    "Three low-severity quality gaps (settings density, settings delight, session counter delight) have been open for 3 cycles. Should they be explicitly accepted as v1.0 debt and closed, or addressed in another cycle?",
+    "Long break phase (teal/green palette) has never been visually verified across 3 PO review cycles. Should this be a pre-promotion requirement?"
   ],
   "deployment_url": "https://countdowntimer-staging.gregj64.workers.dev",
   "infrastructure": {
