@@ -402,6 +402,24 @@ app.action(/^resume_/, async ({ action, ack, respond }) => {
   }
 });
 
+// Skip phase — advance past stuck phase to next one in pipeline
+app.action(/^skip_/, async ({ action, ack, respond }) => {
+  await ack();
+  const projectName = action.value;
+  const state = readState(projectName);
+  if (state && state.current_state === 'waiting-for-human') {
+    const stuckPhase = state.paused_from_state || 'unknown';
+    // Advance past the stuck phase
+    const pipeline = ['building', 'test-integrity', 'qa-gate', 'po-review-journeys', 'po-review-screens', 'po-review-heuristics', 'analyzing', 'vision-checking', 'promoting'];
+    const idx = pipeline.indexOf(stuckPhase);
+    const nextPhase = idx >= 0 && idx < pipeline.length - 1 ? pipeline[idx + 1] : 'promoting';
+    state.current_state = nextPhase;
+    delete state.paused_from_state;
+    writeState(projectName, state);
+    await respond({ text: `⏭️ Skipped \`${stuckPhase}\` → advanced to \`${nextPhase}\` for \`${projectName}\`.` });
+  }
+});
+
 // --- FW.20: Feedback classification handler ---
 app.action(/^classify_feedback_/, async ({ action, ack, respond }) => {
   await ack();

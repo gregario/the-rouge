@@ -39,7 +39,7 @@ switch (type) {
     send(blockKit.qaResult(args.project, args.verdict, args.healthScore, args.criteriaPass, args.criteriaTotal));
     break;
   case 'escalation':
-    send(blockKit.escalation(args.project, args.phase, args.reason));
+    send(blockKit.escalation(args.project, args.phase, args.reason, args.context));
     break;
   case 'briefing':
     send(blockKit.morningBriefing(args.projects));
