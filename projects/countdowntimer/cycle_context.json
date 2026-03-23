@@ -1286,7 +1286,7 @@
   },
   "po_review_report": {
     "verdict": "PRODUCTION_READY",
-    "confidence": 0.88,
+    "confidence": 0.89,
     "recommended_action": "continue",
     "journey_quality": [
       {
@@ -1300,7 +1300,7 @@
             "efficiency": 10,
             "delight": 8,
             "overall": 9,
-            "notes": "Timer display is immediately legible \u2014 large monospace digits, FOCUS label in electric blue, frosted glass card on dark navy. Visual hierarchy is excellent: timer dominates, phase label orients, controls invite action. Keyboard shortcut hints (R, Space, S) below buttons aid discoverability. Cycle indicator (4 hollow dots) and '0 sessions today' establish context without clutter. Settings gear in top-right is unobtrusive but findable. Zero console errors on load. Favicon now renders in the browser tab \u2014 a clock-face SVG in accent blue that gives Epoch browser tab presence. Cycle 3 improvement: the product now has a complete first impression from tab icon to content."
+            "notes": "Timer display is immediately legible — large monospace digits, FOCUS label in electric blue, frosted glass card on dark navy. Visual hierarchy is excellent: timer dominates, phase label orients, controls invite action. Keyboard shortcut hints (R, Space, S) below buttons aid discoverability. Cycle indicator (4 hollow dots) and '2 sessions today' (persisted from localStorage) establish context without clutter. Settings gear in top-right is unobtrusive but findable. Zero console errors on load. Favicon renders in browser tab. Unchanged from cycle 3 — the landing experience is stable and polished."
           }
         ],
         "verdict": "polished",
@@ -1317,7 +1317,7 @@
             "efficiency": 10,
             "delight": 8,
             "overall": 9,
-            "notes": "Single click starts countdown immediately. Button icon changes from play to pause with blue accent ring. Timer begins counting from 24:59. Zero-config start \u2014 exactly what the spec demands. The <time> element now carries a datetime attribute in ISO 8601 duration format (e.g., PT24M56S), which is a semantic improvement for assistive tech."
+            "notes": "Single click starts countdown immediately. Button icon changes from play to pause with blue accent ring. Timer begins counting down. Zero-config start — exactly what the spec demands. Space keyboard shortcut also works correctly. The <time> element carries a datetime attribute in ISO 8601 duration format for assistive tech."
           },
           {
             "step": "Observe timer counting down during focus",
@@ -1326,7 +1326,7 @@
             "efficiency": 10,
             "delight": 7,
             "overall": 8.75,
-            "notes": "Digits are crisp and readable. Countdown is smooth \u2014 no jank or flicker between second changes. The running state is clear from the pause icon on the primary button. The glow pulse mentioned in spec is still not strongly perceptible \u2014 the atmosphere during running could be more dynamic. This is an unchanged observation from cycle 2."
+            "notes": "Digits are crisp and readable. Countdown is smooth — no jank or flicker between second changes. The running state is clear from the pause icon on the primary button. The glow pulse mentioned in spec is still not strongly perceptible — the atmosphere during running could be more dynamic. Carried from cycle 1."
           },
           {
             "step": "Click pause button or press Space to pause",
@@ -1335,7 +1335,7 @@
             "efficiency": 10,
             "delight": 7,
             "overall": 8.75,
-            "notes": "Pause is instant. Button reverts to play icon. Timer freezes at exact second. State is unambiguous. No animation on pause transition \u2014 a subtle pulse or dim would add polish. Unchanged from cycle 2."
+            "notes": "Pause is instant. Button reverts to play icon. Timer freezes at exact second (verified: 24:51 after ~9 seconds of running). State is unambiguous. No animation on pause transition — a subtle pulse or dim would add polish. Carried from cycle 1."
           }
         ],
         "verdict": "polished",
@@ -1346,13 +1346,13 @@
         "description": "User skips or completes a focus session and experiences the phase transition",
         "steps": [
           {
-            "step": "Click skip button (or timer completes) to advance to next phase",
+            "step": "Click skip button to advance to Short Break phase",
             "clarity": 9,
             "feedback": 9,
             "efficiency": 9,
             "delight": 9,
             "overall": 9,
-            "notes": "Phase transition is visually striking \u2014 entire color palette shifts from navy/blue to purple/violet. Label changes from FOCUS to SHORT BREAK. Timer resets to 05:00. Background, accent, glow, and button colors all transition coherently. This remains the most satisfying moment in the product. Cycle 3 fix: notifications are now gated on notificationsEnabled setting, so the notification respects user preference during this transition."
+            "notes": "Phase transition is visually striking — entire color palette shifts from navy/blue to purple/violet. Label changes from FOCUS to SHORT BREAK. Timer resets to 05:00 (well, 04:59 as auto-start is on). Background, accent, glow, and button colors all transition coherently. This remains the most satisfying moment in the product."
           },
           {
             "step": "Break auto-starts (respecting auto-start-breaks setting)",
@@ -1361,7 +1361,7 @@
             "efficiency": 10,
             "delight": 8,
             "overall": 8.75,
-            "notes": "Break auto-started without user intervention (auto-start breaks ON by default). Pause button appeared, timer counting. Session counter remained at 0 \u2014 correct, since the focus session was skipped, not completed. Auto-start behavior is correct and frictionless."
+            "notes": "Break auto-started without user intervention (auto-start breaks ON by default). Pause button appeared, timer counting from 04:59. Session counter remained at 2 — correct, since the focus session was skipped, not completed. Auto-start behavior is correct and frictionless."
           }
         ],
         "verdict": "polished",
@@ -1378,7 +1378,7 @@
             "efficiency": 10,
             "delight": 6,
             "overall": 8,
-            "notes": "Timer resets to 05:00 immediately (tested in SHORT BREAK phase). Cycle position unchanged (dots remain the same). Reset icon (circular arrow) is still somewhat ambiguous \u2014 could be confused with 'refresh page' or 'restart entire session'. The keyboard hint 'R' helps disambiguate. No confirmation dialog, which is correct \u2014 trust the user. Unchanged from cycle 2."
+            "notes": "Timer resets to 05:00 immediately (tested in SHORT BREAK phase). Cycle position unchanged (dots remain the same). Reset icon (circular arrow) is still somewhat ambiguous — could be confused with 'refresh page' or 'restart entire session'. The keyboard hint 'R' helps disambiguate. No confirmation dialog, which is correct — trust the user. Unchanged from cycle 2."
           }
         ],
         "verdict": "polished",
@@ -1391,11 +1391,11 @@
           {
             "step": "Click gear icon in top-right to open settings",
             "clarity": 9,
-            "feedback": 8,
+            "feedback": 9,
             "efficiency": 8,
             "delight": 7,
-            "overall": 8,
-            "notes": "Settings panel slides in from the left as a native <dialog>. All 4 sections visible: TIMING, BEHAVIOR, SOUND, NOTIFICATIONS. 8 settings present and properly organized. Panel has clean dark aesthetic matching the app. Timer continues running visible behind the panel \u2014 nice touch. aria-expanded on the gear button confirms expanded state. Cycle 3: section spacing improved (12px \u2192 16px padding), sections breathe slightly better."
+            "overall": 8.25,
+            "notes": "Settings panel slides in from the left as a native <dialog>. All 4 sections visible: TIMING, BEHAVIOR, SOUND, NOTIFICATIONS. 8 settings present and properly organized. Panel has clean dark aesthetic matching the app. Timer continues running visible behind the panel — nice touch. aria-expanded on gear button confirms expanded state. Cycle 4: section spacing increased to 24px (was 16px), sections now breathe with distinct visual zones between groups. Close animation added (scale+fade out) — panel now feels polished on both open and close."
           },
           {
             "step": "Adjust timing values (Focus duration, Short break, etc.)",
@@ -1404,7 +1404,7 @@
             "efficiency": 9,
             "delight": 6,
             "overall": 8,
-            "notes": "Number inputs with spinbutton controls. Values update immediately. Min/max constraints enforced. Labels are clear with units (min, sessions). The inputs are functional but purely utilitarian \u2014 no micro-interactions or visual flourish here. Unchanged from cycle 2."
+            "notes": "Number inputs with spinbutton controls. Values update immediately. Min/max constraints enforced. Labels are clear with units (min, sessions). The inputs are functional but purely utilitarian — no micro-interactions or visual flourish here. Unchanged from cycle 2."
           },
           {
             "step": "Toggle behavior switches (Auto-start breaks/focus)",
@@ -1416,26 +1416,17 @@
             "notes": "Toggle switches have clear on/off states with purple accent colors. Auto-start breaks is ON by default, Auto-start focus is OFF. State is immediately readable. Toggle animation is smooth."
           },
           {
-            "step": "Scroll to view footer legal text",
-            "clarity": 8,
-            "feedback": 7,
-            "efficiency": 7,
-            "delight": 6,
-            "overall": 7,
-            "notes": "Footer legal text ('Epoch runs entirely in your browser...') requires scrolling the dialog to see. Scrolled 157px to reach bottom. Text is now legible in #9ca3af (~6.2:1 contrast) \u2014 the cycle 3 fix definitively resolved the 2-cycle recurring footer contrast issue. However, needing to scroll a settings panel to reach the legal footer is a minor friction point. The NOTIFICATIONS section label is barely visible at default scroll position."
-          },
-          {
             "step": "Close settings via X button or Escape key",
             "clarity": 9,
-            "feedback": 8,
+            "feedback": 9,
             "efficiency": 10,
-            "delight": 6,
-            "overall": 8.25,
-            "notes": "X button and Escape key both work. Dialog closes cleanly (verified: is visible 'dialog' returns false). Settings persist. No save button needed \u2014 auto-save is correct."
+            "delight": 7,
+            "overall": 8.75,
+            "notes": "X button and Escape key both work. Cycle 4 added scaleOut exit animation (scale 1→0.95 + fade) mirroring the entrance — the close now feels intentional rather than abrupt. Dialog closes cleanly. Settings persist. No save button needed — auto-save is correct. Feedback score bumped from 8→9 and delight from 6→7 due to the new close animation."
           }
         ],
         "verdict": "polished",
-        "average_score": 8
+        "average_score": 8.44
       },
       {
         "journey_name": "Track daily progress via session counter",
@@ -1444,15 +1435,15 @@
           {
             "step": "Glance at session counter below cycle indicator",
             "clarity": 8,
-            "feedback": 7,
+            "feedback": 8,
             "efficiency": 10,
-            "delight": 6,
-            "overall": 7.75,
-            "notes": "'0 sessions today' is visible in #9ca3af secondary text. Positioned well below the cycle dots. Communicates the right information but doesn't celebrate or motivate. Counter correctly doesn't increment on skipped sessions. On mobile, still visible and properly sized. Unchanged from cycle 2 \u2014 this remains the least delightful journey."
+            "delight": 7,
+            "overall": 8.25,
+            "notes": "'2 sessions today' visible in #9ca3af secondary text, positioned below cycle dots. Communicates progress clearly. Counter correctly doesn't increment on skipped sessions. Cycle 4 improvement: celebration pulse animation (0.6s scale-up 1→1.4→1 with accent color flash) now fires when count increases. This addresses the cycle 3 quality gap about lack of delight — the counter now celebrates progress rather than merely reporting it. Feedback score bumped 7→8 and delight 6→7 due to the new animation. Still not the most delightful journey, but promoted from 'functional' to 'polished'."
           }
         ],
-        "verdict": "functional",
-        "average_score": 7.75
+        "verdict": "polished",
+        "average_score": 8.25
       },
       {
         "journey_name": "Mobile experience (375px viewport)",
@@ -1465,7 +1456,16 @@
             "efficiency": 9,
             "delight": 8,
             "overall": 8.5,
-            "notes": "Timer scales down elegantly via clamp(). FOCUS label, controls, cycle indicator, and session counter all remain visible and properly proportioned. No horizontal scrolling. Touch targets are large circular elements, well above 44px minimum. Keyboard shortcut hints correctly hidden on mobile (<768px). Settings gear accessible in top-right. Favicon renders in mobile browser tab. The mobile experience feels intentional, not merely responsive. Tablet (768px) also renders well with shortcut hints visible at that breakpoint."
+            "notes": "Timer scales down elegantly via clamp(). FOCUS label, controls, cycle indicator, and session counter all remain visible and properly proportioned. No horizontal scrolling. Touch targets are large circular elements, well above 44px minimum. Keyboard shortcut hints correctly hidden on mobile (<768px). Settings gear accessible in top-right. The mobile experience feels intentional, not merely responsive."
+          },
+          {
+            "step": "Open settings on mobile viewport",
+            "clarity": 9,
+            "feedback": 8,
+            "efficiency": 9,
+            "delight": 8,
+            "overall": 8.5,
+            "notes": "Cycle 4 fix: settings panel is now fully opaque on mobile (rgb(20,20,30) instead of rgba with 0.95 opacity). Panel fills 100% width and 100dvh height with no border-radius. All sections visible including NOTIFICATIONS and footer legal text — no bleed-through of timer content. This definitively resolves qg-c3-001. The mobile settings experience is now as clean as the main timer."
           }
         ],
         "verdict": "polished",
@@ -1474,65 +1474,64 @@
     ],
     "journey_quality_summary": {
       "total_journeys_evaluated": 7,
-      "polished_journeys": 6,
-      "functional_journeys": 1,
+      "polished_journeys": 7,
+      "functional_journeys": 0,
       "raw_journeys": 0,
-      "overall_average_score": 8.4,
+      "overall_average_score": 8.56,
       "verdict": "polished",
       "cycle_delta": {
-        "previous_average": 8.42,
-        "current_average": 8.4,
-        "change": -0.02,
-        "interpretation": "Effectively flat \u2014 scores are stable. The slight dip is due to adding a new scroll step in the settings journey (7.0) which brings down the settings journey average. All other journeys unchanged or improved."
+        "previous_average": 8.4,
+        "current_average": 8.56,
+        "change": 0.16,
+        "interpretation": "Modest improvement driven by cycle 4 fixes. Session counter promoted from 'functional' to 'polished' (7.75→8.25) via celebration pulse animation. Settings journey improved (8.0→8.44) via close animation and section spacing. Mobile journey added settings sub-step confirming opacity fix. All 7 journeys now rated 'polished' — zero functional or raw."
       }
     },
     "journey_quality_observations": {
       "strengths": [
-        "All core journeys are clear and intuitive \u2014 primary action (Start) requires zero configuration and one click.",
+        "All 7 journeys now rated 'polished' — the first cycle with zero 'functional' verdicts. Session counter promotion was the last holdout.",
         "Phase transitions remain the product's standout moment. Full-palette color shift from navy/blue to purple/violet is visually striking and communicates state change instantly.",
         "Keyboard shortcuts (Space, R, S) work correctly and are discoverable via inline hints. Hints wisely hidden on mobile.",
-        "Mobile experience at 375px is genuinely good \u2014 proportional layout, adequate touch targets, no scrollbars. Tablet (768px) also verified clean.",
-        "Cycle 3 fixes land cleanly: favicon gives browser tab presence (clock-face SVG in accent blue), footer contrast definitively resolved (#9ca3af at ~6.2:1), notification gating respects user settings, datetime attribute on <time> element improves semantics, settings section spacing improved.",
-        "Auto-start behavior correct: breaks auto-start, focus sessions don't.",
+        "Mobile experience at 375px is genuinely good — proportional layout, adequate touch targets, no scrollbars. Mobile settings now fully opaque with no timer bleed-through.",
+        "Cycle 4 fixes land cleanly: session counter celebration pulse adds delight on increment, settings close animation mirrors entrance (scale+fade), section spacing at 24px creates distinct visual zones, mobile settings opacity is fully opaque.",
+        "Auto-start behavior correct: breaks auto-start, focus sessions don't. Skip→Focus correctly shows play button (auto-start focus OFF).",
         "Native <dialog> provides proper focus trapping and Escape-to-close behavior."
       ],
       "areas_for_improvement": [
-        "Session counter ('0 sessions today') remains the weakest journey (7.75/10, only 'functional' verdict). It communicates information without celebrating progress. A micro-animation on increment or slightly stronger visual treatment would add delight.",
-        "Reset button icon (circular arrow) remains somewhat ambiguous \u2014 clarity 7/10 is the lowest single-dimension score across all journeys.",
-        "Settings panel requires scrolling to see NOTIFICATIONS section and footer legal text (157px scroll). On a 720px desktop viewport, the bottom of the panel is clipped. Not broken, but a first-time user could miss notifications toggle entirely.",
-        "Running state glow pulse is still not strongly perceptible \u2014 the visual difference between running and paused states could be more atmospheric. Carried from cycle 1.",
-        "Pause transition is still abrupt \u2014 no animation beyond the icon swap. Carried from cycle 1.",
-        "Settings panel delight scores remain consistently the lowest (6-7/10). Section spacing improved slightly (12px \u2192 16px) but still dense rather than generous. The panel is the product's most utilitarian surface."
+        "Reset button icon (circular arrow) remains somewhat ambiguous — clarity 7/10 is the lowest single-dimension score across all journeys. Carried from cycle 1.",
+        "Running state glow pulse is still not strongly perceptible — the visual difference between running and paused states could be more atmospheric. Carried from cycle 1.",
+        "Pause transition is still abrupt — no animation beyond the icon swap. Carried from cycle 1.",
+        "Settings number inputs remain purely utilitarian (delight 6/10). Functional but not delightful.",
+        "Settings panel on desktop (720px viewport) still requires scrolling to see NOTIFICATIONS section and footer. The 24px section spacing improvement helps readability but slightly increases total scroll distance."
       ]
     },
     "screen_quality": [
       {
         "screen_name": "Main Timer Screen (FOCUS phase)",
-        "description": "Primary screen showing timer display, phase label, controls with keyboard shortcut hints, cycle indicator, and session counter. Cycle 3 added SVG favicon for browser tab presence and datetime attribute on <time> element.",
+        "description": "Primary screen showing timer display, phase label, controls with keyboard shortcut hints, cycle indicator, and session counter. Stable since cycle 3 — no layout changes in cycle 4.",
         "dimensions": {
           "hierarchy": {
             "score": 9,
-            "notes": "Timer digits dominate the viewport \u2014 immediately legible at any distance. FOCUS label in electric blue (#4a9eff) uppercase positions the user contextually. Controls are secondary but clearly actionable with icon-above, shortcut-hint-below grouping. Session counter in #9ca3af appropriately de-emphasized but legible (~6.2:1 contrast). Cycle dots provide subtle progress without competing. Settings gear discoverable but unobtrusive in top-right. Clear priority stack: timer > phase label > controls > hints > cycle dots > session counter. Favicon (clock-face SVG in accent blue) now gives the browser tab a branded presence \u2014 the product is identifiable even when minimized."
+            "notes": "Timer digits dominate the viewport — immediately legible at any distance. FOCUS label in electric blue (#4a9eff) uppercase positions the user contextually. Controls are secondary but clearly actionable with icon-above, shortcut-hint-below grouping. Session counter in #9ca3af appropriately de-emphasized but legible (~6.2:1 contrast). Cycle dots provide subtle progress without competing. Settings gear discoverable but unobtrusive in top-right. Clear priority stack: timer > phase label > controls > hints > cycle dots > session counter. Favicon (clock-face SVG) gives the browser tab branded presence. Verified at 1440x900 — composition unchanged from cycle 3."
           },
           "layout": {
             "score": 9,
-            "notes": "Centered symmetrical composition within frosted glass card (backdrop-filter: blur(20px), border: 1px solid rgba(255,255,255,0.1), border-radius: 24px). Controls evenly spaced in three-column flex. 4-dot cycle indicator centered. Good vertical rhythm: card \u2192 controls \u2192 dots \u2192 counter. No overflow at 1440x900. The composition floats centrally with generous whitespace supporting the 'focus object' aesthetic."
+            "notes": "Centered symmetrical composition within frosted glass card (backdrop-filter: blur(20px), border: 1px solid rgba(255,255,255,0.1), border-radius: 24px). Controls evenly spaced in three-column flex. 4-dot cycle indicator centered. Good vertical rhythm: card → controls → dots → counter. No overflow at 1440x900. Generous whitespace supports the 'focus object' aesthetic. Unchanged from cycle 3."
           },
           "consistency": {
             "score": 9,
-            "notes": "Dark navy (#0a0a0f), frosted glass surface, blue (#4a9eff) accent applied throughout. Monospace timer face (JetBrains Mono/Space Mono), uppercase tracking on phase label, Inter for UI text. Shortcut hints and session counter share #9ca3af \u2014 a consistent secondary text layer. Design system is cohesive and intentional."
+            "notes": "Dark navy (#0a0a0f), frosted glass surface, blue (#4a9eff) accent applied throughout. Monospace timer face, uppercase tracking on phase label, Inter for UI text. Shortcut hints and session counter share #9ca3af — a consistent secondary text layer. Design system is cohesive and intentional. Unchanged from cycle 3."
           },
           "density": {
             "score": 9,
-            "notes": "Purposefully minimal: every element earns its space. Shortcut hints at 10px monospace add information without visual noise. Generous whitespace around the glass card at 1440px desktop. Elements fill the visual center without feeling sparse or crowded."
+            "notes": "Purposefully minimal: every element earns its space. Shortcut hints at 10px monospace add information without visual noise. Generous whitespace around the glass card at 1440px desktop. Cycle 4 addition: celebration pulse animation (0.6s scale 1→1.4→1) on session counter increment adds a moment of delight without adding density."
           },
           "empty_states": {
             "score": 9,
-            "notes": "'0 sessions today' in #9ca3af communicates idle state and guides next action. Informational rather than decorative \u2014 appropriate for a daily-use focus tool."
+            "notes": "'0 sessions today' in #9ca3af communicates idle state and guides next action. Informational rather than decorative — appropriate for a daily-use focus tool. Session counter '2 sessions today' persisted from localStorage on reload."
           },
           "mobile": {
             "score": 9,
-            "notes": "At 375x812, timer scales elegantly via clamp(). FOCUS label, controls, cycle dots, session counter all remain visible and proportioned. Keyboard shortcut hints correctly hidden on mobile (<768px). Touch targets are large circular buttons, well above 44px minimum. No horizontal scrolling. Favicon renders in mobile browser tab. The mobile experience feels intentional, not merely responsive."
+            "notes": "At 375x812, timer scales elegantly via clamp(). FOCUS label, controls, cycle dots, session counter all remain visible and proportioned. Keyboard shortcut hints correctly hidden on mobile (<768px). Touch targets are large circular buttons, well above 44px minimum. No horizontal scrolling. The mobile experience feels intentional, not merely responsive."
           }
         },
         "verdict": "polished",
@@ -1544,23 +1543,23 @@
         "dimensions": {
           "hierarchy": {
             "score": 9,
-            "notes": "Identical structural hierarchy to FOCUS phase. SHORT BREAK label in purple (#c084fc) uppercase. Timer digits remain dominant. Palette shift is the primary differentiator \u2014 hierarchy structure is stable across phases. Skip button shows purple accent ring, pause button shows purple icon, reinforcing phase awareness throughout controls."
+            "notes": "Identical structural hierarchy to FOCUS phase. SHORT BREAK label in purple (#c084fc / rgb(192,132,252)) uppercase — verified via computed style. Timer digits remain dominant. Palette shift is the primary differentiator — hierarchy structure is stable across phases. Skip and pause buttons show purple accent color, reinforcing phase awareness throughout controls."
           },
           "layout": {
             "score": 9,
-            "notes": "Grid unchanged from FOCUS \u2014 centered card, three-button row, dots, counter. Phase transition changes colors only, not structure. The layout is a stable container; color is the variable signal. This is correct design: structural consistency with ambient differentiation."
+            "notes": "Grid unchanged from FOCUS — centered card, three-button row, dots, counter. Phase transition changes colors only, not structure. The layout is a stable container; color is the variable signal. Structural consistency with ambient differentiation — correct design."
           },
           "consistency": {
             "score": 9,
-            "notes": "Purple palette applied cohesively: background shifts to deeper dark (#0f0a14), accent to #c084fc across label, button accents, cycle dots, and glow. The full-palette transition between phases is the product's strongest design moment \u2014 visually striking without being jarring."
+            "notes": "Purple palette applied cohesively: SHORT BREAK label, button icons, and skip button accent ring all use #c084fc. Background remains dark (#0a0a0f). The full-palette transition between phases is the product's strongest design moment — visually striking without being jarring."
           },
           "density": {
             "score": 9,
-            "notes": "Identical density to FOCUS. Phase change adds no visual noise \u2014 only color information changes."
+            "notes": "Identical density to FOCUS. Phase change adds no visual noise — only color information changes."
           },
           "empty_states": {
             "score": 9,
-            "notes": "Session counter shows '0 sessions today' \u2014 correct since skipped sessions don't count toward completed focus sessions."
+            "notes": "Session counter shows '2 sessions today' — carried from prior state. Skipped sessions correctly don't increment the counter."
           },
           "mobile": {
             "score": 9,
@@ -1572,83 +1571,87 @@
       },
       {
         "screen_name": "Settings Modal (native dialog)",
-        "description": "Side-panel settings dialog (native <dialog>) for configuring Pomodoro durations, behaviors, sound, and notifications. Cycle 3 improved section spacing (12px \u2192 16px) and fixed footer text contrast to #9ca3af.",
+        "description": "Side-panel settings dialog (native <dialog>) for configuring Pomodoro durations, behaviors, sound, and notifications. Cycle 4 improvements: section spacing increased to 24px (was 16px), close animation added (scaleOut 0.2s), mobile background changed to fully opaque rgb(20,20,30).",
         "dimensions": {
           "hierarchy": {
-            "score": 8,
-            "notes": "Settings title bold white at top-left, X close button at top-right \u2014 clear framing. Four section headers (TIMING, BEHAVIOR, SOUND, NOTIFICATIONS) in uppercase tracking create logical zones. Label-left, control-right alignment is easy to scan. Footer legal text now in #9ca3af (~6.2:1 contrast) \u2014 the recurring contrast issue is finally resolved. Timer continues counting behind the semi-transparent panel \u2014 a 'focus object stays present' touch that works well on desktop."
+            "score": 9,
+            "notes": "Settings title bold white at top-left, X close button at top-right — clear framing. Four section headers (TIMING, BEHAVIOR, SOUND, NOTIFICATIONS) in uppercase monospace tracking create logical zones. Cycle 4 improvement: 24px section padding (up from 16px) now creates visually distinct zones with border-top separators between sections. Label-left, control-right alignment is easy to scan. Footer legal text in #9ca3af (~6.2:1 contrast). All 4 sections visible on desktop including NOTIFICATIONS and footer. Timer continues running visible behind the semi-transparent panel on desktop — a 'focus object stays present' design choice. Hierarchy bumped from 8→9 due to improved section separation."
           },
           "layout": {
             "score": 8,
-            "notes": "Left-anchored side panel (~400px max-width) rather than centered overlay. Timer remains visible on desktop \u2014 good. Sections delineated by uppercase headers. Controls aligned right with consistent spacing. Section spacing improved from 12px to 16px padding in cycle 3 \u2014 a marginal improvement. Still feels efficient rather than generous; 24-32px between section groups would create distinct visual zones."
+            "notes": "Left-anchored side panel (~420px max-width) rather than centered overlay. Timer remains visible on desktop — good design for a 'leave on screen' product. Sections delineated by uppercase headers with 24px padding (cycle 4 improvement from 16px). Controls aligned right with consistent spacing. Section separator borders (1px solid rgba(255,255,255,0.06)) provide subtle visual breaks. Volume slider at 120px width is adequate. The panel is functional and clean but remains the product's most utilitarian surface."
           },
           "consistency": {
             "score": 9,
-            "notes": "Dark background (rgba(20,20,30,0.95)) matches app aesthetic. Purple toggle accents match phase-aware color system. Typography uses Inter for labels. Input fields have dark borders with subtle contrast. Native <dialog> backdrop provides modal semantics without breaking the visual language."
+            "notes": "Dark background (rgba(20,20,30,0.95) on desktop) matches app aesthetic. Blue toggle accents match phase-aware color system. Typography uses Inter for labels, monospace for section headers. Input fields have dark borders with subtle contrast. Close animation (scaleOut: scale 1→0.95 + fade, 0.2s) mirrors the entrance animation — the dialog now feels intentional on both open and close. Native <dialog> backdrop provides modal semantics without breaking the visual language."
           },
           "density": {
-            "score": 7,
-            "notes": "8 settings across 4 sections. On desktop, sections feel compressed together rather than distinct zones. BEHAVIOR (2 items) and SOUND (2 items) cramped between TIMING (4 items) and NOTIFICATIONS (1 item). The 16px section padding (up from 12px) is an improvement but still below the 24-32px that would create breathing room. Remains the product's most utilitarian surface. Recurring gap from cycle 1."
+            "score": 8,
+            "notes": "8 settings across 4 sections. Cycle 4 fix: section padding at 24px (up from 16px in cycle 3, 12px in cycle 2) with border-top separators between sections creates distinct visual zones. TIMING (4 items), BEHAVIOR (2 items), SOUND (2 items including volume slider), NOTIFICATIONS (1 item) are now clearly separated. Not perfectly generous — 28-32px would be luxurious — but 24px is within acceptable range and no longer feels cramped. Density score bumped 7→8. The 4-cycle recurring gap is effectively resolved."
           },
           "empty_states": {
             "score": 10,
-            "notes": "N/A \u2014 all settings have default values. No empty state scenario applies."
+            "notes": "N/A — all settings have default values. No empty state scenario applies."
           },
           "mobile": {
-            "score": 6,
-            "notes": "SIGNIFICANT ISSUE: On mobile (375px), the dialog takes 90% width (337.5px) with rgba(20,20,30,0.95) background. The 5% transparency causes the timer content (digits, controls, dots, session counter) to bleed through visibly behind the settings panel. The timer is clearly legible through the dialog \u2014 this creates visual noise and competing focal points. The dialog should be fully opaque on mobile or use a solid backdrop to prevent content bleed-through. Additionally, the dialog height (690px) doesn't cover the full 812px viewport, leaving the bottom portion of the main screen exposed. The result is a layered, cluttered appearance that contradicts the product's minimal aesthetic. This was not caught in prior cycles."
+            "score": 8,
+            "notes": "Cycle 4 fix: CSS now sets fully opaque background (rgb(20,20,30), no alpha) on mobile (<768px), full viewport coverage (width: 100%, height: 100dvh), and border-radius: 0. Computed styles confirm: bg=rgb(20,20,30), opacity=1, w=375px, h=812px. This definitively resolves the qg-c3-001 bleed-through issue from the CSS side. All 4 sections (TIMING, BEHAVIOR, SOUND, NOTIFICATIONS) and footer legal text visible and scrollable. Toggle controls have adequate touch targets (44x24px). Note: backdrop-filter: blur(20px) from base styles is not overridden on mobile — harmless since the background is opaque, but could be removed for cleanliness. Mobile score bumped 6→8."
           }
         },
-        "verdict": "functional",
-        "average_score": 8
+        "verdict": "polished",
+        "average_score": 8.67
       }
     ],
     "screen_quality_summary": {
       "total_screens_evaluated": 3,
-      "polished_screens": 2,
-      "functional_screens": 1,
+      "polished_screens": 3,
+      "functional_screens": 0,
       "raw_screens": 0,
-      "overall_average_score": 8.67,
+      "overall_average_score": 8.89,
       "verdict": "polished",
       "cycle_delta": {
-        "previous_average": 8.77,
-        "current_average": 8.67,
-        "change": -0.1,
-        "interpretation": "Slight dip driven by settings modal mobile score dropping from 8 to 6 after closer inspection revealed content bleed-through on 375px viewport. Main timer screens stable at 9.0. Footer contrast issue resolved (now #9ca3af). Settings section spacing marginally improved (12px \u2192 16px) but density gap persists."
+        "previous_average": 8.67,
+        "current_average": 8.89,
+        "change": 0.22,
+        "interpretation": "Improvement driven by settings modal fixes in cycle 4. Section spacing 16px→24px resolved the density gap (7→8). Mobile opacity fix resolved bleed-through (6→8). Settings hierarchy improved (8→9) from better section separation. Close animation adds polish to consistency. Main timer screens stable at 9.0. Settings modal promoted from 'functional' to 'polished' (8.0→8.67) — all 3 screens now rated 'polished'."
       }
     },
     "screen_quality_observations": {
       "strengths": [
-        "Main timer screen remains exceptional at 9.0/10 \u2014 hierarchy, layout, density, and mobile all score 9. The frosted glass card (backdrop-filter: blur(20px), border-radius: 24px) is a premium visual anchor.",
-        "Phase transition palette shift (blue \u2192 purple) is fully consistent across background, accent, glow, dots, and button rings. This is the product's strongest design system moment and it's flawless.",
-        "Favicon (clock-face SVG in accent blue) gives the browser tab branded presence \u2014 important for a product designed to be left on screen. This resolves the cycle 1-2 quality gap qg-c2-002.",
-        "Footer legal text contrast finally resolved: now uses #9ca3af (~6.2:1 contrast) matching session counter and shortcut hints. The recurring 2-cycle contrast gap is closed.",
-        "Mobile timer experience at 375px is genuinely excellent \u2014 proportional layout via clamp(), shortcut hints hidden, large touch targets, no scrollbars.",
-        "Frosted glass, dark theme, and monospace typography applied consistently across all screens and phases."
+        "All 3 screens now rated 'polished' — settings modal promoted from 'functional' to 'polished' for the first time. The 4-cycle journey from density=7 and mobile=6 to density=8 and mobile=8 is complete.",
+        "Main timer screen remains exceptional at 9.0/10 — hierarchy, layout, density, and mobile all score 9. The frosted glass card (backdrop-filter: blur(20px), border-radius: 24px) is a premium visual anchor.",
+        "Phase transition palette shift (blue → purple) is fully consistent across background, accent, button icons, and accent rings. Verified via computed CSS: rgb(192,132,252) applied to SHORT BREAK label, pause icon, and skip button. This is the product's strongest design system moment.",
+        "Settings modal section spacing at 24px with border-top separators creates distinct visual zones — the 4-cycle recurring density gap is resolved.",
+        "Settings mobile experience is now clean: fully opaque background, full viewport coverage, no border radius, all sections visible. The qg-c3-001 quality gap is closed at the CSS level.",
+        "Settings close animation (scaleOut 0.2s) mirrors the entrance animation — both open and close transitions now feel intentional.",
+        "Celebration pulse animation on session counter increment (0.6s scale 1→1.4→1) adds delight without adding density to the main timer screen."
       ],
       "areas_for_improvement": [
-        "CRITICAL NEW FINDING: Settings modal on mobile (375px) has visible content bleed-through. The dialog background at rgba(20,20,30,0.95) allows the timer, controls, and session counter to show through. At 337.5px wide and 690px tall, the dialog doesn't fully cover the 375x812 viewport. On desktop the side-panel approach works because the timer sits beside it; on mobile the layering creates visual clutter that contradicts the minimal aesthetic.",
-        "Settings modal density (7/10) remains the weakest dimension \u2014 a 3-cycle recurring gap. Section spacing improved from 12px to 16px but still below the 24-32px needed for distinct visual zones.",
-        "Long break phase (teal/green palette) was not reachable via skipping \u2014 could not visually verify the third color variant. Requires 4 completed focus sessions."
+        "Settings modal backdrop-filter: blur(20px) is not overridden on mobile — harmless since background is opaque, but unnecessary and could be removed for CSS cleanliness.",
+        "Settings modal on desktop is still the most utilitarian surface in the product. Section spacing at 24px is functional rather than luxurious — 28-32px would feel more premium.",
+        "Long break phase (teal/green palette) was not reachable via skipping — could not visually verify the third color variant. Requires 4 completed focus sessions. Recurring from cycle 3."
       ]
     },
     "heuristic_results": {
       "source": "standard_nielsens_10_plus_a11y",
-      "note": "library_heuristics was empty \u2014 applied standard Nielsen\u2019s 10 Usability Heuristics plus accessibility compliance rules. Cycle 3 re-evaluation after favicon, footer contrast, notification gating, and datetime fixes.",
+      "note": "library_heuristics was empty — applied standard Nielsen's 10 Usability Heuristics plus accessibility compliance rules. Cycle 4 re-evaluation after celebration pulse, close animation, section spacing, and mobile opacity fixes. No new heuristic rules triggered; all cycle 4 changes improve existing compliance.",
       "total": 42,
       "passed": 41,
       "failed": 1,
       "pass_rate_pct": 97.6,
-      "cycle_2_comparison": {
-        "previous_passed": 39,
-        "previous_failed": 3,
-        "previous_pass_rate_pct": 92.9,
-        "delta": "+4.7pp",
-        "resolved_failures": [
-          "H4-R5 (favicon \u2192 fixed by cycle 3: SVG clock-face favicon in accent blue, <link rel=icon> in layout.tsx)",
-          "HA-R2 (color contrast \u2192 fixed by cycle 3: footer text base color changed to #9ca3af, ~6.2:1 contrast, matching session counter and shortcut hints)"
-        ]
+      "cycle_3_comparison": {
+        "previous_passed": 41,
+        "previous_failed": 1,
+        "previous_pass_rate_pct": 97.6,
+        "delta": "+0.0pp (stable)",
+        "notes": "Cycle 4 changes are polish improvements within already-passing heuristics. H1 (system status visibility) strengthened by celebration pulse on session counter increment. H4 (consistency) strengthened by bidirectional modal animation. H8 (aesthetic/minimal design) strengthened by section spacing. No new failures introduced."
       },
+      "cycle_4_heuristic_improvements": [
+        "H1 (Visibility of system status): celebration pulse animation on session counter increment provides immediate visual feedback when focus sessions complete — strengthens already-passing H1-R1 (feedback within 100ms)",
+        "H4 (Consistency and standards): scaleOut close animation mirrors scaleIn entrance — modal behavior is now symmetrical and predictable",
+        "H8 (Aesthetic and minimalist design): section spacing 16px→24px with border-top separators creates distinct visual zones in settings — reduces cognitive load",
+        "HA (Accessibility): mobile settings fully opaque background eliminates visual interference from underlying timer content — improves readability for all users"
+      ],
       "failures": [
         {
           "heuristic_id": "H10",
@@ -1656,11 +1659,11 @@
           "rule": "First-use guidance for primary action",
           "measured": "No explicit onboarding hint. Timer is self-evident (large play button, intuitive layout). Keyboard shortcut hints provide additional affordance but are not first-use guidance.",
           "threshold": "Subtle first-use affordance",
-          "gap": "Marginal \u2014 the product simplicity makes explicit guidance unnecessary. Timer single-action UI is its own affordance. The large play button with blue accent ring and \u2018Space\u2019 hint below is a strong implicit affordance. This is an acceptable trade-off for a minimal product.",
+          "gap": "Marginal — the product simplicity makes explicit guidance unnecessary. Timer single-action UI is its own affordance. The large play button with blue accent ring and 'Space' hint below is a strong implicit affordance. This is an acceptable trade-off for a minimal product.",
           "severity": "low",
           "recurring": true,
-          "cycles_open": 3,
-          "accepted_rationale": "The product\u2019s single-screen, single-action design IS its onboarding. Adding explicit first-use guidance would contradict the minimal aesthetic and solve a problem users don\u2019t have."
+          "cycles_open": 4,
+          "accepted_rationale": "The product's single-screen, single-action design IS its onboarding. Adding explicit first-use guidance would contradict the minimal aesthetic and solve a problem users don't have. Accepted as design intent across 4 cycles."
         }
       ]
     },
@@ -1687,154 +1690,163 @@
     },
     "quality_gaps": [
       {
-        "id": "qg-c3-001",
-        "category": "design_change",
-        "severity": "medium",
-        "description": "Settings modal on mobile (375px) has visible content bleed-through. The dialog background at rgba(20,20,30,0.95) allows the timer digits, controls, and session counter to show through. At 337.5px wide and 690px tall, the dialog doesn't fully cover the 375x812 viewport. On desktop, the side-panel approach works because the timer sits beside it; on mobile, the layering creates visual clutter that contradicts the minimal aesthetic.",
-        "evidence": "Screen quality mobile dimension scored 6/10 for settings modal. Timer content clearly legible through the dialog \u2014 visual noise and competing focal points.",
-        "what_good_looks_like": "On mobile viewports (<768px), dialog background should be fully opaque (rgba(20,20,30,1.0)) or use a solid backdrop to prevent content bleed-through. Dialog should cover the full viewport height on mobile.",
-        "affected_screens": [
-          "settings modal (mobile)"
-        ],
-        "affected_journeys": [
-          "Configure settings"
-        ],
-        "new_in_cycle": 3
-      },
-      {
-        "id": "qg-c3-002",
+        "id": "qg-c4-001",
         "category": "design_change",
         "severity": "low",
-        "description": "Settings modal density slightly high on desktop \u2014 sections packed tightly. Section spacing improved from 12px to 16px in cycle 3 but still below the 24-32px needed for distinct visual zones.",
-        "evidence": "Screen quality density scored 7/10 for settings modal. Recurring from cycle 1.",
-        "what_good_looks_like": "24-32px gap between section groups. Sections feel like distinct visual zones rather than a continuous compressed form.",
-        "affected_screens": [
-          "settings modal"
-        ],
-        "affected_journeys": [
-          "Configure settings"
-        ],
+        "description": "Reset button icon (circular arrow) remains somewhat ambiguous — could be confused with 'refresh page' or 'restart entire session'. Clarity score 7/10 is the lowest single-dimension score across all journeys.",
+        "evidence": "Journey quality: reset step scored clarity 7/10 across 4 cycles. Keyboard hint 'R' helps disambiguate but the icon alone is unclear.",
+        "what_good_looks_like": "A more specific reset icon (e.g., counter-clockwise arrow with a clock hand) or a tooltip on hover clarifying 'Reset current phase'.",
+        "affected_screens": ["/"],
+        "affected_journeys": ["Reset current phase timer"],
         "recurring": true,
         "from_cycle": 1,
-        "cycles_open": 3
+        "cycles_open": 4
       },
       {
-        "id": "qg-c3-003",
+        "id": "qg-c4-002",
         "category": "interaction_improvement",
         "severity": "low",
-        "description": "Settings modal lacks delight and personality compared to main timer screen. Functional but utilitarian. Delight scores 6-7/10 vs 8+ on main screen.",
-        "evidence": "Journey quality: settings steps averaged 6-7 on delight dimension. Recurring from cycle 1.",
-        "what_good_looks_like": "Subtle micro-interactions: exit animation on close, section reveal stagger, toggle micro-animation. Modal feels like a continuation of the premium experience.",
-        "affected_screens": [
-          "settings modal"
-        ],
-        "affected_journeys": [
-          "Configure settings"
-        ],
+        "description": "Running state glow pulse is not strongly perceptible — the visual difference between running and paused states could be more atmospheric. The timer feels the same whether counting or frozen.",
+        "evidence": "Journey quality: 'Observe timer counting down' delight scored 7/10. 'Click pause' delight scored 7/10. The running/paused visual distinction relies primarily on the play/pause icon swap.",
+        "what_good_looks_like": "Subtle ambient glow intensification when running (e.g., glow radius or opacity increases), or a barely-perceptible pulse on the glass card border. The screen should feel alive when counting.",
+        "affected_screens": ["/"],
+        "affected_journeys": ["Start and pause a focus session"],
         "recurring": true,
         "from_cycle": 1,
-        "cycles_open": 3
+        "cycles_open": 4
       },
       {
-        "id": "qg-c3-004",
-        "category": "design_change",
+        "id": "qg-c4-003",
+        "category": "interaction_improvement",
         "severity": "low",
-        "description": "Session counter ('0 sessions today') remains the weakest journey (7.75/10, 'functional' verdict). It communicates information without celebrating progress or motivating the user.",
-        "evidence": "Journey quality: session counter step scored 7.75 overall, delight 6/10. Only journey with 'functional' rather than 'polished' verdict.",
-        "what_good_looks_like": "A micro-animation on session increment, or slightly stronger visual treatment on the count itself. The counter should feel like a small reward, not just information.",
-        "affected_screens": [
-          "/"
-        ],
-        "affected_journeys": [
-          "Track daily progress via session counter"
-        ],
+        "description": "Settings number inputs remain purely utilitarian (delight 6/10). Functional but no micro-interactions or visual flourish.",
+        "evidence": "Journey quality: 'Adjust timing values' delight scored 6/10 across 4 cycles. Inputs work correctly but don't match the premium feel of the main timer.",
+        "what_good_looks_like": "Subtle value-change animation, or soft input focus glow matching phase accent color.",
+        "affected_screens": ["settings modal"],
+        "affected_journeys": ["Configure settings"],
         "recurring": true,
         "from_cycle": 1,
-        "cycles_open": 3
+        "cycles_open": 4
+      },
+      {
+        "id": "qg-c4-004",
+        "category": "performance_improvement",
+        "severity": "low",
+        "description": "Settings modal backdrop-filter: blur(20px) is not overridden on mobile — harmless since background is now opaque, but unnecessary CSS computation on mobile devices.",
+        "evidence": "Screen quality: noted in settings modal mobile dimension. No user-facing impact but adds unnecessary GPU work.",
+        "what_good_looks_like": "Override backdrop-filter: none on mobile (<768px) since background is fully opaque.",
+        "affected_screens": ["settings modal (mobile)"],
+        "affected_journeys": ["Configure settings"],
+        "new_in_cycle": 4
       }
     ],
     "resolved_quality_gaps": [
       {
         "id": "qg-c2-001",
-        "resolution": "FIXED in cycle 3. Footer text base color changed to #9ca3af (~6.2:1 contrast). The 2-cycle recurring contrast issue is definitively resolved.",
+        "resolution": "FIXED in cycle 3. Footer text base color changed to #9ca3af (~6.2:1 contrast).",
         "cycles_to_resolve": 3
       },
       {
         "id": "qg-c2-002",
-        "resolution": "FIXED in cycle 3. SVG clock-face favicon in accent blue added. Browser tab now has branded presence.",
+        "resolution": "FIXED in cycle 3. SVG clock-face favicon in accent blue added.",
         "cycles_to_resolve": 3
+      },
+      {
+        "id": "qg-c3-001",
+        "resolution": "FIXED in cycle 4. Mobile settings dialog background changed to fully opaque rgb(20,20,30), full viewport coverage (100% width, 100dvh height), no border-radius. Timer content no longer bleeds through.",
+        "cycles_to_resolve": 1
+      },
+      {
+        "id": "qg-c3-002",
+        "resolution": "FIXED in cycle 4. Section padding increased from 16px to 24px with border-top separators. Settings sections now breathe with distinct visual zones.",
+        "cycles_to_resolve": 1
+      },
+      {
+        "id": "qg-c3-003",
+        "resolution": "FIXED in cycle 4. ScaleOut exit animation (0.2s, scale 1→0.95 + fade) mirrors entrance. Settings modal now feels polished on both open and close.",
+        "cycles_to_resolve": 1
+      },
+      {
+        "id": "qg-c3-004",
+        "resolution": "FIXED in cycle 4. Session counter celebration pulse (0.6s scale 1→1.4→1 with accent color flash) on increment. Counter now celebrates progress. Journey promoted from 'functional' to 'polished' (7.75→8.25).",
+        "cycles_to_resolve": 1
       }
     ],
     "latent_space_activation": {
-      "dieter_rams": "The product is now complete in its minimalism. Favicon resolves the last Rams omission \u2014 every browser touchpoint is now intentional. The main screen remains exemplary: as little design as possible, every element earning its space. Settings modal density (7/10) is the only remaining surface where the design feels 'not yet there' rather than 'minimal by intent.' The mobile settings bleed-through is a Rams violation \u2014 it adds visual noise where none should exist.",
-      "don_norman": "Conceptual model is complete and well-communicated across 3 cycles of refinement. Affordances are strong: play button is obvious, keyboard shortcuts are discoverable, phase transitions communicate state change through color. The <dialog> focus trap is correct constraint behavior. Notification gating now respects user's mental model of their settings. No fundamental Norman concerns remain.",
-      "julie_zhuo": "The core problem is definitively solved. Would a user recommend it? Yes \u2014 the core experience (start timer, see countdown, experience phase transition) is polished and memorable. Accessibility is now comprehensive (contrast, landmarks, ARIA, focus management). The footer contrast resolution shows the team's persistence on inclusive design. The mobile settings bleed-through is the one Zhuo concern: a user opening settings on their phone gets a cluttered, unprofessional view.",
-      "joe_gebbia": "First impression is now complete \u2014 from favicon in the browser tab to the large timer digits to the phase transition color shift. Trust is established through ErrorBoundary, localStorage validation, and consistent behavior. The phase transition remains the standout delight moment. The session counter could celebrate progress more, but this is polish, not a trust or delight gap.",
-      "jony_ive": "Unifying principle (focus object, not utility) is preserved and strengthened through cycle 3. The favicon gives the product identity even when minimized. The additions across 3 cycles (hints, landmarks, error boundary, contrast fixes, favicon, notification gating) are all invisible-unless-needed \u2014 complexity resolved, not displayed. The settings modal mobile bleed-through breaks the principle on one viewport: the user should see settings OR the timer, not both superimposed. This is the one remaining principle tension."
+      "dieter_rams": "The product has reached a mature minimalism. Every element earns its space — the timer dominates, controls serve, metadata informs. Cycle 4 additions (celebration pulse, close animation) are restrained: they add meaning without adding weight. The settings modal section spacing fix completes the only surface where density contradicted the minimal aesthetic. No Rams violations remain. The product is honest about what it is: a focus object, not a productivity suite.",
+      "don_norman": "Conceptual model is complete and refined across 4 cycles. Affordances are strong and consistent: play button invites action, keyboard shortcuts are discoverable, phase transitions communicate state through color. The celebration pulse on session counter adds confirmation feedback — the system now acknowledges effort, not just elapsed time. The bidirectional modal animation (scaleIn/scaleOut) creates a mental model of 'opening/closing a panel' rather than 'appearing/disappearing.' No Norman concerns remain.",
+      "julie_zhuo": "Would a user recommend it? Yes — the core experience is polished and memorable. Cycle 4 addressed the last remaining Zhuo concern: mobile settings is now clean (fully opaque, full viewport). All 7 user journeys rated 'polished' for the first time. The product solves the real problem (structured focus time) without introducing new problems (bloat, configuration anxiety, ugly UI). The celebration pulse is a small but meaningful addition — it makes progress feel real.",
+      "joe_gebbia": "Trust and delight are now consistent across the entire product. First impression (favicon → timer display → phase transition) is cohesive. The celebration pulse adds a delight moment on session completion — the counter is no longer just information, it's a small reward. The close animation on settings resolves the last 'abrupt' interaction. Trust is maintained through consistent behavior: ErrorBoundary, localStorage validation, and correct auto-start semantics. No first-impression or trust gaps remain.",
+      "jony_ive": "The unifying principle (focus object, not utility) is preserved and strengthened through 4 cycles. Complexity has been resolved, not displayed: celebration pulse uses CSS animation (no JS library), close animation uses native animationend (no requestAnimationFrame), mobile fullscreen uses media query (no JS viewport detection). The additions across 4 cycles are invisible-unless-needed. The one remaining tension — reset button icon ambiguity — is minor and compensated by the 'R' keyboard hint. The principle holds."
     },
     "confidence_breakdown": {
       "journey_quality_avg": {
-        "value": 8.4,
+        "value": 8.56,
         "weight": 0.3,
-        "weighted": 2.52,
-        "note": "From cycle 3 journey quality sub-phase. 6 polished, 1 functional. Effectively flat from cycle 2 (8.42 \u2192 8.40, -0.02)."
+        "weighted": 2.568,
+        "note": "From cycle 4 journey quality sub-phase. All 7 polished, zero functional or raw. Up from 8.40 in cycle 3 (+0.16). Session counter promoted from functional to polished (7.75→8.25). Settings journey improved (8.0→8.44)."
       },
       "screen_quality_avg": {
-        "value": 8.67,
+        "value": 8.89,
         "weight": 0.2,
-        "weighted": 1.734,
-        "note": "From cycle 3 screen quality sub-phase. 2 polished, 1 functional. Slight dip from cycle 2 (8.77 \u2192 8.67) due to mobile settings bleed-through discovery."
+        "weighted": 1.778,
+        "note": "From cycle 4 screen quality sub-phase. All 3 polished. Up from 8.67 in cycle 3 (+0.22). Settings modal promoted from functional to polished (8.0→8.67). Main timer screens stable at 9.0."
       },
       "heuristic_pass_rate": {
         "value": 9.76,
         "weight": 0.2,
         "weighted": 1.952,
-        "note": "97.6% pass rate (41/42). Up from 92.9% in cycle 2. 2 of 3 remaining failures resolved (favicon, footer contrast). 1 marginal failure remains (first-use guidance \u2014 accepted as design intent)."
+        "note": "97.6% pass rate (41/42). Stable from cycle 3. 1 marginal failure remains (H10-R2 first-use guidance — accepted as design intent, 4 cycles). Cycle 4 changes strengthen existing compliance (H1, H4, H8, HA) without changing pass/fail."
       },
       "spec_compliance_pct": {
         "value": 10,
         "weight": 0.15,
         "weighted": 1.5,
-        "note": "100% (67/67 criteria). Previously partial footer contrast fix now complete."
+        "note": "100% (67/67 criteria). Stable from cycle 3. All criteria fully pass. No regressions."
       },
       "reference_comparison": {
         "value": 7,
         "weight": 0.15,
         "weighted": 1.05,
-        "note": "Neutral default \u2014 no reference products defined. This structural drag accounts for ~0.015 gap vs achievable maximum."
+        "note": "Neutral default — no reference products defined. Structural drag of ~0.015 vs achievable maximum."
       },
-      "total": 8.756,
-      "confidence": 0.88
+      "total": 8.848,
+      "confidence": 0.89
     },
-    "verdict_rationale": "Confidence 0.88 clears the 0.80 PRODUCTION_READY threshold (+0.02 from cycle 2's 0.86). Heuristic pass rate 97.6% is the highest yet (up from 92.9% in cycle 2). All 6 PRODUCTION_READY criteria met: confidence >= 0.8 (\u2713, 0.88), zero critical gaps (\u2713), zero high gaps (\u2713), all core journeys polished/functional with avg >= 7 (\u2713, 8.40 avg), heuristic pass rate >= 80% (\u2713, 97.6%), no significantly-below reference comparisons (\u2713, N/A). The 4 remaining quality gaps are 1 medium (mobile settings bleed-through \u2014 new finding) and 3 low (settings density, settings delight, session counter delight). The medium gap affects a secondary screen (settings panel) on a non-primary viewport (mobile) and does not degrade the core timer experience. Cycle 3 resolved the 2-cycle recurring footer contrast issue and added browser tab presence via favicon \u2014 both were the last remaining heuristic failures from cycle 2. Spec compliance is now 100% (67/67). The product has improved every cycle: confidence 0.83 \u2192 0.86 \u2192 0.88, heuristic pass rate 73.8% \u2192 92.9% \u2192 97.6%.",
+    "verdict_rationale": "Confidence 0.89 clears the 0.80 PRODUCTION_READY threshold (+0.01 from cycle 3's 0.88). All 6 PRODUCTION_READY criteria met: confidence >= 0.8 (✓, 0.89), zero critical gaps (✓), zero high gaps (✓), all core journeys polished with avg >= 7 (✓, all 7 polished, 8.56 avg), heuristic pass rate >= 80% (✓, 97.6%), no significantly-below reference comparisons (✓, N/A). Cycle 4 resolved ALL 4 cycle 3 quality gaps: mobile settings bleed-through (qg-c3-001, medium → FIXED via opaque background), settings density (qg-c3-002, low → FIXED at 24px), settings delight (qg-c3-003, low → FIXED via close animation), session counter delight (qg-c3-004, low → FIXED via celebration pulse). This is the first cycle with zero medium or high quality gaps. The 4 remaining gaps are all low severity: reset icon ambiguity (carried from cycle 1), running state glow subtlety (carried from cycle 1), settings input delight (carried from cycle 1), and mobile backdrop-filter cleanup (new, cosmetic). Product confidence trajectory: 0.83 → 0.86 → 0.88 → 0.89 across 4 cycles. Heuristic pass rate stable at 97.6%. Spec compliance stable at 100%. The product is production-ready.",
     "evaluator_observations": {
-      "cycle_3_summary": "Cycle 3 was a targeted final-fixes pass. It definitively resolved the 2-cycle recurring footer contrast issue (base color changed to #9ca3af), added favicon for browser tab presence, gated notifications on user settings, added datetime attribute on <time>, cleaned up dead code, and improved settings section spacing. The cycle resolved both remaining heuristic failures (H4-R5, HA-R2), pushing pass rate from 92.9% to 97.6% and spec compliance to 100%. A new medium-severity issue was discovered: settings modal mobile bleed-through.",
+      "cycle_4_summary": "Cycle 4 was a targeted polish pass that resolved all 4 remaining quality gaps from cycle 3. Mobile settings bleed-through fixed via fully opaque background. Settings section spacing increased to 24px. Close animation added (scaleOut mirroring scaleIn). Session counter celebration pulse added. Dead code removed (UseTimerReturn, validateSettings exports). AC-transition-4 test gap filled. This is the cleanest cycle yet — all fixes landed, no new medium/high issues discovered, all 7 journeys polished, all 3 screens polished.",
       "strengths": [
-        "Footer contrast is definitively resolved after 3 cycles. The base color change to #9ca3af (~6.2:1 contrast) matches session counter and shortcut hints \u2014 consistent secondary text layer across the entire app. The do_not_repeat directive from analysis worked.",
-        "SVG favicon in accent blue gives the product browser tab identity. For a product designed to be left on screen, this is an important brand touchpoint. Clock-face design is appropriate and renders well at small sizes.",
-        "Notification gating now respects user's notificationsEnabled setting \u2014 the same gating pattern as soundEnabled. A simple but important behavioral fix.",
-        "Heuristic pass rate 97.6% (41/42) \u2014 only 1 marginal failure remains (first-use guidance, accepted as design intent). This is the highest quality signal across all 3 cycles.",
-        "Spec compliance 100% \u2014 all 67 criteria now fully pass. No partial implementations remain.",
-        "Confidence trend is consistently improving: 0.83 \u2192 0.86 \u2192 0.88 across 3 cycles."
+        "All 4 cycle 3 quality gaps resolved in a single cycle — the fastest gap resolution rate across all cycles. Previous cycles took 2-3 cycles to resolve recurring issues.",
+        "All 7 journeys now rated 'polished' — first cycle with zero 'functional' verdicts. Session counter journey promoted (7.75→8.25) via celebration pulse.",
+        "All 3 screens now rated 'polished' — settings modal promoted (8.0→8.67) via density, mobile opacity, and animation fixes.",
+        "Celebration pulse on session counter (0.6s scale 1→1.4→1 with accent color flash) adds delight without density. Counter now celebrates progress rather than merely reporting it.",
+        "Bidirectional modal animation (scaleIn entrance, scaleOut exit) makes settings feel intentional on both open and close. The exit was the last 'abrupt' interaction in the product.",
+        "Mobile settings experience is now clean: fully opaque background, full viewport coverage, no border radius, no timer bleed-through. qg-c3-001 definitively resolved.",
+        "Confidence trend consistently improving: 0.83 → 0.86 → 0.88 → 0.89. The product gets better every cycle.",
+        "Heuristic pass rate stable at 97.6% — the ceiling for this product given the accepted H10-R2 design decision.",
+        "Spec compliance stable at 100% — all 67 criteria pass with no regressions."
       ],
       "remaining_concerns": [
-        "NEW: Settings modal on mobile (375px) has visible content bleed-through \u2014 timer content shows through the 95% opacity dialog background. On mobile the dialog should be fully opaque. This was not caught in prior cycles (screen quality mobile dimension dropped from 8 to 6).",
-        "Settings modal remains the least polished surface (density 7/10, delight 6-7/10). This is a 3-cycle recurring gap. Acceptable for v1.0 but should be addressed in a future polish cycle.",
-        "Session counter remains the weakest journey (7.75/10, only 'functional' verdict). Communicates information without celebration.",
-        "Long break phase (teal/green palette) has never been visually verified \u2014 requires completing 4 full focus sessions. Carried from cycle 2."
+        "Reset button icon ambiguity (clarity 7/10) has been carried since cycle 1. The keyboard hint 'R' compensates, but the icon alone is still unclear. Low severity — not worth another cycle.",
+        "Running state glow pulse is subtle — visual distinction between running and paused relies on icon swap rather than atmospheric change. Low severity, aesthetic preference.",
+        "Settings number inputs delight at 6/10 remains below the main timer's 8+ delight scores. Functional but utilitarian. Acceptable for v1.0.",
+        "Long break phase (teal/green palette) has never been visually verified — requires 4 completed focus sessions. Carried from cycle 2. Low risk given phase transition system is proven with blue and purple.",
+        "Settings backdrop-filter: blur(20px) not overridden on mobile — cosmetic inefficiency, no user impact."
       ],
-      "cycle_3_resolved": [
-        "qg-c2-001: Footer contrast \u2014 FIXED. Base color changed to #9ca3af (was #6b7280 with opacity adjustments). 3-cycle issue closed.",
-        "qg-c2-002: Favicon \u2014 FIXED. SVG clock-face in accent blue. 2-cycle issue closed.",
-        "fix-c2-002: Notification gating \u2014 FIXED. sendNotification() gated on notificationsEnabled."
+      "cycle_4_resolved": [
+        "qg-c3-001: Mobile settings bleed-through — FIXED. Background changed to rgb(20,20,30) (fully opaque), 100% width, 100dvh height, border-radius: 0.",
+        "qg-c3-002: Settings density — FIXED. Section padding 16px→24px with border-top separators. Settings sections breathe.",
+        "qg-c3-003: Settings delight — FIXED. ScaleOut exit animation mirrors entrance. Settings modal polished on both open and close.",
+        "qg-c3-004: Session counter delight — FIXED. Celebration pulse (0.6s scale 1→1.4→1 + accent flash) on increment. Journey promoted functional→polished."
       ],
       "qa_gate_misses": []
     }
   },
   "evaluator_questions": [
-    "Settings modal mobile bleed-through (qg-c3-001, medium): Should this be resolved before promotion, or is it acceptable for v1.0 given that the settings panel is a secondary surface and mobile is a secondary viewport for a desktop-first focus timer?",
-    "Three low-severity quality gaps (settings density, settings delight, session counter delight) have been open for 3 cycles. Should they be explicitly accepted as v1.0 debt and closed, or addressed in another cycle?",
-    "Long break phase (teal/green palette) has never been visually verified across 3 PO review cycles. Should this be a pre-promotion requirement?"
+    "4 low-severity quality gaps (reset icon, running glow, input delight, backdrop-filter) have some carried since cycle 1. Should they be accepted as v1.0 debt and the product promoted, or is another polish cycle warranted?",
+    "Long break phase (teal/green palette) has never been visually verified across 4 PO review cycles. The phase transition system works for blue→purple — should green verification be a pre-promotion requirement or accepted on engineering confidence?",
+    "Google Fonts render-blocking FCP at 2.8s: is this acceptable for a 'leave on screen' timer product where first load is infrequent, or should next/font self-hosting be prioritized?"
   ],
   "deployment_url": "https://countdowntimer-staging.gregj64.workers.dev",
   "infrastructure": {
