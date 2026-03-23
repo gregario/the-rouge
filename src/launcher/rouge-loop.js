@@ -31,18 +31,24 @@ const STATE_TO_PROMPT = {
   seeding: 'seeding/00-swarm-orchestrator.md',
   building: 'loop/01-building.md',
   'test-integrity': 'loop/02a-test-integrity.md',
-  'qa-gate': 'loop/02b-qa-gate.md',
+  // New observe-once, judge-through-lenses architecture (2026-03-23)
+  'code-review': 'loop/02c-code-review.md',
+  'product-walk': 'loop/02d-product-walk.md',
+  'evaluation': 'loop/02e-evaluation.md',
+  're-walk': 'loop/02f-re-walk.md',
+  // Legacy (commented out — kept for reference during migration)
+  // 'qa-gate': 'loop/02b-qa-gate.md',
+  // 'po-reviewing': 'loop/02c-po-review.md',
+  // 'po-review-journeys': 'loop/02c-po-review.md',
+  // 'po-review-screens': 'loop/02c-po-review.md',
+  // 'po-review-heuristics': 'loop/02c-po-review.md',
   'qa-fixing': 'loop/03-qa-fixing.md',
-  // PO review split into sub-phases (FIX-4)
-  'po-reviewing': 'loop/02c-po-review.md', // kept as fallback
-  'po-review-journeys': 'loop/02c-po-review.md',
-  'po-review-screens': 'loop/02c-po-review.md',
-  'po-review-heuristics': 'loop/02c-po-review.md',
   analyzing: 'loop/04-analyzing.md',
   'generating-change-spec': 'loop/05-change-spec-generation.md',
   'vision-checking': 'loop/06-vision-check.md',
   promoting: 'loop/07-ship-promote.md',
   'rolling-back': 'loop/07-ship-promote.md',
+  'final-review': 'loop/10-final-review.md',
 };
 
 // Default to opus; override with ROUGE_MODEL env var for testing
@@ -249,60 +255,67 @@ function advanceState(projectDir) {
     case 'test-integrity': {
       const ctx = readJson(contextFile);
       const verdict = ctx?.test_integrity_report?.verdict || 'PASS';
-      next = verdict === 'FAIL' ? 'test-integrity' : 'qa-gate';
+      next = verdict === 'FAIL' ? 'test-integrity' : 'code-review';
       if (verdict === 'FAIL') log(`[${projectName}] Test integrity FAIL — re-running`);
       break;
     }
 
-    // QA PASS → po-review sub-phases instead of monolithic po-reviewing
-    case 'qa-gate': {
-      // FW.40: Capture screenshots after QA gate (pass or fail)
+    case 'code-review':
+      next = 'product-walk';
+      break;
+
+    case 'product-walk': {
+      // Screenshots are now captured by the walk itself, but also capture via launcher for consistency
       try {
         const { captureScreenshots } = require('./capture-screenshots');
         const loopNum = state.cycle_number || 0;
         const screenshots = captureScreenshots(projectDir, loopNum);
-        log(`[${projectName}] Screenshots captured for loop ${loopNum}: ${screenshots.length}`);
         if (screenshots.length > 0) {
-          notifyRich('screenshots', {
-            project: projectName,
-            loop: loopNum,
-            count: screenshots.length,
-            screens: screenshots.map(s => s.name),
-          });
+          log(`[${projectName}] Screenshots captured for loop ${loopNum}: ${screenshots.length}`);
+          notifyRich('screenshots', { project: projectName, loop: loopNum, count: screenshots.length, screens: screenshots.map(s => s.name) });
         }
       } catch (err) {
         log(`[${projectName}] Screenshot capture failed: ${(err.message || '').slice(0, 100)}`);
       }
+      next = 'evaluation';
+      break;
+    }
 
+    case 'evaluation': {
       const ctx = readJson(contextFile);
-      const verdict = ctx?.qa_report?.verdict || 'PASS';
-      if (verdict === 'FAIL') {
+      // Check for re-walk requests (max 2 re-walks)
+      const reWalkRequests = ctx?.evaluation_report?.re_walk_requests || [];
+      if (reWalkRequests.length > 0 && !state.skip_re_walk && (state.re_walk_count || 0) < 2) {
+        next = 're-walk';
+        break;
+      }
+      // Reset re-walk tracking
+      state.re_walk_count = 0;
+      state.skip_re_walk = false;
+
+      // Check QA verdict (from backwards-compat qa_report)
+      const qaVerdict = ctx?.qa_report?.verdict || 'PASS';
+      if (qaVerdict === 'FAIL') {
         if ((state.qa_fix_attempts || 0) >= 3) {
           next = 'waiting-for-human';
-          log(`[${projectName}] QA failed 3 times — escalating`);
+          log(`[${projectName}] Evaluation FAIL 3 times — escalating`);
         } else {
           next = 'qa-fixing';
           state.qa_fix_attempts = (state.qa_fix_attempts || 0) + 1;
           writeJson(stateFile, state);
         }
       } else {
-        next = 'po-review-journeys'; // FIX-4: start with journeys sub-phase
+        next = 'analyzing';
       }
       break;
     }
 
-    // FIX-4: PO review sub-phase chain
-    case 'po-review-journeys':
-      next = 'po-review-screens';
+    case 're-walk': {
+      state.re_walk_count = (state.re_walk_count || 0) + 1;
+      writeJson(stateFile, state);
+      next = 'evaluation';
       break;
-
-    case 'po-review-screens':
-      next = 'po-review-heuristics';
-      break;
-
-    case 'po-review-heuristics':
-      next = 'analyzing'; // all sub-phases done → analyzing
-      break;
+    }
 
     case 'qa-fixing': {
       // Redeploy after fixes
@@ -315,10 +328,6 @@ function advanceState(projectDir) {
       next = 'test-integrity';
       break;
     }
-
-    case 'po-reviewing':
-      next = 'analyzing';
-      break;
 
     case 'analyzing': {
       const ctx = readJson(contextFile);
@@ -369,8 +378,8 @@ function advanceState(projectDir) {
         next = 'building';
         log(`[${projectName}] Advancing to feature area: ${nextArea}`);
       } else {
-        next = 'complete';
-        log(`[${projectName}] All feature areas complete!`);
+        next = 'final-review';
+        log(`[${projectName}] All feature areas complete — entering final review`);
       }
       break;
     }
@@ -378,6 +387,22 @@ function advanceState(projectDir) {
     case 'rolling-back':
       next = 'waiting-for-human';
       break;
+
+    case 'final-review': {
+      const ctx = readJson(contextFile);
+      const finalReport = ctx?.final_review_report;
+      if (finalReport?.production_ready || finalReport?.human_approved) {
+        next = 'complete';
+        log(`[${projectName}] Final review PASSED — shipping!`);
+      } else if (finalReport?.recommendation === 'major-rework') {
+        next = 'waiting-for-human';
+        log(`[${projectName}] Final review: major rework needed — escalating`);
+      } else {
+        next = 'generating-change-spec';
+        log(`[${projectName}] Final review: needs refinement — ${finalReport?.recommendation || 'refine'}`);
+      }
+      break;
+    }
   }
 
   if (next) {
@@ -415,7 +440,7 @@ async function runPhase(projectDir) {
 
     log(`[${projectName}] Feedback found, resuming from checkpoint`);
     const completed = state.completed_phases || [];
-    const pipeline = ['building', 'test-integrity', 'qa-gate', 'po-reviewing', 'analyzing', 'vision-checking', 'promoting'];
+    const pipeline = ['building', 'test-integrity', 'code-review', 'product-walk', 'evaluation', 'analyzing', 'vision-checking', 'promoting', 'final-review'];
     let resumeState = state.paused_from_state || 'building';
 
     if (completed.length > 0) {
@@ -487,26 +512,6 @@ async function runPhase(projectDir) {
 
     // Build the prompt instruction — add scope for PO review sub-phases
     let promptInstruction = `Read the phase prompt at ${promptFile} and execute it. The project directory is ${projectDir}. Read cycle_context.json and state.json for context.`;
-
-    // FW.44: Quick PO review mode — reduces scope for fast iteration
-    const quickMode = process.env.ROUGE_PO_QUICK === '1';
-
-    // FIX-4: Scope PO review sub-phases to specific sections
-    const poSubPhaseScope = {
-      'po-review-journeys': quickMode
-        ? 'QUICK MODE: Evaluate only the FIRST journey. Write journey_quality (1 entry) to po_review_report in cycle_context.json. Do NOT assess screens, interactions, or heuristics.'
-        : 'SCOPE: Only evaluate JOURNEY QUALITY (Sub-Check 7.1-7.4 from the prompt). Walk each journey as a first-time user, assess per-step quality. Write journey_quality to po_review_report in cycle_context.json. Do NOT assess screens, interactions, or heuristics — those are separate phases.',
-      'po-review-screens': quickMode
-        ? 'QUICK MODE: Evaluate only the HOME screen. Write screen_quality (1 entry) to po_review_report in cycle_context.json. Read journey_quality from prior sub-phase. Do NOT re-walk journeys or run heuristics.'
-        : 'SCOPE: Only evaluate SCREEN QUALITY (Sub-Check 8.1-8.3 from the prompt). Assess each screen for hierarchy, layout, consistency, density, mobile. Write screen_quality to po_review_report in cycle_context.json. Read journey_quality from prior sub-phase. Do NOT re-walk journeys or run heuristics.',
-      'po-review-heuristics': quickMode
-        ? 'QUICK MODE: Run ONLY Nielsen heuristics (skip Library-specific). Aggregate, generate verdict, confidence, recommended_action. Write final po_review_report to cycle_context.json. Read journey_quality and screen_quality from prior sub-phases.'
-        : 'SCOPE: Only evaluate HEURISTICS + GENERATE REPORT (Sub-Checks 10.1-11.6 from the prompt). Run Library heuristics, aggregate results, generate verdict, confidence, recommended_action. Write final po_review_report to cycle_context.json. Read journey_quality and screen_quality from prior sub-phases.',
-    };
-
-    if (poSubPhaseScope[currentState]) {
-      promptInstruction += '\n\n' + poSubPhaseScope[currentState];
-    }
 
     // FIX-6: Save state.json before phase — restore if phase overwrites it
     const stateBeforePhase = JSON.stringify(readJson(stateFile));
