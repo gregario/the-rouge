@@ -82,6 +82,81 @@ if (ti) {
 }
 
 // ============================================================================
+// Code Review Phase
+// ============================================================================
+console.log('\n🔍 CODE REVIEW PHASE');
+
+const cr = ctx.code_review_report;
+if (cr) {
+  check('Code review report exists', true);
+  check('Has code_quality_baseline', cr.code_quality_baseline != null);
+  check('Has ai_code_audit', cr.ai_code_audit != null);
+  if (cr.ai_code_audit) {
+    check('AI audit has score', typeof cr.ai_code_audit.score === 'number');
+    check('AI audit has dimensions', cr.ai_code_audit.dimensions != null);
+  }
+  if (cr.security_review) {
+    check('Security review has verdict', cr.security_review.verdict != null);
+  } else {
+    skipCheck('Security review', 'skipped (no backend) or legacy structure');
+  }
+} else {
+  skipCheck('Code review report', 'legacy structure or phase not yet reached');
+}
+
+// ============================================================================
+// Product Walk Phase
+// ============================================================================
+console.log('\n🚶 PRODUCT WALK PHASE');
+
+const walk = ctx.product_walk;
+if (walk) {
+  check('Product walk exists', true);
+  check('Has screens array', Array.isArray(walk.screens) && walk.screens.length > 0);
+  check('Has scope', walk.scope === 'full' || walk.scope === 'incremental');
+  check('Has screens_walked count', typeof walk.screens_walked === 'number');
+  if (walk.screens && walk.screens.length > 0) {
+    const s = walk.screens[0];
+    check('Screen has route', s.route != null);
+    check('Screen has screenshot', s.screenshot != null);
+    check('Screen has load_time_ms', typeof s.load_time_ms === 'number');
+  }
+  if (walk.journeys) {
+    check('Has journeys', Array.isArray(walk.journeys) && walk.journeys.length > 0);
+  } else {
+    skipCheck('Journey walks', 'no journeys defined or phase not yet reached');
+  }
+} else {
+  skipCheck('Product walk', 'legacy structure or phase not yet reached');
+}
+
+// ============================================================================
+// Evaluation Phase (three lenses)
+// ============================================================================
+console.log('\n📊 EVALUATION PHASE');
+
+const evalReport = ctx.evaluation_report;
+if (evalReport) {
+  check('Evaluation report exists', true);
+  check('Has QA section', evalReport.qa != null);
+  check('Has design section', evalReport.design != null);
+  check('Has PO section', evalReport.po != null);
+  check('Has health_score', typeof evalReport.health_score === 'number');
+  if (evalReport.qa) {
+    check('QA: has criteria_results', Array.isArray(evalReport.qa.criteria_results));
+  }
+  if (evalReport.design) {
+    check('Design: has overall_score', typeof evalReport.design.overall_score === 'number' || evalReport.design.design_review != null);
+  }
+  if (evalReport.po) {
+    check('PO: has verdict', evalReport.po.verdict != null);
+    check('PO: has confidence', typeof evalReport.po.confidence === 'number');
+  }
+} else {
+  skipCheck('Evaluation report', 'legacy structure or phase not yet reached');
+}
+
+// ============================================================================
 // QA Gate Phase
 // ============================================================================
 console.log('\n🔍 QA GATE PHASE');
@@ -214,6 +289,21 @@ if (promoteLog) {
   check('Promote log has content', promoteLog.length > 50);
 } else {
   skipCheck('Promote log', 'no log file');
+}
+
+// ============================================================================
+// Final Review Phase
+// ============================================================================
+console.log('\n🏁 FINAL REVIEW PHASE');
+
+const fr = ctx.final_review_report;
+if (fr) {
+  check('Final review report exists', true);
+  check('Has production_ready', typeof fr.production_ready === 'boolean');
+  check('Has recommendation', ['ship', 'refine', 'major-rework'].includes(fr.recommendation));
+  check('Has overall_impression', fr.overall_impression != null);
+} else {
+  skipCheck('Final review', 'phase not yet reached or not end-of-project');
 }
 
 // ============================================================================
