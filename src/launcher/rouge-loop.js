@@ -495,9 +495,19 @@ async function runPhase(projectDir) {
         return;
       }
 
-      // FIX-3 + FIX-10: Rate limit detection only from stderr, never stdout
+      // Rate limit detection — check stderr AND last 2KB of phase log (stdout)
+      // Claude CLI outputs "You've hit your limit" to stdout, not stderr
+      let rateLimitSource = null;
       if (isRateLimited(stderr)) {
-        log(`[${projectName}] Rate limited (detected in stderr)`);
+        rateLimitSource = 'stderr';
+      } else {
+        try {
+          const tail = fs.readFileSync(phaseLog, 'utf8').slice(-2000);
+          if (isRateLimited(tail)) rateLimitSource = 'stdout';
+        } catch {}
+      }
+      if (rateLimitSource) {
+        log(`[${projectName}] Rate limited (detected in ${rateLimitSource})`);
         resolve({ success: false, rateLimited: true });
         return;
       }
