@@ -255,11 +255,24 @@ function provisionSupabase(projectDir, projectName) {
       timeout: 60000,
     });
 
-    // Get the project ref — supabase outputs a table with the ref in the REFERENCE ID column
-    // Format: "| org-id | ref-id | name | region | date |"
-    const refMatch = result.match(/\|\s*\w+\s*\|\s*(\w{20})\s*\|/);
-    if (refMatch) {
-      const ref = refMatch[1];
+    // Get the project ref — try JSON list first (reliable), fall back to table parsing
+    let ref = null;
+    try {
+      const listJson = run(`supabase projects list -o json`);
+      const projects = JSON.parse(listJson);
+      // Most recently created project matching our name
+      const match = projects.find(p => p.name === projectName) || projects[0];
+      if (match) ref = match.id;
+    } catch {}
+
+    // Fallback: parse table output from create command
+    if (!ref) {
+      // Table format: "| ORG ID | REFERENCE ID | NAME | ..."
+      // Match the second 20-char column (ref-id) after the first (org-id)
+      const refMatch = result.match(/\|\s*\w+\s*\|\s*(\w{20})\s*\|/);
+      if (refMatch) ref = refMatch[1];
+    }
+    if (ref) {
       log(`Supabase: project created (ref: ${ref})`);
 
       // Get API keys
