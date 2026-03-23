@@ -807,14 +807,29 @@ async function main() {
         if (retries >= MAX_RETRIES) {
           log(`[${projectName}] Max retries reached. Transitioning to waiting-for-human.`);
           const stateFile = path.join(projectDir, 'state.json');
+          const contextFile = path.join(projectDir, 'cycle_context.json');
           const state = readJson(stateFile);
+          const ctx = readJson(contextFile);
           if (state) {
             state.paused_from_state = state.current_state;
             state.current_state = 'waiting-for-human';
             state.timestamp = new Date().toISOString();
             writeJson(stateFile, state);
           }
-          notifyRich('escalation', { project: projectName, phase: state.current_state, reason: `Failed ${MAX_RETRIES} times` });
+          // Rich escalation with cycle context for efficient human triage
+          notifyRich('escalation', {
+            project: projectName,
+            phase: state?.paused_from_state || 'unknown',
+            reason: `Failed ${MAX_RETRIES} times`,
+            context: {
+              cycle: state?.cycle_number,
+              featureArea: state?.current_feature_area,
+              healthScore: ctx?.qa_report?.health_score,
+              confidence: ctx?.po_review_report?.confidence,
+              lastProgress: ctx?.evaluator_observations?.slice(-1)?.[0],
+              completedPhases: state?.completed_phases,
+            },
+          });
         }
 
         await sleep(30000); // 30s between real retries
