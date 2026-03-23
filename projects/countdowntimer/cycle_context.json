@@ -556,19 +556,17 @@
     "po_check_coverage_pct": 100,
     "total_criteria": 37,
     "total_po_checks": 0,
-    "total_tests": 89,
-    "orphaned_count": 6,
+    "total_tests": 90,
+    "orphaned_count": 4,
     "orphaned_removed": [
-      "AC-c3-footer-contrast",
-      "AC-c3-notification-gating",
-      "AC-c3-favicon",
-      "AC-c3-datetime",
-      "AC-c3-dead-code-cleanup",
-      "AC-c3-settings-spacing"
+      "AC-counter-celebrate-1",
+      "AC-settings-mobile-1",
+      "AC-settings-spacing-1",
+      "AC-settings-anim-1"
     ],
     "orphaned_renamed": [],
     "stale_regenerated_count": 0,
-    "newly_generated_count": 0,
+    "newly_generated_count": 1,
     "test_suite_pass": true,
     "verdict": "PASS"
   },
@@ -585,7 +583,8 @@
     "PO Review (cycle 2): Verdict PRODUCTION_READY, confidence 0.86. Journey quality 8.42/10 (6 polished, 1 functional), screen quality 8.77/10 (3 polished). Heuristic pass rate 92.9% (39/42, up from 73.8% — 8 of 11 failures resolved). 4 quality gaps: 1 medium (footer contrast recurring, partial fix), 3 low (favicon, settings density, settings delight). All carried from cycle 1. Confidence breakdown: journey 2.526/3.0, screen 1.754/2.0, heuristic 1.858/2.0, spec 1.425/1.5, reference 1.05/1.5 (neutral default). The reference_comparison drag (7.0 neutral) accounts for ~0.03 of the gap to 0.9 threshold. Key improvements: heuristic pass rate +19.1pp, health score +14 (68→82), AI code audit +4 (87→91), design review +2 (82→84).",
     "Analysis (cycle 2): Recommendation DEEPEN:SETTINGS-POLISH-AND-FINAL-FIXES. Confidence 0.86, trending improving (+0.03 from 0.83). PO verdict is PRODUCTION_READY but confidence < 0.9 PROMOTE threshold. Root cause breakdown: 2 implementation_bug (footer contrast partial fix, notification gating oversight — both QA coverage gaps), 1 spec_ambiguity (favicon not in spec), 2 design_choice (settings density and delight — deferred 2 cycles). Cross-cycle patterns: footer contrast recurring 2 cycles (opacity approach failed, must change base color to #9ca3af with do_not_repeat directive), settings polish deferred 2 cycles (acceptable prioritization but must be addressed or accepted now). 5 change spec briefs: 2 medium implementation fixes (footer contrast with explicit do_not_repeat, notification gating), 1 low spec_ambiguity requiring design mode (favicon), 2 low design_choice requiring design mode (settings density + delight). The product is very close to promotion — fixing the 2 medium items alone could push confidence toward 0.9 if combined with resolving the reference_comparison structural gap. No escalations.",
     "Test Integrity (cycle 3): All 37 seed-spec acceptance criteria remain covered with matching SHA-256 hashes — zero coverage gaps, zero stale tests. Removed 6 orphaned criteria in cycle3-fixes.test.tsx (AC-c3-footer-contrast, AC-c3-notification-gating, AC-c3-favicon, AC-c3-datetime, AC-c3-dead-code-cleanup, AC-c3-settings-spacing). These were cycle 3 build-phase tests using non-spec criterion IDs that were never added to active_spec. Deleted the entire file as all tests within it were orphaned. No fuzzy matches to existing spec criteria. The underlying cycle 3 fixes (footer contrast, notification gating, favicon, datetime attribute, dead code cleanup, settings spacing) remain in production code — they are tested indirectly by existing spec-traced tests or are implementation details not requiring spec coverage. Post-remediation: 9 test files, 89 tests, all passing. Spec coverage 100%, PO check coverage 100%. Verdict: PASS.",
-    "PO Review (cycle 3): Verdict PRODUCTION_READY, confidence 0.88. Journey quality 8.40/10 (6 polished, 1 functional — stable), screen quality 8.67/10 (2 polished, 1 functional — slight dip from mobile settings discovery). Heuristic pass rate 97.6% (41/42, up from 92.9% — 2 of 3 remaining failures resolved: favicon added, footer contrast fixed). Spec compliance 100% (67/67, up from 98.5%). 4 quality gaps: 1 medium (NEW: settings modal mobile bleed-through at 375px — timer content visible through 95% opacity dialog), 3 low (settings density, settings delight, session counter delight — all recurring 3 cycles). 2 prior gaps RESOLVED: footer contrast definitively fixed (base color #9ca3af), favicon added (SVG clock-face). Confidence breakdown: journey 2.520/3.0, screen 1.734/2.0, heuristic 1.952/2.0, spec 1.500/1.5, reference 1.050/1.5 (neutral default). Confidence trend improving: 0.83 → 0.86 → 0.88. Recommended action: continue (ship it)."
+    "PO Review (cycle 3): Verdict PRODUCTION_READY, confidence 0.88. Journey quality 8.40/10 (6 polished, 1 functional — stable), screen quality 8.67/10 (2 polished, 1 functional — slight dip from mobile settings discovery). Heuristic pass rate 97.6% (41/42, up from 92.9% — 2 of 3 remaining failures resolved: favicon added, footer contrast fixed). Spec compliance 100% (67/67, up from 98.5%). 4 quality gaps: 1 medium (NEW: settings modal mobile bleed-through at 375px — timer content visible through 95% opacity dialog), 3 low (settings density, settings delight, session counter delight — all recurring 3 cycles). 2 prior gaps RESOLVED: footer contrast definitively fixed (base color #9ca3af), favicon added (SVG clock-face). Confidence breakdown: journey 2.520/3.0, screen 1.734/2.0, heuristic 1.952/2.0, spec 1.500/1.5, reference 1.050/1.5 (neutral default). Confidence trend improving: 0.83 → 0.86 → 0.88. Recommended action: continue (ship it).",
+    "Test Integrity (cycle 4): All 37 seed-spec acceptance criteria covered with matching SHA-256 hashes — zero coverage gaps after remediation, zero stale tests. Generated 1 new test for AC-transition-4 (timer drift resistance — verifies Date.now()-based elapsed calculation architecture). Removed 4 orphaned tests: AC-counter-celebrate-1 (SessionCounter celebration animation), AC-settings-mobile-1 (mobile dialog opacity), AC-settings-spacing-1 (section spacing), AC-settings-anim-1 (modal close animation). These were cycle 3/4 build-phase enhancements using non-spec criterion IDs never added to active_spec. The underlying functionality remains in production code — tested indirectly by existing spec-traced tests or are implementation details not requiring spec coverage. Post-remediation: 9 test files, 90 tests, all passing. Spec coverage 100%, PO check coverage 100%. Verdict: PASS."
   ],
   "qa_report": {
     "verdict": "PASS",
