@@ -67,6 +67,7 @@ export default function Home() {
           phase={timer.cycle.phase}
           displayTime={displayTime}
           isRunning={timer.status === 'running'}
+          remainingMs={timer.remainingMs}
         />
 
         <div className={styles.controlsArea}>
