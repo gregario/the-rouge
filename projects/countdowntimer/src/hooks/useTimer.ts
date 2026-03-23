@@ -61,10 +61,12 @@ export function useTimer(): UseTimerReturn {
         playChime(s.soundVolume);
       }
       const next = nextPhase(prev.cycle, s, wasSkipped);
-      sendNotification(
-        `${phaseLabel(completedPhase)} complete`,
-        `${phaseLabel(next.phase)} starting${shouldAutoStart(next.phase, s) ? '' : ' — press start'}.`
-      );
+      if (s.notificationsEnabled) {
+        sendNotification(
+          `${phaseLabel(completedPhase)} complete`,
+          `${phaseLabel(next.phase)} starting${shouldAutoStart(next.phase, s) ? '' : ' — press start'}.`
+        );
+      }
 
       const totalMs = phaseDurationMs(next.phase, s);
       const autoStart = shouldAutoStart(next.phase, s);
