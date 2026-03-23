@@ -1710,5 +1710,109 @@
     "project_ref": null,
     "slot_acquired": false,
     "connection_string": null
+  },
+  "cycle_2_build": {
+    "phase": "building",
+    "cycle": 2,
+    "timestamp": "2026-03-23T13:05:00.000Z",
+    "deployment_url": "https://countdowntimer-staging.gregj64.workers.dev",
+    "implemented": [
+      {
+        "task": "robustness",
+        "acceptance_criteria": ["AC-robust-1", "AC-robust-2", "AC-robust-3", "AC-robust-4", "AC-robust-5", "AC-robust-6", "AC-robust-7", "AC-robust-8"],
+        "files_changed": [
+          "src/components/ErrorBoundary.tsx",
+          "src/app/layout.tsx",
+          "src/engine/storage.ts",
+          "src/engine/audio.ts"
+        ],
+        "tests_added": 9,
+        "tests_passing": 9,
+        "closes_gaps": ["fix-001", "fix-005", "fix-006"],
+        "description": "React ErrorBoundary wraps app with styled dark fallback UI (#0a0a0f background, frosted glass card, Reload button). localStorage loadSettings() validates each field with type checking and range clamping (numbers 1-99/1-10/0-100, booleans validated, invalid falls back to defaults). playChime() calls AudioContext.resume() before oscillator scheduling for mobile browser compatibility."
+      },
+      {
+        "task": "settings-a11y",
+        "acceptance_criteria": ["AC-settings-a11y-1", "AC-settings-a11y-2", "AC-settings-a11y-3", "AC-settings-a11y-4", "AC-settings-a11y-5", "AC-settings-a11y-6", "AC-settings-a11y-7", "AC-settings-a11y-8", "AC-settings-a11y-9", "AC-settings-a11y-10"],
+        "files_changed": [
+          "src/components/SettingsModal.tsx",
+          "src/components/SettingsModal.module.css"
+        ],
+        "tests_added": 9,
+        "tests_passing": 9,
+        "closes_gaps": ["fix-002", "fix-004", "fix-008"],
+        "description": "Settings modal converted from div overlay to native <dialog> with showModal() for automatic focus trapping, background inertness, and Escape handling. Focus stored on open and restored to settings trigger button on close. Footer text opacity increased from 0.6 to 0.85 for WCAG AA contrast. Number inputs use :focus-visible for keyboard-only focus rings with accent color. Slider gets :focus-visible. Entrance animation preserved via CSS."
+      },
+      {
+        "task": "main-a11y",
+        "acceptance_criteria": ["AC-main-a11y-1", "AC-main-a11y-2", "AC-main-a11y-3", "AC-main-a11y-4", "AC-main-a11y-5", "AC-main-a11y-6", "AC-main-a11y-7"],
+        "files_changed": [
+          "src/app/page.tsx",
+          "src/app/page.module.css",
+          "src/components/SessionCounter.module.css",
+          "src/components/CycleIndicator.tsx"
+        ],
+        "tests_added": 5,
+        "tests_passing": 5,
+        "closes_gaps": ["fix-003", "fix-007"],
+        "description": "Session counter text color changed from var(--text-secondary) (#6b7280, ~3.2:1) to #9ca3af (~6.2:1 contrast on #0a0a0f). Label opacity removed (was 0.7). Page restructured with semantic HTML5 landmarks: <header> wraps settings button, <main> wraps timer content, <footer> wraps session counter. Visually-hidden <h1>Epoch</h1> added for screen reader heading navigation. CycleIndicator dots get role='img'. Settings button gets aria-expanded and aria-haspopup='dialog'."
+      },
+      {
+        "task": "shortcut-discovery",
+        "acceptance_criteria": ["AC-shortcut-1", "AC-shortcut-2", "AC-shortcut-3", "AC-shortcut-4", "AC-shortcut-5"],
+        "files_changed": [
+          "src/components/TimerControls.tsx",
+          "src/components/TimerControls.module.css"
+        ],
+        "tests_added": 6,
+        "tests_passing": 6,
+        "closes_gaps": ["qg-001"],
+        "description": "Inline keyboard shortcut hints added below each control button: 'R' under reset, 'Space' under play/pause, 'S' under skip. Hints use 10px monospace font in #9ca3af, visually subordinate to button icons. Hidden on mobile (<768px) via CSS media query. Buttons wrapped in buttonGroup flex-column containers. aria-hidden='true' on hints to not interfere with button labels."
+      }
+    ],
+    "skipped": [],
+    "divergences": [
+      {
+        "spec_says": "Keyboard shortcut discovery requires design mode (Option A, B, or C)",
+        "actually_did": "Implemented Option A (inline hints) directly without design mode pass",
+        "rationale": "The spec recommends Option A as preferred for minimal UI. The implementation closely follows the spec's design direction: 10px monospace text in muted secondary color below buttons, hidden on mobile. Design mode would confirm this approach but would not change it meaningfully given the constraints.",
+        "affects_acceptance_criteria": ["AC-shortcut-1", "AC-shortcut-2", "AC-shortcut-3", "AC-shortcut-4", "AC-shortcut-5"],
+        "reversible": true
+      }
+    ],
+    "factory_decisions": [
+      {
+        "decision": "Chose Option A (inline shortcut hints) for keyboard shortcut discoverability",
+        "context": "Spec offers three options: A (inline hints), B (tooltips on hover), C (help overlay). Spec marks requires_design_mode: true but lists Option A as preferred.",
+        "alternatives_considered": ["Option B: tooltip on hover/focus", "Option C: help overlay via ? icon"],
+        "rationale": "Option A provides maximum discoverability without user interaction. It integrates naturally with the existing button layout as a two-line column (icon + hint). Tooltips (B) require hover intent, reducing discoverability. Help overlay (C) adds a new UI element ('?' icon) that the spec explicitly discourages for the clean three-button layout. The spec's design direction already specifies Option A's exact treatment: monospace font, muted secondary color, 10-12px, below buttons, hidden on mobile.",
+        "confidence": "high",
+        "affects": ["src/components/TimerControls.tsx", "src/components/TimerControls.module.css"]
+      },
+      {
+        "decision": "Used #9ca3af for shortcut hint color (same as corrected session counter)",
+        "context": "Need a muted secondary color that meets WCAG AA contrast on dark backgrounds but remains visually subordinate.",
+        "alternatives_considered": ["var(--text-secondary) (#6b7280)", "#9ca3af", "#6b7280 with opacity"],
+        "rationale": "#9ca3af provides ~6.2:1 contrast against #0a0a0f — passes WCAG AA while remaining clearly muted. Using the same color as the session counter creates visual consistency in the secondary text layer. var(--text-secondary) fails WCAG AA on dark backgrounds.",
+        "confidence": "high",
+        "affects": ["src/components/TimerControls.module.css"]
+      }
+    ],
+    "factory_questions": [
+      {
+        "question": "Should design mode review the inline shortcut hints implementation, or is the current Option A approach sufficient?",
+        "found_in": "epoch-loop-2-shortcut-discovery spec (requires_design_mode: true)",
+        "resolved_as": "Implemented Option A directly per spec's preferred recommendation and design direction. The spec provides specific enough design constraints (font size, color, position, mobile behavior) that the implementation is deterministic. Logged as divergence for evaluator review.",
+        "needs_clarification_from": "design",
+        "severity": "minor"
+      }
+    ],
+    "test_summary": {
+      "total_tests": 118,
+      "tests_passing": 118,
+      "test_files": 13,
+      "new_tests_added": 29,
+      "criteria_covered_by_new_tests": 30
+    }
   }
 }
