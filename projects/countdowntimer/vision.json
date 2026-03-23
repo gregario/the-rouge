@@ -1,0 +1,45 @@
+{
+  "name": "Epoch",
+  "tagline": "Time, designed.",
+  "one_liner": "A focus timer that's beautiful enough to leave on screen.",
+  "domain": "web",
+  "type": "single_page_app",
+  "emotional_north_star": "From 'where did the last 3 hours go?' to 'I can see my focus happening.'",
+  "target_user": {
+    "who": "Knowledge workers who do focused work — developers, designers, writers, students",
+    "behavior": "Already familiar with the Pomodoro technique. Have tried timer apps and found them either ugly or bloated.",
+    "trigger": "Sitting down to do deep work and wanting structure without friction",
+    "need": "A timer that respects their attention: starts fast, looks great on screen, gets out of the way"
+  },
+  "design_philosophy": {
+    "aesthetic": "Techno-futuristic, clean, shiny. Frosted glass, subtle glows, precise typography.",
+    "references": "Linear's design language meets a high-end watch face. Dieter Rams meets a spaceship.",
+    "dark_first": true,
+    "personality": "Opinionated, atmospheric, crafted. Not a utility — a focus object."
+  },
+  "competitive_position": {
+    "gap": "No web-first Pomodoro timer exists with premium, futuristic design. The category design bar is on the floor.",
+    "differentiator": "Optimizes for presence — how it feels on your screen — not for features.",
+    "competitors_reviewed": ["pomofocus.io", "tomato-timer.com", "pomidor.app", "flocus", "forest", "marinara-timer", "session"]
+  },
+  "scope_decisions": [
+    {"area": "Visual design", "decision": "Atmospheric and opinionated (not utility, not themeable)", "reason": "The design IS the product"},
+    {"area": "Persistence", "decision": "Light localStorage (settings + daily count)", "reason": "Sweet spot between ephemeral and full tracking"},
+    {"area": "Audio", "decision": "Subtle transition chime + optional browser notification", "reason": "Essential for usability without competing with user's music"},
+    {"area": "Settings", "decision": "Full Pomodoro config set, no theme picker", "reason": "Complete without diluting the locked-down aesthetic"},
+    {"area": "Name", "decision": "Epoch", "reason": "Bold, futuristic, evokes a period of focused time"}
+  ],
+  "out_of_scope": [
+    "User accounts",
+    "Session history beyond today",
+    "Visual themes",
+    "Ambient soundscapes",
+    "Task labels or to-do lists",
+    "Third-party integrations",
+    "Mobile native app"
+  ],
+  "build_estimate": {
+    "human_team": "~1.5 weeks",
+    "rouge_cycles": 1
+  }
+}

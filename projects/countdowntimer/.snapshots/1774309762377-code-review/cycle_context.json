@@ -10,7 +10,7 @@
     "type": "single_page_app",
     "emotional_north_star": "From 'where did the last 3 hours go?' to 'I can see my focus happening.'",
     "target_user": {
-      "who": "Knowledge workers who do focused work — developers, designers, writers, students",
+      "who": "Knowledge workers who do focused work \u2014 developers, designers, writers, students",
       "behavior": "Already familiar with the Pomodoro technique. Have tried timer apps and found them either ugly or bloated.",
       "trigger": "Sitting down to do deep work and wanting structure without friction",
       "need": "A timer that respects their attention: starts fast, looks great on screen, gets out of the way"
@@ -19,11 +19,11 @@
       "aesthetic": "Techno-futuristic, clean, shiny. Frosted glass, subtle glows, precise typography.",
       "references": "Linear's design language meets a high-end watch face. Dieter Rams meets a spaceship.",
       "dark_first": true,
-      "personality": "Opinionated, atmospheric, crafted. Not a utility — a focus object."
+      "personality": "Opinionated, atmospheric, crafted. Not a utility \u2014 a focus object."
     },
     "competitive_position": {
       "gap": "No web-first Pomodoro timer exists with premium, futuristic design. The category design bar is on the floor.",
-      "differentiator": "Optimizes for presence — how it feels on your screen — not for features.",
+      "differentiator": "Optimizes for presence \u2014 how it feels on your screen \u2014 not for features.",
       "competitors_reviewed": [
         "pomofocus.io",
         "tomato-timer.com",
@@ -378,7 +378,7 @@
       "closes_gaps": [
         "qg-c3-003"
       ],
-      "description": "Added scaleOut exit animation (0.2s, scale 1→0.95 + fade) mirroring the entrance scaleIn. Dialog receives data-closing attribute during close animation, then closes after animationend (with 250ms fallback for reduced motion). Settings modal now feels polished on both open and close."
+      "description": "Added scaleOut exit animation (0.2s, scale 1\u21920.95 + fade) mirroring the entrance scaleIn. Dialog receives data-closing attribute during close animation, then closes after animationend (with 250ms fallback for reduced motion). Settings modal now feels polished on both open and close."
     },
     {
       "task": "session-counter-celebration",
@@ -394,7 +394,7 @@
       "closes_gaps": [
         "qg-c3-004"
       ],
-      "description": "Session counter number now pulses with a 0.6s scale-up (1→1.4→1) and accent color flash when the count increases. Uses useRef to track previous count, only triggers on live increments (not initial render or refresh). Animation uses phase accent color via CSS variable for theme coherence."
+      "description": "Session counter number now pulses with a 0.6s scale-up (1\u21921.4\u21921) and accent color flash when the count increases. Uses useRef to track previous count, only triggers on live increments (not initial render or refresh). Animation uses phase accent color via CSS variable for theme coherence."
     },
     {
       "task": "dead-code-cleanup",
@@ -412,7 +412,7 @@
   "divergences": [
     {
       "spec_says": "Timer displays MM:SS in monospace font >= 72px",
-      "actually_did": "Timer uses clamp(72px, 15vw, 120px) — minimum 72px on small screens, max 120px on large",
+      "actually_did": "Timer uses clamp(72px, 15vw, 120px) \u2014 minimum 72px on small screens, max 120px on large",
       "rationale": "Responsive scaling within spec range. The spec says 80-120px range but also >= 72px. Used 72px floor for small viewports while keeping 120px max.",
       "affects_acceptance_criteria": [
         "AC-display-1"
@@ -437,7 +437,7 @@
         "Pre-recorded .mp3/.ogg audio file",
         "Web Audio API oscillator synthesis"
       ],
-      "rationale": "Synthesized audio is zero-dependency (no audio file to load), matches the futuristic aesthetic, keeps bundle tiny. Two-tone sine wave at 880Hz→1760Hz with gain decay produces a clean crystalline sound.",
+      "rationale": "Synthesized audio is zero-dependency (no audio file to load), matches the futuristic aesthetic, keeps bundle tiny. Two-tone sine wave at 880Hz\u21921760Hz with gain decay produces a clean crystalline sound.",
       "confidence": "high",
       "affects": [
         "src/engine/audio.ts"
@@ -451,7 +451,7 @@
         "CSS-in-JS (styled-components)",
         "CSS Modules"
       ],
-      "rationale": "CSS Modules provide zero-runtime overhead, natural CSS syntax for complex effects (backdrop-filter, radial gradients, keyframe animations), and scoped naming. The spec gives exact CSS values — modules let us use them directly.",
+      "rationale": "CSS Modules provide zero-runtime overhead, natural CSS syntax for complex effects (backdrop-filter, radial gradients, keyframe animations), and scoped naming. The spec gives exact CSS values \u2014 modules let us use them directly.",
       "confidence": "high",
       "affects": [
         "all .module.css files"
@@ -532,21 +532,21 @@
     {
       "question": "Spec says 'debounced' for double-tap on controls, but doesn't specify debounce duration",
       "found_in": "seed_spec/02-timer-controls.md, Edge Cases",
-      "resolved_as": "React's state update batching naturally prevents double-action. No explicit debounce added — the toggle between start/pause is idempotent by design.",
+      "resolved_as": "React's state update batching naturally prevents double-action. No explicit debounce added \u2014 the toggle between start/pause is idempotent by design.",
       "needs_clarification_from": "spec",
       "severity": "minor"
     },
     {
       "question": "Multi-tab coordination strategy not specified beyond 'only one should be active'",
       "found_in": "seed_spec/05-transition-feedback.md, Edge Cases",
-      "resolved_as": "Deferred — each tab runs independently. BroadcastChannel or localStorage events could coordinate, but adds complexity for an uncommon edge case.",
+      "resolved_as": "Deferred \u2014 each tab runs independently. BroadcastChannel or localStorage events could coordinate, but adds complexity for an uncommon edge case.",
       "needs_clarification_from": "design",
       "severity": "minor"
     },
     {
       "question": "Session counter celebration animation color: should it use --accent (phase-dependent) or a fixed celebration color?",
       "found_in": "qg-c3-004 change_spec_brief approach_hint: \"accent color flash on increment\"",
-      "resolved_as": "Used var(--accent) — the phase-dependent accent color. When completing a focus session, the counter pulses in blue (#4a9eff). If this were during a break, it would pulse in the break color. This ties the celebration to the current phase context, which is more cohesive.",
+      "resolved_as": "Used var(--accent) \u2014 the phase-dependent accent color. When completing a focus session, the counter pulses in blue (#4a9eff). If this were during a break, it would pulse in the break color. This ties the celebration to the current phase context, which is more cohesive.",
       "needs_clarification_from": "design",
       "severity": "minor"
     }
@@ -640,7 +640,7 @@
         "id": "AC-controls-3",
         "criterion": "Skip advances to next phase",
         "status": "pass",
-        "evidence": "Browser confirmed: Skip from Focus → SHORT BREAK at 05:00 with purple color scheme. Auto-start engaged."
+        "evidence": "Browser confirmed: Skip from Focus \u2192 SHORT BREAK at 05:00 with purple color scheme. Auto-start engaged."
       },
       {
         "id": "AC-controls-4",
@@ -664,7 +664,7 @@
         "id": "AC-cycle-1",
         "criterion": "Correct Pomodoro sequence (F-SB-F-SB-F-SB-F-LB)",
         "status": "pass",
-        "evidence": "Engine unit tests verify full 8-phase cycle. Browser Skip confirmed F→SB transitions."
+        "evidence": "Engine unit tests verify full 8-phase cycle. Browser Skip confirmed F\u2192SB transitions."
       },
       {
         "id": "AC-cycle-2",
@@ -730,7 +730,7 @@
         "id": "AC-transition-1",
         "criterion": "Chime plays when phase ends",
         "status": "pass",
-        "evidence": "Web Audio API synthesis (880Hz→1760Hz sine wave) triggered in handlePhaseComplete."
+        "evidence": "Web Audio API synthesis (880Hz\u21921760Hz sine wave) triggered in handlePhaseComplete."
       },
       {
         "id": "AC-transition-2",
@@ -832,13 +832,13 @@
         "id": "AC-robust-4",
         "criterion": "localStorage corrupted number handled",
         "status": "pass",
-        "evidence": "validateSettings uses clampNumber: typeof !== 'number' || isNaN → returns fallback."
+        "evidence": "validateSettings uses clampNumber: typeof !== 'number' || isNaN \u2192 returns fallback."
       },
       {
         "id": "AC-robust-5",
         "criterion": "localStorage out-of-range values clamped",
         "status": "pass",
-        "evidence": "clampNumber(999, 1, 99, 25) → Math.max(1, Math.min(99, 999)) = 99."
+        "evidence": "clampNumber(999, 1, 99, 25) \u2192 Math.max(1, Math.min(99, 999)) = 99."
       },
       {
         "id": "AC-robust-6",
@@ -922,7 +922,7 @@
         "id": "AC-main-a11y-1",
         "criterion": "Session counter text meets WCAG AA contrast",
         "status": "pass",
-        "evidence": ".counter { color: #9ca3af; } — ~6.2:1 against #0a0a0f. Passes WCAG AA."
+        "evidence": ".counter { color: #9ca3af; } \u2014 ~6.2:1 against #0a0a0f. Passes WCAG AA."
       },
       {
         "id": "AC-main-a11y-2",
@@ -970,7 +970,7 @@
         "id": "AC-shortcut-2",
         "criterion": "Shortcut hints meet WCAG AA contrast",
         "status": "pass",
-        "evidence": ".shortcutHint { color: #9ca3af; } — ~6.2:1 on dark background. Passes WCAG AA."
+        "evidence": ".shortcutHint { color: #9ca3af; } \u2014 ~6.2:1 on dark background. Passes WCAG AA."
       },
       {
         "id": "AC-shortcut-3",
@@ -997,7 +997,7 @@
       "partial": 0,
       "failed": 0,
       "pass_rate_pct": 100,
-      "note": "All 67 criteria pass. Regression clean — all cycle 2/3 fixes verified (footer contrast, notification gating, favicon, datetime, focus trap, landmarks)."
+      "note": "All 67 criteria pass. Regression clean \u2014 all cycle 2/3 fixes verified (footer contrast, notification gating, favicon, datetime, focus trap, landmarks)."
     },
     "functional_correctness": {
       "pages_checked": 1,
@@ -1018,19 +1018,19 @@
           "seo": 100
         }
       },
-      "note": "Fresh Lighthouse run via npx lighthouse (headless Chrome). A11y jumped 89→100 (cycle 2/3 fixes), best practices 96→100, SEO stable at 100, performance stable at 91. FCP at 2.8s due to render-blocking Google Fonts @import.",
+      "note": "Fresh Lighthouse run via npx lighthouse (headless Chrome). A11y jumped 89\u2192100 (cycle 2/3 fixes), best practices 96\u2192100, SEO stable at 100, performance stable at 91. FCP at 2.8s due to render-blocking Google Fonts @import.",
       "flagged": [],
       "lighthouse_issues": [
         "Google Fonts @import render-blocking: 1,940ms estimated savings",
-        "FCP 2.8s (score 56) — driven by render-blocking fonts, not code",
+        "FCP 2.8s (score 56) \u2014 driven by render-blocking fonts, not code",
         "Unused JS: 20 KiB estimated savings",
         "Legacy JS: 11 KiB estimated savings"
       ],
       "vs_previous_cycle": {
-        "performance": "91 → 91 (stable)",
-        "accessibility": "89 → 100 (+11, fixed in cycles 2-3)",
-        "best_practices": "96 → 100 (+4)",
-        "seo": "100 → 100 (stable)"
+        "performance": "91 \u2192 91 (stable)",
+        "accessibility": "89 \u2192 100 (+11, fixed in cycles 2-3)",
+        "best_practices": "96 \u2192 100 (+4)",
+        "seo": "100 \u2192 100 (stable)"
       }
     },
     "code_quality_baseline": {
@@ -1059,17 +1059,17 @@
         "moderate": 5,
         "low": 0,
         "info": 0,
-        "detail": "esbuild <=0.24.2 via vite/vitest chain — dev dependencies only, no production exposure"
+        "detail": "esbuild <=0.24.2 via vite/vitest chain \u2014 dev dependencies only, no production exposure"
       },
       "vs_previous_cycle": {
-        "total_ts_tsx_lines": "947 → 1006 (+59: celebration animation, close animation, mobile fullscreen)",
-        "max_file_lines": "194 → 236 (SettingsModal.module.css, +42 from mobile fullscreen, close animation, section spacing)",
-        "dead_code_items": "5 → 3 (-2: removed validateSettings and UseTimerReturn unused exports)",
-        "tests": "89 → 90 (+1: AC-transition-4 drift resistance test)"
+        "total_ts_tsx_lines": "947 \u2192 1006 (+59: celebration animation, close animation, mobile fullscreen)",
+        "max_file_lines": "194 \u2192 236 (SettingsModal.module.css, +42 from mobile fullscreen, close animation, section spacing)",
+        "dead_code_items": "5 \u2192 3 (-2: removed validateSettings and UseTimerReturn unused exports)",
+        "tests": "89 \u2192 90 (+1: AC-transition-4 drift resistance test)"
       }
     },
     "code_quality_warning": false,
-    "code_quality_warning_detail": "No degradation triggers met. Dead code decreased 5→3 (improvement). Duplication 0% unchanged. Circular deps 0 unchanged. Coverage N/A (no c8 installed). Files >300 lines: 0 unchanged.",
+    "code_quality_warning_detail": "No degradation triggers met. Dead code decreased 5\u21923 (improvement). Duplication 0% unchanged. Circular deps 0 unchanged. Coverage N/A (no c8 installed). Files >300 lines: 0 unchanged.",
     "ai_code_audit": {
       "score": 90,
       "dimensions": {
@@ -1077,9 +1077,9 @@
           "score": 88,
           "weight": "20%",
           "findings": [
-            "MEDIUM: SettingsModal contains Notification.requestPermission() directly in UI component (lines 87-95) — browser-API side effect belongs in engine layer",
+            "MEDIUM: SettingsModal contains Notification.requestPermission() directly in UI component (lines 87-95) \u2014 browser-API side effect belongs in engine layer",
             "LOW: handlePhaseComplete reads from storage inside setState callback (loadDailyCount in useTimer.ts:54)",
-            "LOW: onClose callback created inline in page.tsx (line 93) — new reference each render causes close event listener re-registration"
+            "LOW: onClose callback created inline in page.tsx (line 93) \u2014 new reference each render causes close event listener re-registration"
           ]
         },
         "consistency": {
@@ -1094,17 +1094,17 @@
           "score": 84,
           "weight": "15%",
           "findings": [
-            "MEDIUM: SessionCounter dual-useEffect pattern for prevCountRef (lines 14-26) is fragile — both effects fire on count change, ordering matters. Single effect with ref update at the end would be cleaner.",
+            "MEDIUM: SessionCounter dual-useEffect pattern for prevCountRef (lines 14-26) is fragile \u2014 both effects fire on count change, ordering matters. Single effect with ref update at the end would be cleaner.",
             "MEDIUM: SettingsModal close animation fallback setTimeout (line 41) may call onEnd after animationend already fired. dialog.close() is safe as no-op, but focus side effect runs twice (second is harmless: previousFocusRef already null).",
             "LOW: Volume slider parseInt without secondary clamping (range input constrains DOM, but programmatic manipulation unchecked)",
-            "LOW: dailyCount cap at 99 is silent — no user feedback at max"
+            "LOW: dailyCount cap at 99 is silent \u2014 no user feedback at max"
           ]
         },
         "production_risks": {
           "score": 90,
           "weight": "15%",
           "findings": [
-            "MEDIUM: Google Fonts loaded from external CDN (globals.css line 1) — render-blocking dependency, FCP 2.8s. Should use next/font for self-hosting.",
+            "MEDIUM: Google Fonts loaded from external CDN (globals.css line 1) \u2014 render-blocking dependency, FCP 2.8s. Should use next/font for self-hosting.",
             "LOW: Notification icon references /favicon.ico (audio.ts:49) but actual favicon is /favicon.svg",
             "LOW: AudioContext singleton never closed (acceptable for page-lifetime app)"
           ]
@@ -1122,31 +1122,31 @@
           "weight": "10%",
           "findings": [
             "LOW: SessionCounter.module.css .label { opacity: 1; } is a no-op (opacity defaults to 1)",
-            "LOW: Duplicate ::backdrop animation — .dialog::backdrop and .dialog[open]::backdrop set same animation",
-            "CORRECTION: UseTimerReturn interface (useTimer.ts:10-20) is NOT dead code — used as return type annotation on line 22. Previous cycle report was wrong."
+            "LOW: Duplicate ::backdrop animation \u2014 .dialog::backdrop and .dialog[open]::backdrop set same animation",
+            "CORRECTION: UseTimerReturn interface (useTimer.ts:10-20) is NOT dead code \u2014 used as return type annotation on line 22. Previous cycle report was wrong."
           ]
         },
         "tech_debt": {
           "score": 85,
           "weight": "10%",
           "findings": [
-            "MEDIUM: useTimer at 157 lines is a god hook — settings, audio, notifications, tick logic all coupled",
+            "MEDIUM: useTimer at 157 lines is a god hook \u2014 settings, audio, notifications, tick logic all coupled",
             "LOW: eslint-disable-next-line react-hooks/exhaustive-deps in useTimer.ts:107",
-            "LOW: Magic numbers in CSS (padding: 24px, gap: 6px, width: 44px) — no spacing scale",
-            "LOW: formatTime is a module-level function in useTimer.ts — pure utility could live in engine layer"
+            "LOW: Magic numbers in CSS (padding: 24px, gap: 6px, width: 44px) \u2014 no spacing scale",
+            "LOW: formatTime is a module-level function in useTimer.ts \u2014 pure utility could live in engine layer"
           ]
         }
       },
       "critical_findings": [],
       "vs_previous_cycle": {
-        "score_change": "-1 (91 → 90)",
+        "score_change": "-1 (91 \u2192 90)",
         "improvements": [
-          "Dead code: 85 → 90 (removed unused exports, 'completed' TimerStatus removed in cycle 3)",
+          "Dead code: 85 \u2192 90 (removed unused exports, 'completed' TimerStatus removed in cycle 3)",
           "Notification gating fixed (sendNotification now gated on notificationsEnabled)",
-          "CORRECTION: UseTimerReturn not dead code — previous report error corrected"
+          "CORRECTION: UseTimerReturn not dead code \u2014 previous report error corrected"
         ],
         "regressions": [
-          "Robustness: 90 → 84 (new MEDIUM findings: dual useEffect pattern in SessionCounter, close animation double-fire edge case)"
+          "Robustness: 90 \u2192 84 (new MEDIUM findings: dual useEffect pattern in SessionCounter, close animation double-fire edge case)"
         ],
         "unchanged_issues": [
           "useTimer god hook size (157 lines, recurring 3 cycles)",
@@ -1183,14 +1183,14 @@
         }
       ],
       "resolved_from_previous_cycles": [
-        "HIGH: Focus trap in settings modal — FIXED via <dialog showModal()> (cycle 2)",
-        "HIGH: Missing semantic landmarks — FIXED <header>/<main>/<footer>/<h1> (cycle 2)",
-        "MEDIUM: Session counter contrast — FIXED #9ca3af ~6.2:1 (cycle 2)",
-        "MEDIUM: Modal footer contrast — DEFINITIVELY FIXED color #9ca3af ~6:1 (cycle 3)",
-        "MEDIUM: :focus-visible missing on inputs — FIXED accent outline on all focusable (cycle 2)",
-        "LOW: <time> missing datetime — FIXED formatDuration() generates ISO 8601 (cycle 3)",
-        "LOW: Settings button missing aria-expanded — FIXED (cycle 2)",
-        "LOW: CycleIndicator dots missing role — FIXED role='img' (cycle 2)"
+        "HIGH: Focus trap in settings modal \u2014 FIXED via <dialog showModal()> (cycle 2)",
+        "HIGH: Missing semantic landmarks \u2014 FIXED <header>/<main>/<footer>/<h1> (cycle 2)",
+        "MEDIUM: Session counter contrast \u2014 FIXED #9ca3af ~6.2:1 (cycle 2)",
+        "MEDIUM: Modal footer contrast \u2014 DEFINITIVELY FIXED color #9ca3af ~6:1 (cycle 3)",
+        "MEDIUM: :focus-visible missing on inputs \u2014 FIXED accent outline on all focusable (cycle 2)",
+        "LOW: <time> missing datetime \u2014 FIXED formatDuration() generates ISO 8601 (cycle 3)",
+        "LOW: Settings button missing aria-expanded \u2014 FIXED (cycle 2)",
+        "LOW: CycleIndicator dots missing role \u2014 FIXED role='img' (cycle 2)"
       ]
     },
     "design_review": {
@@ -1207,28 +1207,28 @@
       },
       "ai_slop_score": 6,
       "notable_positives": [
-        "Cohesive techno-futuristic aesthetic maintained — custom CSS properties, intentional palette",
+        "Cohesive techno-futuristic aesthetic maintained \u2014 custom CSS properties, intentional palette",
         "Phase-driven color system (blue/purple/green) coherent with background + accent + glow",
         "Glass card with backdrop-filter blur creates genuine depth and atmosphere",
-        "Custom SVG icons throughout — no emoji, no generic icon library",
+        "Custom SVG icons throughout \u2014 no emoji, no generic icon library",
         "Keyboard shortcut hints: 10px monospace in muted gray, responsive hiding on mobile",
         "Native <dialog> for settings preserves appearance while adding proper a11y behavior",
-        "NEW: Close animation (scaleOut) mirrors entrance — modal now polished in both directions",
-        "NEW: Session counter celebration pulse on increment — subtle delight moment",
-        "NEW: Mobile settings full-screen takeover — proper mobile pattern, zero bleed-through",
-        "NEW: Section spacing improved (24px padding) — settings sections breathe"
+        "NEW: Close animation (scaleOut) mirrors entrance \u2014 modal now polished in both directions",
+        "NEW: Session counter celebration pulse on increment \u2014 subtle delight moment",
+        "NEW: Mobile settings full-screen takeover \u2014 proper mobile pattern, zero bleed-through",
+        "NEW: Section spacing improved (24px padding) \u2014 settings sections breathe"
       ],
       "notable_issues": [
-        "No loading state — potential white flash until JS hydrates",
+        "No loading state \u2014 potential white flash until JS hydrates",
         "Settings modal Notifications section below fold at 720p desktop (requires scroll)",
-        "No PWA manifest — missed opportunity for installable timer",
+        "No PWA manifest \u2014 missed opportunity for installable timer",
         "Polish score (7/10) still held back by missing loading screen and PWA support"
       ],
       "vs_previous_cycle": {
-        "score_change": "+2 (84 → 86)",
+        "score_change": "+2 (84 \u2192 86)",
         "improvements": [
           "Interaction +0.5: close animation adds bidirectional polish, celebration pulse adds delight",
-          "Spacing +0.5: section padding increase (16px→24px) improves settings readability",
+          "Spacing +0.5: section padding increase (16px\u219224px) improves settings readability",
           "Components +0.5: mobile fullscreen takeover is proper mobile pattern",
           "Polish +0.5: favicon confirmed present, close animation, celebration animation"
         ],
@@ -1250,7 +1250,7 @@
       "medium_findings": 4,
       "medium_deduction": -8,
       "medium_detail": [
-        "Google Fonts CDN render-blocking dependency — FCP 2.8s (-2)",
+        "Google Fonts CDN render-blocking dependency \u2014 FCP 2.8s (-2)",
         "SessionCounter dual-useEffect fragile pattern (-2)",
         "SettingsModal close animation double-fire edge case (-2)",
         "useTimer god hook at 157 lines (-2)"
@@ -1270,10 +1270,10 @@
         "dailyCount 99 cap silent (-1)"
       ],
       "low_findings_note": "10 LOW items, capped at -10",
-      "wtf_heuristic": "0 WTF/min — Codebase is clean and well-organized. 90 passing tests, proper error boundary, localStorage validation, AudioContext handling. Cycle 4 additions (celebration, close animation, mobile fullscreen) are well-implemented. The dual-useEffect is the only pattern that would make you pause, but it works correctly. No deduction.",
+      "wtf_heuristic": "0 WTF/min \u2014 Codebase is clean and well-organized. 90 passing tests, proper error boundary, localStorage validation, AudioContext handling. Cycle 4 additions (celebration, close animation, mobile fullscreen) are well-implemented. The dual-useEffect is the only pattern that would make you pause, but it works correctly. No deduction.",
       "wtf_deduction": 0,
       "final": 82,
-      "vs_previous_cycle": "Stable at 82. Improvements (dead code -2 items, footer contrast fixed, datetime added, close animation, celebration pulse, section spacing) offset by new MEDIUM findings (dual-useEffect fragility, close animation edge case). Net neutral. Previous cycle 2 resolved 2 HIGHs (+10) and 5 MEDIUMs (+10) to jump from 68→82. Cycle 4 maintains that level."
+      "vs_previous_cycle": "Stable at 82. Improvements (dead code -2 items, footer contrast fixed, datetime added, close animation, celebration pulse, section spacing) offset by new MEDIUM findings (dual-useEffect fragility, close animation edge case). Net neutral. Previous cycle 2 resolved 2 HIGHs (+10) and 5 MEDIUMs (+10) to jump from 68\u219282. Cycle 4 maintains that level."
     },
     "fix_tasks": []
   },
@@ -1293,7 +1293,7 @@
             "efficiency": 10,
             "delight": 8,
             "overall": 9,
-            "notes": "Timer display is immediately legible — large monospace digits, FOCUS label in electric blue, frosted glass card on dark navy. Visual hierarchy is excellent: timer dominates, phase label orients, controls invite action. Keyboard shortcut hints (R, Space, S) below buttons aid discoverability. Cycle indicator (4 hollow dots) and '2 sessions today' (persisted from localStorage) establish context without clutter. Settings gear in top-right is unobtrusive but findable. Zero console errors on load. Favicon renders in browser tab. Unchanged from cycle 3 — the landing experience is stable and polished."
+            "notes": "Timer display is immediately legible \u2014 large monospace digits, FOCUS label in electric blue, frosted glass card on dark navy. Visual hierarchy is excellent: timer dominates, phase label orients, controls invite action. Keyboard shortcut hints (R, Space, S) below buttons aid discoverability. Cycle indicator (4 hollow dots) and '2 sessions today' (persisted from localStorage) establish context without clutter. Settings gear in top-right is unobtrusive but findable. Zero console errors on load. Favicon renders in browser tab. Unchanged from cycle 3 \u2014 the landing experience is stable and polished."
           }
         ],
         "verdict": "polished",
@@ -1310,7 +1310,7 @@
             "efficiency": 10,
             "delight": 8,
             "overall": 9,
-            "notes": "Single click starts countdown immediately. Button icon changes from play to pause with blue accent ring. Timer begins counting down. Zero-config start — exactly what the spec demands. Space keyboard shortcut also works correctly. The <time> element carries a datetime attribute in ISO 8601 duration format for assistive tech."
+            "notes": "Single click starts countdown immediately. Button icon changes from play to pause with blue accent ring. Timer begins counting down. Zero-config start \u2014 exactly what the spec demands. Space keyboard shortcut also works correctly. The <time> element carries a datetime attribute in ISO 8601 duration format for assistive tech."
           },
           {
             "step": "Observe timer counting down during focus",
@@ -1319,7 +1319,7 @@
             "efficiency": 10,
             "delight": 7,
             "overall": 8.75,
-            "notes": "Digits are crisp and readable. Countdown is smooth — no jank or flicker between second changes. The running state is clear from the pause icon on the primary button. The glow pulse mentioned in spec is still not strongly perceptible — the atmosphere during running could be more dynamic. Carried from cycle 1."
+            "notes": "Digits are crisp and readable. Countdown is smooth \u2014 no jank or flicker between second changes. The running state is clear from the pause icon on the primary button. The glow pulse mentioned in spec is still not strongly perceptible \u2014 the atmosphere during running could be more dynamic. Carried from cycle 1."
           },
           {
             "step": "Click pause button or press Space to pause",
@@ -1328,7 +1328,7 @@
             "efficiency": 10,
             "delight": 7,
             "overall": 8.75,
-            "notes": "Pause is instant. Button reverts to play icon. Timer freezes at exact second (verified: 24:51 after ~9 seconds of running). State is unambiguous. No animation on pause transition — a subtle pulse or dim would add polish. Carried from cycle 1."
+            "notes": "Pause is instant. Button reverts to play icon. Timer freezes at exact second (verified: 24:51 after ~9 seconds of running). State is unambiguous. No animation on pause transition \u2014 a subtle pulse or dim would add polish. Carried from cycle 1."
           }
         ],
         "verdict": "polished",
@@ -1345,7 +1345,7 @@
             "efficiency": 9,
             "delight": 9,
             "overall": 9,
-            "notes": "Phase transition is visually striking — entire color palette shifts from navy/blue to purple/violet. Label changes from FOCUS to SHORT BREAK. Timer resets to 05:00 (well, 04:59 as auto-start is on). Background, accent, glow, and button colors all transition coherently. This remains the most satisfying moment in the product."
+            "notes": "Phase transition is visually striking \u2014 entire color palette shifts from navy/blue to purple/violet. Label changes from FOCUS to SHORT BREAK. Timer resets to 05:00 (well, 04:59 as auto-start is on). Background, accent, glow, and button colors all transition coherently. This remains the most satisfying moment in the product."
           },
           {
             "step": "Break auto-starts (respecting auto-start-breaks setting)",
@@ -1354,7 +1354,7 @@
             "efficiency": 10,
             "delight": 8,
             "overall": 8.75,
-            "notes": "Break auto-started without user intervention (auto-start breaks ON by default). Pause button appeared, timer counting from 04:59. Session counter remained at 2 — correct, since the focus session was skipped, not completed. Auto-start behavior is correct and frictionless."
+            "notes": "Break auto-started without user intervention (auto-start breaks ON by default). Pause button appeared, timer counting from 04:59. Session counter remained at 2 \u2014 correct, since the focus session was skipped, not completed. Auto-start behavior is correct and frictionless."
           }
         ],
         "verdict": "polished",
@@ -1371,7 +1371,7 @@
             "efficiency": 10,
             "delight": 6,
             "overall": 8,
-            "notes": "Timer resets to 05:00 immediately (tested in SHORT BREAK phase). Cycle position unchanged (dots remain the same). Reset icon (circular arrow) is still somewhat ambiguous — could be confused with 'refresh page' or 'restart entire session'. The keyboard hint 'R' helps disambiguate. No confirmation dialog, which is correct — trust the user. Unchanged from cycle 2."
+            "notes": "Timer resets to 05:00 immediately (tested in SHORT BREAK phase). Cycle position unchanged (dots remain the same). Reset icon (circular arrow) is still somewhat ambiguous \u2014 could be confused with 'refresh page' or 'restart entire session'. The keyboard hint 'R' helps disambiguate. No confirmation dialog, which is correct \u2014 trust the user. Unchanged from cycle 2."
           }
         ],
         "verdict": "polished",
@@ -1388,7 +1388,7 @@
             "efficiency": 8,
             "delight": 7,
             "overall": 8.25,
-            "notes": "Settings panel slides in from the left as a native <dialog>. All 4 sections visible: TIMING, BEHAVIOR, SOUND, NOTIFICATIONS. 8 settings present and properly organized. Panel has clean dark aesthetic matching the app. Timer continues running visible behind the panel — nice touch. aria-expanded on gear button confirms expanded state. Cycle 4: section spacing increased to 24px (was 16px), sections now breathe with distinct visual zones between groups. Close animation added (scale+fade out) — panel now feels polished on both open and close."
+            "notes": "Settings panel slides in from the left as a native <dialog>. All 4 sections visible: TIMING, BEHAVIOR, SOUND, NOTIFICATIONS. 8 settings present and properly organized. Panel has clean dark aesthetic matching the app. Timer continues running visible behind the panel \u2014 nice touch. aria-expanded on gear button confirms expanded state. Cycle 4: section spacing increased to 24px (was 16px), sections now breathe with distinct visual zones between groups. Close animation added (scale+fade out) \u2014 panel now feels polished on both open and close."
           },
           {
             "step": "Adjust timing values (Focus duration, Short break, etc.)",
@@ -1397,7 +1397,7 @@
             "efficiency": 9,
             "delight": 6,
             "overall": 8,
-            "notes": "Number inputs with spinbutton controls. Values update immediately. Min/max constraints enforced. Labels are clear with units (min, sessions). The inputs are functional but purely utilitarian — no micro-interactions or visual flourish here. Unchanged from cycle 2."
+            "notes": "Number inputs with spinbutton controls. Values update immediately. Min/max constraints enforced. Labels are clear with units (min, sessions). The inputs are functional but purely utilitarian \u2014 no micro-interactions or visual flourish here. Unchanged from cycle 2."
           },
           {
             "step": "Toggle behavior switches (Auto-start breaks/focus)",
@@ -1415,7 +1415,7 @@
             "efficiency": 10,
             "delight": 7,
             "overall": 8.75,
-            "notes": "X button and Escape key both work. Cycle 4 added scaleOut exit animation (scale 1→0.95 + fade) mirroring the entrance — the close now feels intentional rather than abrupt. Dialog closes cleanly. Settings persist. No save button needed — auto-save is correct. Feedback score bumped from 8→9 and delight from 6→7 due to the new close animation."
+            "notes": "X button and Escape key both work. Cycle 4 added scaleOut exit animation (scale 1\u21920.95 + fade) mirroring the entrance \u2014 the close now feels intentional rather than abrupt. Dialog closes cleanly. Settings persist. No save button needed \u2014 auto-save is correct. Feedback score bumped from 8\u21929 and delight from 6\u21927 due to the new close animation."
           }
         ],
         "verdict": "polished",
@@ -1432,7 +1432,7 @@
             "efficiency": 10,
             "delight": 7,
             "overall": 8.25,
-            "notes": "'2 sessions today' visible in #9ca3af secondary text, positioned below cycle dots. Communicates progress clearly. Counter correctly doesn't increment on skipped sessions. Cycle 4 improvement: celebration pulse animation (0.6s scale-up 1→1.4→1 with accent color flash) now fires when count increases. This addresses the cycle 3 quality gap about lack of delight — the counter now celebrates progress rather than merely reporting it. Feedback score bumped 7→8 and delight 6→7 due to the new animation. Still not the most delightful journey, but promoted from 'functional' to 'polished'."
+            "notes": "'2 sessions today' visible in #9ca3af secondary text, positioned below cycle dots. Communicates progress clearly. Counter correctly doesn't increment on skipped sessions. Cycle 4 improvement: celebration pulse animation (0.6s scale-up 1\u21921.4\u21921 with accent color flash) now fires when count increases. This addresses the cycle 3 quality gap about lack of delight \u2014 the counter now celebrates progress rather than merely reporting it. Feedback score bumped 7\u21928 and delight 6\u21927 due to the new animation. Still not the most delightful journey, but promoted from 'functional' to 'polished'."
           }
         ],
         "verdict": "polished",
@@ -1458,7 +1458,7 @@
             "efficiency": 9,
             "delight": 8,
             "overall": 8.5,
-            "notes": "Cycle 4 fix: settings panel is now fully opaque on mobile (rgb(20,20,30) instead of rgba with 0.95 opacity). Panel fills 100% width and 100dvh height with no border-radius. All sections visible including NOTIFICATIONS and footer legal text — no bleed-through of timer content. This definitively resolves qg-c3-001. The mobile settings experience is now as clean as the main timer."
+            "notes": "Cycle 4 fix: settings panel is now fully opaque on mobile (rgb(20,20,30) instead of rgba with 0.95 opacity). Panel fills 100% width and 100dvh height with no border-radius. All sections visible including NOTIFICATIONS and footer legal text \u2014 no bleed-through of timer content. This definitively resolves qg-c3-001. The mobile settings experience is now as clean as the main timer."
           }
         ],
         "verdict": "polished",
@@ -1476,23 +1476,23 @@
         "previous_average": 8.4,
         "current_average": 8.56,
         "change": 0.16,
-        "interpretation": "Modest improvement driven by cycle 4 fixes. Session counter promoted from 'functional' to 'polished' (7.75→8.25) via celebration pulse animation. Settings journey improved (8.0→8.44) via close animation and section spacing. Mobile journey added settings sub-step confirming opacity fix. All 7 journeys now rated 'polished' — zero functional or raw."
+        "interpretation": "Modest improvement driven by cycle 4 fixes. Session counter promoted from 'functional' to 'polished' (7.75\u21928.25) via celebration pulse animation. Settings journey improved (8.0\u21928.44) via close animation and section spacing. Mobile journey added settings sub-step confirming opacity fix. All 7 journeys now rated 'polished' \u2014 zero functional or raw."
       }
     },
     "journey_quality_observations": {
       "strengths": [
-        "All 7 journeys now rated 'polished' — the first cycle with zero 'functional' verdicts. Session counter promotion was the last holdout.",
+        "All 7 journeys now rated 'polished' \u2014 the first cycle with zero 'functional' verdicts. Session counter promotion was the last holdout.",
         "Phase transitions remain the product's standout moment. Full-palette color shift from navy/blue to purple/violet is visually striking and communicates state change instantly.",
         "Keyboard shortcuts (Space, R, S) work correctly and are discoverable via inline hints. Hints wisely hidden on mobile.",
-        "Mobile experience at 375px is genuinely good — proportional layout, adequate touch targets, no scrollbars. Mobile settings now fully opaque with no timer bleed-through.",
+        "Mobile experience at 375px is genuinely good \u2014 proportional layout, adequate touch targets, no scrollbars. Mobile settings now fully opaque with no timer bleed-through.",
         "Cycle 4 fixes land cleanly: session counter celebration pulse adds delight on increment, settings close animation mirrors entrance (scale+fade), section spacing at 24px creates distinct visual zones, mobile settings opacity is fully opaque.",
-        "Auto-start behavior correct: breaks auto-start, focus sessions don't. Skip→Focus correctly shows play button (auto-start focus OFF).",
+        "Auto-start behavior correct: breaks auto-start, focus sessions don't. Skip\u2192Focus correctly shows play button (auto-start focus OFF).",
         "Native <dialog> provides proper focus trapping and Escape-to-close behavior."
       ],
       "areas_for_improvement": [
-        "Reset button icon (circular arrow) remains somewhat ambiguous — clarity 7/10 is the lowest single-dimension score across all journeys. Carried from cycle 1.",
-        "Running state glow pulse is still not strongly perceptible — the visual difference between running and paused states could be more atmospheric. Carried from cycle 1.",
-        "Pause transition is still abrupt — no animation beyond the icon swap. Carried from cycle 1.",
+        "Reset button icon (circular arrow) remains somewhat ambiguous \u2014 clarity 7/10 is the lowest single-dimension score across all journeys. Carried from cycle 1.",
+        "Running state glow pulse is still not strongly perceptible \u2014 the visual difference between running and paused states could be more atmospheric. Carried from cycle 1.",
+        "Pause transition is still abrupt \u2014 no animation beyond the icon swap. Carried from cycle 1.",
         "Settings number inputs remain purely utilitarian (delight 6/10). Functional but not delightful.",
         "Settings panel on desktop (720px viewport) still requires scrolling to see NOTIFICATIONS section and footer. The 24px section spacing improvement helps readability but slightly increases total scroll distance."
       ]
@@ -1500,27 +1500,27 @@
     "screen_quality": [
       {
         "screen_name": "Main Timer Screen (FOCUS phase)",
-        "description": "Primary screen showing timer display, phase label, controls with keyboard shortcut hints, cycle indicator, and session counter. Stable since cycle 3 — no layout changes in cycle 4.",
+        "description": "Primary screen showing timer display, phase label, controls with keyboard shortcut hints, cycle indicator, and session counter. Stable since cycle 3 \u2014 no layout changes in cycle 4.",
         "dimensions": {
           "hierarchy": {
             "score": 9,
-            "notes": "Timer digits dominate the viewport — immediately legible at any distance. FOCUS label in electric blue (#4a9eff) uppercase positions the user contextually. Controls are secondary but clearly actionable with icon-above, shortcut-hint-below grouping. Session counter in #9ca3af appropriately de-emphasized but legible (~6.2:1 contrast). Cycle dots provide subtle progress without competing. Settings gear discoverable but unobtrusive in top-right. Clear priority stack: timer > phase label > controls > hints > cycle dots > session counter. Favicon (clock-face SVG) gives the browser tab branded presence. Verified at 1440x900 — composition unchanged from cycle 3."
+            "notes": "Timer digits dominate the viewport \u2014 immediately legible at any distance. FOCUS label in electric blue (#4a9eff) uppercase positions the user contextually. Controls are secondary but clearly actionable with icon-above, shortcut-hint-below grouping. Session counter in #9ca3af appropriately de-emphasized but legible (~6.2:1 contrast). Cycle dots provide subtle progress without competing. Settings gear discoverable but unobtrusive in top-right. Clear priority stack: timer > phase label > controls > hints > cycle dots > session counter. Favicon (clock-face SVG) gives the browser tab branded presence. Verified at 1440x900 \u2014 composition unchanged from cycle 3."
           },
           "layout": {
             "score": 9,
-            "notes": "Centered symmetrical composition within frosted glass card (backdrop-filter: blur(20px), border: 1px solid rgba(255,255,255,0.1), border-radius: 24px). Controls evenly spaced in three-column flex. 4-dot cycle indicator centered. Good vertical rhythm: card → controls → dots → counter. No overflow at 1440x900. Generous whitespace supports the 'focus object' aesthetic. Unchanged from cycle 3."
+            "notes": "Centered symmetrical composition within frosted glass card (backdrop-filter: blur(20px), border: 1px solid rgba(255,255,255,0.1), border-radius: 24px). Controls evenly spaced in three-column flex. 4-dot cycle indicator centered. Good vertical rhythm: card \u2192 controls \u2192 dots \u2192 counter. No overflow at 1440x900. Generous whitespace supports the 'focus object' aesthetic. Unchanged from cycle 3."
           },
           "consistency": {
             "score": 9,
-            "notes": "Dark navy (#0a0a0f), frosted glass surface, blue (#4a9eff) accent applied throughout. Monospace timer face, uppercase tracking on phase label, Inter for UI text. Shortcut hints and session counter share #9ca3af — a consistent secondary text layer. Design system is cohesive and intentional. Unchanged from cycle 3."
+            "notes": "Dark navy (#0a0a0f), frosted glass surface, blue (#4a9eff) accent applied throughout. Monospace timer face, uppercase tracking on phase label, Inter for UI text. Shortcut hints and session counter share #9ca3af \u2014 a consistent secondary text layer. Design system is cohesive and intentional. Unchanged from cycle 3."
           },
           "density": {
             "score": 9,
-            "notes": "Purposefully minimal: every element earns its space. Shortcut hints at 10px monospace add information without visual noise. Generous whitespace around the glass card at 1440px desktop. Cycle 4 addition: celebration pulse animation (0.6s scale 1→1.4→1) on session counter increment adds a moment of delight without adding density."
+            "notes": "Purposefully minimal: every element earns its space. Shortcut hints at 10px monospace add information without visual noise. Generous whitespace around the glass card at 1440px desktop. Cycle 4 addition: celebration pulse animation (0.6s scale 1\u21921.4\u21921) on session counter increment adds a moment of delight without adding density."
           },
           "empty_states": {
             "score": 9,
-            "notes": "'0 sessions today' in #9ca3af communicates idle state and guides next action. Informational rather than decorative — appropriate for a daily-use focus tool. Session counter '2 sessions today' persisted from localStorage on reload."
+            "notes": "'0 sessions today' in #9ca3af communicates idle state and guides next action. Informational rather than decorative \u2014 appropriate for a daily-use focus tool. Session counter '2 sessions today' persisted from localStorage on reload."
           },
           "mobile": {
             "score": 9,
@@ -1536,23 +1536,23 @@
         "dimensions": {
           "hierarchy": {
             "score": 9,
-            "notes": "Identical structural hierarchy to FOCUS phase. SHORT BREAK label in purple (#c084fc / rgb(192,132,252)) uppercase — verified via computed style. Timer digits remain dominant. Palette shift is the primary differentiator — hierarchy structure is stable across phases. Skip and pause buttons show purple accent color, reinforcing phase awareness throughout controls."
+            "notes": "Identical structural hierarchy to FOCUS phase. SHORT BREAK label in purple (#c084fc / rgb(192,132,252)) uppercase \u2014 verified via computed style. Timer digits remain dominant. Palette shift is the primary differentiator \u2014 hierarchy structure is stable across phases. Skip and pause buttons show purple accent color, reinforcing phase awareness throughout controls."
           },
           "layout": {
             "score": 9,
-            "notes": "Grid unchanged from FOCUS — centered card, three-button row, dots, counter. Phase transition changes colors only, not structure. The layout is a stable container; color is the variable signal. Structural consistency with ambient differentiation — correct design."
+            "notes": "Grid unchanged from FOCUS \u2014 centered card, three-button row, dots, counter. Phase transition changes colors only, not structure. The layout is a stable container; color is the variable signal. Structural consistency with ambient differentiation \u2014 correct design."
           },
           "consistency": {
             "score": 9,
-            "notes": "Purple palette applied cohesively: SHORT BREAK label, button icons, and skip button accent ring all use #c084fc. Background remains dark (#0a0a0f). The full-palette transition between phases is the product's strongest design moment — visually striking without being jarring."
+            "notes": "Purple palette applied cohesively: SHORT BREAK label, button icons, and skip button accent ring all use #c084fc. Background remains dark (#0a0a0f). The full-palette transition between phases is the product's strongest design moment \u2014 visually striking without being jarring."
           },
           "density": {
             "score": 9,
-            "notes": "Identical density to FOCUS. Phase change adds no visual noise — only color information changes."
+            "notes": "Identical density to FOCUS. Phase change adds no visual noise \u2014 only color information changes."
           },
           "empty_states": {
             "score": 9,
-            "notes": "Session counter shows '2 sessions today' — carried from prior state. Skipped sessions correctly don't increment the counter."
+            "notes": "Session counter shows '2 sessions today' \u2014 carried from prior state. Skipped sessions correctly don't increment the counter."
           },
           "mobile": {
             "score": 9,
@@ -1568,27 +1568,27 @@
         "dimensions": {
           "hierarchy": {
             "score": 9,
-            "notes": "Settings title bold white at top-left, X close button at top-right — clear framing. Four section headers (TIMING, BEHAVIOR, SOUND, NOTIFICATIONS) in uppercase monospace tracking create logical zones. Cycle 4 improvement: 24px section padding (up from 16px) now creates visually distinct zones with border-top separators between sections. Label-left, control-right alignment is easy to scan. Footer legal text in #9ca3af (~6.2:1 contrast). All 4 sections visible on desktop including NOTIFICATIONS and footer. Timer continues running visible behind the semi-transparent panel on desktop — a 'focus object stays present' design choice. Hierarchy bumped from 8→9 due to improved section separation."
+            "notes": "Settings title bold white at top-left, X close button at top-right \u2014 clear framing. Four section headers (TIMING, BEHAVIOR, SOUND, NOTIFICATIONS) in uppercase monospace tracking create logical zones. Cycle 4 improvement: 24px section padding (up from 16px) now creates visually distinct zones with border-top separators between sections. Label-left, control-right alignment is easy to scan. Footer legal text in #9ca3af (~6.2:1 contrast). All 4 sections visible on desktop including NOTIFICATIONS and footer. Timer continues running visible behind the semi-transparent panel on desktop \u2014 a 'focus object stays present' design choice. Hierarchy bumped from 8\u21929 due to improved section separation."
           },
           "layout": {
             "score": 8,
-            "notes": "Left-anchored side panel (~420px max-width) rather than centered overlay. Timer remains visible on desktop — good design for a 'leave on screen' product. Sections delineated by uppercase headers with 24px padding (cycle 4 improvement from 16px). Controls aligned right with consistent spacing. Section separator borders (1px solid rgba(255,255,255,0.06)) provide subtle visual breaks. Volume slider at 120px width is adequate. The panel is functional and clean but remains the product's most utilitarian surface."
+            "notes": "Left-anchored side panel (~420px max-width) rather than centered overlay. Timer remains visible on desktop \u2014 good design for a 'leave on screen' product. Sections delineated by uppercase headers with 24px padding (cycle 4 improvement from 16px). Controls aligned right with consistent spacing. Section separator borders (1px solid rgba(255,255,255,0.06)) provide subtle visual breaks. Volume slider at 120px width is adequate. The panel is functional and clean but remains the product's most utilitarian surface."
           },
           "consistency": {
             "score": 9,
-            "notes": "Dark background (rgba(20,20,30,0.95) on desktop) matches app aesthetic. Blue toggle accents match phase-aware color system. Typography uses Inter for labels, monospace for section headers. Input fields have dark borders with subtle contrast. Close animation (scaleOut: scale 1→0.95 + fade, 0.2s) mirrors the entrance animation — the dialog now feels intentional on both open and close. Native <dialog> backdrop provides modal semantics without breaking the visual language."
+            "notes": "Dark background (rgba(20,20,30,0.95) on desktop) matches app aesthetic. Blue toggle accents match phase-aware color system. Typography uses Inter for labels, monospace for section headers. Input fields have dark borders with subtle contrast. Close animation (scaleOut: scale 1\u21920.95 + fade, 0.2s) mirrors the entrance animation \u2014 the dialog now feels intentional on both open and close. Native <dialog> backdrop provides modal semantics without breaking the visual language."
           },
           "density": {
             "score": 8,
-            "notes": "8 settings across 4 sections. Cycle 4 fix: section padding at 24px (up from 16px in cycle 3, 12px in cycle 2) with border-top separators between sections creates distinct visual zones. TIMING (4 items), BEHAVIOR (2 items), SOUND (2 items including volume slider), NOTIFICATIONS (1 item) are now clearly separated. Not perfectly generous — 28-32px would be luxurious — but 24px is within acceptable range and no longer feels cramped. Density score bumped 7→8. The 4-cycle recurring gap is effectively resolved."
+            "notes": "8 settings across 4 sections. Cycle 4 fix: section padding at 24px (up from 16px in cycle 3, 12px in cycle 2) with border-top separators between sections creates distinct visual zones. TIMING (4 items), BEHAVIOR (2 items), SOUND (2 items including volume slider), NOTIFICATIONS (1 item) are now clearly separated. Not perfectly generous \u2014 28-32px would be luxurious \u2014 but 24px is within acceptable range and no longer feels cramped. Density score bumped 7\u21928. The 4-cycle recurring gap is effectively resolved."
           },
           "empty_states": {
             "score": 10,
-            "notes": "N/A — all settings have default values. No empty state scenario applies."
+            "notes": "N/A \u2014 all settings have default values. No empty state scenario applies."
           },
           "mobile": {
             "score": 8,
-            "notes": "Cycle 4 fix: CSS now sets fully opaque background (rgb(20,20,30), no alpha) on mobile (<768px), full viewport coverage (width: 100%, height: 100dvh), and border-radius: 0. Computed styles confirm: bg=rgb(20,20,30), opacity=1, w=375px, h=812px. This definitively resolves the qg-c3-001 bleed-through issue from the CSS side. All 4 sections (TIMING, BEHAVIOR, SOUND, NOTIFICATIONS) and footer legal text visible and scrollable. Toggle controls have adequate touch targets (44x24px). Note: backdrop-filter: blur(20px) from base styles is not overridden on mobile — harmless since the background is opaque, but could be removed for cleanliness. Mobile score bumped 6→8."
+            "notes": "Cycle 4 fix: CSS now sets fully opaque background (rgb(20,20,30), no alpha) on mobile (<768px), full viewport coverage (width: 100%, height: 100dvh), and border-radius: 0. Computed styles confirm: bg=rgb(20,20,30), opacity=1, w=375px, h=812px. This definitively resolves the qg-c3-001 bleed-through issue from the CSS side. All 4 sections (TIMING, BEHAVIOR, SOUND, NOTIFICATIONS) and footer legal text visible and scrollable. Toggle controls have adequate touch targets (44x24px). Note: backdrop-filter: blur(20px) from base styles is not overridden on mobile \u2014 harmless since the background is opaque, but could be removed for cleanliness. Mobile score bumped 6\u21928."
           }
         },
         "verdict": "polished",
@@ -1606,28 +1606,28 @@
         "previous_average": 8.67,
         "current_average": 8.89,
         "change": 0.22,
-        "interpretation": "Improvement driven by settings modal fixes in cycle 4. Section spacing 16px→24px resolved the density gap (7→8). Mobile opacity fix resolved bleed-through (6→8). Settings hierarchy improved (8→9) from better section separation. Close animation adds polish to consistency. Main timer screens stable at 9.0. Settings modal promoted from 'functional' to 'polished' (8.0→8.67) — all 3 screens now rated 'polished'."
+        "interpretation": "Improvement driven by settings modal fixes in cycle 4. Section spacing 16px\u219224px resolved the density gap (7\u21928). Mobile opacity fix resolved bleed-through (6\u21928). Settings hierarchy improved (8\u21929) from better section separation. Close animation adds polish to consistency. Main timer screens stable at 9.0. Settings modal promoted from 'functional' to 'polished' (8.0\u21928.67) \u2014 all 3 screens now rated 'polished'."
       }
     },
     "screen_quality_observations": {
       "strengths": [
-        "All 3 screens now rated 'polished' — settings modal promoted from 'functional' to 'polished' for the first time. The 4-cycle journey from density=7 and mobile=6 to density=8 and mobile=8 is complete.",
-        "Main timer screen remains exceptional at 9.0/10 — hierarchy, layout, density, and mobile all score 9. The frosted glass card (backdrop-filter: blur(20px), border-radius: 24px) is a premium visual anchor.",
-        "Phase transition palette shift (blue → purple) is fully consistent across background, accent, button icons, and accent rings. Verified via computed CSS: rgb(192,132,252) applied to SHORT BREAK label, pause icon, and skip button. This is the product's strongest design system moment.",
-        "Settings modal section spacing at 24px with border-top separators creates distinct visual zones — the 4-cycle recurring density gap is resolved.",
+        "All 3 screens now rated 'polished' \u2014 settings modal promoted from 'functional' to 'polished' for the first time. The 4-cycle journey from density=7 and mobile=6 to density=8 and mobile=8 is complete.",
+        "Main timer screen remains exceptional at 9.0/10 \u2014 hierarchy, layout, density, and mobile all score 9. The frosted glass card (backdrop-filter: blur(20px), border-radius: 24px) is a premium visual anchor.",
+        "Phase transition palette shift (blue \u2192 purple) is fully consistent across background, accent, button icons, and accent rings. Verified via computed CSS: rgb(192,132,252) applied to SHORT BREAK label, pause icon, and skip button. This is the product's strongest design system moment.",
+        "Settings modal section spacing at 24px with border-top separators creates distinct visual zones \u2014 the 4-cycle recurring density gap is resolved.",
         "Settings mobile experience is now clean: fully opaque background, full viewport coverage, no border radius, all sections visible. The qg-c3-001 quality gap is closed at the CSS level.",
-        "Settings close animation (scaleOut 0.2s) mirrors the entrance animation — both open and close transitions now feel intentional.",
-        "Celebration pulse animation on session counter increment (0.6s scale 1→1.4→1) adds delight without adding density to the main timer screen."
+        "Settings close animation (scaleOut 0.2s) mirrors the entrance animation \u2014 both open and close transitions now feel intentional.",
+        "Celebration pulse animation on session counter increment (0.6s scale 1\u21921.4\u21921) adds delight without adding density to the main timer screen."
       ],
       "areas_for_improvement": [
-        "Settings modal backdrop-filter: blur(20px) is not overridden on mobile — harmless since background is opaque, but unnecessary and could be removed for CSS cleanliness.",
-        "Settings modal on desktop is still the most utilitarian surface in the product. Section spacing at 24px is functional rather than luxurious — 28-32px would feel more premium.",
-        "Long break phase (teal/green palette) was not reachable via skipping — could not visually verify the third color variant. Requires 4 completed focus sessions. Recurring from cycle 3."
+        "Settings modal backdrop-filter: blur(20px) is not overridden on mobile \u2014 harmless since background is opaque, but unnecessary and could be removed for CSS cleanliness.",
+        "Settings modal on desktop is still the most utilitarian surface in the product. Section spacing at 24px is functional rather than luxurious \u2014 28-32px would feel more premium.",
+        "Long break phase (teal/green palette) was not reachable via skipping \u2014 could not visually verify the third color variant. Requires 4 completed focus sessions. Recurring from cycle 3."
       ]
     },
     "heuristic_results": {
       "source": "standard_nielsens_10_plus_a11y",
-      "note": "library_heuristics was empty — applied standard Nielsen's 10 Usability Heuristics plus accessibility compliance rules. Cycle 4 re-evaluation after celebration pulse, close animation, section spacing, and mobile opacity fixes. No new heuristic rules triggered; all cycle 4 changes improve existing compliance.",
+      "note": "library_heuristics was empty \u2014 applied standard Nielsen's 10 Usability Heuristics plus accessibility compliance rules. Cycle 4 re-evaluation after celebration pulse, close animation, section spacing, and mobile opacity fixes. No new heuristic rules triggered; all cycle 4 changes improve existing compliance.",
       "total": 42,
       "passed": 41,
       "failed": 1,
@@ -1640,10 +1640,10 @@
         "notes": "Cycle 4 changes are polish improvements within already-passing heuristics. H1 (system status visibility) strengthened by celebration pulse on session counter increment. H4 (consistency) strengthened by bidirectional modal animation. H8 (aesthetic/minimal design) strengthened by section spacing. No new failures introduced."
       },
       "cycle_4_heuristic_improvements": [
-        "H1 (Visibility of system status): celebration pulse animation on session counter increment provides immediate visual feedback when focus sessions complete — strengthens already-passing H1-R1 (feedback within 100ms)",
-        "H4 (Consistency and standards): scaleOut close animation mirrors scaleIn entrance — modal behavior is now symmetrical and predictable",
-        "H8 (Aesthetic and minimalist design): section spacing 16px→24px with border-top separators creates distinct visual zones in settings — reduces cognitive load",
-        "HA (Accessibility): mobile settings fully opaque background eliminates visual interference from underlying timer content — improves readability for all users"
+        "H1 (Visibility of system status): celebration pulse animation on session counter increment provides immediate visual feedback when focus sessions complete \u2014 strengthens already-passing H1-R1 (feedback within 100ms)",
+        "H4 (Consistency and standards): scaleOut close animation mirrors scaleIn entrance \u2014 modal behavior is now symmetrical and predictable",
+        "H8 (Aesthetic and minimalist design): section spacing 16px\u219224px with border-top separators creates distinct visual zones in settings \u2014 reduces cognitive load",
+        "HA (Accessibility): mobile settings fully opaque background eliminates visual interference from underlying timer content \u2014 improves readability for all users"
       ],
       "failures": [
         {
@@ -1652,7 +1652,7 @@
           "rule": "First-use guidance for primary action",
           "measured": "No explicit onboarding hint. Timer is self-evident (large play button, intuitive layout). Keyboard shortcut hints provide additional affordance but are not first-use guidance.",
           "threshold": "Subtle first-use affordance",
-          "gap": "Marginal — the product simplicity makes explicit guidance unnecessary. Timer single-action UI is its own affordance. The large play button with blue accent ring and 'Space' hint below is a strong implicit affordance. This is an acceptable trade-off for a minimal product.",
+          "gap": "Marginal \u2014 the product simplicity makes explicit guidance unnecessary. Timer single-action UI is its own affordance. The large play button with blue accent ring and 'Space' hint below is a strong implicit affordance. This is an acceptable trade-off for a minimal product.",
           "severity": "low",
           "recurring": true,
           "cycles_open": 4,
@@ -1662,7 +1662,7 @@
     },
     "reference_comparison": {
       "status": "skipped",
-      "reason": "reference_products array is empty — no pairwise comparison possible",
+      "reason": "reference_products array is empty \u2014 no pairwise comparison possible",
       "default_score": 7,
       "note": "Neutral 7.0/10 used in confidence calculation"
     },
@@ -1671,13 +1671,13 @@
       "criteria_total": 67,
       "criteria_passed": 67,
       "partial_criteria": 0,
-      "partial_details": "Previously partial fix-004 (footer contrast) now resolved — base color changed to #9ca3af in cycle 3, ~6.2:1 contrast verified.",
+      "partial_details": "Previously partial fix-004 (footer contrast) now resolved \u2014 base color changed to #9ca3af in cycle 3, ~6.2:1 contrast verified.",
       "divergences_reviewed": 3,
       "divergences_acceptable": 3,
       "divergence_notes": [
-        "Timer size clamp(72px, 15vw, 120px): acceptable — responsive improvement within spec range (from cycle 1)",
-        "Multi-tab coordination deferred: acceptable — edge case, low user impact (from cycle 1)",
-        "Shortcut discovery implemented as Option A without design mode pass: acceptable — spec preferred Option A and provided specific enough design constraints that design mode would confirm, not change the approach"
+        "Timer size clamp(72px, 15vw, 120px): acceptable \u2014 responsive improvement within spec range (from cycle 1)",
+        "Multi-tab coordination deferred: acceptable \u2014 edge case, low user impact (from cycle 1)",
+        "Shortcut discovery implemented as Option A without design mode pass: acceptable \u2014 spec preferred Option A and provided specific enough design constraints that design mode would confirm, not change the approach"
       ],
       "normalized_score": 10
     },
@@ -1686,7 +1686,7 @@
         "id": "qg-c4-001",
         "category": "design_change",
         "severity": "low",
-        "description": "Reset button icon (circular arrow) remains somewhat ambiguous — could be confused with 'refresh page' or 'restart entire session'. Clarity score 7/10 is the lowest single-dimension score across all journeys.",
+        "description": "Reset button icon (circular arrow) remains somewhat ambiguous \u2014 could be confused with 'refresh page' or 'restart entire session'. Clarity score 7/10 is the lowest single-dimension score across all journeys.",
         "evidence": "Journey quality: reset step scored clarity 7/10 across 4 cycles. Keyboard hint 'R' helps disambiguate but the icon alone is unclear.",
         "what_good_looks_like": "A more specific reset icon (e.g., counter-clockwise arrow with a clock hand) or a tooltip on hover clarifying 'Reset current phase'.",
         "affected_screens": [
@@ -1703,7 +1703,7 @@
         "id": "qg-c4-002",
         "category": "interaction_improvement",
         "severity": "low",
-        "description": "Running state glow pulse is not strongly perceptible — the visual difference between running and paused states could be more atmospheric. The timer feels the same whether counting or frozen.",
+        "description": "Running state glow pulse is not strongly perceptible \u2014 the visual difference between running and paused states could be more atmospheric. The timer feels the same whether counting or frozen.",
         "evidence": "Journey quality: 'Observe timer counting down' delight scored 7/10. 'Click pause' delight scored 7/10. The running/paused visual distinction relies primarily on the play/pause icon swap.",
         "what_good_looks_like": "Subtle ambient glow intensification when running (e.g., glow radius or opacity increases), or a barely-perceptible pulse on the glass card border. The screen should feel alive when counting.",
         "affected_screens": [
@@ -1737,7 +1737,7 @@
         "id": "qg-c4-004",
         "category": "performance_improvement",
         "severity": "low",
-        "description": "Settings modal backdrop-filter: blur(20px) is not overridden on mobile — harmless since background is now opaque, but unnecessary CSS computation on mobile devices.",
+        "description": "Settings modal backdrop-filter: blur(20px) is not overridden on mobile \u2014 harmless since background is now opaque, but unnecessary CSS computation on mobile devices.",
         "evidence": "Screen quality: noted in settings modal mobile dimension. No user-facing impact but adds unnecessary GPU work.",
         "what_good_looks_like": "Override backdrop-filter: none on mobile (<768px) since background is fully opaque.",
         "affected_screens": [
@@ -1772,40 +1772,40 @@
       },
       {
         "id": "qg-c3-003",
-        "resolution": "FIXED in cycle 4. ScaleOut exit animation (0.2s, scale 1→0.95 + fade) mirrors entrance. Settings modal now feels polished on both open and close.",
+        "resolution": "FIXED in cycle 4. ScaleOut exit animation (0.2s, scale 1\u21920.95 + fade) mirrors entrance. Settings modal now feels polished on both open and close.",
         "cycles_to_resolve": 1
       },
       {
         "id": "qg-c3-004",
-        "resolution": "FIXED in cycle 4. Session counter celebration pulse (0.6s scale 1→1.4→1 with accent color flash) on increment. Counter now celebrates progress. Journey promoted from 'functional' to 'polished' (7.75→8.25).",
+        "resolution": "FIXED in cycle 4. Session counter celebration pulse (0.6s scale 1\u21921.4\u21921 with accent color flash) on increment. Counter now celebrates progress. Journey promoted from 'functional' to 'polished' (7.75\u21928.25).",
         "cycles_to_resolve": 1
       }
     ],
     "latent_space_activation": {
-      "dieter_rams": "The product has reached a mature minimalism. Every element earns its space — the timer dominates, controls serve, metadata informs. Cycle 4 additions (celebration pulse, close animation) are restrained: they add meaning without adding weight. The settings modal section spacing fix completes the only surface where density contradicted the minimal aesthetic. No Rams violations remain. The product is honest about what it is: a focus object, not a productivity suite.",
-      "don_norman": "Conceptual model is complete and refined across 4 cycles. Affordances are strong and consistent: play button invites action, keyboard shortcuts are discoverable, phase transitions communicate state through color. The celebration pulse on session counter adds confirmation feedback — the system now acknowledges effort, not just elapsed time. The bidirectional modal animation (scaleIn/scaleOut) creates a mental model of 'opening/closing a panel' rather than 'appearing/disappearing.' No Norman concerns remain.",
-      "julie_zhuo": "Would a user recommend it? Yes — the core experience is polished and memorable. Cycle 4 addressed the last remaining Zhuo concern: mobile settings is now clean (fully opaque, full viewport). All 7 user journeys rated 'polished' for the first time. The product solves the real problem (structured focus time) without introducing new problems (bloat, configuration anxiety, ugly UI). The celebration pulse is a small but meaningful addition — it makes progress feel real.",
-      "joe_gebbia": "Trust and delight are now consistent across the entire product. First impression (favicon → timer display → phase transition) is cohesive. The celebration pulse adds a delight moment on session completion — the counter is no longer just information, it's a small reward. The close animation on settings resolves the last 'abrupt' interaction. Trust is maintained through consistent behavior: ErrorBoundary, localStorage validation, and correct auto-start semantics. No first-impression or trust gaps remain.",
-      "jony_ive": "The unifying principle (focus object, not utility) is preserved and strengthened through 4 cycles. Complexity has been resolved, not displayed: celebration pulse uses CSS animation (no JS library), close animation uses native animationend (no requestAnimationFrame), mobile fullscreen uses media query (no JS viewport detection). The additions across 4 cycles are invisible-unless-needed. The one remaining tension — reset button icon ambiguity — is minor and compensated by the 'R' keyboard hint. The principle holds."
+      "dieter_rams": "The product has reached a mature minimalism. Every element earns its space \u2014 the timer dominates, controls serve, metadata informs. Cycle 4 additions (celebration pulse, close animation) are restrained: they add meaning without adding weight. The settings modal section spacing fix completes the only surface where density contradicted the minimal aesthetic. No Rams violations remain. The product is honest about what it is: a focus object, not a productivity suite.",
+      "don_norman": "Conceptual model is complete and refined across 4 cycles. Affordances are strong and consistent: play button invites action, keyboard shortcuts are discoverable, phase transitions communicate state through color. The celebration pulse on session counter adds confirmation feedback \u2014 the system now acknowledges effort, not just elapsed time. The bidirectional modal animation (scaleIn/scaleOut) creates a mental model of 'opening/closing a panel' rather than 'appearing/disappearing.' No Norman concerns remain.",
+      "julie_zhuo": "Would a user recommend it? Yes \u2014 the core experience is polished and memorable. Cycle 4 addressed the last remaining Zhuo concern: mobile settings is now clean (fully opaque, full viewport). All 7 user journeys rated 'polished' for the first time. The product solves the real problem (structured focus time) without introducing new problems (bloat, configuration anxiety, ugly UI). The celebration pulse is a small but meaningful addition \u2014 it makes progress feel real.",
+      "joe_gebbia": "Trust and delight are now consistent across the entire product. First impression (favicon \u2192 timer display \u2192 phase transition) is cohesive. The celebration pulse adds a delight moment on session completion \u2014 the counter is no longer just information, it's a small reward. The close animation on settings resolves the last 'abrupt' interaction. Trust is maintained through consistent behavior: ErrorBoundary, localStorage validation, and correct auto-start semantics. No first-impression or trust gaps remain.",
+      "jony_ive": "The unifying principle (focus object, not utility) is preserved and strengthened through 4 cycles. Complexity has been resolved, not displayed: celebration pulse uses CSS animation (no JS library), close animation uses native animationend (no requestAnimationFrame), mobile fullscreen uses media query (no JS viewport detection). The additions across 4 cycles are invisible-unless-needed. The one remaining tension \u2014 reset button icon ambiguity \u2014 is minor and compensated by the 'R' keyboard hint. The principle holds."
     },
     "confidence_breakdown": {
       "journey_quality_avg": {
         "value": 8.56,
         "weight": 0.3,
         "weighted": 2.568,
-        "note": "From cycle 4 journey quality sub-phase. All 7 polished, zero functional or raw. Up from 8.40 in cycle 3 (+0.16). Session counter promoted from functional to polished (7.75→8.25). Settings journey improved (8.0→8.44)."
+        "note": "From cycle 4 journey quality sub-phase. All 7 polished, zero functional or raw. Up from 8.40 in cycle 3 (+0.16). Session counter promoted from functional to polished (7.75\u21928.25). Settings journey improved (8.0\u21928.44)."
       },
       "screen_quality_avg": {
         "value": 8.89,
         "weight": 0.2,
         "weighted": 1.778,
-        "note": "From cycle 4 screen quality sub-phase. All 3 polished. Up from 8.67 in cycle 3 (+0.22). Settings modal promoted from functional to polished (8.0→8.67). Main timer screens stable at 9.0."
+        "note": "From cycle 4 screen quality sub-phase. All 3 polished. Up from 8.67 in cycle 3 (+0.22). Settings modal promoted from functional to polished (8.0\u21928.67). Main timer screens stable at 9.0."
       },
       "heuristic_pass_rate": {
         "value": 9.76,
         "weight": 0.2,
         "weighted": 1.952,
-        "note": "97.6% pass rate (41/42). Stable from cycle 3. 1 marginal failure remains (H10-R2 first-use guidance — accepted as design intent, 4 cycles). Cycle 4 changes strengthen existing compliance (H1, H4, H8, HA) without changing pass/fail."
+        "note": "97.6% pass rate (41/42). Stable from cycle 3. 1 marginal failure remains (H10-R2 first-use guidance \u2014 accepted as design intent, 4 cycles). Cycle 4 changes strengthen existing compliance (H1, H4, H8, HA) without changing pass/fail."
       },
       "spec_compliance_pct": {
         "value": 10,
@@ -1817,44 +1817,44 @@
         "value": 7,
         "weight": 0.15,
         "weighted": 1.05,
-        "note": "Neutral default — no reference products defined. Structural drag of ~0.015 vs achievable maximum."
+        "note": "Neutral default \u2014 no reference products defined. Structural drag of ~0.015 vs achievable maximum."
       },
       "total": 8.848,
       "confidence": 0.89
     },
-    "verdict_rationale": "Confidence 0.89 clears the 0.80 PRODUCTION_READY threshold (+0.01 from cycle 3's 0.88). All 6 PRODUCTION_READY criteria met: confidence >= 0.8 (✓, 0.89), zero critical gaps (✓), zero high gaps (✓), all core journeys polished with avg >= 7 (✓, all 7 polished, 8.56 avg), heuristic pass rate >= 80% (✓, 97.6%), no significantly-below reference comparisons (✓, N/A). Cycle 4 resolved ALL 4 cycle 3 quality gaps: mobile settings bleed-through (qg-c3-001, medium → FIXED via opaque background), settings density (qg-c3-002, low → FIXED at 24px), settings delight (qg-c3-003, low → FIXED via close animation), session counter delight (qg-c3-004, low → FIXED via celebration pulse). This is the first cycle with zero medium or high quality gaps. The 4 remaining gaps are all low severity: reset icon ambiguity (carried from cycle 1), running state glow subtlety (carried from cycle 1), settings input delight (carried from cycle 1), and mobile backdrop-filter cleanup (new, cosmetic). Product confidence trajectory: 0.83 → 0.86 → 0.88 → 0.89 across 4 cycles. Heuristic pass rate stable at 97.6%. Spec compliance stable at 100%. The product is production-ready.",
+    "verdict_rationale": "Confidence 0.89 clears the 0.80 PRODUCTION_READY threshold (+0.01 from cycle 3's 0.88). All 6 PRODUCTION_READY criteria met: confidence >= 0.8 (\u2713, 0.89), zero critical gaps (\u2713), zero high gaps (\u2713), all core journeys polished with avg >= 7 (\u2713, all 7 polished, 8.56 avg), heuristic pass rate >= 80% (\u2713, 97.6%), no significantly-below reference comparisons (\u2713, N/A). Cycle 4 resolved ALL 4 cycle 3 quality gaps: mobile settings bleed-through (qg-c3-001, medium \u2192 FIXED via opaque background), settings density (qg-c3-002, low \u2192 FIXED at 24px), settings delight (qg-c3-003, low \u2192 FIXED via close animation), session counter delight (qg-c3-004, low \u2192 FIXED via celebration pulse). This is the first cycle with zero medium or high quality gaps. The 4 remaining gaps are all low severity: reset icon ambiguity (carried from cycle 1), running state glow subtlety (carried from cycle 1), settings input delight (carried from cycle 1), and mobile backdrop-filter cleanup (new, cosmetic). Product confidence trajectory: 0.83 \u2192 0.86 \u2192 0.88 \u2192 0.89 across 4 cycles. Heuristic pass rate stable at 97.6%. Spec compliance stable at 100%. The product is production-ready.",
     "evaluator_observations": {
-      "cycle_4_summary": "Cycle 4 was a targeted polish pass that resolved all 4 remaining quality gaps from cycle 3. Mobile settings bleed-through fixed via fully opaque background. Settings section spacing increased to 24px. Close animation added (scaleOut mirroring scaleIn). Session counter celebration pulse added. Dead code removed (UseTimerReturn, validateSettings exports). AC-transition-4 test gap filled. This is the cleanest cycle yet — all fixes landed, no new medium/high issues discovered, all 7 journeys polished, all 3 screens polished.",
+      "cycle_4_summary": "Cycle 4 was a targeted polish pass that resolved all 4 remaining quality gaps from cycle 3. Mobile settings bleed-through fixed via fully opaque background. Settings section spacing increased to 24px. Close animation added (scaleOut mirroring scaleIn). Session counter celebration pulse added. Dead code removed (UseTimerReturn, validateSettings exports). AC-transition-4 test gap filled. This is the cleanest cycle yet \u2014 all fixes landed, no new medium/high issues discovered, all 7 journeys polished, all 3 screens polished.",
       "strengths": [
-        "All 4 cycle 3 quality gaps resolved in a single cycle — the fastest gap resolution rate across all cycles. Previous cycles took 2-3 cycles to resolve recurring issues.",
-        "All 7 journeys now rated 'polished' — first cycle with zero 'functional' verdicts. Session counter journey promoted (7.75→8.25) via celebration pulse.",
-        "All 3 screens now rated 'polished' — settings modal promoted (8.0→8.67) via density, mobile opacity, and animation fixes.",
-        "Celebration pulse on session counter (0.6s scale 1→1.4→1 with accent color flash) adds delight without density. Counter now celebrates progress rather than merely reporting it.",
+        "All 4 cycle 3 quality gaps resolved in a single cycle \u2014 the fastest gap resolution rate across all cycles. Previous cycles took 2-3 cycles to resolve recurring issues.",
+        "All 7 journeys now rated 'polished' \u2014 first cycle with zero 'functional' verdicts. Session counter journey promoted (7.75\u21928.25) via celebration pulse.",
+        "All 3 screens now rated 'polished' \u2014 settings modal promoted (8.0\u21928.67) via density, mobile opacity, and animation fixes.",
+        "Celebration pulse on session counter (0.6s scale 1\u21921.4\u21921 with accent color flash) adds delight without density. Counter now celebrates progress rather than merely reporting it.",
         "Bidirectional modal animation (scaleIn entrance, scaleOut exit) makes settings feel intentional on both open and close. The exit was the last 'abrupt' interaction in the product.",
         "Mobile settings experience is now clean: fully opaque background, full viewport coverage, no border radius, no timer bleed-through. qg-c3-001 definitively resolved.",
-        "Confidence trend consistently improving: 0.83 → 0.86 → 0.88 → 0.89. The product gets better every cycle.",
-        "Heuristic pass rate stable at 97.6% — the ceiling for this product given the accepted H10-R2 design decision.",
-        "Spec compliance stable at 100% — all 67 criteria pass with no regressions."
+        "Confidence trend consistently improving: 0.83 \u2192 0.86 \u2192 0.88 \u2192 0.89. The product gets better every cycle.",
+        "Heuristic pass rate stable at 97.6% \u2014 the ceiling for this product given the accepted H10-R2 design decision.",
+        "Spec compliance stable at 100% \u2014 all 67 criteria pass with no regressions."
       ],
       "remaining_concerns": [
-        "Reset button icon ambiguity (clarity 7/10) has been carried since cycle 1. The keyboard hint 'R' compensates, but the icon alone is still unclear. Low severity — not worth another cycle.",
-        "Running state glow pulse is subtle — visual distinction between running and paused relies on icon swap rather than atmospheric change. Low severity, aesthetic preference.",
+        "Reset button icon ambiguity (clarity 7/10) has been carried since cycle 1. The keyboard hint 'R' compensates, but the icon alone is still unclear. Low severity \u2014 not worth another cycle.",
+        "Running state glow pulse is subtle \u2014 visual distinction between running and paused relies on icon swap rather than atmospheric change. Low severity, aesthetic preference.",
         "Settings number inputs delight at 6/10 remains below the main timer's 8+ delight scores. Functional but utilitarian. Acceptable for v1.0.",
-        "Long break phase (teal/green palette) has never been visually verified — requires 4 completed focus sessions. Carried from cycle 2. Low risk given phase transition system is proven with blue and purple.",
-        "Settings backdrop-filter: blur(20px) not overridden on mobile — cosmetic inefficiency, no user impact."
+        "Long break phase (teal/green palette) has never been visually verified \u2014 requires 4 completed focus sessions. Carried from cycle 2. Low risk given phase transition system is proven with blue and purple.",
+        "Settings backdrop-filter: blur(20px) not overridden on mobile \u2014 cosmetic inefficiency, no user impact."
       ],
       "cycle_4_resolved": [
-        "qg-c3-001: Mobile settings bleed-through — FIXED. Background changed to rgb(20,20,30) (fully opaque), 100% width, 100dvh height, border-radius: 0.",
-        "qg-c3-002: Settings density — FIXED. Section padding 16px→24px with border-top separators. Settings sections breathe.",
-        "qg-c3-003: Settings delight — FIXED. ScaleOut exit animation mirrors entrance. Settings modal polished on both open and close.",
-        "qg-c3-004: Session counter delight — FIXED. Celebration pulse (0.6s scale 1→1.4→1 + accent flash) on increment. Journey promoted functional→polished."
+        "qg-c3-001: Mobile settings bleed-through \u2014 FIXED. Background changed to rgb(20,20,30) (fully opaque), 100% width, 100dvh height, border-radius: 0.",
+        "qg-c3-002: Settings density \u2014 FIXED. Section padding 16px\u219224px with border-top separators. Settings sections breathe.",
+        "qg-c3-003: Settings delight \u2014 FIXED. ScaleOut exit animation mirrors entrance. Settings modal polished on both open and close.",
+        "qg-c3-004: Session counter delight \u2014 FIXED. Celebration pulse (0.6s scale 1\u21921.4\u21921 + accent flash) on increment. Journey promoted functional\u2192polished."
       ],
       "qa_gate_misses": []
     }
   },
   "evaluator_questions": [
     "4 low-severity quality gaps (reset icon, running glow, input delight, backdrop-filter) have some carried since cycle 1. Should they be accepted as v1.0 debt and the product promoted, or is another polish cycle warranted?",
-    "Long break phase (teal/green palette) has never been visually verified across 4 PO review cycles. The phase transition system works for blue→purple — should green verification be a pre-promotion requirement or accepted on engineering confidence?",
+    "Long break phase (teal/green palette) has never been visually verified across 4 PO review cycles. The phase transition system works for blue\u2192purple \u2014 should green verification be a pre-promotion requirement or accepted on engineering confidence?",
     "Google Fonts render-blocking FCP at 2.8s: is this acceptable for a 'leave on screen' timer product where first load is infrequent, or should next/font self-hosting be prioritized?"
   ],
   "deployment_url": "https://countdowntimer-staging.gregj64.workers.dev",
@@ -1871,7 +1871,7 @@
     "version": "0.2.0",
     "pr_number": null,
     "pr_url": null,
-    "pr_skipped_reason": "No git remote configured — deployed directly to production without PR/merge flow",
+    "pr_skipped_reason": "No git remote configured \u2014 deployed directly to production without PR/merge flow",
     "deploy_timestamp": "2026-03-23T18:45:00.000Z",
     "deploy_version_id": "a5b8c357-2050-4281-9555-d62743f36ddc",
     "production_verified": true,
@@ -1884,7 +1884,7 @@
       "security_review": "SKIP (client-only SPA)",
       "po_review": "PASS (PRODUCTION_READY, confidence 0.86)"
     },
-    "commit_quality_observation": "Commits are clean and bisectable — each represents one logical change (robustness, settings-a11y, main-a11y, shortcut-discovery). Eval/chore commits from the loop process are contextual. No bundled unrelated changes found."
+    "commit_quality_observation": "Commits are clean and bisectable \u2014 each represents one logical change (robustness, settings-a11y, main-a11y, shortcut-discovery). Eval/chore commits from the loop process are contextual. No bundled unrelated changes found."
   },
   "analysis_result": {
     "phase": "analyzing",
@@ -1899,54 +1899,54 @@
       "flags": [
         "none"
       ],
-      "full_history": "0.83 → 0.86 (+0.03) → 0.88 (+0.02) → 0.89 (+0.01). Monotonically improving across 4 cycles but gains are diminishing — approaching asymptote given the structural reference_comparison drag at 15% weight."
+      "full_history": "0.83 \u2192 0.86 (+0.03) \u2192 0.88 (+0.02) \u2192 0.89 (+0.01). Monotonically improving across 4 cycles but gains are diminishing \u2014 approaching asymptote given the structural reference_comparison drag at 15% weight."
     },
     "recommendation": "promote",
-    "recommendation_reasoning": "PO Review verdict is PRODUCTION_READY. Confidence is 0.89 — below the 0.9 PROMOTE threshold by 0.01. However, the documented edge case applies: the reference_comparison component (15% weight) uses a neutral 7.0 default because no reference products are defined. This is a structural drag, not a product quality signal. Without this artificial drag, recalculated confidence = (8.848 - 1.05 + 1.5) / (1.0 - 0.0) = recalculating: journey 2.568 + screen 1.778 + heuristic 1.952 + spec 1.5 = 7.798 on 85% weight = 9.174/10 → confidence 0.92. This clears the 0.9 threshold. The remaining drags are journey quality (8.56) and screen quality (8.89) — both firmly in 'polished' territory with all 7 journeys and all 3 screens rated polished. All 4 remaining quality gaps are LOW severity, all carried since cycle 1, and represent taste-level refinements acceptable for v1.0: reset icon ambiguity (compensated by keyboard hint), running state glow subtlety (aesthetic preference), settings input delight (utilitarian but functional), mobile backdrop-filter cleanup (cosmetic). No critical gaps. No high gaps. No medium gaps — this is the first cycle with zero medium+ quality gaps. Confidence trend is not regressing (monotonically improving across 4 cycles). The product has reached diminishing returns: last 2 deltas were +0.02 and +0.01. Another cycle would likely gain +0.00-0.01 at best, addressing only LOW items. Promoting now is the correct call — the human should see the product and decide if the remaining taste-level gaps warrant further polish.",
+    "recommendation_reasoning": "PO Review verdict is PRODUCTION_READY. Confidence is 0.89 \u2014 below the 0.9 PROMOTE threshold by 0.01. However, the documented edge case applies: the reference_comparison component (15% weight) uses a neutral 7.0 default because no reference products are defined. This is a structural drag, not a product quality signal. Without this artificial drag, recalculated confidence = (8.848 - 1.05 + 1.5) / (1.0 - 0.0) = recalculating: journey 2.568 + screen 1.778 + heuristic 1.952 + spec 1.5 = 7.798 on 85% weight = 9.174/10 \u2192 confidence 0.92. This clears the 0.9 threshold. The remaining drags are journey quality (8.56) and screen quality (8.89) \u2014 both firmly in 'polished' territory with all 7 journeys and all 3 screens rated polished. All 4 remaining quality gaps are LOW severity, all carried since cycle 1, and represent taste-level refinements acceptable for v1.0: reset icon ambiguity (compensated by keyboard hint), running state glow subtlety (aesthetic preference), settings input delight (utilitarian but functional), mobile backdrop-filter cleanup (cosmetic). No critical gaps. No high gaps. No medium gaps \u2014 this is the first cycle with zero medium+ quality gaps. Confidence trend is not regressing (monotonically improving across 4 cycles). The product has reached diminishing returns: last 2 deltas were +0.02 and +0.01. Another cycle would likely gain +0.00-0.01 at best, addressing only LOW items. Promoting now is the correct call \u2014 the human should see the product and decide if the remaining taste-level gaps warrant further polish.",
     "recommendation_override": {
       "standard_rule": "PROMOTE requires confidence >= 0.9. Current confidence 0.89 fails by 0.01.",
       "override_applied": true,
-      "override_reason": "Edge case: reference_comparison at 7.0 (neutral default, 15% weight) because no reference products are defined. Without this structural drag, recalculated confidence = 0.92, clearing the 0.9 threshold. The prompt explicitly allows this override: 'If it's the reference comparison (15% weight) and the product is intentionally different from references, you may override to promote.' Here, no references exist at all — the drag is structural, not a quality signal.",
-      "journey_screen_check": "Journey quality (8.56) and screen quality (8.89) are NOT the primary drag — they contribute modestly but both are in 'polished' territory. All 7 journeys polished, all 3 screens polished. The prompt says 'If it's journey or screen quality dragging it down, do NOT override.' That condition does not apply — the primary drag is reference_comparison."
+      "override_reason": "Edge case: reference_comparison at 7.0 (neutral default, 15% weight) because no reference products are defined. Without this structural drag, recalculated confidence = 0.92, clearing the 0.9 threshold. The prompt explicitly allows this override: 'If it's the reference comparison (15% weight) and the product is intentionally different from references, you may override to promote.' Here, no references exist at all \u2014 the drag is structural, not a quality signal.",
+      "journey_screen_check": "Journey quality (8.56) and screen quality (8.89) are NOT the primary drag \u2014 they contribute modestly but both are in 'polished' territory. All 7 journeys polished, all 3 screens polished. The prompt says 'If it's journey or screen quality dragging it down, do NOT override.' That condition does not apply \u2014 the primary drag is reference_comparison."
     },
     "root_cause_analysis": [
       {
         "gap_id": "qg-c4-001",
-        "gap_description": "Reset button icon (circular arrow) remains somewhat ambiguous — could be confused with 'refresh page' or 'restart entire session'. Clarity 7/10.",
+        "gap_description": "Reset button icon (circular arrow) remains somewhat ambiguous \u2014 could be confused with 'refresh page' or 'restart entire session'. Clarity 7/10.",
         "root_cause": "design_choice",
         "classification_confidence": 0.85,
-        "evidence": "The reset icon is a standard circular arrow SVG. The spec did not specify a particular icon variant — the builder chose a conventional reset icon. The ambiguity is inherent to the icon metaphor (circular arrow = refresh? restart? undo?) rather than a bug or missing context. The 'R' keyboard hint below the button partially disambiguates. Journey quality scored clarity 7/10 — the lowest single-dimension score — but this is a design taste issue, not a functional failure. A different builder would make the same choice. Carried from cycle 1 with no deterioration.",
+        "evidence": "The reset icon is a standard circular arrow SVG. The spec did not specify a particular icon variant \u2014 the builder chose a conventional reset icon. The ambiguity is inherent to the icon metaphor (circular arrow = refresh? restart? undo?) rather than a bug or missing context. The 'R' keyboard hint below the button partially disambiguates. Journey quality scored clarity 7/10 \u2014 the lowest single-dimension score \u2014 but this is a design taste issue, not a functional failure. A different builder would make the same choice. Carried from cycle 1 with no deterioration.",
         "related_factory_decision": null,
         "related_factory_question": null,
         "qa_coverage_gap": false
       },
       {
         "gap_id": "qg-c4-002",
-        "gap_description": "Running state glow pulse is not strongly perceptible — visual distinction between running and paused relies on icon swap rather than atmospheric change.",
+        "gap_description": "Running state glow pulse is not strongly perceptible \u2014 visual distinction between running and paused relies on icon swap rather than atmospheric change.",
         "root_cause": "design_choice",
         "classification_confidence": 0.8,
-        "evidence": "The spec describes a glow effect (radial gradient, pulsing class active when running). The implementation has this — the .pulsing class is applied when running — but the visual effect is subtle. The PO Review scored running-state delight at 7/10 and noted 'the atmosphere during running could be more dynamic.' This is a design intensity calibration issue: the glow exists but is too restrained. A design mode pass could specify stronger glow parameters (larger radius, higher opacity delta, slower pulse). No factory_decision or factory_question relates to glow intensity.",
+        "evidence": "The spec describes a glow effect (radial gradient, pulsing class active when running). The implementation has this \u2014 the .pulsing class is applied when running \u2014 but the visual effect is subtle. The PO Review scored running-state delight at 7/10 and noted 'the atmosphere during running could be more dynamic.' This is a design intensity calibration issue: the glow exists but is too restrained. A design mode pass could specify stronger glow parameters (larger radius, higher opacity delta, slower pulse). No factory_decision or factory_question relates to glow intensity.",
         "related_factory_decision": null,
         "related_factory_question": null,
         "qa_coverage_gap": false
       },
       {
         "gap_id": "qg-c4-003",
-        "gap_description": "Settings number inputs remain purely utilitarian — no micro-interactions or visual flourish. Delight 6/10.",
+        "gap_description": "Settings number inputs remain purely utilitarian \u2014 no micro-interactions or visual flourish. Delight 6/10.",
         "root_cause": "design_choice",
         "classification_confidence": 0.8,
-        "evidence": "The spec specifies number inputs with min/max constraints and immediate update behavior — all implemented correctly. The gap is about polish beyond specification: micro-interactions, subtle animations on value change, focus glow effects. The settings modal has been the product's most utilitarian surface across all 4 cycles. Cycle 4 improved other settings aspects (close animation, section spacing, mobile opacity) but did not touch input interactions. This was a deliberate prioritization choice — the builder and analysis both ranked it low. Requires design mode to specify interaction targets.",
+        "evidence": "The spec specifies number inputs with min/max constraints and immediate update behavior \u2014 all implemented correctly. The gap is about polish beyond specification: micro-interactions, subtle animations on value change, focus glow effects. The settings modal has been the product's most utilitarian surface across all 4 cycles. Cycle 4 improved other settings aspects (close animation, section spacing, mobile opacity) but did not touch input interactions. This was a deliberate prioritization choice \u2014 the builder and analysis both ranked it low. Requires design mode to specify interaction targets.",
         "related_factory_decision": null,
         "related_factory_question": null,
         "qa_coverage_gap": false
       },
       {
         "gap_id": "qg-c4-004",
-        "gap_description": "Settings modal backdrop-filter: blur(20px) not overridden on mobile — unnecessary CSS computation since background is now fully opaque.",
+        "gap_description": "Settings modal backdrop-filter: blur(20px) not overridden on mobile \u2014 unnecessary CSS computation since background is now fully opaque.",
         "root_cause": "implementation_bug",
         "classification_confidence": 0.9,
-        "evidence": "When the builder fixed qg-c3-001 (mobile bleed-through) by making the background fully opaque (rgb(20,20,30)), the backdrop-filter: blur(20px) from the base dialog styles was not overridden on mobile. The blur is now invisible (nothing behind the opaque background to blur) but still triggers GPU compositing on mobile devices. This is a simple CSS oversight — the builder focused on the foreground opacity fix and didn't remove the now-unnecessary backdrop-filter. No user-facing impact, but wasteful on mobile GPU. Trivial 1-line CSS fix: backdrop-filter: none in the mobile media query.",
-        "related_factory_decision": "Mobile settings dialog: full-screen takeover rather than side-panel variant — focused on opacity and dimensions, didn't address backdrop-filter cleanup",
+        "evidence": "When the builder fixed qg-c3-001 (mobile bleed-through) by making the background fully opaque (rgb(20,20,30)), the backdrop-filter: blur(20px) from the base dialog styles was not overridden on mobile. The blur is now invisible (nothing behind the opaque background to blur) but still triggers GPU compositing on mobile devices. This is a simple CSS oversight \u2014 the builder focused on the foreground opacity fix and didn't remove the now-unnecessary backdrop-filter. No user-facing impact, but wasteful on mobile GPU. Trivial 1-line CSS fix: backdrop-filter: none in the mobile media query.",
+        "related_factory_decision": "Mobile settings dialog: full-screen takeover rather than side-panel variant \u2014 focused on opacity and dimensions, didn't address backdrop-filter cleanup",
         "related_factory_question": null,
         "qa_coverage_gap": true
       }
@@ -1955,19 +1955,19 @@
       {
         "pattern": "Settings modal polish gaps took 4 cycles to fully resolve",
         "frequency": 4,
-        "systemic_cause": "Settings density (qg-c1-003 → qg-c3-002 → FIXED cycle 4), settings delight (qg-c1-002 → qg-c3-003/004 → FIXED cycle 4), and mobile bleed-through (qg-c3-001 → FIXED cycle 4) were consistently deprioritized behind accessibility and robustness work. This was correct prioritization — a11y/robustness items had higher severity and blocked heuristic thresholds — but the pattern shows that design_choice gaps accumulate when deferred. All 4 settings gaps from cycle 3 were resolved in a single cycle (cycle 4), demonstrating that concentrated polish passes are effective once critical path items are clear.",
-        "recommended_action": "For future products, consider interleaving one design_choice gap fix per cycle alongside implementation_bug fixes to prevent multi-cycle accumulation. Not urgent for this product — pattern is now resolved."
+        "systemic_cause": "Settings density (qg-c1-003 \u2192 qg-c3-002 \u2192 FIXED cycle 4), settings delight (qg-c1-002 \u2192 qg-c3-003/004 \u2192 FIXED cycle 4), and mobile bleed-through (qg-c3-001 \u2192 FIXED cycle 4) were consistently deprioritized behind accessibility and robustness work. This was correct prioritization \u2014 a11y/robustness items had higher severity and blocked heuristic thresholds \u2014 but the pattern shows that design_choice gaps accumulate when deferred. All 4 settings gaps from cycle 3 were resolved in a single cycle (cycle 4), demonstrating that concentrated polish passes are effective once critical path items are clear.",
+        "recommended_action": "For future products, consider interleaving one design_choice gap fix per cycle alongside implementation_bug fixes to prevent multi-cycle accumulation. Not urgent for this product \u2014 pattern is now resolved."
       },
       {
-        "pattern": "Diminishing confidence gains: +0.03 → +0.02 → +0.01",
+        "pattern": "Diminishing confidence gains: +0.03 \u2192 +0.02 \u2192 +0.01",
         "frequency": 3,
-        "systemic_cause": "The product is approaching its confidence ceiling given the current spec scope and the structural reference_comparison drag (7.0 neutral, 15% weight). Each cycle addresses lower-severity gaps with correspondingly smaller confidence impact. The 4 remaining LOW gaps would each contribute approximately +0.002-0.005 if resolved — insufficient to cross 0.9 even collectively without removing the reference_comparison drag.",
+        "systemic_cause": "The product is approaching its confidence ceiling given the current spec scope and the structural reference_comparison drag (7.0 neutral, 15% weight). Each cycle addresses lower-severity gaps with correspondingly smaller confidence impact. The 4 remaining LOW gaps would each contribute approximately +0.002-0.005 if resolved \u2014 insufficient to cross 0.9 even collectively without removing the reference_comparison drag.",
         "recommended_action": "PROMOTE the product. Further cycles yield diminishing returns below the noise floor of the confidence formula. The remaining gaps are taste-level refinements best evaluated by a human looking at the actual product."
       },
       {
         "pattern": "3 of 4 remaining gaps are design_choice, carried from cycle 1",
         "frequency": 4,
-        "systemic_cause": "The product's initial build produced a strong core experience (main timer: 9.0/10) but left secondary surfaces (settings, reset icon, running state subtlety) at a lower polish level. Four cycles of improvement have steadily closed the gap, but the last 3 design_choice items represent aesthetic preferences that the autonomous loop cannot objectively resolve — they require human taste judgment on whether 'good enough' or 'needs more.'",
+        "systemic_cause": "The product's initial build produced a strong core experience (main timer: 9.0/10) but left secondary surfaces (settings, reset icon, running state subtlety) at a lower polish level. Four cycles of improvement have steadily closed the gap, but the last 3 design_choice items represent aesthetic preferences that the autonomous loop cannot objectively resolve \u2014 they require human taste judgment on whether 'good enough' or 'needs more.'",
         "recommended_action": "Accept as v1.0 debt. These are below the threshold where autonomous cycles can meaningfully improve them. Human review will determine whether they warrant a post-v1 polish pass."
       }
     ],
@@ -1984,7 +1984,7 @@
         ],
         "what_good_looks_like": "A more specific reset icon (e.g., counter-clockwise arrow with clock hand) or tooltip on hover clarifying 'Reset current phase'. Clarity score improves from 7/10 to 8+/10.",
         "requires_design_mode": true,
-        "approach_hint": "Design mode should evaluate: (1) alternative SVG icon that communicates 'reset timer' more specifically, (2) hover tooltip as secondary disambiguation. The 'R' keyboard hint already helps — this is incremental polish.",
+        "approach_hint": "Design mode should evaluate: (1) alternative SVG icon that communicates 'reset timer' more specifically, (2) hover tooltip as secondary disambiguation. The 'R' keyboard hint already helps \u2014 this is incremental polish.",
         "do_not_repeat": []
       },
       {
@@ -1999,7 +1999,7 @@
         ],
         "what_good_looks_like": "Visible atmospheric difference between running and paused states. Glow radius or opacity increases when running. The screen feels alive during countdown.",
         "requires_design_mode": true,
-        "approach_hint": "Increase the .pulsing class effect: larger glow radius spread, stronger opacity delta (e.g., 0.3→0.6 instead of current subtle range), or add a secondary animation on the glass card border. Keep it subtle enough to not distract from the timer digits.",
+        "approach_hint": "Increase the .pulsing class effect: larger glow radius spread, stronger opacity delta (e.g., 0.3\u21920.6 instead of current subtle range), or add a secondary animation on the glass card border. Keep it subtle enough to not distract from the timer digits.",
         "do_not_repeat": []
       },
       {
@@ -2037,15 +2037,15 @@
     "phase_decisions": [
       {
         "decision": "Chose PROMOTE with reference_comparison override rather than DEEPEN",
-        "reasoning": "PO verdict is PRODUCTION_READY with confidence 0.89 (0.01 below PROMOTE threshold). The 0.01 gap is entirely attributable to the reference_comparison structural drag — no reference products are defined, so the neutral 7.0 default (15% weight) permanently caps confidence at ~0.93 maximum. Without this drag, confidence = 0.92, clearing the 0.9 threshold. All remaining 4 quality gaps are LOW severity, all carried from cycle 1, all representing design taste preferences rather than functional or accessibility issues. The confidence trajectory (0.83 → 0.86 → 0.88 → 0.89) shows monotonic improvement with diminishing returns — another cycle would gain +0.00-0.01 at most, well within the noise floor. DEEPEN would produce another near-identical evaluation with marginal improvements to LOW gaps that the PO Review already classifies as acceptable. The anti-pattern guidance says 'if on the fence, default to deepen' — but this is NOT on the fence: the edge case override is explicitly documented for exactly this scenario (reference_comparison drag with PRODUCTION_READY verdict), and the product has zero medium+ gaps for the first time."
+        "reasoning": "PO verdict is PRODUCTION_READY with confidence 0.89 (0.01 below PROMOTE threshold). The 0.01 gap is entirely attributable to the reference_comparison structural drag \u2014 no reference products are defined, so the neutral 7.0 default (15% weight) permanently caps confidence at ~0.93 maximum. Without this drag, confidence = 0.92, clearing the 0.9 threshold. All remaining 4 quality gaps are LOW severity, all carried from cycle 1, all representing design taste preferences rather than functional or accessibility issues. The confidence trajectory (0.83 \u2192 0.86 \u2192 0.88 \u2192 0.89) shows monotonic improvement with diminishing returns \u2014 another cycle would gain +0.00-0.01 at most, well within the noise floor. DEEPEN would produce another near-identical evaluation with marginal improvements to LOW gaps that the PO Review already classifies as acceptable. The anti-pattern guidance says 'if on the fence, default to deepen' \u2014 but this is NOT on the fence: the edge case override is explicitly documented for exactly this scenario (reference_comparison drag with PRODUCTION_READY verdict), and the product has zero medium+ gaps for the first time."
       },
       {
         "decision": "Classified all 3 recurring gaps as design_choice rather than spec_ambiguity",
-        "reasoning": "qg-c4-001 (reset icon), qg-c4-002 (running glow), and qg-c4-003 (input delight) have been open since cycle 1. The question is whether these persist because the spec was unclear (spec_ambiguity) or because the design approach needs revision (design_choice). In all three cases, the builder implemented exactly what was specified — the gap is that the specification didn't demand a higher polish level. But looking THROUGH the gap: a different builder would make the same choices. The spec says 'reset button' — any builder picks a circular arrow. The spec says 'glow effect' — any builder implements a subtle pulse. These are not ambiguous specs; they are design decisions that produced adequate-but-not-exceptional results. Requires design_mode to specify stronger interaction targets."
+        "reasoning": "qg-c4-001 (reset icon), qg-c4-002 (running glow), and qg-c4-003 (input delight) have been open since cycle 1. The question is whether these persist because the spec was unclear (spec_ambiguity) or because the design approach needs revision (design_choice). In all three cases, the builder implemented exactly what was specified \u2014 the gap is that the specification didn't demand a higher polish level. But looking THROUGH the gap: a different builder would make the same choices. The spec says 'reset button' \u2014 any builder picks a circular arrow. The spec says 'glow effect' \u2014 any builder implements a subtle pulse. These are not ambiguous specs; they are design decisions that produced adequate-but-not-exceptional results. Requires design_mode to specify stronger interaction targets."
       },
       {
         "decision": "Did not recommend NOTIFY-HUMAN despite 4-cycle recurring gaps",
-        "reasoning": "NOTIFY-HUMAN triggers when confidence < 0.7 (not the case, 0.89), verdict is NOT_READY (not the case, PRODUCTION_READY), 3+ spec_ambiguity gaps (not the case, 0 spec_ambiguity), or scope expansion needed. None of these conditions apply. The 4 recurring LOW gaps are taste-level, not blocking. Promoting the product IS the mechanism for getting human judgment on these items — the human will review the product and decide whether the remaining gaps warrant further polish."
+        "reasoning": "NOTIFY-HUMAN triggers when confidence < 0.7 (not the case, 0.89), verdict is NOT_READY (not the case, PRODUCTION_READY), 3+ spec_ambiguity gaps (not the case, 0 spec_ambiguity), or scope expansion needed. None of these conditions apply. The 4 recurring LOW gaps are taste-level, not blocking. Promoting the product IS the mechanism for getting human judgment on these items \u2014 the human will review the product and decide whether the remaining gaps warrant further polish."
       },
       {
         "decision": "Accepted diminishing returns signal as validation of PROMOTE",
@@ -2071,7 +2071,7 @@
         "settings modal"
       ],
       "affected_journeys": [
-        "all — crash recovery",
+        "all \u2014 crash recovery",
         "Phase transition (Focus to Short Break)"
       ],
       "approach_summary": "Add React Error Boundary with styled fallback, localStorage schema validation with type/range clamping, AudioContext.resume() before chime playback"
@@ -2093,7 +2093,7 @@
       "affected_journeys": [
         "First-time user landing"
       ],
-      "approach_summary": "Fix session counter contrast to ≥4.5:1, add semantic landmarks (header/footer/h1) without visual changes"
+      "approach_summary": "Fix session counter contrast to \u22654.5:1, add semantic landmarks (header/footer/h1) without visual changes"
     },
     {
       "spec_path": "openspec/changes/epoch-loop-2-settings-a11y/spec.md",
@@ -2148,19 +2148,19 @@
     "gaps_deferred": [
       {
         "gap_id": "qg-002",
-        "reason": "Low priority — settings modal delight deficit is polish, not blocking. Requires design mode. Deferred to next cycle."
+        "reason": "Low priority \u2014 settings modal delight deficit is polish, not blocking. Requires design mode. Deferred to next cycle."
       },
       {
         "gap_id": "qg-003",
-        "reason": "Low priority — settings modal density is minor polish. Requires design mode. Deferred to next cycle."
+        "reason": "Low priority \u2014 settings modal density is minor polish. Requires design mode. Deferred to next cycle."
       },
       {
         "gap_id": "qg-004",
-        "reason": "Low priority — reset icon affordance is minor UX polish. Requires design mode. Deferred to next cycle."
+        "reason": "Low priority \u2014 reset icon affordance is minor UX polish. Requires design mode. Deferred to next cycle."
       },
       {
         "gap_id": "qg-005",
-        "reason": "Low priority — favicon is missing but not blocking production readiness. Requires design mode. Deferred to next cycle."
+        "reason": "Low priority \u2014 favicon is missing but not blocking production readiness. Requires design mode. Deferred to next cycle."
       }
     ],
     "gaps_escalated": [],
@@ -2185,7 +2185,7 @@
       "cycle_2_severity": "MEDIUM",
       "attempts": 1,
       "status": "partial_fix",
-      "note": "Opacity improved 0.6→0.85 but base color unchanged. Still fails 4.5:1 (~3.1:1 measured). Needs base color change to #9ca3af."
+      "note": "Opacity improved 0.6\u21920.85 but base color unchanged. Still fails 4.5:1 (~3.1:1 measured). Needs base color change to #9ca3af."
     }
   },
   "previous_cycles": [],
@@ -2339,7 +2339,7 @@
           "#9ca3af",
           "#6b7280 with opacity"
         ],
-        "rationale": "#9ca3af provides ~6.2:1 contrast against #0a0a0f — passes WCAG AA while remaining clearly muted. Using the same color as the session counter creates visual consistency in the secondary text layer. var(--text-secondary) fails WCAG AA on dark backgrounds.",
+        "rationale": "#9ca3af provides ~6.2:1 contrast against #0a0a0f \u2014 passes WCAG AA while remaining clearly muted. Using the same color as the session counter creates visual consistency in the secondary text layer. var(--text-secondary) fails WCAG AA on dark backgrounds.",
         "confidence": "high",
         "affects": [
           "src/components/TimerControls.module.css"
@@ -2368,44 +2368,44 @@
     "cycle": 4,
     "timestamp": "2026-03-23T22:45:00.000Z",
     "vision_summary": {
-      "core_promise": "A focus timer beautiful enough to leave on screen — structure focus time with atmospheric presence, not utility.",
+      "core_promise": "A focus timer beautiful enough to leave on screen \u2014 structure focus time with atmospheric presence, not utility.",
       "target_persona": "Knowledge workers (developers, designers, writers, students) familiar with Pomodoro, frustrated by ugly or bloated timer apps.",
       "success_criteria": "Starts fast, looks great on screen, gets out of the way. The user can see their focus happening.",
-      "tone_and_identity": "Opinionated, atmospheric, crafted. Techno-futuristic (Linear meets high-end watch face). Dark-first. Not a utility — a focus object."
+      "tone_and_identity": "Opinionated, atmospheric, crafted. Techno-futuristic (Linear meets high-end watch face). Dark-first. Not a utility \u2014 a focus object."
     },
     "vision_alignment": {
       "core_promise_delivery": {
         "score": 0.92,
-        "evidence": "All 6 feature areas fully implemented. Frosted glass card with phase-dependent color palette (blue/purple/green), radial gradient glow, backdrop-filter blur creates genuine atmospheric presence. Timer is immediately legible at any viewport size. The product starts in <1s (803ms networkidle), requires zero configuration, and does not demand attention — it sits on screen and communicates state through color. Phase transitions (the full-palette color shift) are the product's standout moment. Lighthouse: a11y 100, best practices 100, SEO 100. 90 passing tests. ErrorBoundary and localStorage validation provide crash resilience. The product delivers on 'beautiful enough to leave on screen.'",
+        "evidence": "All 6 feature areas fully implemented. Frosted glass card with phase-dependent color palette (blue/purple/green), radial gradient glow, backdrop-filter blur creates genuine atmospheric presence. Timer is immediately legible at any viewport size. The product starts in <1s (803ms networkidle), requires zero configuration, and does not demand attention \u2014 it sits on screen and communicates state through color. Phase transitions (the full-palette color shift) are the product's standout moment. Lighthouse: a11y 100, best practices 100, SEO 100. 90 passing tests. ErrorBoundary and localStorage validation provide crash resilience. The product delivers on 'beautiful enough to leave on screen.'",
         "gaps": [
-          "Running state glow pulse is subtle — the visual distinction between 'timer counting' and 'timer paused' relies primarily on the play/pause icon, not atmospheric change. The vision describes an atmospheric focus object, but the atmosphere is mostly static during active use.",
-          "No PWA manifest — the vision's 'leave on screen' promise would be stronger if installable as a standalone window without browser chrome.",
-          "Google Fonts CDN causes 2.8s FCP — the first impression has a render-blocking delay that contradicts 'starts fast' for cold loads."
+          "Running state glow pulse is subtle \u2014 the visual distinction between 'timer counting' and 'timer paused' relies primarily on the play/pause icon, not atmospheric change. The vision describes an atmospheric focus object, but the atmosphere is mostly static during active use.",
+          "No PWA manifest \u2014 the vision's 'leave on screen' promise would be stronger if installable as a standalone window without browser chrome.",
+          "Google Fonts CDN causes 2.8s FCP \u2014 the first impression has a render-blocking delay that contradicts 'starts fast' for cold loads."
         ]
       },
       "persona_fit": {
         "score": 0.93,
-        "evidence": "The product serves its target persona well. Zero-config start (click play or press Space), full Pomodoro cycle support (focus→short break→focus→long break), configurable durations, keyboard shortcuts for power users, localStorage persistence for daily count. The aesthetic is premium and opinionated — not a generic utility. Settings are complete (8 controls) without being bloated. No accounts, no tracking beyond today, no task lists — the scope decisions correctly resist feature creep.",
+        "evidence": "The product serves its target persona well. Zero-config start (click play or press Space), full Pomodoro cycle support (focus\u2192short break\u2192focus\u2192long break), configurable durations, keyboard shortcuts for power users, localStorage persistence for daily count. The aesthetic is premium and opinionated \u2014 not a generic utility. Settings are complete (8 controls) without being bloated. No accounts, no tracking beyond today, no task lists \u2014 the scope decisions correctly resist feature creep.",
         "drift_signals": []
       },
       "identity_consistency": {
         "score": 0.9,
-        "evidence": "The built product feels like the product described in the vision. Techno-futuristic aesthetic maintained: dark navy backgrounds, frosted glass surfaces, electric blue/purple/green accent colors, JetBrains Mono typography, custom SVG icons. Design decisions consistently chose zero-dependency approaches (CSS keyframes over framer-motion, Web Audio over audio files, CSS Modules over Tailwind) — this reinforces the 'crafted, not assembled' identity. The product is opinionated: no theme picker, no customization beyond Pomodoro timing parameters. AI slop score 6/100 (low) — the product does not feel AI-generated.",
+        "evidence": "The built product feels like the product described in the vision. Techno-futuristic aesthetic maintained: dark navy backgrounds, frosted glass surfaces, electric blue/purple/green accent colors, JetBrains Mono typography, custom SVG icons. Design decisions consistently chose zero-dependency approaches (CSS keyframes over framer-motion, Web Audio over audio files, CSS Modules over Tailwind) \u2014 this reinforces the 'crafted, not assembled' identity. The product is opinionated: no theme picker, no customization beyond Pomodoro timing parameters. AI slop score 6/100 (low) \u2014 the product does not feel AI-generated.",
         "inconsistencies": [
-          "Settings modal, while improved to 'polished' status in cycle 4, remains the most utilitarian surface — number inputs lack the micro-interaction polish of the main timer. The settings experience is 'functional and clean' rather than 'atmospheric and crafted.'",
-          "Reset icon (generic circular arrow) doesn't carry the same design intentionality as the custom play/pause/skip icons. Minor — compensated by the 'R' keyboard hint."
+          "Settings modal, while improved to 'polished' status in cycle 4, remains the most utilitarian surface \u2014 number inputs lack the micro-interaction polish of the main timer. The settings experience is 'functional and clean' rather than 'atmospheric and crafted.'",
+          "Reset icon (generic circular arrow) doesn't carry the same design intentionality as the custom play/pause/skip icons. Minor \u2014 compensated by the 'R' keyboard hint."
         ]
       },
       "overall_confidence": 0.91,
       "trajectory": "converging",
-      "summary": "Epoch has converged strongly on its vision. The core promise — a focus timer beautiful enough to leave on screen — is delivered through a cohesive techno-futuristic aesthetic, atmospheric phase transitions, and purposeful minimalism. After 4 cycles of systematic improvement (a11y hardening → robustness → contrast/favicon → mobile/animation polish), every surface is rated 'polished' and all 67 acceptance criteria pass. The product's trajectory is clear: it has become what the vision described. The remaining gaps (running state subtlety, settings input delight, reset icon) are taste-level refinements that don't compromise the core identity. The product is ready for human evaluation."
+      "summary": "Epoch has converged strongly on its vision. The core promise \u2014 a focus timer beautiful enough to leave on screen \u2014 is delivered through a cohesive techno-futuristic aesthetic, atmospheric phase transitions, and purposeful minimalism. After 4 cycles of systematic improvement (a11y hardening \u2192 robustness \u2192 contrast/favicon \u2192 mobile/animation polish), every surface is rated 'polished' and all 67 acceptance criteria pass. The product's trajectory is clear: it has become what the vision described. The remaining gaps (running state subtlety, settings input delight, reset icon) are taste-level refinements that don't compromise the core identity. The product is ready for human evaluation."
     }
   },
   "vision_check_additions": [],
   "vision_check_flagged": [
     {
       "capability": "PWA manifest for standalone installation",
-      "rationale": "The vision says 'beautiful enough to leave on screen' — a PWA manifest would allow installation as a standalone window without browser chrome, strengthening this promise. Not in the original spec scope but directly supports the core promise.",
+      "rationale": "The vision says 'beautiful enough to leave on screen' \u2014 a PWA manifest would allow installation as a standalone window without browser chrome, strengthening this promise. Not in the original spec scope but directly supports the core promise.",
       "confidence": 0.75,
       "severity": "low",
       "note": "Flagged for morning briefing review. Not auto-added because: (1) the product already works well in a browser tab, (2) PWA adds complexity (service worker, manifest.json, icon set), (3) the 'leave on screen' promise is already met by the current web app. However, removing browser chrome would be a meaningful UX upgrade for the target persona."
@@ -2434,7 +2434,7 @@
           "qg-c2-001",
           "fix-c2-001"
         ],
-        "description": "Footer legal text color changed from var(--text-secondary) (#6b7280) to #9ca3af, providing ~6.2:1 contrast against dark background (was ~3.1:1 with opacity hack). Removed opacity: 0.85. Now uses same color as session counter and shortcut hints — consistent secondary text layer. Added data-testid attributes for test hooks. This is the definitive fix after 2 cycles of partial attempts."
+        "description": "Footer legal text color changed from var(--text-secondary) (#6b7280) to #9ca3af, providing ~6.2:1 contrast against dark background (was ~3.1:1 with opacity hack). Removed opacity: 0.85. Now uses same color as session counter and shortcut hints \u2014 consistent secondary text layer. Added data-testid attributes for test hooks. This is the definitive fix after 2 cycles of partial attempts."
       },
       {
         "task": "fix-notification-gating",
@@ -2492,7 +2492,7 @@
         "tests_added": 1,
         "tests_passing": 1,
         "closes_gaps": [],
-        "description": "Removed 'completed' from TimerStatus type union. This value was defined but never assigned anywhere in the codebase — dead type surface area that inflated the type's surface."
+        "description": "Removed 'completed' from TimerStatus type union. This value was defined but never assigned anywhere in the codebase \u2014 dead type surface area that inflated the type's surface."
       },
       {
         "task": "settings-section-spacing",
@@ -2525,7 +2525,7 @@
       {
         "spec_says": "Settings modal density improvement requires design mode to specify exact spacing targets",
         "actually_did": "Increased section padding from 12px to 16px without design mode",
-        "rationale": "The change_spec_brief suggested 24-32px gap between section groups. Used a conservative 16px increase (from 12px) as a first step — still within the panel's viewport constraints. This is a low-risk CSS-only change that improves density without requiring design mode review.",
+        "rationale": "The change_spec_brief suggested 24-32px gap between section groups. Used a conservative 16px increase (from 12px) as a first step \u2014 still within the panel's viewport constraints. This is a low-risk CSS-only change that improves density without requiring design mode review.",
         "affects_acceptance_criteria": [
           "AC-c3-settings-spacing"
         ],
@@ -2535,7 +2535,7 @@
     "factory_decisions": [
       {
         "decision": "Changed footer text base color to #9ca3af instead of adjusting opacity further",
-        "context": "Footer contrast has been a recurring issue for 2 cycles. Previous attempt (opacity 0.6→0.85 on #6b7280) was insufficient at ~3.1:1. The do_not_repeat directive explicitly banned further opacity adjustments.",
+        "context": "Footer contrast has been a recurring issue for 2 cycles. Previous attempt (opacity 0.6\u21920.85 on #6b7280) was insufficient at ~3.1:1. The do_not_repeat directive explicitly banned further opacity adjustments.",
         "alternatives_considered": [
           "Further opacity increase on #6b7280 (BANNED by do_not_repeat)",
           "Use #9ca3af as base color (chosen)",
@@ -2554,7 +2554,7 @@
           "Make remainingMs required and update all existing tests",
           "Make remainingMs optional with fallback to parsing displayTime"
         ],
-        "rationale": "Optional prop with displayTime parsing fallback is backwards-compatible — no existing tests need updating. The fallback is simple string parsing of MM:SS format. When used from page.tsx, the precise remainingMs value is passed for accuracy.",
+        "rationale": "Optional prop with displayTime parsing fallback is backwards-compatible \u2014 no existing tests need updating. The fallback is simple string parsing of MM:SS format. When used from page.tsx, the precise remainingMs value is passed for accuracy.",
         "confidence": "high",
         "affects": [
           "src/components/TimerDisplay.tsx"
@@ -2611,107 +2611,5 @@
       "new_tests_added": 5,
       "previous_tests": 89
     }
-  },
-  "code_review_report": {
-    "code_quality_baseline": {
-      "eslint_errors": 0,
-      "eslint_warnings": 0,
-      "duplication_pct": 2.1,
-      "circular_deps": 0,
-      "dead_code_items": 0,
-      "files_over_300_lines": 0,
-      "npm_audit": {
-        "critical": 0,
-        "high": 0,
-        "moderate": 5,
-        "low": 0
-      },
-      "degraded": false
-    },
-    "ai_code_audit": {
-      "score": 87,
-      "dimensions": {
-        "architecture": {
-          "score": 88,
-          "findings": [
-            "Clean separation of concerns: engine (logic), components (UI), hooks (state management)",
-            "Types properly isolated in engine/types.ts with no cross-layer business logic",
-            "Storage layer correctly abstracts localStorage with validation on read",
-            "Audio and notification concerns properly separated with graceful degradation"
-          ]
-        },
-        "consistency": {
-          "score": 85,
-          "findings": [
-            "Consistent naming: camelCase functions, PascalCase components, UPPER_SNAKE for constants",
-            "All components properly use 'use client' directive for Next.js App Router",
-            "Inconsistency in error handling: some silent try/catch, some explicit logging in edge cases",
-            "Good use of data-testid attributes throughout for testing"
-          ]
-        },
-        "robustness": {
-          "score": 86,
-          "findings": [
-            "Null/undefined checks in place for refs and DOM nodes",
-            "Storage unavailable gracefully handled with isStorageAvailable() guard",
-            "Error boundary implemented with proper fallback UI",
-            "Phase validation enforced at type level with union types",
-            "Animation cleanup with fallback timeout in SettingsModal handles edge cases well"
-          ]
-        },
-        "production_risks": {
-          "score": 87,
-          "findings": [
-            "No hardcoded sensitive values or API keys",
-            "No leftover console.logs or debug statements",
-            "Animation frame cleanup properly managed with RAF refs",
-            "Timeout cleanup in useEffect dependencies correct",
-            "Storage quota overflow gracefully handled with silent failure"
-          ]
-        },
-        "security": {
-          "score": 90,
-          "findings": [
-            "No injection vectors: no user input sanitization needed (local-only app)",
-            "Notification.requestPermission() properly awaited and checked",
-            "localStorage JSON.parse wrapped in try/catch to prevent eval injection",
-            "AudioContext creation safe with error handling",
-            "No credentials stored; daily count and settings are non-sensitive"
-          ]
-        },
-        "dead_hallucinated": {
-          "score": 88,
-          "findings": [
-            "All imports are used; no dangling dependencies",
-            "Dead code cleanup (mentioned in cycle 4 build) successfully completed",
-            "No unreachable code paths or unused helper functions",
-            "No TODO/FIXME/HACK comments left in codebase",
-            "API contracts well-defined (props interfaces used consistently)"
-          ]
-        },
-        "tech_debt": {
-          "score": 84,
-          "findings": [
-            "Good TypeScript coverage with minimal 'any' types (none found)",
-            "Component composition could reduce duplication: NumberField, ToggleField in SettingsModal are sub-components",
-            "Animation timing values (250ms, 600ms) hardcoded in a few places; could be centralized constants",
-            "useTimer hook is ~150 lines; could benefit from breaking apart phase-completion logic",
-            "Type safety excellent; no assertions or casts visible"
-          ]
-        }
-      },
-      "critical_findings": []
-    },
-    "security_review": {
-      "ran": false,
-      "verdict": "SKIPPED",
-      "reason": "Frontend-only application with no backend changes. All data local to client. Next cycle security review when backend integration occurs.",
-      "notes": "Current codebase has no server-side code, API endpoints, or authentication logic. localStorage is properly validated. No XSS or injection risks identified."
-    },
-    "changed_files": [
-      "src/components/SettingsModal.tsx",
-      "src/components/SessionCounter.tsx"
-    ],
-    "evaluator_observations": "Epoch demonstrates strong engineering fundamentals. The codebase is well-structured with clear separation between state management (useTimer hook), business logic (engine/), and presentation (components/). Type safety is excellent throughout, with careful handling of edge cases (animation cleanup, storage unavailability, audio context initialization). The cycle 4 improvements (mobile opacity, section spacing, close animation, celebration on count increment) were cleanly implemented. No critical issues found. The 5 moderate npm vulnerabilities are in dev dependencies and don't impact a production frontend build. Recommendation: Proceed to next phase with confidence."
   }
 }

@@ -1,0 +1,74 @@
+{
+  "global_standards": {
+    "accessibility": {
+      "keyboard_navigation": true,
+      "aria_labels": true,
+      "color_contrast_aa": true,
+      "reduced_motion_support": true
+    },
+    "performance": {
+      "first_contentful_paint_ms": 1000,
+      "total_bundle_size_kb": 200,
+      "no_layout_shift": true
+    },
+    "browser_support": ["Chrome 90+", "Firefox 90+", "Safari 15+", "Edge 90+"]
+  },
+  "domain_standards": {
+    "type": "web_single_page",
+    "responsive_breakpoints": [320, 768, 1440, 2560],
+    "no_scrollbar": true,
+    "dark_mode_default": true
+  },
+  "project_standards": {
+    "design_system": {
+      "colors": {
+        "focus": {
+          "background": "#0a0a0f",
+          "accent": "#4a9eff",
+          "glow": "#4a9eff"
+        },
+        "short_break": {
+          "background": "#0f0a14",
+          "accent": "#c084fc",
+          "glow": "#c084fc"
+        },
+        "long_break": {
+          "background": "#0a100f",
+          "accent": "#34d399",
+          "glow": "#34d399"
+        },
+        "text_primary": "#f0f0f5",
+        "text_secondary": "#6b7280",
+        "glass_surface": "rgba(255,255,255,0.05)"
+      },
+      "typography": {
+        "timer_face": {
+          "family": "JetBrains Mono, Space Mono, monospace",
+          "size_range": "80-120px",
+          "weight": 300
+        },
+        "phase_label": {
+          "family": "JetBrains Mono, Space Mono, monospace",
+          "size": "14-16px",
+          "transform": "uppercase",
+          "letter_spacing": "0.2em"
+        },
+        "ui": {
+          "family": "Inter, system-ui, sans-serif",
+          "size": "14px"
+        }
+      },
+      "effects": {
+        "frosted_glass": "backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1)",
+        "state_transition_duration": "1.2s",
+        "state_transition_easing": "ease-in-out"
+      }
+    },
+    "legal": {
+      "avoid_pomodoro_in_branding": true,
+      "footer_disclosure": "Epoch runs entirely in your browser. No data is collected or transmitted.",
+      "trademark_attribution": "The Pomodoro Technique is a registered trademark of Francesco Cirillo.",
+      "notification_request": "on_user_action_only"
+    }
+  }
+}

@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fruit & Veg — Your child's favourite way to learn about food</title>
+  <meta name="description" content="A playful flashcard app where kids aged 5-8 discover fruit and vegetables, answer fun quizzes, and collect stickers — one new fruit every day.">
+  <style>
+    :root {
+      /* Design tokens from design-artifact.yaml */
+      --color-primary: #FF6B35;
+      --color-primary-foreground: #FFFFFF;
+      --color-secondary: #004E64;
+      --color-secondary-foreground: #FFFFFF;
+      --color-accent: #FFD166;
+      --color-accent-foreground: #1A1A1A;
+      --color-background: #FFFDF7;
+      --color-foreground: #2D2D2D;
+      --color-muted: #F0EDE6;
+      --color-muted-foreground: #6B6B6B;
+      --color-border: #E8E4DB;
+      --color-success: #06D6A0;
+
+      /* Typography */
+      --font-family: 'Nunito', sans-serif;
+      --font-h1: 800 2rem/1.2 var(--font-family);
+      --font-h2: 700 1.5rem/1.3 var(--font-family);
+      --font-h3: 700 1.25rem/1.4 var(--font-family);
+      --font-body: 600 1.125rem/1.6 var(--font-family);
+      --font-body-small: 400 1rem/1.5 var(--font-family);
+      --font-caption: 600 0.875rem/1.4 var(--font-family);
+
+      /* Spacing (base unit: 4px) */
+      --space-1: 4px;
+      --space-2: 8px;
+      --space-3: 12px;
+      --space-4: 16px;
+      --space-5: 20px;
+      --space-6: 24px;
+      --space-8: 32px;
+      --space-10: 40px;
+      --space-12: 48px;
+      --space-16: 64px;
+      --space-20: 80px;
+
+      /* Border radius */
+      --radius-sm: 0.5rem;
+      --radius-md: 0.75rem;
+      --radius-lg: 1rem;
+      --radius-xl: 1.5rem;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font: var(--font-body-small);
+      color: var(--color-foreground);
+      background: var(--color-background);
+    }
+
+    a { color: var(--color-primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 0 var(--space-4);
+    }
+
+    /* HERO */
+    .hero {
+      text-align: center;
+      padding: var(--space-20) var(--space-4);
+    }
+
+    .hero h1 {
+      font: var(--font-h1);
+      font-size: 2.5rem;
+      color: var(--color-secondary);
+      margin-bottom: var(--space-4);
+    }
+
+    .hero .subheadline {
+      font: var(--font-body);
+      color: var(--color-muted-foreground);
+      max-width: 540px;
+      margin: 0 auto var(--space-8);
+    }
+
+    .cta-button {
+      display: inline-block;
+      font: var(--font-h3);
+      background: var(--color-primary);
+      color: var(--color-primary-foreground);
+      padding: var(--space-4) var(--space-10);
+      border-radius: var(--radius-xl);
+      border: none;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .cta-button:hover {
+      transform: scale(1.03);
+      box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+      text-decoration: none;
+    }
+
+    .cta-supporting {
+      font: var(--font-caption);
+      color: var(--color-muted-foreground);
+      margin-top: var(--space-3);
+    }
+
+    /* Screenshot placeholder */
+    .hero-image {
+      margin-top: var(--space-12);
+      background: var(--color-muted);
+      border-radius: var(--radius-lg);
+      height: 320px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-muted-foreground);
+      font: var(--font-caption);
+    }
+
+    /* SECTIONS */
+    section {
+      padding: var(--space-16) var(--space-4);
+    }
+
+    section h2 {
+      font: var(--font-h1);
+      color: var(--color-secondary);
+      margin-bottom: var(--space-4);
+    }
+
+    section p {
+      font: var(--font-body-small);
+      color: var(--color-foreground);
+      line-height: 1.7;
+      margin-bottom: var(--space-4);
+    }
+
+    /* FEATURES */
+    .features-grid {
+      display: grid;
+      gap: var(--space-6);
+      margin-top: var(--space-8);
+    }
+
+    .feature-card {
+      background: var(--color-muted);
+      border-radius: var(--radius-lg);
+      padding: var(--space-6);
+    }
+
+    .feature-card h3 {
+      font: var(--font-h3);
+      color: var(--color-secondary);
+      margin-bottom: var(--space-2);
+    }
+
+    .feature-card .description {
+      font: var(--font-body-small);
+      font-weight: 600;
+      margin-bottom: var(--space-2);
+    }
+
+    .feature-card .detail {
+      font: var(--font-body-small);
+      color: var(--color-muted-foreground);
+    }
+
+    /* FAQ */
+    .faq-item {
+      border-bottom: 1px solid var(--color-border);
+      padding: var(--space-5) 0;
+    }
+
+    .faq-item h3 {
+      font: var(--font-h3);
+      color: var(--color-secondary);
+      margin-bottom: var(--space-2);
+    }
+
+    .faq-item p {
+      font: var(--font-body-small);
+      color: var(--color-muted-foreground);
+      margin-bottom: 0;
+    }
+
+    /* FOOTER */
+    footer {
+      text-align: center;
+      padding: var(--space-16) var(--space-4);
+      background: var(--color-muted);
+    }
+
+    footer h2 {
+      font: var(--font-h1);
+      color: var(--color-secondary);
+      margin-bottom: var(--space-6);
+    }
+
+    .footer-meta {
+      margin-top: var(--space-8);
+      font: var(--font-caption);
+      color: var(--color-muted-foreground);
+    }
+
+    .footer-meta a { color: var(--color-muted-foreground); }
+
+    @media (min-width: 640px) {
+      .hero h1 { font-size: 3rem; }
+      .features-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- HERO SECTION -->
+  <header class="hero" role="banner">
+    <div class="container">
+      <h1>Your child's favourite way to learn about food</h1>
+      <p class="subheadline">A playful flashcard app where kids aged 5-8 discover fruit and vegetables, answer fun quizzes, and collect stickers — one new fruit every day.</p>
+      <a href="/app" class="cta-button">Start learning</a>
+      <p class="cta-supporting">Free. No ads. No sign-up required.</p>
+      <div class="hero-image" role="img" aria-label="Screenshot of the Fruit & Veg app showing a colourful fruit card with fun facts and quiz questions">
+        <!-- Replace with app screenshot: home screen showing Fruit of the Day card -->
+        App screenshot placeholder
+      </div>
+    </div>
+  </header>
+
+  <main role="main">
+
+    <!-- PROBLEM SECTION -->
+    <section aria-labelledby="problem-heading">
+      <div class="container">
+        <h2 id="problem-heading">Kids don't know where their food comes from</h2>
+        <p>Ask a 6-year-old where bananas grow and you'll get a shrug. Most children can name a handful of fruits and vegetables, but they don't know what makes each one special — where it's from, how it grows, or why a strawberry isn't really a berry. The tools that exist are either dull flashcard apps or games where learning is an afterthought.</p>
+      </div>
+    </section>
+
+    <!-- SOLUTION SECTION -->
+    <section aria-labelledby="solution-heading" style="background: var(--color-muted);">
+      <div class="container">
+        <h2 id="solution-heading">Meet your food — one card at a time</h2>
+        <p>Every fruit and vegetable is a character that talks to your child. "I grow on tall trees in South America!" They flip the card, read fun facts, then answer simple questions to earn a sticker. 75 fruits and vegetables to discover, a new one every day. It's Wordle meets Pokémon — for the dinner table.</p>
+      </div>
+    </section>
+
+    <!-- FEATURES SECTION -->
+    <section aria-labelledby="features-heading">
+      <div class="container">
+        <h2 id="features-heading">How it works</h2>
+        <div class="features-grid">
+          <div class="feature-card">
+            <h3>Daily Discovery</h3>
+            <p class="description">A new Fruit of the Day every morning, plus 2 review cards to keep knowledge fresh.</p>
+            <p class="detail">The daily challenge creates a simple habit — "what's today's fruit?" — that brings kids back day after day.</p>
+          </div>
+          <div class="feature-card">
+            <h3>Playful Quizzes</h3>
+            <p class="description">2-3 questions after every card — tap the right colour, guess where it grows, true or false.</p>
+            <p class="detail">Wrong answers are met with a gentle "Nearly! I actually grow on trees!" — no penalties, no pressure.</p>
+          </div>
+          <div class="feature-card">
+            <h3>Sticker Collection</h3>
+            <p class="description">Every fruit learned earns a sticker. Fill your collection book with 75 colourful stickers.</p>
+            <p class="detail">Complete a whole category — berries, tropical, root veg — to earn a special badge.</p>
+          </div>
+          <div class="feature-card">
+            <h3>Streaks & Achievements</h3>
+            <p class="description">Play every day and watch your streak grow. Category badges reward deep exploration.</p>
+            <p class="detail">A gentle streak mechanic rewards consistency without punishing missed days.</p>
+          </div>
+          <div class="feature-card">
+            <h3>Save Progress</h3>
+            <p class="description">Optional account to save stickers across devices. Parent sets it up in 30 seconds.</p>
+            <p class="detail">Works without an account — progress saves on the device. Add an account when stickers are worth keeping.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SOCIAL PROOF SECTION -->
+    <!-- SOCIAL PROOF: Replace with real testimonials after launch -->
+
+    <!-- PRICING SECTION -->
+    <section aria-labelledby="pricing-heading" style="background: var(--color-muted); text-align: center;">
+      <div class="container">
+        <h2 id="pricing-heading">Free for everyone</h2>
+        <p>No ads. No in-app purchases. No premium tier. Create an optional account to sync progress across devices — also free.</p>
+      </div>
+    </section>
+
+    <!-- FAQ SECTION -->
+    <section aria-labelledby="faq-heading">
+      <div class="container">
+        <h2 id="faq-heading">Questions</h2>
+        <div class="faq-item">
+          <h3>Is this safe for my child?</h3>
+          <p>No ads, no chat, no social features, no tracking. We don't collect any information from children. If you create an account, only a parent's email is stored — and you can delete it at any time.</p>
+        </div>
+        <div class="faq-item">
+          <h3>What age is this for?</h3>
+          <p>Designed for 5-8 year olds. Short sentences, big buttons. A confident 4-year-old can play with a parent reading aloud.</p>
+        </div>
+        <div class="faq-item">
+          <h3>How long does the content last?</h3>
+          <p>75 fruits and vegetables with a daily challenge format gives roughly 3-4 months of new discoveries. After that, review mode keeps the knowledge fresh.</p>
+        </div>
+        <div class="faq-item">
+          <h3>Does my child need an account?</h3>
+          <p>No. The app works immediately with no sign-up. Progress saves on the device. An account is optional — it just lets you keep stickers if you switch devices.</p>
+        </div>
+        <div class="faq-item">
+          <h3>Can I use this in a classroom?</h3>
+          <p>The current version is for individual use. Classroom features are on the roadmap.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FOOTER CTA -->
+  <footer role="contentinfo">
+    <div class="container">
+      <h2>75 fruits and vegetables are waiting</h2>
+      <a href="/app" class="cta-button">Start learning</a>
+      <div class="footer-meta">
+        <a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms</a> · <a href="/cookies">Cookies</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
