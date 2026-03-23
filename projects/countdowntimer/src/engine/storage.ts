@@ -4,6 +4,29 @@ const SETTINGS_KEY = 'epoch_settings';
 const DAILY_COUNT_KEY = 'epoch_daily_count';
 const DAILY_DATE_KEY = 'epoch_daily_date';
 
+function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
+  if (typeof value !== 'number' || isNaN(value)) return fallback;
+  return Math.max(min, Math.min(max, value));
+}
+
+function validateBoolean(value: unknown, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback;
+}
+
+export function validateSettings(parsed: Record<string, unknown>): TimerSettings {
+  return {
+    focusDuration: clampNumber(parsed.focusDuration, 1, 99, DEFAULT_SETTINGS.focusDuration),
+    shortBreakDuration: clampNumber(parsed.shortBreakDuration, 1, 99, DEFAULT_SETTINGS.shortBreakDuration),
+    longBreakDuration: clampNumber(parsed.longBreakDuration, 1, 99, DEFAULT_SETTINGS.longBreakDuration),
+    longBreakInterval: clampNumber(parsed.longBreakInterval, 1, 10, DEFAULT_SETTINGS.longBreakInterval),
+    autoStartBreaks: validateBoolean(parsed.autoStartBreaks, DEFAULT_SETTINGS.autoStartBreaks),
+    autoStartFocus: validateBoolean(parsed.autoStartFocus, DEFAULT_SETTINGS.autoStartFocus),
+    soundEnabled: validateBoolean(parsed.soundEnabled, DEFAULT_SETTINGS.soundEnabled),
+    soundVolume: clampNumber(parsed.soundVolume, 0, 100, DEFAULT_SETTINGS.soundVolume),
+    notificationsEnabled: validateBoolean(parsed.notificationsEnabled, DEFAULT_SETTINGS.notificationsEnabled),
+  };
+}
+
 function isStorageAvailable(): boolean {
   try {
     const test = '__epoch_test__';
@@ -21,7 +44,7 @@ export function loadSettings(): TimerSettings {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return { ...DEFAULT_SETTINGS };
     const parsed = JSON.parse(raw);
-    return { ...DEFAULT_SETTINGS, ...parsed };
+    return validateSettings(parsed);
   } catch {
     return { ...DEFAULT_SETTINGS };
   }

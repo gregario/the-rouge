@@ -7,9 +7,10 @@ function getAudioContext(): AudioContext {
   return audioCtx;
 }
 
-export function playChime(volume: number): void {
+export async function playChime(volume: number): Promise<void> {
   try {
     const ctx = getAudioContext();
+    await ctx.resume();
     const now = ctx.currentTime;
 
     const gain = ctx.createGain();

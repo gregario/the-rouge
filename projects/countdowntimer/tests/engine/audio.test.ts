@@ -5,7 +5,7 @@ import { playChime, sendNotification } from '@/engine/audio';
 // Chime plays when a phase ends
 // @criterion-hash: a4e69cc62891
 describe('[AC-transition-1] chime playback', () => {
-  it('creates oscillators and gain nodes when called', () => {
+  it('creates oscillators and gain nodes when called', async () => {
     const startSpy = vi.fn();
     const stopSpy = vi.fn();
     const connectSpy = vi.fn();
@@ -17,6 +17,7 @@ describe('[AC-transition-1] chime playback', () => {
     const mockCtx = {
       currentTime: 0,
       destination: {},
+      resume: vi.fn().mockResolvedValue(undefined),
       createOscillator: vi.fn(() => ({
         type: 'sine',
         frequency: { setValueAtTime: freqSetValue, exponentialRampToValueAtTime: freqRamp },
@@ -35,7 +36,8 @@ describe('[AC-transition-1] chime playback', () => {
     globalThis.AudioContext = class { constructor() { return mockCtx; } };
     vi.resetModules();
 
-    playChime(70);
+    const { playChime: freshPlayChime } = await import('@/engine/audio');
+    await freshPlayChime(70);
 
     // Should have created 2 oscillators and 2 gain nodes
     expect(mockCtx.createOscillator).toHaveBeenCalledTimes(2);
