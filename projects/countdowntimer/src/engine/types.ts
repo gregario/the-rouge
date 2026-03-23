@@ -1,6 +1,6 @@
 export type PhaseType = 'focus' | 'short-break' | 'long-break';
 
-export type TimerStatus = 'idle' | 'running' | 'paused' | 'completed';
+export type TimerStatus = 'idle' | 'running' | 'paused';
 
 export interface TimerSettings {
   focusDuration: number;       // minutes
