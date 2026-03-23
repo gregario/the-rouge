@@ -435,10 +435,31 @@
     "total_tests": 89,
     "orphaned_count": 25,
     "orphaned_removed": [
-      "AC-robust-1", "AC-robust-2", "AC-robust-3", "AC-robust-4", "AC-robust-5", "AC-robust-6", "AC-robust-7", "AC-robust-8",
-      "AC-main-a11y-1", "AC-main-a11y-3", "AC-main-a11y-4", "AC-main-a11y-5", "AC-main-a11y-6",
-      "AC-settings-a11y-1", "AC-settings-a11y-3", "AC-settings-a11y-4", "AC-settings-a11y-5", "AC-settings-a11y-6", "AC-settings-a11y-7", "AC-settings-a11y-10",
-      "AC-shortcut-1", "AC-shortcut-2", "AC-shortcut-3", "AC-shortcut-4", "AC-shortcut-5"
+      "AC-robust-1",
+      "AC-robust-2",
+      "AC-robust-3",
+      "AC-robust-4",
+      "AC-robust-5",
+      "AC-robust-6",
+      "AC-robust-7",
+      "AC-robust-8",
+      "AC-main-a11y-1",
+      "AC-main-a11y-3",
+      "AC-main-a11y-4",
+      "AC-main-a11y-5",
+      "AC-main-a11y-6",
+      "AC-settings-a11y-1",
+      "AC-settings-a11y-3",
+      "AC-settings-a11y-4",
+      "AC-settings-a11y-5",
+      "AC-settings-a11y-6",
+      "AC-settings-a11y-7",
+      "AC-settings-a11y-10",
+      "AC-shortcut-1",
+      "AC-shortcut-2",
+      "AC-shortcut-3",
+      "AC-shortcut-4",
+      "AC-shortcut-5"
     ],
     "orphaned_renamed": [],
     "stale_regenerated_count": 0,
@@ -465,73 +486,408 @@
       "backend": false
     },
     "criteria_results": [
-      {"id": "AC-display-1", "criterion": "Timer displays MM:SS in monospace font >= 72px", "status": "pass", "evidence": "Browser verified: '25:00' in JetBrains Mono at clamp(72px, 15vw, 120px) on dark background."},
-      {"id": "AC-display-2", "criterion": "Three distinct color palettes render for each phase", "status": "pass", "evidence": "Browser verified: Focus=#4a9eff, Short Break=#c084fc, Long Break=#34d399. data-phase attribute drives CSS custom properties."},
-      {"id": "AC-display-3", "criterion": "Transitions between states animate smoothly", "status": "pass", "evidence": "CSS transitions at 1.2s ease-in-out on background/accent/glow. No flash/jump on phase change."},
-      {"id": "AC-display-4", "criterion": "Layout usable at 320px, 768px, 1440px, 2560px", "status": "pass", "evidence": "Verified at 375x812, 768x1024, 1280x720. Timer scales, no overflow, all elements accessible."},
-      {"id": "AC-display-5", "criterion": "No scrollbar at any viewport size", "status": "pass", "evidence": "html, body { overflow: hidden; } in globals.css. No scrollbars at any tested viewport."},
-      {"id": "AC-display-6", "criterion": "Glow effect visible behind glass card", "status": "pass", "evidence": "Radial gradient glow visible, color matches phase accent via CSS custom property."},
-      {"id": "AC-controls-1", "criterion": "Start toggles to Pause when running, and back", "status": "pass", "evidence": "Button toggles play/pause SVG icons and aria-labels 'Start timer'/'Pause timer'."},
-      {"id": "AC-controls-2", "criterion": "Reset returns current phase to full duration", "status": "pass", "evidence": "Reset returns timer to phase full duration. Phase and cycle position unchanged."},
-      {"id": "AC-controls-3", "criterion": "Skip advances to next phase", "status": "pass", "evidence": "Skip from Focus → SHORT BREAK at 05:00 with purple color scheme. Auto-start engaged."},
-      {"id": "AC-controls-4", "criterion": "All controls have visible hover and active states", "status": "pass", "evidence": "CSS hover changes color+border, active applies scale(0.95). Custom SVG icons."},
-      {"id": "AC-controls-5", "criterion": "Keyboard accessible (Space, R, S)", "status": "pass", "evidence": "handleKeyDown maps Space/R/S. Disabled when settingsOpen or in input fields."},
-      {"id": "AC-controls-6", "criterion": "Keyboard shortcuts disabled when modal open", "status": "pass", "evidence": "if (settingsOpen) return; at top of handleKeyDown. Input tag check also present."},
-      {"id": "AC-cycle-1", "criterion": "Correct Pomodoro sequence (F-SB-F-SB-F-SB-F-LB)", "status": "pass", "evidence": "Engine unit tests verify full 8-phase cycle. Browser Skip confirmed F→SB."},
-      {"id": "AC-cycle-2", "criterion": "Long break after configured sessions", "status": "pass", "evidence": "Engine tests verify long break triggers after longBreakInterval focus completions."},
-      {"id": "AC-cycle-3", "criterion": "Auto-start respects per-phase settings", "status": "pass", "evidence": "shouldAutoStart() reads settings per phase type. Timer auto-starts break (default ON)."},
-      {"id": "AC-cycle-4", "criterion": "Cycle position indicator shows correct position", "status": "pass", "evidence": "4 dots with role='img' and aria-labels. Position tracks cycle.focusCount."},
-      {"id": "AC-cycle-5", "criterion": "Mid-session settings don't disrupt current phase", "status": "pass", "evidence": "phaseDurationMs called on phase start, reads settings at that point. Running timer unaffected."},
-      {"id": "AC-cycle-6", "criterion": "Skipped focus sessions don't count toward cycle", "status": "pass", "evidence": "handlePhaseComplete only increments when wasSkipped=false and phase is focus."},
-      {"id": "AC-counter-1", "criterion": "Counter increments on focus complete (not skip)", "status": "pass", "evidence": "dailyCount incremented only in handlePhaseComplete for focus phases when not skipped."},
-      {"id": "AC-counter-2", "criterion": "Counter resets when date changes", "status": "pass", "evidence": "loadDailyCount checks storedDate !== todayString(), resets to 0 on mismatch."},
-      {"id": "AC-counter-3", "criterion": "Counter survives page refresh", "status": "pass", "evidence": "localStorage persistence via epoch_daily_count and epoch_daily_date keys."},
-      {"id": "AC-counter-4", "criterion": "Counter displays 0 to 99", "status": "pass", "evidence": "'0 sessions today' visible. Math.min(count, 99) cap in storage.ts."},
-      {"id": "AC-counter-5", "criterion": "Graceful fallback without localStorage", "status": "pass", "evidence": "isStorageAvailable() guard + try/catch on all localStorage operations. Returns defaults."},
-      {"id": "AC-transition-1", "criterion": "Chime plays when phase ends", "status": "pass", "evidence": "Web Audio API synthesis (880Hz→1760Hz sine wave) triggered in handlePhaseComplete."},
-      {"id": "AC-transition-2", "criterion": "Chime respects sound setting and volume", "status": "pass", "evidence": "playChime gated on s.soundEnabled, uses soundVolume for gain."},
-      {"id": "AC-transition-3", "criterion": "Browser notification when tab hidden + permission granted", "status": "pass", "evidence": "sendNotification checks document.hidden and Notification.permission === 'granted'."},
-      {"id": "AC-transition-4", "criterion": "Timer drift <1s after 25min backgrounded", "status": "pass", "evidence": "Date.now()-based timing immune to setInterval throttling. remaining = initial - (now - start)."},
-      {"id": "AC-transition-5", "criterion": "Notification request only on user action", "status": "pass", "evidence": "Notification.requestPermission() only called from toggle handler, not on page load."},
-      {"id": "AC-transition-6", "criterion": "Visual transition always occurs", "status": "pass", "evidence": "CSS transitions fire on data-phase change regardless of sound/notification settings."},
-      {"id": "AC-settings-1", "criterion": "All 8 settings present and functional", "status": "pass", "evidence": "9 interactive elements: 4 number inputs, 4 toggles, 1 conditional volume slider."},
-      {"id": "AC-settings-2", "criterion": "Settings persist across refresh", "status": "pass", "evidence": "saveSettings called on every change via onUpdate. epoch_settings localStorage key."},
-      {"id": "AC-settings-3", "criterion": "Modal opens/closes with smooth animation", "status": "pass", "evidence": "animation: scaleIn 0.25s ease on .dialog. ::backdrop fadeIn 0.2s."},
-      {"id": "AC-settings-4", "criterion": "Escape key closes modal", "status": "pass", "evidence": "Native <dialog> handles Escape via close event. handleClose calls onClose()."},
-      {"id": "AC-settings-5", "criterion": "Overlay click closes modal", "status": "pass", "evidence": "handleBackdropClick checks e.target === dialogRef.current, calls onClose()."},
-      {"id": "AC-settings-6", "criterion": "Invalid input prevented (min/max enforced)", "status": "pass", "evidence": "handleNumberChange clamps via Math.min(max, Math.max(min, val)). HTML min/max attributes."},
-      {"id": "AC-settings-7", "criterion": "Notification toggle triggers permission prompt", "status": "pass", "evidence": "Toggle ON calls Notification.requestPermission(). Only sets true if granted."},
-      {"id": "AC-settings-8", "criterion": "Settings apply next phase, not current", "status": "pass", "evidence": "phaseDurationMs reads settings.focusDuration at phase start, not during countdown."},
-      {"id": "AC-robust-1", "criterion": "Error boundary catches render errors", "status": "pass", "evidence": "ErrorBoundary class component wraps children in layout.tsx. getDerivedStateFromError sets hasError=true, renders fallback with data-testid='error-boundary-fallback'."},
-      {"id": "AC-robust-2", "criterion": "Error boundary fallback matches Epoch aesthetic", "status": "pass", "evidence": "Fallback renders on #0a0a0f background with frosted glass card (rgba(255,255,255,0.05), backdrop-filter: blur(20px)), 'Something went wrong' heading, 'Reload' button."},
-      {"id": "AC-robust-3", "criterion": "Error boundary recovery button works", "status": "pass", "evidence": "Reload button calls window.location.reload(). Styled with accent color and hover state."},
-      {"id": "AC-robust-4", "criterion": "localStorage corrupted number handled", "status": "pass", "evidence": "validateSettings uses clampNumber: typeof !== 'number' || isNaN → returns fallback. 'abc' → default 25."},
-      {"id": "AC-robust-5", "criterion": "localStorage out-of-range values clamped", "status": "pass", "evidence": "clampNumber(999, 1, 99, 25) → Math.max(1, Math.min(99, 999)) = 99. Timer shows 99:00."},
-      {"id": "AC-robust-6", "criterion": "localStorage missing fields use defaults", "status": "pass", "evidence": "validateSettings reads each field independently. Missing fields return DEFAULT_SETTINGS values."},
-      {"id": "AC-robust-7", "criterion": "AudioContext resumed before chime", "status": "pass", "evidence": "playChime: await ctx.resume() called before oscillator scheduling. Line 13 of audio.ts."},
-      {"id": "AC-robust-8", "criterion": "Chime plays on mobile after user interaction", "status": "pass", "evidence": "ctx.resume() resolves after user gesture (start button). AudioContext transitions to 'running' state."},
-      {"id": "AC-settings-a11y-1", "criterion": "Focus trapped within modal", "status": "pass", "evidence": "<dialog> with showModal() provides native focus trapping. Tab cycles within dialog elements only."},
-      {"id": "AC-settings-a11y-2", "criterion": "Shift+Tab wraps from first to last element", "status": "pass", "evidence": "Native <dialog showModal()> handles reverse Tab wrapping automatically."},
-      {"id": "AC-settings-a11y-3", "criterion": "Focus returns to trigger on close", "status": "pass", "evidence": "previousFocusRef stores document.activeElement on open. Restored via .focus() on close (lines 31-33)."},
-      {"id": "AC-settings-a11y-4", "criterion": "Background inert when modal open", "status": "pass", "evidence": "<dialog showModal()> automatically makes background inert. Screen readers cannot reach background elements."},
-      {"id": "AC-settings-a11y-5", "criterion": "Modal footer text meets WCAG AA contrast", "status": "partial", "evidence": "Footer uses var(--text-secondary) #6b7280 at opacity 0.85 on rgba(20,20,30,0.95) bg. Effective contrast ~3.1:1, below 4.5:1. Improved from ~1.9:1 (opacity 0.6) but still fails. Base color needs to change to #9ca3af."},
-      {"id": "AC-settings-a11y-6", "criterion": "Footer text remains visually subdued", "status": "pass", "evidence": "Footer at 11px, muted color. Settings labels at 14px, primary color. Clear visual hierarchy."},
-      {"id": "AC-settings-a11y-7", "criterion": "Number inputs show focus ring on keyboard Tab", "status": "pass", "evidence": ".numberInput:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-color: var(--accent); }"},
-      {"id": "AC-settings-a11y-8", "criterion": "Toggle switches show focus ring on keyboard Tab", "status": "pass", "evidence": ".toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }"},
-      {"id": "AC-settings-a11y-9", "criterion": "Focus ring not visible on mouse click", "status": "pass", "evidence": ".numberInput:focus:not(:focus-visible) { outline: none; border-color: var(--accent); } — mouse click shows border only, no outline."},
-      {"id": "AC-settings-a11y-10", "criterion": "Modal entrance animation preserved", "status": "pass", "evidence": "animation: scaleIn 0.25s ease on .dialog (scale 0.95→1 + fade). ::backdrop fadeIn 0.2s."},
-      {"id": "AC-main-a11y-1", "criterion": "Session counter text meets WCAG AA contrast", "status": "pass", "evidence": ".counter { color: #9ca3af; } — contrast ~6.2:1 against #0a0a0f. Passes WCAG AA 4.5:1."},
-      {"id": "AC-main-a11y-2", "criterion": "Session counter remains visually secondary", "status": "pass", "evidence": "Counter at 13px muted gray #9ca3af. Timer at clamp(72px, 15vw, 120px) accent-colored. Clear subordination."},
-      {"id": "AC-main-a11y-3", "criterion": "Page contains h1 element", "status": "pass", "evidence": "<h1 className={styles.srOnly}>Epoch</h1> in page.tsx line 65."},
-      {"id": "AC-main-a11y-4", "criterion": "h1 is visually hidden but screen-reader accessible", "status": "pass", "evidence": ".srOnly: position absolute, width/height 1px, clip rect(0,0,0,0), overflow hidden. Not display:none."},
-      {"id": "AC-main-a11y-5", "criterion": "Header landmark contains settings button", "status": "pass", "evidence": "<header className={styles.settingsHeader}> wraps settings button with aria-label='Open settings'."},
-      {"id": "AC-main-a11y-6", "criterion": "Footer landmark contains session counter", "status": "pass", "evidence": "<footer> wraps <SessionCounter count={dailyCount} /> in page.tsx lines 84-86."},
-      {"id": "AC-main-a11y-7", "criterion": "Visual layout unchanged after landmark additions", "status": "pass", "evidence": "Semantic elements are structural only. CSS unchanged for landmark wrappers. No visual difference."},
-      {"id": "AC-shortcut-1", "criterion": "All three shortcuts are visually discoverable", "status": "pass", "evidence": "Three <span className={styles.shortcutHint}> with text 'R', 'Space', 'S'. data-testid attributes present. Visible on desktop."},
-      {"id": "AC-shortcut-2", "criterion": "Shortcut hints meet WCAG AA contrast", "status": "pass", "evidence": ".shortcutHint { color: #9ca3af; } — ~6.2:1 contrast on dark background. Passes WCAG AA at 10px."},
-      {"id": "AC-shortcut-3", "criterion": "Shortcut hints are visually subordinate to button icons", "status": "pass", "evidence": "Hints at 10px monospace below 48/56px icon buttons in flex-column layout. Clearly secondary."},
-      {"id": "AC-shortcut-4", "criterion": "Shortcut hints hidden on mobile", "status": "pass", "evidence": "@media (max-width: 767px) { .shortcutHint { display: none; } }"},
-      {"id": "AC-shortcut-5", "criterion": "Timer display hierarchy preserved", "status": "pass", "evidence": "Timer at clamp(72px, 15vw, 120px) dominates viewport. 10px hints are negligible visual weight."}
+      {
+        "id": "AC-display-1",
+        "criterion": "Timer displays MM:SS in monospace font >= 72px",
+        "status": "pass",
+        "evidence": "Browser verified: '25:00' in JetBrains Mono at clamp(72px, 15vw, 120px) on dark background."
+      },
+      {
+        "id": "AC-display-2",
+        "criterion": "Three distinct color palettes render for each phase",
+        "status": "pass",
+        "evidence": "Browser verified: Focus=#4a9eff, Short Break=#c084fc, Long Break=#34d399. data-phase attribute drives CSS custom properties."
+      },
+      {
+        "id": "AC-display-3",
+        "criterion": "Transitions between states animate smoothly",
+        "status": "pass",
+        "evidence": "CSS transitions at 1.2s ease-in-out on background/accent/glow. No flash/jump on phase change."
+      },
+      {
+        "id": "AC-display-4",
+        "criterion": "Layout usable at 320px, 768px, 1440px, 2560px",
+        "status": "pass",
+        "evidence": "Verified at 375x812, 768x1024, 1280x720. Timer scales, no overflow, all elements accessible."
+      },
+      {
+        "id": "AC-display-5",
+        "criterion": "No scrollbar at any viewport size",
+        "status": "pass",
+        "evidence": "html, body { overflow: hidden; } in globals.css. No scrollbars at any tested viewport."
+      },
+      {
+        "id": "AC-display-6",
+        "criterion": "Glow effect visible behind glass card",
+        "status": "pass",
+        "evidence": "Radial gradient glow visible, color matches phase accent via CSS custom property."
+      },
+      {
+        "id": "AC-controls-1",
+        "criterion": "Start toggles to Pause when running, and back",
+        "status": "pass",
+        "evidence": "Button toggles play/pause SVG icons and aria-labels 'Start timer'/'Pause timer'."
+      },
+      {
+        "id": "AC-controls-2",
+        "criterion": "Reset returns current phase to full duration",
+        "status": "pass",
+        "evidence": "Reset returns timer to phase full duration. Phase and cycle position unchanged."
+      },
+      {
+        "id": "AC-controls-3",
+        "criterion": "Skip advances to next phase",
+        "status": "pass",
+        "evidence": "Skip from Focus → SHORT BREAK at 05:00 with purple color scheme. Auto-start engaged."
+      },
+      {
+        "id": "AC-controls-4",
+        "criterion": "All controls have visible hover and active states",
+        "status": "pass",
+        "evidence": "CSS hover changes color+border, active applies scale(0.95). Custom SVG icons."
+      },
+      {
+        "id": "AC-controls-5",
+        "criterion": "Keyboard accessible (Space, R, S)",
+        "status": "pass",
+        "evidence": "handleKeyDown maps Space/R/S. Disabled when settingsOpen or in input fields."
+      },
+      {
+        "id": "AC-controls-6",
+        "criterion": "Keyboard shortcuts disabled when modal open",
+        "status": "pass",
+        "evidence": "if (settingsOpen) return; at top of handleKeyDown. Input tag check also present."
+      },
+      {
+        "id": "AC-cycle-1",
+        "criterion": "Correct Pomodoro sequence (F-SB-F-SB-F-SB-F-LB)",
+        "status": "pass",
+        "evidence": "Engine unit tests verify full 8-phase cycle. Browser Skip confirmed F→SB."
+      },
+      {
+        "id": "AC-cycle-2",
+        "criterion": "Long break after configured sessions",
+        "status": "pass",
+        "evidence": "Engine tests verify long break triggers after longBreakInterval focus completions."
+      },
+      {
+        "id": "AC-cycle-3",
+        "criterion": "Auto-start respects per-phase settings",
+        "status": "pass",
+        "evidence": "shouldAutoStart() reads settings per phase type. Timer auto-starts break (default ON)."
+      },
+      {
+        "id": "AC-cycle-4",
+        "criterion": "Cycle position indicator shows correct position",
+        "status": "pass",
+        "evidence": "4 dots with role='img' and aria-labels. Position tracks cycle.focusCount."
+      },
+      {
+        "id": "AC-cycle-5",
+        "criterion": "Mid-session settings don't disrupt current phase",
+        "status": "pass",
+        "evidence": "phaseDurationMs called on phase start, reads settings at that point. Running timer unaffected."
+      },
+      {
+        "id": "AC-cycle-6",
+        "criterion": "Skipped focus sessions don't count toward cycle",
+        "status": "pass",
+        "evidence": "handlePhaseComplete only increments when wasSkipped=false and phase is focus."
+      },
+      {
+        "id": "AC-counter-1",
+        "criterion": "Counter increments on focus complete (not skip)",
+        "status": "pass",
+        "evidence": "dailyCount incremented only in handlePhaseComplete for focus phases when not skipped."
+      },
+      {
+        "id": "AC-counter-2",
+        "criterion": "Counter resets when date changes",
+        "status": "pass",
+        "evidence": "loadDailyCount checks storedDate !== todayString(), resets to 0 on mismatch."
+      },
+      {
+        "id": "AC-counter-3",
+        "criterion": "Counter survives page refresh",
+        "status": "pass",
+        "evidence": "localStorage persistence via epoch_daily_count and epoch_daily_date keys."
+      },
+      {
+        "id": "AC-counter-4",
+        "criterion": "Counter displays 0 to 99",
+        "status": "pass",
+        "evidence": "'0 sessions today' visible. Math.min(count, 99) cap in storage.ts."
+      },
+      {
+        "id": "AC-counter-5",
+        "criterion": "Graceful fallback without localStorage",
+        "status": "pass",
+        "evidence": "isStorageAvailable() guard + try/catch on all localStorage operations. Returns defaults."
+      },
+      {
+        "id": "AC-transition-1",
+        "criterion": "Chime plays when phase ends",
+        "status": "pass",
+        "evidence": "Web Audio API synthesis (880Hz→1760Hz sine wave) triggered in handlePhaseComplete."
+      },
+      {
+        "id": "AC-transition-2",
+        "criterion": "Chime respects sound setting and volume",
+        "status": "pass",
+        "evidence": "playChime gated on s.soundEnabled, uses soundVolume for gain."
+      },
+      {
+        "id": "AC-transition-3",
+        "criterion": "Browser notification when tab hidden + permission granted",
+        "status": "pass",
+        "evidence": "sendNotification checks document.hidden and Notification.permission === 'granted'."
+      },
+      {
+        "id": "AC-transition-4",
+        "criterion": "Timer drift <1s after 25min backgrounded",
+        "status": "pass",
+        "evidence": "Date.now()-based timing immune to setInterval throttling. remaining = initial - (now - start)."
+      },
+      {
+        "id": "AC-transition-5",
+        "criterion": "Notification request only on user action",
+        "status": "pass",
+        "evidence": "Notification.requestPermission() only called from toggle handler, not on page load."
+      },
+      {
+        "id": "AC-transition-6",
+        "criterion": "Visual transition always occurs",
+        "status": "pass",
+        "evidence": "CSS transitions fire on data-phase change regardless of sound/notification settings."
+      },
+      {
+        "id": "AC-settings-1",
+        "criterion": "All 8 settings present and functional",
+        "status": "pass",
+        "evidence": "9 interactive elements: 4 number inputs, 4 toggles, 1 conditional volume slider."
+      },
+      {
+        "id": "AC-settings-2",
+        "criterion": "Settings persist across refresh",
+        "status": "pass",
+        "evidence": "saveSettings called on every change via onUpdate. epoch_settings localStorage key."
+      },
+      {
+        "id": "AC-settings-3",
+        "criterion": "Modal opens/closes with smooth animation",
+        "status": "pass",
+        "evidence": "animation: scaleIn 0.25s ease on .dialog. ::backdrop fadeIn 0.2s."
+      },
+      {
+        "id": "AC-settings-4",
+        "criterion": "Escape key closes modal",
+        "status": "pass",
+        "evidence": "Native <dialog> handles Escape via close event. handleClose calls onClose()."
+      },
+      {
+        "id": "AC-settings-5",
+        "criterion": "Overlay click closes modal",
+        "status": "pass",
+        "evidence": "handleBackdropClick checks e.target === dialogRef.current, calls onClose()."
+      },
+      {
+        "id": "AC-settings-6",
+        "criterion": "Invalid input prevented (min/max enforced)",
+        "status": "pass",
+        "evidence": "handleNumberChange clamps via Math.min(max, Math.max(min, val)). HTML min/max attributes."
+      },
+      {
+        "id": "AC-settings-7",
+        "criterion": "Notification toggle triggers permission prompt",
+        "status": "pass",
+        "evidence": "Toggle ON calls Notification.requestPermission(). Only sets true if granted."
+      },
+      {
+        "id": "AC-settings-8",
+        "criterion": "Settings apply next phase, not current",
+        "status": "pass",
+        "evidence": "phaseDurationMs reads settings.focusDuration at phase start, not during countdown."
+      },
+      {
+        "id": "AC-robust-1",
+        "criterion": "Error boundary catches render errors",
+        "status": "pass",
+        "evidence": "ErrorBoundary class component wraps children in layout.tsx. getDerivedStateFromError sets hasError=true, renders fallback with data-testid='error-boundary-fallback'."
+      },
+      {
+        "id": "AC-robust-2",
+        "criterion": "Error boundary fallback matches Epoch aesthetic",
+        "status": "pass",
+        "evidence": "Fallback renders on #0a0a0f background with frosted glass card (rgba(255,255,255,0.05), backdrop-filter: blur(20px)), 'Something went wrong' heading, 'Reload' button."
+      },
+      {
+        "id": "AC-robust-3",
+        "criterion": "Error boundary recovery button works",
+        "status": "pass",
+        "evidence": "Reload button calls window.location.reload(). Styled with accent color and hover state."
+      },
+      {
+        "id": "AC-robust-4",
+        "criterion": "localStorage corrupted number handled",
+        "status": "pass",
+        "evidence": "validateSettings uses clampNumber: typeof !== 'number' || isNaN → returns fallback. 'abc' → default 25."
+      },
+      {
+        "id": "AC-robust-5",
+        "criterion": "localStorage out-of-range values clamped",
+        "status": "pass",
+        "evidence": "clampNumber(999, 1, 99, 25) → Math.max(1, Math.min(99, 999)) = 99. Timer shows 99:00."
+      },
+      {
+        "id": "AC-robust-6",
+        "criterion": "localStorage missing fields use defaults",
+        "status": "pass",
+        "evidence": "validateSettings reads each field independently. Missing fields return DEFAULT_SETTINGS values."
+      },
+      {
+        "id": "AC-robust-7",
+        "criterion": "AudioContext resumed before chime",
+        "status": "pass",
+        "evidence": "playChime: await ctx.resume() called before oscillator scheduling. Line 13 of audio.ts."
+      },
+      {
+        "id": "AC-robust-8",
+        "criterion": "Chime plays on mobile after user interaction",
+        "status": "pass",
+        "evidence": "ctx.resume() resolves after user gesture (start button). AudioContext transitions to 'running' state."
+      },
+      {
+        "id": "AC-settings-a11y-1",
+        "criterion": "Focus trapped within modal",
+        "status": "pass",
+        "evidence": "<dialog> with showModal() provides native focus trapping. Tab cycles within dialog elements only."
+      },
+      {
+        "id": "AC-settings-a11y-2",
+        "criterion": "Shift+Tab wraps from first to last element",
+        "status": "pass",
+        "evidence": "Native <dialog showModal()> handles reverse Tab wrapping automatically."
+      },
+      {
+        "id": "AC-settings-a11y-3",
+        "criterion": "Focus returns to trigger on close",
+        "status": "pass",
+        "evidence": "previousFocusRef stores document.activeElement on open. Restored via .focus() on close (lines 31-33)."
+      },
+      {
+        "id": "AC-settings-a11y-4",
+        "criterion": "Background inert when modal open",
+        "status": "pass",
+        "evidence": "<dialog showModal()> automatically makes background inert. Screen readers cannot reach background elements."
+      },
+      {
+        "id": "AC-settings-a11y-5",
+        "criterion": "Modal footer text meets WCAG AA contrast",
+        "status": "partial",
+        "evidence": "Footer uses var(--text-secondary) #6b7280 at opacity 0.85 on rgba(20,20,30,0.95) bg. Effective contrast ~3.1:1, below 4.5:1. Improved from ~1.9:1 (opacity 0.6) but still fails. Base color needs to change to #9ca3af."
+      },
+      {
+        "id": "AC-settings-a11y-6",
+        "criterion": "Footer text remains visually subdued",
+        "status": "pass",
+        "evidence": "Footer at 11px, muted color. Settings labels at 14px, primary color. Clear visual hierarchy."
+      },
+      {
+        "id": "AC-settings-a11y-7",
+        "criterion": "Number inputs show focus ring on keyboard Tab",
+        "status": "pass",
+        "evidence": ".numberInput:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-color: var(--accent); }"
+      },
+      {
+        "id": "AC-settings-a11y-8",
+        "criterion": "Toggle switches show focus ring on keyboard Tab",
+        "status": "pass",
+        "evidence": ".toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }"
+      },
+      {
+        "id": "AC-settings-a11y-9",
+        "criterion": "Focus ring not visible on mouse click",
+        "status": "pass",
+        "evidence": ".numberInput:focus:not(:focus-visible) { outline: none; border-color: var(--accent); } — mouse click shows border only, no outline."
+      },
+      {
+        "id": "AC-settings-a11y-10",
+        "criterion": "Modal entrance animation preserved",
+        "status": "pass",
+        "evidence": "animation: scaleIn 0.25s ease on .dialog (scale 0.95→1 + fade). ::backdrop fadeIn 0.2s."
+      },
+      {
+        "id": "AC-main-a11y-1",
+        "criterion": "Session counter text meets WCAG AA contrast",
+        "status": "pass",
+        "evidence": ".counter { color: #9ca3af; } — contrast ~6.2:1 against #0a0a0f. Passes WCAG AA 4.5:1."
+      },
+      {
+        "id": "AC-main-a11y-2",
+        "criterion": "Session counter remains visually secondary",
+        "status": "pass",
+        "evidence": "Counter at 13px muted gray #9ca3af. Timer at clamp(72px, 15vw, 120px) accent-colored. Clear subordination."
+      },
+      {
+        "id": "AC-main-a11y-3",
+        "criterion": "Page contains h1 element",
+        "status": "pass",
+        "evidence": "<h1 className={styles.srOnly}>Epoch</h1> in page.tsx line 65."
+      },
+      {
+        "id": "AC-main-a11y-4",
+        "criterion": "h1 is visually hidden but screen-reader accessible",
+        "status": "pass",
+        "evidence": ".srOnly: position absolute, width/height 1px, clip rect(0,0,0,0), overflow hidden. Not display:none."
+      },
+      {
+        "id": "AC-main-a11y-5",
+        "criterion": "Header landmark contains settings button",
+        "status": "pass",
+        "evidence": "<header className={styles.settingsHeader}> wraps settings button with aria-label='Open settings'."
+      },
+      {
+        "id": "AC-main-a11y-6",
+        "criterion": "Footer landmark contains session counter",
+        "status": "pass",
+        "evidence": "<footer> wraps <SessionCounter count={dailyCount} /> in page.tsx lines 84-86."
+      },
+      {
+        "id": "AC-main-a11y-7",
+        "criterion": "Visual layout unchanged after landmark additions",
+        "status": "pass",
+        "evidence": "Semantic elements are structural only. CSS unchanged for landmark wrappers. No visual difference."
+      },
+      {
+        "id": "AC-shortcut-1",
+        "criterion": "All three shortcuts are visually discoverable",
+        "status": "pass",
+        "evidence": "Three <span className={styles.shortcutHint}> with text 'R', 'Space', 'S'. data-testid attributes present. Visible on desktop."
+      },
+      {
+        "id": "AC-shortcut-2",
+        "criterion": "Shortcut hints meet WCAG AA contrast",
+        "status": "pass",
+        "evidence": ".shortcutHint { color: #9ca3af; } — ~6.2:1 contrast on dark background. Passes WCAG AA at 10px."
+      },
+      {
+        "id": "AC-shortcut-3",
+        "criterion": "Shortcut hints are visually subordinate to button icons",
+        "status": "pass",
+        "evidence": "Hints at 10px monospace below 48/56px icon buttons in flex-column layout. Clearly secondary."
+      },
+      {
+        "id": "AC-shortcut-4",
+        "criterion": "Shortcut hints hidden on mobile",
+        "status": "pass",
+        "evidence": "@media (max-width: 767px) { .shortcutHint { display: none; } }"
+      },
+      {
+        "id": "AC-shortcut-5",
+        "criterion": "Timer display hierarchy preserved",
+        "status": "pass",
+        "evidence": "Timer at clamp(72px, 15vw, 120px) dominates viewport. 10px hints are negligible visual weight."
+      }
     ],
     "criteria_summary": {
       "total": 67,
@@ -817,9 +1173,9 @@
     ]
   },
   "po_review_report": {
-    "verdict": "NEEDS_IMPROVEMENT",
-    "confidence": 0.83,
-    "recommended_action": "deepen:accessibility-polish",
+    "verdict": "PRODUCTION_READY",
+    "confidence": 0.86,
+    "recommended_action": "continue",
     "journey_quality": [
       {
         "journey_name": "First-time user landing",
@@ -829,307 +1185,377 @@
             "step": "Page loads showing timer at 25:00 in FOCUS state",
             "clarity": 9,
             "feedback": 8,
-            "efficiency": 9,
+            "efficiency": 10,
             "delight": 8,
-            "overall": 8.5,
-            "notes": "Timer display is unmistakably clear. Large monospace font, FOCUS label, electric blue accent, frosted glass card. Visual hierarchy is perfect."
+            "overall": 8.75,
+            "notes": "Timer display is immediately legible — large monospace digits, FOCUS label in electric blue, frosted glass card on dark navy. Visual hierarchy is excellent: timer dominates, phase label orients, controls invite action. Keyboard shortcut hints (R, Space, S) below buttons are a nice touch for discoverability. Cycle indicator (4 hollow dots) and '0 sessions today' establish context without clutter. Settings gear in top-right is unobtrusive but findable. No JS errors on load."
           }
         ],
         "verdict": "polished",
-        "average_score": 8.5
+        "average_score": 8.75
       },
       {
-        "journey_name": "Start a focus session",
-        "description": "User clicks start and begins a timed focus session with visual and state feedback",
+        "journey_name": "Start and pause a focus session",
+        "description": "User starts the timer, observes countdown, pauses, and resumes",
         "steps": [
           {
-            "step": "Click start/play button",
+            "step": "Click play button or press Space to start timer",
             "clarity": 9,
             "feedback": 9,
             "efficiency": 10,
             "delight": 8,
             "overall": 9,
-            "notes": "Button icon changes from play to pause, timer immediately begins counting down. Immediate visual confirmation that action succeeded."
-          }
-        ],
-        "verdict": "polished",
-        "average_score": 9
-      },
-      {
-        "journey_name": "Configure Pomodoro settings",
-        "description": "User opens settings modal and adjusts durations and behavior flags",
-        "steps": [
-          {
-            "step": "Click settings gear icon to open modal",
-            "clarity": 9,
-            "feedback": 8,
-            "efficiency": 8,
-            "delight": 7,
-            "overall": 8,
-            "notes": "Modal appears with clear sections (TIMING, BEHAVIOR, SOUND, NOTIFICATIONS). All 8 settings visible and organized logically. Dark scrim and frosted glass consistent with main design."
+            "notes": "Single click starts countdown immediately. Button icon changes from play to pause with blue accent ring. Timer begins counting from 24:59. Keyboard shortcut (Space) also works perfectly. Zero-config start — exactly what the spec demands."
           },
           {
-            "step": "Change focus duration value",
-            "clarity": 9,
-            "feedback": 8,
-            "efficiency": 9,
-            "delight": 6,
-            "overall": 8,
-            "notes": "Input updates immediately. Change is visible in real-time. Spec says settings apply on next phase (not current), which is correct behavior observed on subsequent phase."
-          },
-          {
-            "step": "Close modal with X button or overlay click",
-            "clarity": 9,
+            "step": "Observe timer counting down during focus",
+            "clarity": 10,
             "feedback": 8,
             "efficiency": 10,
-            "delight": 6,
-            "overall": 8.25,
-            "notes": "Modal closes smoothly. Settings persist (confirmed by re-opening modal and seeing updated values). No confirmation needed."
+            "delight": 7,
+            "overall": 8.75,
+            "notes": "Digits are crisp and readable. Countdown is smooth — no jank or flicker between second changes. The running state is clear from the pause icon on the primary button. However, the subtle glow pulse mentioned in spec is not strongly visible — the atmosphere during running could be slightly more dynamic."
+          },
+          {
+            "step": "Click pause button or press Space to pause",
+            "clarity": 9,
+            "feedback": 9,
+            "efficiency": 10,
+            "delight": 7,
+            "overall": 8.75,
+            "notes": "Pause is instant. Button reverts to play icon. Timer freezes at exact second. State is unambiguous — paused timer with play button is universally understood. No animation on pause transition though; a subtle pulse or dim would add polish."
           }
         ],
         "verdict": "polished",
-        "average_score": 8.08
+        "average_score": 8.83
       },
       {
         "journey_name": "Phase transition (Focus to Short Break)",
-        "description": "User experiences automatic phase transition with visual and state feedback",
+        "description": "User skips or completes a focus session and experiences the phase transition",
         "steps": [
           {
-            "step": "Timer completes or user skips to next phase",
-            "clarity": 10,
+            "step": "Click skip button (or timer completes) to advance to next phase",
+            "clarity": 9,
             "feedback": 9,
             "efficiency": 9,
             "delight": 9,
-            "overall": 9.25,
-            "notes": "Phase label changed from FOCUS to SHORT BREAK. Timer reset to 05:00. Background color shifted from dark navy to dark purple (matching spec palettes). Auto-started break (respecting auto-start-breaks setting). Smooth transition, no jarring state change."
+            "overall": 9,
+            "notes": "Skip button has momentary accent ring feedback. Phase transition is visually striking — entire color palette shifts from navy/blue to purple/violet. Label changes from FOCUS to SHORT BREAK. Timer resets to 05:00. Background, accent, glow, and button colors all transition coherently. This is the most satisfying moment in the product."
+          },
+          {
+            "step": "Break auto-starts (respecting auto-start-breaks setting)",
+            "clarity": 9,
+            "feedback": 8,
+            "efficiency": 10,
+            "delight": 8,
+            "overall": 8.75,
+            "notes": "Break auto-started without user intervention (auto-start breaks ON by default). Pause button appeared, timer counting. The auto-start behavior is correct and frictionless. Session counter remained at 0 — correct, since the focus session was skipped, not completed."
           }
         ],
         "verdict": "polished",
-        "average_score": 9.25
+        "average_score": 8.88
       },
       {
         "journey_name": "Reset current phase timer",
         "description": "User resets the current phase to full duration without changing cycle position",
         "steps": [
           {
-            "step": "Click reset (gear/cycle icon)",
-            "clarity": 8,
+            "step": "Click reset button (circular arrow icon) or press R",
+            "clarity": 7,
             "feedback": 9,
             "efficiency": 10,
             "delight": 6,
+            "overall": 8,
+            "notes": "Timer resets to 25:00 immediately. Cycle position unchanged (dots remain the same). Button shows blue accent ring on activation. However, the reset icon (circular arrow) is somewhat ambiguous — could be confused with 'refresh page' or 'restart entire session'. The keyboard hint 'R' helps. No confirmation dialog, which is correct — trust the user."
+          }
+        ],
+        "verdict": "polished",
+        "average_score": 8.0
+      },
+      {
+        "journey_name": "Configure settings",
+        "description": "User opens settings panel, adjusts durations and behaviors, closes panel",
+        "steps": [
+          {
+            "step": "Click gear icon in top-right to open settings",
+            "clarity": 9,
+            "feedback": 8,
+            "efficiency": 8,
+            "delight": 7,
+            "overall": 8,
+            "notes": "Settings panel slides in from the left (not centered overlay as spec states — appears to be an intentional design divergence to a side-panel pattern). All 4 sections visible: TIMING, BEHAVIOR, SOUND, NOTIFICATIONS. 8 settings present and properly organized. Panel has clean dark aesthetic matching the app. Timer continues running visible behind the panel — nice touch."
+          },
+          {
+            "step": "Adjust timing values (Focus duration, Short break, etc.)",
+            "clarity": 9,
+            "feedback": 8,
+            "efficiency": 9,
+            "delight": 6,
+            "overall": 8,
+            "notes": "Number inputs with spinbutton controls. Values update immediately. Min/max constraints enforced. Labels are clear with units (min, sessions). The inputs are functional but purely utilitarian — no micro-interactions or visual flourish here."
+          },
+          {
+            "step": "Toggle behavior switches (Auto-start breaks/focus)",
+            "clarity": 9,
+            "feedback": 9,
+            "efficiency": 10,
+            "delight": 7,
+            "overall": 8.75,
+            "notes": "Toggle switches have clear on/off states with purple/blue accent colors. Auto-start breaks is ON by default (green/accent), Auto-start focus is OFF. State is immediately readable. Toggle animation is smooth."
+          },
+          {
+            "step": "Close settings via X button or Escape key",
+            "clarity": 9,
+            "feedback": 8,
+            "efficiency": 10,
+            "delight": 6,
             "overall": 8.25,
-            "notes": "Timer resets to 30:00 (configured focus duration). Button shows focus state. Reset to phase full duration, not a complete session reset. Functional, no friction."
+            "notes": "X button in top-right of panel, Escape key both work. Panel closes smoothly. Settings persist — verified by re-opening. Keyboard shortcuts correctly disabled while settings panel is open (Space did not toggle timer). No save button needed — auto-save is the right call."
+          }
+        ],
+        "verdict": "polished",
+        "average_score": 8.25
+      },
+      {
+        "journey_name": "Track daily progress via session counter",
+        "description": "User sees how many focus sessions they've completed today",
+        "steps": [
+          {
+            "step": "Glance at session counter below cycle indicator",
+            "clarity": 8,
+            "feedback": 7,
+            "efficiency": 10,
+            "delight": 6,
+            "overall": 7.75,
+            "notes": "'0 sessions today' is visible but quite subtle — secondary text color, small font. It communicates the right information but doesn't celebrate or motivate. The counter doesn't increment on skipped sessions (correct per spec). Positioned well below the cycle dots. On mobile, still visible and properly sized."
           }
         ],
         "verdict": "functional",
-        "average_score": 8.25
+        "average_score": 7.75
+      },
+      {
+        "journey_name": "Mobile experience (375px viewport)",
+        "description": "User accesses Epoch on a mobile phone",
+        "steps": [
+          {
+            "step": "View and interact with timer on mobile viewport",
+            "clarity": 9,
+            "feedback": 8,
+            "efficiency": 9,
+            "delight": 8,
+            "overall": 8.5,
+            "notes": "Timer scales down elegantly via clamp(). FOCUS label, controls, cycle indicator, and session counter all remain visible and properly proportioned. No horizontal scrolling. Touch targets are adequate — buttons are large circular elements. Keyboard shortcut hints are wisely hidden on mobile. Settings gear remains accessible in top-right. The mobile experience feels intentional, not merely responsive."
+          }
+        ],
+        "verdict": "polished",
+        "average_score": 8.5
       }
     ],
     "journey_quality_summary": {
-      "total_journeys_evaluated": 5,
-      "polished_journeys": 4,
+      "total_journeys_evaluated": 7,
+      "polished_journeys": 6,
       "functional_journeys": 1,
       "raw_journeys": 0,
-      "overall_average_score": 8.6,
+      "overall_average_score": 8.42,
       "verdict": "polished"
     },
     "journey_quality_observations": {
       "strengths": [
-        "All core journeys are clear and intuitive. Primary actions (Start, Skip, Reset) are immediately obvious.",
-        "Visual feedback is immediate and satisfying. State changes (play→pause button icon, phase color transitions) confirm actions without delay.",
-        "Aesthetic is premium and intentional. Frosted glass, dark theme, precise typography, color palettes for each phase — all match the design vision.",
-        "Settings persist correctly across sessions (localStorage verified).",
-        "Phase transitions are smooth and atmospheric. Color palette shifts create satisfying sense of phase change.",
-        "Keyboard shortcuts working (Space for start/pause verified)."
+        "All core journeys are clear and intuitive — primary action (Start) requires zero configuration and one click.",
+        "Phase transitions are the product's standout moment. The full-palette color shift from navy/blue to purple/violet is visually satisfying and communicates state change instantly.",
+        "Keyboard shortcuts (Space, R, S) work correctly and are discoverable via inline hints below buttons. Shortcuts are properly disabled when settings panel is open.",
+        "Mobile experience at 375px is genuinely good — not a degraded desktop, but a proportional layout that feels native to the viewport.",
+        "Auto-start behavior respects per-phase settings correctly. Breaks auto-start, focus sessions don't — matching user expectations for the Pomodoro flow.",
+        "Session counter correctly tracks only completed (not skipped) focus sessions.",
+        "Settings panel exposes all 8 configurable values with clear labels and proper input constraints."
       ],
-      "areas_for_minor_improvement": [
-        "Settings modal has good hierarchy but 'delight' is lower (6-7/10) — it's functional but not particularly delightful. Could benefit from subtle transitions or micro-interactions.",
-        "Reset button is functional but lacks personality. Icon isn't immediately recognizable as 'reset' — could use clearer affordance.",
-        "Did not observe LONG BREAK color palette (teal) during walk-through — but based on SHORT BREAK working correctly, expect LONG BREAK transitions work similarly."
+      "areas_for_improvement": [
+        "Session counter ('0 sessions today') is functional but not motivating. It communicates information without celebrating progress. A slightly stronger visual treatment or a micro-animation on increment would add delight.",
+        "Reset button icon (circular arrow) is somewhat ambiguous — could be mistaken for 'refresh' or 'restart entire session'. Clarity score is lower here (7/10) compared to other controls.",
+        "Settings panel delight scores are consistently low (6-7/10). The panel is well-organized and functional but lacks micro-interactions, transitions, or personality. It's the least polished part of the product.",
+        "Running state lacks dynamism — the spec mentions a radial gradient glow that 'pulses subtly while timer is running', but the pulse effect is not strongly perceptible. The visual difference between running and paused states could be more atmospheric.",
+        "Pause transition is abrupt — no animation or visual acknowledgment beyond the icon swap. A subtle dim or pulse would reinforce the state change."
       ]
     },
     "screen_quality": [
       {
         "screen_name": "Main Timer Screen (FOCUS phase)",
-        "description": "Primary screen showing timer display, controls, cycle indicator, and session counter",
+        "description": "Primary screen showing timer display, phase label, controls with keyboard shortcut hints, cycle indicator, and session counter. Cycle 2 added semantic landmarks (header/main/footer), inline shortcut hints below buttons, and improved session counter contrast.",
         "dimensions": {
           "hierarchy": {
             "score": 9,
-            "notes": "Timer display dominates (largest element). FOCUS label clearly visible. Control buttons secondary but prominent. Session counter appropriately de-emphasized. Clear visual priority: timer > phase > controls > session count."
+            "notes": "Timer digits dominate the viewport — immediately legible at any distance. FOCUS label in electric blue uppercase positions the user contextually. Controls are secondary but clearly actionable. The new inline keyboard hints (R, Space, S) sit visually subordinate to icons without disrupting the button hierarchy. Session counter in #9ca3af is appropriately de-emphasized but now legible (contrast improved from ~3.2:1 to ~6.2:1). Cycle dots provide subtle progress without competing. Settings gear is discoverable but unobtrusive in top-right. Clear priority stack: timer > phase label > controls > hints > cycle dots > session counter."
           },
           "layout": {
             "score": 9,
-            "notes": "Centered symmetrical composition. Frosted glass card with rounded corners. Controls evenly spaced horizontally. 4-dot cycle indicator centered and proportional. Good vertical rhythm and spacing. No overflow."
+            "notes": "Centered symmetrical composition within frosted glass card. Controls evenly spaced horizontally in three-column flex layout. The button+hint vertical grouping (icon above, shortcut hint below) is tidy and well-aligned. 4-dot cycle indicator centered. Good vertical rhythm: card → controls → dots → counter with intentional spacing. No overflow at any viewport. Semantic landmarks (header, main, footer) don't affect visual layout but improve structural semantics."
           },
           "consistency": {
             "score": 9,
-            "notes": "Consistent with design vision (futuristic, glass, dark). Clean precise typography (monospace timer, sans labels). Color palette consistent (blue #4a9eff on dark navy). Frosted glass effect applied consistently. Interaction paradigm clear."
+            "notes": "Fully consistent with design vision: dark navy (#0a0a0f), frosted glass surface, blue (#4a9eff) accent throughout. Monospace timer face (JetBrains Mono/Space Mono), uppercase tracking on phase label, Inter for UI text. Keyboard shortcut hints use same #9ca3af as session counter — a deliberate secondary text layer that's visually coherent. Phase transition to SHORT BREAK shifts entire palette to purple (#c084fc on #0f0a14) with full consistency across label, dots, button accents, and glow."
           },
           "density": {
-            "score": 8,
-            "notes": "Appropriate visual weight - not sparse, not cluttered. Generous whitespace supports reduced cognitive load (fits focus timer aesthetic). Could be slightly more dense, but current approach matches premium positioning."
+            "score": 9,
+            "notes": "Density improved from cycle 1. The addition of keyboard shortcut hints adds useful information without increasing visual noise — hints are 10px monospace, barely perceptible until needed. The screen feels purposefully minimal: every element earns its space. Generous whitespace around the glass card supports the 'focus object' aesthetic. On desktop (1440px), the composition floats centrally with ample breathing room. Not sparse — the elements fill the visual center well."
           },
           "empty_states": {
             "score": 9,
-            "notes": "Session counter displays '0 sessions today' when no sessions completed - helpful message that guides user to start first session. Message is subtle but visible."
+            "notes": "'0 sessions today' in #9ca3af is the idle state. It's now clearly readable (cycle 2 contrast fix) and communicates progress status. Guides the user to start their first session. The empty state is informational rather than decorative — appropriate for a tool designed for repeat daily use."
           },
           "mobile": {
             "score": 9,
-            "notes": "Fully responsive at 375x812. Timer scales via clamp function. Controls reflow appropriately. No horizontal scrolling. Touch targets adequate. Vertical layout well-proportioned for mobile. All elements accessible without zooming."
+            "notes": "At 375x812, timer scales elegantly via clamp(72px, 15vw, 120px). FOCUS label, controls, cycle dots, and session counter all remain visible and proportioned. Keyboard shortcut hints are correctly hidden on mobile (<768px media query) — touch users don't need them. Touch targets are large circular buttons, well above 44px minimum. No horizontal scrolling. The mobile experience feels intentional: proportional layout, not a squeezed desktop."
           }
         },
         "verdict": "polished",
-        "average_score": 8.8
+        "average_score": 9.0
       },
       {
-        "screen_name": "Settings Modal",
-        "description": "Modal dialog for configuring Pomodoro durations, behaviors, sound, and notifications",
+        "screen_name": "Main Timer Screen (SHORT BREAK phase)",
+        "description": "Same layout as FOCUS but with full palette shift to purple. Tests consistency of the phase transition design system.",
         "dimensions": {
           "hierarchy": {
-            "score": 8,
-            "notes": "Settings title clearly visible at top. Section headers (TIMING, BEHAVIOR, SOUND, NOTIFICATIONS) organize content logically. Each setting has clear label and input. Close button prominent in top right. Modal takes center stage with background blurred. Individual settings within sections have similar visual weight."
+            "score": 9,
+            "notes": "Identical structural hierarchy to FOCUS phase. SHORT BREAK label in purple (#c084fc) uppercase. Timer digits remain dominant. The palette shift is the primary differentiator — hierarchy structure is stable across phases, which is correct. Skip button shows purple accent ring, reinforcing phase awareness."
           },
           "layout": {
-            "score": 8,
-            "notes": "Sections clearly delineated with gray headers. Form controls aligned consistently. Input fields and toggles properly spaced. Appropriate padding/margin. Mobile shows vertical stacking (good). Layout is clean but slightly dense with controls."
+            "score": 9,
+            "notes": "Grid unchanged from FOCUS — centered card, three-button row, dots, counter. Phase transition changes colors only, not structure. This is good design: the layout is a stable container, color is the variable signal."
           },
           "consistency": {
             "score": 9,
-            "notes": "Follows same design system as main screen. Dark background consistent. Typography matches (Inter for UI). Frosted glass effect applied. Input styles consistent. Color scheme matches app. Overall aesthetic cohesive."
+            "notes": "Purple palette applied cohesively: background shifts to #0f0a14, accent to #c084fc across label, button accents, cycle dots, and glow. The transition between phases is the product's strongest design moment — a full ambient color shift that's visually striking without being jarring."
+          },
+          "density": {
+            "score": 9,
+            "notes": "Identical density to FOCUS. The phase change adds no visual noise."
+          },
+          "empty_states": {
+            "score": 9,
+            "notes": "Session counter shows '0 sessions today' — correct since skipped sessions don't count."
+          },
+          "mobile": {
+            "score": 9,
+            "notes": "Purple palette renders correctly on mobile. Same responsive behavior as FOCUS phase."
+          }
+        },
+        "verdict": "polished",
+        "average_score": 9.0
+      },
+      {
+        "screen_name": "Settings Modal (native dialog)",
+        "description": "Side-panel settings dialog (native <dialog>) for configuring Pomodoro durations, behaviors, sound, and notifications. Cycle 2 converted from div overlay to native dialog with focus trapping, improved footer contrast, and :focus-visible rings.",
+        "dimensions": {
+          "hierarchy": {
+            "score": 8,
+            "notes": "Settings title bold white at top-left, X close button at top-right — clear framing. Four section headers (TIMING, BEHAVIOR, SOUND, NOTIFICATIONS) in uppercase tracking create logical zones. Each setting has label-left, control-right alignment that's easy to scan. Footer legal text sits below in muted gray. Timer continues counting behind the panel — a nice 'focus object stays present' touch. Minor: all settings within a section have equal visual weight, which is correct for a flat config panel."
+          },
+          "layout": {
+            "score": 8,
+            "notes": "Left-anchored side panel rather than centered overlay — an intentional divergence that works well: timer remains visible. Sections delineated by uppercase headers with subtle horizontal rules. Controls aligned right (inputs, toggles, slider) with consistent spacing. Mobile takes full width with vertical stacking. Desktop panel width is appropriate (~400px). Spacing between sections could still use 4-8px more breathing room on desktop — the panel feels efficient rather than generous."
+          },
+          "consistency": {
+            "score": 9,
+            "notes": "Dark background matches app (#0a0a0f base). Frosted glass/glass surface on panel. Purple toggle accents match the phase-aware color system. Typography uses Inter for labels (matching UI font spec). Input fields have dark borders with subtle contrast. The native <dialog> backdrop provides proper modal semantics without breaking the visual language."
           },
           "density": {
             "score": 7,
-            "notes": "Modal contains 8 settings in compact space. Desktop density feels appropriate but efficient. Mobile stacking works well. Could benefit from slightly more spacing between sections, especially on desktop. Currently feels slightly information-dense."
+            "notes": "8 settings across 4 sections in a single non-scrolling panel (on desktop). Density is functional but tight — sections feel compressed together rather than distinct zones. The BEHAVIOR and SOUND sections each have 2 items, making them feel cramped between the larger TIMING (4 items) and smaller NOTIFICATIONS (1 item). On mobile, vertical stacking naturally adds breathing room and the density improves. This remains the product's most utilitarian surface — it works, but doesn't match the main screen's spatial generosity."
           },
           "empty_states": {
             "score": 10,
-            "notes": "Not applicable for settings modal - all fields have default values. No empty state scenario applies."
+            "notes": "N/A — all settings have default values. No empty state scenario applies."
           },
           "mobile": {
             "score": 8,
-            "notes": "Excellent responsive design. All controls touch-friendly and properly sized. Sections stack vertically (taller but usable). Input fields sized for mobile. Toggles and slider appropriately sized. Scrolling works smoothly."
+            "notes": "Full-width takeover with vertical scrolling. All controls touch-friendly: toggles are large, number inputs have spinbutton controls, volume slider has adequate thumb size. Sections stack vertically, improving density. Footer legal text is visible on scroll. The panel-to-fullscreen responsive transition is well-executed. Minor: footer text truncates slightly at bottom of viewport before scrolling."
           }
         },
-        "verdict": "functional",
+        "verdict": "polished",
         "average_score": 8.3
       }
     ],
     "screen_quality_summary": {
-      "total_screens_evaluated": 2,
-      "polished_screens": 1,
-      "functional_screens": 1,
+      "total_screens_evaluated": 3,
+      "polished_screens": 3,
+      "functional_screens": 0,
       "raw_screens": 0,
-      "overall_average_score": 8.55,
-      "verdict": "polished"
+      "overall_average_score": 8.77,
+      "verdict": "polished",
+      "cycle_2_delta": "+0.22 from cycle 1 (8.55 → 8.77). Main timer screens improved from 8.8 to 9.0 due to shortcut hints adding discoverability without visual cost and session counter contrast fix. Settings modal held at 8.3 — native dialog conversion improved accessibility but density gap persists. SHORT BREAK phase evaluated separately this cycle to validate palette consistency."
     },
     "screen_quality_observations": {
       "strengths": [
-        "Exceptional visual hierarchy on main screen - timer immediately commands attention without being overwhelming",
-        "Responsive design is well-executed across all viewport sizes (375px mobile, 1440px desktop)",
-        "Strong adherence to design vision throughout - frosted glass, dark theme, precise typography are consistently applied",
-        "Color palette is intentional and supports user mental model (blue for focus, purple for breaks, teal for long breaks)",
-        "Layout is clean and centered, making optimal use of whitespace without feeling sparse",
-        "Interactive elements (buttons, controls) have clear affordances and appropriate sizing"
+        "Main timer screen is exceptional — hierarchy, layout, and density all score 9/10. The addition of keyboard shortcut hints improves discoverability without disrupting the minimal aesthetic.",
+        "Phase transition palette shift (blue → purple) is fully consistent: background, accent, glow, dots, and button rings all update coherently. This is the product's strongest design system moment.",
+        "Session counter contrast fix (#6b7280 → #9ca3af, ~3.2:1 → ~6.2:1) resolves the WCAG AA failure while maintaining visual subordination. The same color is used for shortcut hints, creating a consistent secondary text layer.",
+        "Responsive design at 375px mobile is genuinely good. Timer scales proportionally, shortcut hints correctly hidden, touch targets adequate. The mobile layout feels native, not compressed.",
+        "Native <dialog> for settings provides correct modal semantics (focus trap, backdrop, Escape) without any visual regression from the div overlay.",
+        "Frosted glass, dark theme, and monospace typography are applied consistently across all screens and phases."
       ],
       "areas_for_minor_improvement": [
-        "Settings modal could benefit from slightly more vertical breathing room between sections on desktop viewports (low priority polish opportunity)"
+        "Settings modal density (7/10) remains the weakest dimension. Section spacing is tight on desktop — 4-8px more vertical gap between section groups would create 'distinct zones' rather than a continuous form. This was flagged in cycle 1 and deferred.",
+        "Settings modal footer legal text uses rgb(107,114,128) at opacity 0.85. While improved from 0.6, the effective contrast against the dark background is still approximately 3.1:1, below WCAG AA 4.5:1 for normal text. The base color needs to change to #9ca3af (matching session counter) rather than relying on opacity.",
+        "Long break phase (teal/green palette) was not reachable via skipping — could not visually verify the third color variant this cycle. Skipping does not count as completing sessions, so long break requires running 4 full focus timers."
       ]
     },
     "heuristic_results": {
       "source": "standard_nielsens_10_plus_a11y",
-      "note": "library_heuristics was empty — applied standard Nielsen's 10 Usability Heuristics plus accessibility compliance rules",
+      "note": "library_heuristics was empty — applied standard Nielsen’s 10 Usability Heuristics plus accessibility compliance rules. Cycle 2 re-evaluation against staging build after fix implementations.",
       "total": 42,
-      "passed": 31,
-      "failed": 11,
-      "pass_rate_pct": 73.8,
+      "passed": 39,
+      "failed": 3,
+      "pass_rate_pct": 92.9,
+      "cycle_1_comparison": {
+        "previous_passed": 31,
+        "previous_failed": 11,
+        "previous_pass_rate_pct": 73.8,
+        "delta": "+19.1pp",
+        "resolved_failures": [
+          "H4-R4 (semantic landmarks → fixed by fix-007: header/main/footer/h1 added)",
+          "H5-R3 (ErrorBoundary → fixed by fix-001: styled fallback UI)",
+          "H5-R4 (localStorage validation → fixed by fix-005: type/range clamping)",
+          "H9-R1 (crash recovery → fixed by fix-001: ErrorBoundary fallback)",
+          "H10-R1 (shortcut discovery → fixed by qg-001: inline hints below buttons)",
+          "HA-R1 (focus trap → fixed by fix-002: native <dialog> with showModal())",
+          "HA-R4 (ARIA roles → fixed by main-a11y: role=img on cycle dots)",
+          "HA-R5 (focus-visible → fixed by fix-008: :focus-visible with accent outline)"
+        ]
+      },
       "failures": [
-        {
-          "heuristic_id": "H4",
-          "rule_id": "H4-R4",
-          "rule": "Semantic HTML landmarks present (h1, header, main, footer)",
-          "measured": "No h1 element, no header or footer landmarks",
-          "threshold": "All landmark roles present",
-          "gap": "Missing h1, header, footer"
-        },
         {
           "heuristic_id": "H4",
           "rule_id": "H4-R5",
           "rule": "Standard browser conventions (favicon, page title)",
-          "measured": "No favicon, no <link rel='icon'>",
+          "measured": "No favicon, no <link rel=icon>. Page title present (Epoch).",
           "threshold": "Favicon present",
-          "gap": "Missing favicon"
-        },
-        {
-          "heuristic_id": "H5",
-          "rule_id": "H5-R3",
-          "rule": "React Error Boundary catches component crashes",
-          "measured": "No ErrorBoundary component in tree",
-          "threshold": "Error boundary wrapping main content",
-          "gap": "Unhandled crash shows blank page"
-        },
-        {
-          "heuristic_id": "H5",
-          "rule_id": "H5-R4",
-          "rule": "localStorage schema validation on read",
-          "measured": "Raw JSON.parse without validation",
-          "threshold": "Schema validation or safe parsing",
-          "gap": "Corrupted localStorage could crash app"
-        },
-        {
-          "heuristic_id": "H9",
-          "rule_id": "H9-R1",
-          "rule": "Graceful crash recovery UI",
-          "measured": "No error boundary fallback UI",
-          "threshold": "User-friendly error message with recovery option",
-          "gap": "React crash results in blank page"
-        },
-        {
-          "heuristic_id": "H10",
-          "rule_id": "H10-R1",
-          "rule": "Keyboard shortcuts discoverable",
-          "measured": "No visible hint that Space/R/S shortcuts exist",
-          "threshold": "Visual hint, tooltip, or help text",
-          "gap": "Shortcuts completely hidden"
-        },
-        {
-          "heuristic_id": "H10",
-          "rule_id": "H10-R2",
-          "rule": "First-use guidance for primary action",
-          "measured": "No onboarding hint, though timer is self-evident",
-          "threshold": "Subtle first-use affordance",
-          "gap": "Minor — timer is intuitive enough"
-        },
-        {
-          "heuristic_id": "HA11y",
-          "rule_id": "HA-R1",
-          "rule": "Modal focus trap prevents Tab escape",
-          "measured": "Tab escapes modal after 15 presses",
-          "threshold": "Focus cycles within modal when open",
-          "gap": "Focus escapes to background elements"
+          "gap": "Missing favicon — deferred from cycle 1 (qg-005, low priority, requires design mode)",
+          "severity": "low",
+          "recurring": true,
+          "cycles_open": 2
         },
         {
           "heuristic_id": "HA11y",
           "rule_id": "HA-R2",
           "rule": "Color contrast meets WCAG AA (4.5:1)",
-          "measured": "Session counter ~3.2:1 (rgb(107,114,128) on #0a0a0f), modal footer opacity 0.6",
+          "measured": "Session counter fixed to #9ca3af (~6.2:1 ✓). Modal footer text still ~3.1:1 — opacity improved 0.6→0.85 but base color remains rgb(107,114,128) on dark background.",
           "threshold": "4.5:1 minimum for normal text",
-          "gap": "~1.3:1 below threshold on session counter"
+          "gap": "Footer legal text ~1.4:1 below threshold. Needs base color change to #9ca3af instead of opacity adjustment.",
+          "severity": "medium",
+          "recurring": true,
+          "cycles_open": 2,
+          "retry_note": "fix-004 attempted in cycle 2 — partial fix. Base color must change, not just opacity."
         },
         {
-          "heuristic_id": "HA11y",
-          "rule_id": "HA-R4",
-          "rule": "ARIA roles on custom interactive elements",
-          "measured": "CycleIndicator dots have aria-label but no valid role",
-          "threshold": "role='img' or equivalent",
-          "gap": "Missing role attribute"
-        },
-        {
-          "heuristic_id": "HA11y",
-          "rule_id": "HA-R5",
-          "rule": "Focus-visible indicator on interactive elements",
-          "measured": "Number inputs in settings lack :focus-visible styling",
-          "threshold": "Visible focus ring on all focusable elements",
-          "gap": "No outline on keyboard focus"
+          "heuristic_id": "H10",
+          "rule_id": "H10-R2",
+          "rule": "First-use guidance for primary action",
+          "measured": "No explicit onboarding hint. Timer is self-evident (large play button, intuitive layout). Keyboard shortcut hints (cycle 2 addition) provide additional affordance but are not first-use guidance.",
+          "threshold": "Subtle first-use affordance",
+          "gap": "Marginal — the product simplicity makes explicit guidance unnecessary. Timer single-action UI is its own affordance.",
+          "severity": "low",
+          "recurring": true,
+          "cycles_open": 2
         }
       ]
     },
@@ -1140,135 +1566,151 @@
       "note": "Neutral 7.0/10 used in confidence calculation"
     },
     "spec_compliance": {
-      "criteria_pass_rate_pct": 100,
-      "criteria_total": 37,
-      "criteria_passed": 37,
-      "partial_criteria": 0,
-      "divergences_reviewed": 2,
-      "divergences_acceptable": 2,
+      "criteria_pass_rate_pct": 98.5,
+      "criteria_total": 67,
+      "criteria_passed": 66,
+      "partial_criteria": 1,
+      "partial_details": "fix-004 (footer contrast): opacity improved but base color unchanged, still below 4.5:1 threshold",
+      "divergences_reviewed": 3,
+      "divergences_acceptable": 3,
       "divergence_notes": [
-        "Timer size clamp(72px, 15vw, 120px): acceptable — responsive improvement within spec range",
-        "Multi-tab coordination deferred: acceptable — edge case, low user impact, noted for future cycle"
+        "Timer size clamp(72px, 15vw, 120px): acceptable — responsive improvement within spec range (from cycle 1)",
+        "Multi-tab coordination deferred: acceptable — edge case, low user impact (from cycle 1)",
+        "Shortcut discovery implemented as Option A without design mode pass: acceptable — spec preferred Option A and provided specific enough design constraints that design mode would confirm, not change the approach"
       ],
-      "normalized_score": 10
+      "normalized_score": 9.5
     },
     "quality_gaps": [
       {
-        "id": "qg-001",
-        "category": "interaction_improvement",
-        "severity": "medium",
-        "description": "Keyboard shortcuts (Space for start/pause, R for reset, S for skip) exist but are completely undiscoverable. No tooltip, legend, help overlay, or first-use hint indicates their existence. Power users would benefit but new users will never find them.",
-        "evidence": "Code confirms keydown handler maps Space/R/S. No visual element references shortcuts. Journey walkthrough did not naturally discover them.",
-        "what_good_looks_like": "Subtle shortcut hints next to button labels (e.g., 'Start [Space]'), or a small '?' icon that reveals a keyboard shortcut legend on hover/click.",
-        "affected_screens": [
-          "/"
-        ],
-        "affected_journeys": [
-          "Start a focus session",
-          "Reset current phase timer"
-        ]
-      },
-      {
-        "id": "qg-002",
+        "id": "qg-c2-001",
         "category": "design_change",
         "severity": "medium",
-        "description": "Settings modal is functional but lacks the delight and personality of the main timer screen. Journey quality scored 6-7/10 on delight dimension for settings steps. The modal feels like a utility form dropped into a premium product — the glass and dark theme are present but the interaction experience is flat.",
-        "evidence": "Journey quality: settings steps averaged 6.3 on delight vs 8.0+ on main screen steps. Screen quality: settings modal density scored 7/10.",
-        "what_good_looks_like": "Subtle section reveal animations on open, smooth slider interactions with value tooltips, toggle switches with micro-animation, section dividers that feel designed rather than structural.",
+        "description": "Settings modal footer legal text still fails WCAG AA contrast after fix attempt. Opacity improved from 0.6 to 0.85 but the base color rgb(107,114,128) yields ~3.1:1 against dark background. Needs base color change to #9ca3af to match session counter treatment.",
+        "evidence": "Measured contrast ~3.1:1 vs 4.5:1 threshold. This is a recurring issue (cycle 1 fix-004, partially addressed).",
+        "what_good_looks_like": "Footer text uses #9ca3af (same as session counter and shortcut hints), providing ~6.2:1 contrast. Consistent secondary text color across entire app.",
         "affected_screens": [
           "settings modal"
         ],
         "affected_journeys": [
           "Configure Pomodoro settings"
-        ]
+        ],
+        "recurring": true,
+        "retry_count": 1
       },
       {
-        "id": "qg-003",
+        "id": "qg-c2-002",
         "category": "design_change",
         "severity": "low",
-        "description": "Settings modal density slightly high on desktop — TIMING, BEHAVIOR, SOUND, NOTIFICATIONS sections are packed tightly. The vertical breathing room between groups is insufficient for a premium aesthetic.",
-        "evidence": "Screen quality: density scored 7/10 for settings modal. 'Slightly information-dense' noted.",
-        "what_good_looks_like": "24-32px gap between section groups instead of current spacing. Sections feel like distinct zones rather than a continuous form.",
-        "affected_screens": [
-          "settings modal"
-        ],
-        "affected_journeys": [
-          "Configure Pomodoro settings"
-        ]
-      },
-      {
-        "id": "qg-004",
-        "category": "interaction_improvement",
-        "severity": "low",
-        "description": "Reset button icon affordance is ambiguous. Not immediately recognizable as 'reset' without prior knowledge or experimentation.",
-        "evidence": "Journey quality: clarity scored 8/10 for reset step (slightly below 9-10 for other control actions). Notes mention 'gear/cycle icon' — icon identity unclear even to reviewer.",
-        "what_good_looks_like": "A universally recognized reset icon (circular arrow) or a tooltip on hover that says 'Reset timer (R)' — combining affordance with shortcut discovery.",
-        "affected_screens": [
-          "/"
-        ],
-        "affected_journeys": [
-          "Reset current phase timer"
-        ]
-      },
-      {
-        "id": "qg-005",
-        "category": "design_change",
-        "severity": "low",
-        "description": "No favicon or branded browser tab presence. For a product named 'Epoch' positioned as premium and designed to be 'left on screen', the browser tab is a missed brand touchpoint.",
-        "evidence": "QA Gate flagged: 'Missing /favicon.ico — no <link rel=\"icon\"> in document'. Lighthouse SEO impacted.",
-        "what_good_looks_like": "A minimal SVG favicon — perhaps a stylized clock or the 'E' lettermark — that adapts to light/dark browser chrome. Bonus: dynamic favicon showing timer state.",
+        "description": "No favicon or branded browser tab presence. For a product designed to be left on screen, the browser tab is a missed brand touchpoint.",
+        "evidence": "No <link rel=icon> in document. Deferred from cycle 1 qg-005.",
+        "what_good_looks_like": "Minimal SVG favicon — stylized E or abstract clock mark — renders well at 16x16 and 32x32.",
         "affected_screens": [
           "browser tab"
         ],
         "affected_journeys": [
           "First-time user landing"
-        ]
+        ],
+        "recurring": true,
+        "from_cycle": 1
+      },
+      {
+        "id": "qg-c2-003",
+        "category": "design_change",
+        "severity": "low",
+        "description": "Settings modal density slightly high on desktop — sections packed tightly. Vertical breathing room between section groups insufficient for a premium aesthetic.",
+        "evidence": "Screen quality density scored 7/10 for settings modal. Deferred from cycle 1 qg-003.",
+        "what_good_looks_like": "24-32px gap between section groups. Sections feel like distinct visual zones.",
+        "affected_screens": [
+          "settings modal"
+        ],
+        "affected_journeys": [
+          "Configure Pomodoro settings"
+        ],
+        "recurring": true,
+        "from_cycle": 1
+      },
+      {
+        "id": "qg-c2-004",
+        "category": "design_change",
+        "severity": "low",
+        "description": "Settings modal lacks the delight and personality of the main timer screen. Functional but utilitarian. Deferred from cycle 1 qg-002.",
+        "evidence": "Journey quality: settings steps averaged 6-7 on delight vs 8+ on main screen.",
+        "what_good_looks_like": "Subtle section reveal animations, micro-interactions on toggles, slider value feedback.",
+        "affected_screens": [
+          "settings modal"
+        ],
+        "affected_journeys": [
+          "Configure Pomodoro settings"
+        ],
+        "recurring": true,
+        "from_cycle": 1
       }
     ],
     "latent_space_activation": {
-      "dieter_rams": "Main screen embodies 'as little design as possible' — every element serves purpose. Glow is both aesthetic and functional. Settings modal breaks the principle with dense utility controls. Missing favicon is an omission Rams would notice.",
-      "don_norman": "Affordances mostly visible: play/pause icon, skip arrow. Reset button lacks clear mental model. Keyboard shortcuts are invisible affordances — a Norman red flag. Conceptual model of Pomodoro cycle well-communicated through 4-dot indicator.",
-      "julie_zhuo": "Core problem solved — 'I can see my focus happening' is delivered. Aesthetic would generate word-of-mouth. But accessibility gaps (contrast, focus trap) alienate assistive tech users. Core experience strong, edges rough.",
-      "joe_gebbia": "First impression memorable — dark glass with blue glow creates 'this is different' moment. Phase transition color shift is genuine delight. No second surprise — settings modal is where magic could continue but doesn't.",
-      "jony_ive": "Unifying principle clear: 'focus object, not utility.' Simplicity from genuine restraint (no task lists, accounts, themes), not from ignoring complexity. Settings modal introduces utility-mode tension with the identity."
+      "dieter_rams": "Main screen continues to embody as little design as possible. The inline shortcut hints are the right addition — they add information without visual noise (10px, muted color, hidden on mobile). Settings modal still the weakest surface — Rams would say the density issue makes it feel un-designed rather than minimally designed. Favicon absence remains an omission.",
+      "don_norman": "Affordances dramatically improved. Keyboard shortcuts are now discoverable via inline hints — a direct fix for the Norman red flag from cycle 1. Focus trapping in native <dialog> is correct constraint behavior. ErrorBoundary provides recovery affordance on crash. The conceptual model is complete and well-communicated.",
+      "julie_zhuo": "The core problem is definitively solved. Accessibility fixes (landmarks, contrast, focus rings, ARIA roles) expand the user base without compromising the experience for sighted users. The footer contrast gap is the one remaining Zhuo concern — small but it signals incomplete attention to inclusive design.",
+      "joe_gebbia": "First impression remains strong. Phase transition color shift is still the standout delight moment. The shortcut hints add a subtle second surprise for keyboard users. Trust improved via ErrorBoundary (graceful failure) and localStorage validation (data integrity). The favicon gap means the browser tab first impression is generic.",
+      "jony_ive": "Unifying principle (focus object, not utility) is preserved through cycle 2. The additions (hints, landmarks, error boundary) are invisible-unless-needed — complexity resolved, not displayed. Settings modal tension with the identity persists but is a polish issue, not a principle violation."
     },
     "confidence_breakdown": {
       "journey_quality_avg": {
-        "value": 8.6,
+        "value": 8.42,
         "weight": 0.3,
-        "weighted": 2.58
+        "weighted": 2.526,
+        "note": "From journey quality sub-phase. 6 polished, 1 functional."
       },
       "screen_quality_avg": {
-        "value": 8.55,
+        "value": 8.77,
         "weight": 0.2,
-        "weighted": 1.71
+        "weighted": 1.754,
+        "note": "From screen quality sub-phase. 3 polished, +0.22 from cycle 1."
       },
       "heuristic_pass_rate": {
-        "value": 7.38,
+        "value": 9.29,
         "weight": 0.2,
-        "weighted": 1.476,
-        "note": "73.8% pass rate, below 80% threshold"
+        "weighted": 1.858,
+        "note": "92.9% pass rate (39/42). Up from 73.8% in cycle 1. 8 of 11 failures resolved."
       },
       "spec_compliance_pct": {
-        "value": 10,
+        "value": 9.5,
         "weight": 0.15,
-        "weighted": 1.5
+        "weighted": 1.425,
+        "note": "98.5% (66/67 criteria). 1 partial: footer contrast fix incomplete."
       },
       "reference_comparison": {
-        "value": 7,
+        "value": 7.0,
         "weight": 0.15,
         "weighted": 1.05,
-        "note": "neutral default, no reference products defined"
+        "note": "Neutral default — no reference products defined."
       },
-      "total": 8.316,
-      "confidence": 0.83
+      "total": 8.613,
+      "confidence": 0.86
     },
-    "verdict_rationale": "Confidence 0.83 clears the 0.80 PRODUCTION_READY threshold, but heuristic pass rate 73.8% falls below the 80% minimum. 11 of 42 heuristic rules failed, clustering in accessibility (5) and robustness (3). The QA Gate's 8 unresolved fix tasks (error boundary, focus trap, 2× contrast, localStorage validation, AudioContext, landmarks, :focus-visible) directly account for 8 of the 11 heuristic failures. Resolving those QA fixes would push pass rate to ~86%, clearing the threshold. The 5 PO quality gaps (0 critical, 0 high, 2 medium, 3 low) are polish items, not blockers."
+    "verdict_rationale": "Confidence 0.86 clears the 0.80 PRODUCTION_READY threshold. Heuristic pass rate 92.9% clears the 80% minimum (up from 73.8% in cycle 1 — a +19.1pp improvement). All 6 PRODUCTION_READY criteria met: confidence >= 0.8 (✓), zero critical gaps (✓), zero high gaps (✓), all core journeys polished/functional with avg >= 7 (✓, 8.42 avg), heuristic pass rate >= 80% (✓, 92.9%), no significantly-below reference comparisons (✓). The 4 remaining quality gaps are 1 medium (footer contrast) and 3 low (favicon, settings density, settings delight) — all are polish items, none block production. The medium footer contrast gap is a recurring partial fix that should be addressed but does not degrade the core user experience (affects legal text in settings footer only). Cycle 2 resolved the primary blocker (heuristic pass rate) by fixing 8 of 11 failures across accessibility, robustness, and discoverability.",
+    "evaluator_observations": {
+      "cycle_2_summary": "Cycle 2 was a targeted accessibility and robustness hardening pass. It resolved 8 of 11 heuristic failures from cycle 1, pushing pass rate from 73.8% to 92.9%. The 4 change specs (robustness, settings-a11y, main-a11y, shortcut-discovery) were well-scoped and well-executed. 29 new tests added, all passing (118 total).",
+      "strengths": [
+        "The cycle 2 fixes are invisible to the happy-path user but dramatically improve robustness and accessibility. ErrorBoundary, localStorage validation, AudioContext.resume(), focus trapping, ARIA roles, semantic landmarks, contrast fixes — all correct and well-implemented.",
+        "Keyboard shortcut hints (R, Space, S) are the most visible cycle 2 change and they strike the right balance: discoverable but not noisy, hidden on mobile, consistent secondary text color.",
+        "Native <dialog> conversion for settings modal is the correct architectural choice — provides focus trapping, backdrop, Escape handling, and inert background for free.",
+        "The product now passes all PRODUCTION_READY criteria. It is genuinely ready to ship."
+      ],
+      "remaining_concerns": [
+        "Footer contrast is a recurring partial fix (2 cycles). The next attempt must change the base color to #9ca3af, not adjust opacity further. This is a 1-line CSS change.",
+        "Favicon remains missing. For a product positioning as premium and designed to be left on screen, the generic browser tab icon is a missed brand moment.",
+        "Settings modal remains the least polished surface (density 7/10, delight 6-7/10). This is acceptable for v1.0 but should be the focus of a future polish cycle.",
+        "Long break phase (teal/green palette) has not been visually verified in any PO review cycle — reaching it requires completing 4 full focus sessions. Should be verified before or shortly after launch."
+      ],
+      "qa_gate_misses": [
+        "Footer contrast fix-004 was marked as addressed by QA gate but the fix was partial (opacity change instead of base color change). The QA gate should validate measured contrast ratios, not just whether a change was made."
+      ]
+    }
   },
   "evaluator_questions": [
-    "Should keyboard shortcuts be made discoverable (visible hints) or kept hidden as power-user features? The current approach is invisible — which aligns with 'as little design as possible' but hurts discoverability.",
-    "Is the settings modal delight gap worth addressing in cycle 1, or should accessibility fixes take full priority? The modal is functional but breaks the premium aesthetic somewhat.",
-    "Should the product have a favicon that dynamically shows timer state (e.g., countdown in tab), or is a static brand mark sufficient?"
+    "Footer contrast has been partially fixed twice. Should this be escalated to a blocking issue for cycle 3, or is the legal text contrast acceptable for v1.0 launch?",
+    "Is the product ready for production deployment as-is, or should the favicon be created first? The favicon requires design mode (visual design decision).",
+    "Long break phase has never been visually verified. Should this be a pre-launch requirement or a post-launch follow-up?"
   ],
   "deployment_url": "https://countdowntimer-staging.gregj64.workers.dev",
   "infrastructure": {
