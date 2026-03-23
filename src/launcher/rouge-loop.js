@@ -64,7 +64,26 @@ const SKIP_STATES = new Set(['seeding', 'ready', 'waiting-for-human', 'complete'
 function readJson(filePath) {
   try {
     return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-  } catch {
+  } catch (err) {
+    // If file exists but is corrupted, try to recover from snapshot
+    if (fs.existsSync(filePath)) {
+      const fileName = path.basename(filePath);
+      const projectDir = path.dirname(filePath);
+      const snapshotDir = path.join(projectDir, '.snapshots');
+      if (fs.existsSync(snapshotDir)) {
+        const snapshots = fs.readdirSync(snapshotDir).sort().reverse();
+        for (const snap of snapshots) {
+          const snapFile = path.join(snapshotDir, snap, fileName);
+          try {
+            const data = JSON.parse(fs.readFileSync(snapFile, 'utf8'));
+            log(`Recovered ${fileName} from snapshot ${snap}`);
+            writeJson(filePath, data); // restore the file
+            return data;
+          } catch { continue; }
+        }
+      }
+      log(`${filePath} corrupted and no valid snapshot found`);
+    }
     return null;
   }
 }
@@ -73,6 +92,34 @@ function writeJson(filePath, data) {
   const tmp = filePath + '.tmp';
   fs.writeFileSync(tmp, JSON.stringify(data, null, 2) + '\n');
   fs.renameSync(tmp, filePath);
+}
+
+/**
+ * Snapshot state.json and cycle_context.json before a phase runs.
+ * Snapshots go to {project}/.snapshots/{timestamp}-{phase}/
+ * Recovery: copy snapshot files back to project root.
+ */
+function snapshotState(projectDir, phase) {
+  const projectName = path.basename(projectDir);
+  const snapshotDir = path.join(projectDir, '.snapshots', `${Date.now()}-${phase}`);
+  try {
+    fs.mkdirSync(snapshotDir, { recursive: true });
+    for (const file of ['state.json', 'cycle_context.json']) {
+      const src = path.join(projectDir, file);
+      if (fs.existsSync(src)) {
+        fs.copyFileSync(src, path.join(snapshotDir, file));
+      }
+    }
+    // Keep only last 20 snapshots to prevent disk bloat
+    const snapshots = fs.readdirSync(path.join(projectDir, '.snapshots')).sort();
+    while (snapshots.length > 20) {
+      const old = snapshots.shift();
+      const oldDir = path.join(projectDir, '.snapshots', old);
+      try { fs.rmSync(oldDir, { recursive: true }); } catch {}
+    }
+  } catch (err) {
+    log(`[${projectName}] Snapshot failed: ${(err.message || '').slice(0, 100)}`);
+  }
 }
 
 function notify(msg) {
@@ -412,6 +459,9 @@ async function runPhase(projectDir) {
       }
     }
   }
+
+  // Snapshot state before phase — enables recovery from corruption
+  snapshotState(projectDir, currentState);
 
   const promptRelPath = STATE_TO_PROMPT[currentState];
   if (!promptRelPath) return { success: true };
