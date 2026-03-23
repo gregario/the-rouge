@@ -1,0 +1,54 @@
+{
+  "current_state": "po-review-complete",
+  "cycle_number": 3,
+  "feature_areas": [
+    {
+      "name": "timer-display",
+      "status": "in-progress"
+    },
+    {
+      "name": "timer-controls",
+      "status": "pending"
+    },
+    {
+      "name": "pomodoro-cycle",
+      "status": "pending"
+    },
+    {
+      "name": "session-counter",
+      "status": "pending"
+    },
+    {
+      "name": "transition-feedback",
+      "status": "pending"
+    },
+    {
+      "name": "settings-modal",
+      "status": "pending"
+    }
+  ],
+  "current_feature_area": "timer-display",
+  "confidence_history": [
+    {
+      "cycle": 2,
+      "confidence": 0.87,
+      "timestamp": "2026-03-23T17:30:00.000Z",
+      "trajectory": "converging"
+    }
+  ],
+  "domain": "web",
+  "name": "Epoch",
+  "description": "A focus timer that's beautiful enough to leave on screen.",
+  "timestamp": "2026-03-23T17:57:12.505Z",
+  "seeded_at": "2026-03-22T15:45:00.000Z",
+  "completed_phases": [
+    "promoting",
+    "building",
+    "test-integrity",
+    "qa-gate",
+    "po-review-journeys",
+    "po-review-screens",
+    "po-review-heuristics"
+  ],
+  "qa_fix_attempts": 0
+}

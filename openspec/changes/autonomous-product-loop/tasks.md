@@ -366,40 +366,100 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 
 ## Future Work — Slack UX Polish
 
-- [ ] FW.1 Thread-based bot replies — use `thread_ts` so seeding conversations and notifications don't flood the channel
-- [ ] FW.2 Per-loop status notifications — "Loop N: building → QA passed → PO review in progress" at each phase transition
-- [ ] FW.3 Phase transition notifications — notify channel when a phase starts/completes with brief summary
-- [ ] FW.4 Confidence trend in notifications — include confidence score and delta in loop completion messages
-- [ ] FW.5 Screenshot attachments in notifications — capture primary screen + feature screens, attach to Slack messages via file upload
-- [ ] FW.6 Seeding swarm progress — "Discipline 3/7 complete (brainstorming → competition → taste)" during seeding loops
+- [x] FW.1 Thread-based bot replies — use `thread_ts` so seeding conversations and notifications don't flood the channel
+- [x] FW.2 Per-loop status notifications — "Loop N: building → QA passed → PO review in progress" at each phase transition
+- [x] FW.3 Phase transition notifications — notify channel when a phase starts/completes with brief summary
+- [x] FW.4 Confidence trend in notifications — include confidence score and delta in loop completion messages
+- [x] FW.5 Screenshot attachments in notifications — capture primary screen + feature screens, attach to Slack messages via file upload
+- [x] FW.6 Seeding swarm progress — "Discipline 3/7 complete (brainstorming → competition → taste)" during seeding loops
 
 ## Future Work — Slack UX (Boil the Lake)
 
 ### Foundation
-- [ ] FW.10 Create Slack App manifest YAML — one-click app setup for new users. All slash commands, event subscriptions, scopes, and permissions declared.
-- [ ] FW.11 Implement slash commands — /rouge new, /rouge status, /rouge start, /rouge pause, /rouge resume, /rouge seed, /rouge feedback. Requires Interactivity & Shortcuts enabled.
-- [ ] FW.12 Threaded seeding conversations — /rouge new starts a thread, all seeding back-and-forth lives in the thread, channel gets a summary on completion
-- [ ] FW.13 Modal for project creation — /rouge new opens a form: project name, one-line description, domain (web/game/artifact), template. Not free-text.
+- [x] FW.10 Create Slack App manifest YAML — one-click app setup for new users. All slash commands, event subscriptions, scopes, and permissions declared.
+- [x] FW.11 Implement slash commands — /rouge new, /rouge status, /rouge start, /rouge pause, /rouge resume, /rouge seed, /rouge feedback. Requires Interactivity & Shortcuts enabled.
+- [x] FW.12 Threaded seeding conversations — /rouge new starts a thread, all seeding back-and-forth lives in the thread, channel gets a summary on completion
+- [x] FW.13 Modal for project creation — /rouge new opens a form: project name, one-line description, domain (web/game/artifact), template. Not free-text.
 
 ### Dashboard & Visibility
-- [ ] FW.14 App Home tab as live dashboard — click Rouge in sidebar → see all projects with state, confidence trend, last activity, action buttons
-- [ ] FW.15 Ephemeral status messages — /rouge status shows results only to the requesting user, no channel spam
+- [x] FW.14 App Home tab as live dashboard — click Rouge in sidebar → see all projects with state, confidence trend, last activity, action buttons
+- [x] FW.15 Ephemeral status messages — /rouge status shows results only to the requesting user, no channel spam
 
 ### Rich Interactions
-- [ ] FW.16 Interactive Block Kit notifications — structured cards with progress indicators, confidence trends, screenshots, action buttons (Start, Pause, Approve, Reject)
-- [ ] FW.17 Block Kit morning briefing — multi-section card with per-project blocks, confidence charts, screenshot thumbnails
-- [ ] FW.18 Block Kit PO Review scorecard — journey/screen/interaction quality breakdown with pass/fail indicators
-- [ ] FW.19 Inline action buttons — "Start" button on ready notifications, "Investigate" button on rollback alerts, "Approve/Reject" on seeding completion
-- [ ] FW.20 Dropdown menus for feedback classification — when sending feedback, select type (product-change, global-learning, etc.) from a menu instead of relying on LLM classification
+- [x] FW.16 Interactive Block Kit notifications — structured cards with progress indicators, confidence trends, screenshots, action buttons (Start, Pause, Approve, Reject)
+- [x] FW.17 Block Kit morning briefing — multi-section card with per-project blocks, confidence charts, screenshot thumbnails
+- [x] FW.18 Block Kit PO Review scorecard — journey/screen/interaction quality breakdown with pass/fail indicators
+- [x] FW.19 Inline action buttons — "Start" button on ready notifications, "Investigate" button on rollback alerts, "Approve/Reject" on seeding completion
+- [x] FW.20 Dropdown menus for feedback classification — when sending feedback, select type (product-change, global-learning, etc.) from a menu instead of relying on LLM classification
 
 ### Polish
-- [ ] FW.21 DM support — seed from DMs with the bot for private brainstorming, channel notifications for team visibility
-- [ ] FW.22 Phase completion notifications with before/after screenshots embedded
-- [ ] FW.23 Rollback alerts with evidence summary and action buttons
-- [ ] FW.24 Confidence trend sparkline in notifications (Unicode block characters)
+- [x] FW.21 DM support — seed from DMs with the bot for private brainstorming, channel notifications for team visibility
+- [x] FW.22 Phase completion notifications with before/after screenshots embedded
+- [x] FW.23 Rollback alerts with evidence summary and action buttons
+- [x] FW.24 Confidence trend sparkline in notifications (Unicode block characters)
 
 ### Self-Configuration
-- [ ] FW.25 Bot self-setup on first run — detect no channels exist, create #rouge-feed (newsroom), #rouge-seeding (conversations), #rouge-alerts (critical only), set topics, pin welcome messages
-- [ ] FW.26 Add channels:manage scope to manifest for channel creation
-- [ ] FW.27 First-run welcome flow — bot explains itself in each channel with pinned usage guide
-- [ ] FW.28 Document 5-step new user setup — create workspace, import manifest, install app, copy 3 tokens, start bot (everything else auto-configures)
+- [x] FW.25 Bot self-setup on first run — detect no channels exist, create #rouge-feed (newsroom), #rouge-seeding (conversations), #rouge-alerts (critical only), set topics, pin welcome messages
+- [x] FW.26 Add channels:manage scope to manifest for channel creation
+- [x] FW.27 First-run welcome flow — bot explains itself in each channel with pinned usage guide
+- [x] FW.28 Document 5-step new user setup — create workspace, import manifest, install app, copy 3 tokens, start bot (everything else auto-configures)
+
+## Future Work — Rouge Maintain (Closed Source)
+
+Rouge Maintain: autonomous maintenance of deployed production systems.
+
+- [ ] FM.1 SBOM generation and CVE scanning — weekly automated dependency audit
+- [ ] FM.2 Automated security patching — CVE detected → branch → patch → test → PR
+- [ ] FM.3 Bug triage from error monitoring — Sentry errors → classify → fix or escalate
+- [ ] FM.4 Database migration planning — schema changes with rollback plans, dry-run on staging
+- [ ] FM.5 Dependency updates — automated minor/patch updates with test verification
+- [ ] FM.6 Uptime monitoring — health checks, auto-restart, incident notification
+- [ ] FM.7 Production safeguards — never auto-merge to production without human approval for destructive changes (table drops, data migrations)
+- [ ] FM.8 Weekly maintenance report — what was patched, what needs attention, security posture
+
+## Future Work — Rate Limit Handling Rethink
+
+- [x] FW.29 Distinguish rate limits from real failures — rate limits should NEVER count toward the 3-retry limit. They're temporary, not errors.
+- [x] FW.30 Rate limit detection without log content — check Claude CLI exit code or stderr directly, not just log file grep (log may be empty if redirect fails)
+- [x] FW.31 Rate limit backoff should pause ALL projects — if one project hits rate limit, others will too. Pause the entire loop, not just the current project.
+- [x] FW.32 Rate limit reset detection — parse "resets Xpm" from Claude output, sleep until reset time instead of arbitrary backoff
+- [x] FW.33 Document rate limit interaction between Rouge Spec (interactive) and Rouge Build (autonomous) — if a human is seeding via Slack and the build loop is running, they compete for the same rate limit budget
+
+## Future Work — Launcher Improvements
+
+- [x] FW.35 Replace timeout-based phase monitoring with heartbeat/progress detection — periodically check if Claude is still producing output (file changes, log growth, tool calls) rather than using a fixed timeout. If no progress for N minutes, then timeout. This is more resilient than fixed timeouts and provides observability data for the dashboard.
+- [x] FW.36 Phase progress streaming — emit periodic progress events (files changed, tests run, etc.) that the Slack newsroom and web dashboard can consume in real-time
+- [x] FW.37 Handle phase prompts writing state.json — normalize `*-complete` suffixed states back to the expected state, or add pre/post guards that save and restore state.json around phase invocations
+- [x] FW.38 README disclaimer — "experimental, not for production use, token-intensive" warning
+
+## Future Work — Visual Evolution Record
+
+- [x] FW.39 QA gate screenshot capture — each QA gate run captures 3-5 representative screenshots of key screens. Store in `projects/<name>/screenshots/loop-<N>/` with descriptive filenames.
+- [x] FW.40 Screenshot persistence across loops — screenshots persist as visual history. Each loop gets its own dated folder.
+- [x] FW.41 Visual evolution GIF/timelapse generator — compile matching screenshots across loops into animated GIF or side-by-side comparison. ImageMagick `convert` for GIF generation.
+- [x] FW.42 GStack browse screenshot integration — use `$B screenshot <path>` during QA gate for each key screen. Full-page capture, not viewport-only.
+
+## Discussion — Cost-Aware Testing
+
+NEEDS DISCUSSION: Some products built by Rouge will be AI-powered themselves (e.g., LLM API calls in the product). Testing these products during QA gate means the QA phase incurs real API costs from the product under test — not just Claude token costs from the Rouge loop itself.
+
+Questions:
+- How do we cap per-QA-run costs for products that call external APIs?
+- Should the QA gate use mock/stub APIs by default and only hit real APIs in a final validation phase?
+- How do we track and report "product testing cost" separately from "Rouge operating cost"?
+- Should there be a cost budget per loop that triggers waiting-for-human if exceeded?
+- How does this interact with Stripe test mode (we only use sandbox, but test API calls still exist)?
+
+## Future Work — PO Review Fixes (Critical)
+
+- [x] FW.43 Split PO review into sub-phases — journey quality, screen quality, interaction quality, heuristic eval as separate lighter invocations instead of one mega-session. Each sub-phase writes partial results, next sub-phase reads them.
+- [x] FW.44 Quick PO review mode — review 1 journey + 1 screen only. For testing and fast iteration cycles.
+- [x] FW.45 Fix execFileSync output capture — switch to async execFile with streaming output to log file. Partial output must be saved even if the process dies. Current: all-or-nothing means hours of work lost on timeout.
+- [x] FW.46 Guard against synthetic data propagation — when po_review_report.synthetic is true, downstream phases must NOT generate change specs or make product modifications based on synthetic data. Analyzing phase should check this flag.
+
+## Future Work — Session Feedback (2026-03-22)
+
+- [x] FW.47 DROPPED — slash commands control, @mentions converse. No need for /rouge respond.
+- [ ] FW.48 Slack markdown sanitization — convert Claude's markdown (headers, code blocks, tables) to Slack-compatible mrkdwn before posting. Strip unsupported syntax.
+- [ ] FW.49 Per-project status detail — `/rouge status <project>` shows detailed view (current phase, cycle, confidence, last action, staging URL) vs the current list view.
+- [ ] FW.50 API/integration-aware seeding — seeding swarm asks about integrations (Stripe, Supabase, third-party APIs, OAuth, webhooks) and incorporates them into the spec. Products built on integrations need them specced from the start.

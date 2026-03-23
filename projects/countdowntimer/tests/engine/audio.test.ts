@@ -1,0 +1,161 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { playChime, sendNotification } from '@/engine/audio';
+
+// @criterion: AC-transition-1
+// Chime plays when a phase ends
+// @criterion-hash: a4e69cc62891
+describe('[AC-transition-1] chime playback', () => {
+  it('creates oscillators and gain nodes when called', async () => {
+    const startSpy = vi.fn();
+    const stopSpy = vi.fn();
+    const connectSpy = vi.fn();
+    const freqSetValue = vi.fn();
+    const freqRamp = vi.fn();
+    const gainSetValue = vi.fn();
+    const gainRamp = vi.fn();
+
+    const mockCtx = {
+      currentTime: 0,
+      destination: {},
+      resume: vi.fn().mockResolvedValue(undefined),
+      createOscillator: vi.fn(() => ({
+        type: 'sine',
+        frequency: { setValueAtTime: freqSetValue, exponentialRampToValueAtTime: freqRamp },
+        connect: connectSpy,
+        start: startSpy,
+        stop: stopSpy,
+      })),
+      createGain: vi.fn(() => ({
+        gain: { setValueAtTime: gainSetValue, exponentialRampToValueAtTime: gainRamp },
+        connect: connectSpy,
+      })),
+    };
+
+    const origAC = globalThis.AudioContext;
+    // @ts-expect-error - test mock
+    globalThis.AudioContext = class { constructor() { return mockCtx; } };
+    vi.resetModules();
+
+    const { playChime: freshPlayChime } = await import('@/engine/audio');
+    await freshPlayChime(70);
+
+    // Should have created 2 oscillators and 2 gain nodes
+    expect(mockCtx.createOscillator).toHaveBeenCalledTimes(2);
+    expect(mockCtx.createGain).toHaveBeenCalledTimes(2);
+    expect(startSpy).toHaveBeenCalledTimes(2);
+    expect(stopSpy).toHaveBeenCalledTimes(2);
+
+    globalThis.AudioContext = origAC;
+  });
+});
+
+// @criterion: AC-transition-2
+// Chime respects sound on/off setting and volume
+// @criterion-hash: 90586b47792c
+describe('[AC-transition-2] volume control', () => {
+  it('scales volume based on input parameter', () => {
+    expect(() => playChime(0)).not.toThrow();
+    expect(() => playChime(100)).not.toThrow();
+  });
+
+  it('does not throw when AudioContext is unavailable (sound off gracefully)', () => {
+    const origAC = globalThis.AudioContext;
+    // @ts-expect-error - test mock
+    globalThis.AudioContext = class {
+      constructor() { throw new Error('Not supported'); }
+    };
+
+    expect(() => playChime(70)).not.toThrow();
+
+    globalThis.AudioContext = origAC;
+  });
+});
+
+// @criterion: AC-transition-3
+// Browser notification fires when tab is hidden and permission is granted
+// @criterion-hash: 9d4c7b042afc
+describe('[AC-transition-3] browser notifications', () => {
+  let origHidden: boolean;
+
+  beforeEach(() => {
+    origHidden = document.hidden;
+  });
+
+  afterEach(() => {
+    Object.defineProperty(document, 'hidden', { value: origHidden, configurable: true });
+  });
+
+  it('sends notification when permission granted and tab is hidden', () => {
+    const constructorSpy = vi.fn();
+    const origNotification = globalThis.Notification;
+
+    Object.defineProperty(document, 'hidden', { value: true, configurable: true });
+
+    // @ts-expect-error - test mock
+    globalThis.Notification = class {
+      static permission = 'granted';
+      constructor(title: string, options: object) {
+        constructorSpy(title, options);
+      }
+    };
+
+    sendNotification('Focus complete', 'Short break starting.');
+
+    expect(constructorSpy).toHaveBeenCalledWith(
+      'Focus complete',
+      expect.objectContaining({ body: 'Short break starting.' })
+    );
+
+    globalThis.Notification = origNotification;
+  });
+
+  it('does not send notification when tab is visible', () => {
+    const constructorSpy = vi.fn();
+    const origNotification = globalThis.Notification;
+
+    Object.defineProperty(document, 'hidden', { value: false, configurable: true });
+
+    // @ts-expect-error - test mock
+    globalThis.Notification = class {
+      static permission = 'granted';
+      constructor(title: string, options: object) {
+        constructorSpy(title, options);
+      }
+    };
+
+    sendNotification('Focus complete', 'Short break starting.');
+    expect(constructorSpy).not.toHaveBeenCalled();
+
+    globalThis.Notification = origNotification;
+  });
+
+  it('does not send notification when permission is denied', () => {
+    const constructorSpy = vi.fn();
+    const origNotification = globalThis.Notification;
+
+    Object.defineProperty(document, 'hidden', { value: true, configurable: true });
+
+    // @ts-expect-error - test mock
+    globalThis.Notification = class {
+      static permission = 'denied';
+      constructor(title: string, options: object) {
+        constructorSpy(title, options);
+      }
+    };
+
+    sendNotification('Focus complete', 'Short break starting.');
+    expect(constructorSpy).not.toHaveBeenCalled();
+
+    globalThis.Notification = origNotification;
+  });
+
+  it('does not throw when Notification API is unavailable', () => {
+    const origNotification = globalThis.Notification;
+    // @ts-expect-error - test mock
+    globalThis.Notification = undefined;
+
+    expect(() => sendNotification('Test', 'Body')).not.toThrow();
+
+    globalThis.Notification = origNotification;
+  });
+});

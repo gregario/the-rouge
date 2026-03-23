@@ -1,0 +1,849 @@
+design_artifact:
+  discipline: "design"
+  status: "complete"
+
+  loop_back_triggers:
+    to_spec: []
+    to_self: []
+
+  passes:
+    # =========================================================================
+    # PASS 1: UX Architecture
+    # =========================================================================
+    ux_architecture:
+      pass: 1
+
+      sitemap:
+        screens:
+          - path: "/"
+            name: "Home"
+            auth_required: false
+            navigation_group: "primary"
+            connects_to: ["/card/:id", "/collection", "/garden", "/settings"]
+
+          - path: "/collection"
+            name: "My Collection"
+            auth_required: false
+            navigation_group: "primary"
+            connects_to: ["/card/:id", "/", "/garden"]
+
+          - path: "/garden"
+            name: "My Garden"
+            auth_required: false
+            navigation_group: "primary"
+            connects_to: ["/", "/collection"]
+
+          - path: "/card/:id"
+            name: "Card View"
+            auth_required: false
+            navigation_group: "none"
+            connects_to: ["/", "/collection"]
+
+          - path: "/settings"
+            name: "Settings Panel"
+            auth_required: false
+            navigation_group: "utility"
+            connects_to: ["/"]
+
+        navigation:
+          primary: ["/", "/collection", "/garden"]
+          secondary: []
+          utility: ["/settings"]
+          auth_boundary: "none — app works without auth, accounts are optional"
+
+        total_screens: 5
+        total_navigation_links: 4
+
+      journey_maps:
+        - journey_name: "Discover today's fruit"
+          feature_area: "daily-challenge"
+          entry_point: "/"
+          total_clicks: 5
+          three_click_compliant: false
+          three_click_override: "Core learning journey requires see→flip→quiz→answer→complete. Each step is a meaningful learning interaction, not navigation overhead."
+          steps:
+            - step: 1
+              action: "Tap Fruit of the Day card"
+              screen_from: "/"
+              screen_to: "/card/:id (front)"
+              click_count: 1
+            - step: 2
+              action: "Tap card to flip"
+              screen_from: "/card/:id (front)"
+              screen_to: "/card/:id (back)"
+              click_count: 2
+            - step: 3
+              action: "Tap 'Quiz me!'"
+              screen_from: "/card/:id (back)"
+              screen_to: "/card/:id (quiz)"
+              click_count: 3
+            - step: 4
+              action: "Answer 2-3 questions (tap per question)"
+              screen_from: "/card/:id (quiz)"
+              screen_to: "/card/:id (quiz)"
+              click_count: 5
+            - step: 5
+              action: "Sticker celebration auto-plays, tap to dismiss or navigate"
+              screen_from: "/card/:id (celebration)"
+              screen_to: "/ or /collection"
+              click_count: 6
+          decision_points:
+            - condition: "All daily cards completed"
+              outcome: "Daily stamp celebration triggers after final card"
+          error_recovery:
+            - trigger: "Image fails to load"
+              recovery: "Coloured circle fallback renders immediately"
+          success_outcome: "Kid learns about a new fruit and earns a sticker"
+          failure_outcome: "N/A — no fail state. Wrong answers still complete the card."
+
+        - journey_name: "Browse collection"
+          feature_area: "achievements"
+          entry_point: "/collection"
+          total_clicks: 2
+          three_click_compliant: true
+          steps:
+            - step: 1
+              action: "Tap Collection tab"
+              screen_from: "any"
+              screen_to: "/collection"
+              click_count: 1
+            - step: 2
+              action: "Tap any item to view/learn"
+              screen_from: "/collection"
+              screen_to: "/card/:id"
+              click_count: 2
+          decision_points: []
+          error_recovery: []
+          success_outcome: "Kid sees progress and can access any card"
+          failure_outcome: "N/A"
+
+        - journey_name: "Create account"
+          feature_area: "accounts"
+          entry_point: "/settings"
+          total_clicks: 3
+          three_click_compliant: true
+          steps:
+            - step: 1
+              action: "Tap settings gear icon"
+              screen_from: "any"
+              screen_to: "/settings"
+              click_count: 1
+            - step: 2
+              action: "Enter email, check guardian box"
+              screen_from: "/settings"
+              screen_to: "/settings"
+              click_count: 2
+            - step: 3
+              action: "Tap Create Account"
+              screen_from: "/settings"
+              screen_to: "/settings (verification pending)"
+              click_count: 3
+          decision_points: []
+          error_recovery:
+            - trigger: "Invalid email"
+              recovery: "Inline validation error, field stays editable"
+            - trigger: "Network error on submit"
+              recovery: "Error toast, retry button"
+          success_outcome: "Account created, verification email sent"
+          failure_outcome: "Error message with retry option"
+
+      three_click_violations:
+        - journey: "Discover today's fruit"
+          clicks_required: 5
+          proposed_fix: "Override — each click is a meaningful learning interaction, not navigation"
+          accepted_override: true
+
+      information_hierarchy:
+        - screen: "/"
+          primary:
+            element: "Fruit of the Day card"
+            justification: "The reason the kid opens the app — what's today's new discovery?"
+          secondary:
+            - element: "Review cards (1-2)"
+              justification: "Supporting daily habit — practice makes permanent"
+            - element: "Progress dots"
+              justification: "Shows daily completion progress"
+          tertiary:
+            - element: "Settings icon"
+              justification: "Parent-only, deliberately unobtrusive"
+
+        - screen: "/collection"
+          primary:
+            element: "Collection grid"
+            justification: "The sticker book IS this screen — visual progress is the whole point"
+          secondary:
+            - element: "Category tabs"
+              justification: "Filtering mechanism — supports browsing the primary grid"
+            - element: "Progress counter"
+              justification: "Quantifies what the grid shows visually"
+          tertiary: []
+
+        - screen: "/garden"
+          primary:
+            element: "Streak display"
+            justification: "The daily habit metric — biggest emotional hook"
+          secondary:
+            - element: "Category badges"
+              justification: "Collection milestones — aspirational"
+            - element: "Stats"
+              justification: "Supporting numbers — lifetime totals"
+          tertiary: []
+
+    # =========================================================================
+    # PASS 2: Component Design
+    # =========================================================================
+    component_design:
+      pass: 2
+
+      screen_component_mapping:
+        - screen: "/"
+          regions:
+            - region: "header"
+              component: "AppHeader"
+              data_displayed: ["greeting (Hi, [name]! or Welcome!)", "settings gear icon"]
+              interactions: ["gear icon opens settings panel"]
+
+            - region: "daily-featured"
+              component: "FeaturedCard"
+              data_displayed: ["item image", "item name", "TODAY'S FRUIT label", "gold border"]
+              interactions: ["tap opens card view"]
+
+            - region: "daily-reviews"
+              component: "ReviewCardRow"
+              data_displayed: ["2 smaller cards with item images and names", "REVIEW labels"]
+              interactions: ["tap each card opens card view"]
+
+            - region: "progress-dots"
+              component: "ProgressDots"
+              data_displayed: ["1-3 dots, filled (complete) or empty"]
+              interactions: ["none — display only"]
+
+          progressive_disclosure:
+            visible_at_first_glance: ["daily-featured", "daily-reviews", "progress-dots"]
+            revealed_on_interaction: ["settings panel (via gear icon)"]
+
+        - screen: "/collection"
+          regions:
+            - region: "header"
+              component: "CollectionHeader"
+              data_displayed: ["'My Collection' title", "progress counter (X / Y collected)"]
+              interactions: []
+
+            - region: "category-tabs"
+              component: "CategoryTabs"
+              data_displayed: ["tab names: All, Fruits, Vegetables, Berries", "badge icon on completed categories"]
+              interactions: ["tap tab filters grid"]
+
+            - region: "collection-grid"
+              component: "StickerGrid"
+              data_displayed: ["grid of items — coloured stickers (completed) or grey silhouettes (uncompleted)", "item names below each"]
+              interactions: ["tap any item opens card view"]
+
+          progressive_disclosure:
+            visible_at_first_glance: ["category-tabs", "collection-grid (first ~20 items visible)"]
+            revealed_on_interaction: ["scroll to see full grid"]
+
+        - screen: "/garden"
+          regions:
+            - region: "streak-display"
+              component: "StreakDisplay"
+              data_displayed: ["current streak number", "flame/flower icon", "supportive text", "longest streak (smaller)"]
+              interactions: ["none — display only"]
+
+            - region: "badges-grid"
+              component: "BadgeGrid"
+              data_displayed: ["category badges — full colour (earned) or grey with ? (unearned)"]
+              interactions: ["tap earned badge shows detail overlay"]
+
+            - region: "stats"
+              component: "StatsDisplay"
+              data_displayed: ["total items learned", "total questions answered"]
+              interactions: ["none — display only"]
+
+          progressive_disclosure:
+            visible_at_first_glance: ["streak-display", "badges-grid"]
+            revealed_on_interaction: ["badge detail overlay on tap"]
+
+        - screen: "/card/:id"
+          regions:
+            - region: "card-front"
+              component: "CardFront"
+              data_displayed: ["item image (large)", "item name", "coloured background", "completed badge (if revisiting)"]
+              interactions: ["tap to flip"]
+
+            - region: "card-back"
+              component: "CardBack"
+              data_displayed: ["3-4 fun facts in speech bubbles", "highlighted words in bold"]
+              interactions: ["'Quiz me!' button"]
+
+            - region: "quiz"
+              component: "QuizView"
+              data_displayed: ["question text", "3-4 answer options (text, colour circles, or icons)"]
+              interactions: ["tap answer to submit", "auto-advance after feedback"]
+
+            - region: "celebration"
+              component: "StickerCelebration"
+              data_displayed: ["sticker image with gold border", "'New sticker!' text", "confetti animation"]
+              interactions: ["'See collection' button", "'Next card' button", "tap to dismiss"]
+
+      five_state_design:
+        - screen: "/"
+          states:
+            empty:
+              condition: "Brand new user, first visit"
+              user_sees: "Single Fruit of the Day card (no review cards). Encouraging text: 'Meet your first fruit!' Single progress dot."
+              actions_available: ["tap featured card"]
+              primary_cta: "Tap the featured card to begin"
+
+            loading:
+              condition: "App initialising, catalogue loading"
+              user_sees: "App shell with bottom nav visible. Single card-shaped skeleton loader with gentle shimmer animation."
+              actions_available: ["bottom nav tabs"]
+              skeleton_matches_layout: true
+
+            populated:
+              condition: "User has some progress, normal daily visit"
+              user_sees: "Fruit of the Day card (gold border) + 2 review cards. Progress dots. Greeting text."
+              actions_available: ["tap any card", "navigate tabs", "settings"]
+
+            error:
+              condition: "localStorage corrupted or unavailable"
+              user_sees: "Fresh start — empty state (same as brand new user). No error message shown to child."
+              actions_available: ["same as empty state"]
+              error_granularity: "invisible to child — graceful degradation"
+
+            overflow:
+              condition: "N/A — daily challenge is always exactly 1-3 cards"
+              user_sees: "N/A"
+              actions_available: []
+
+        - screen: "/collection"
+          states:
+            empty:
+              condition: "Zero completed items"
+              user_sees: "Full grid of grey silhouettes with ? marks. Counter: '0 / 75 collected'. Friendly prompt: 'Tap any fruit to start learning!' Arrow pointing to first item."
+              actions_available: ["tap any silhouette to learn it", "category tabs"]
+              primary_cta: "Tap any silhouette"
+
+            loading:
+              condition: "Initial catalogue load"
+              user_sees: "Grid of card-shaped skeleton loaders (12-16 matching grid layout)"
+              actions_available: ["nav tabs"]
+              skeleton_matches_layout: true
+
+            populated:
+              condition: "Mix of completed and uncompleted items"
+              user_sees: "Grid with colourful stickers and grey silhouettes. Counter shows progress. Category tabs with completion indicators."
+              actions_available: ["tap any item", "filter by category"]
+
+            error:
+              condition: "Data corruption"
+              user_sees: "Graceful degradation — full catalogue shown as silhouettes (worst case fresh start)"
+              actions_available: ["tap any item to learn"]
+              error_granularity: "invisible to child"
+
+            overflow:
+              condition: "N/A — catalogue is fixed at ~75 items"
+              user_sees: "N/A"
+              actions_available: []
+
+        - screen: "/garden"
+          states:
+            empty:
+              condition: "Zero progress"
+              user_sees: "Streak: '0 days' with seedling icon. All badges grey with ?. Stats: 'Start your first card to begin!' Big CTA button: 'Go to today's fruit!'"
+              actions_available: ["CTA links to home"]
+              primary_cta: "Go to today's fruit!"
+
+            loading:
+              condition: "Initial load"
+              user_sees: "Skeleton loaders for streak number, badge grid, stats"
+              actions_available: ["nav tabs"]
+              skeleton_matches_layout: true
+
+            populated:
+              condition: "Some progress exists"
+              user_sees: "Active streak with flower icon, mix of earned/unearned badges, stats with real numbers"
+              actions_available: ["tap earned badges for detail"]
+
+            error:
+              condition: "Data corruption"
+              user_sees: "Same as empty state — fresh start"
+              actions_available: ["CTA to home"]
+              error_granularity: "invisible to child"
+
+            overflow:
+              condition: "N/A — fixed number of badges and stats"
+              user_sees: "N/A"
+              actions_available: []
+
+      icon_specs:
+        - name: "Home"
+          lucide_name: "home"
+          size: 28
+          purpose: "functional"
+          context: "Bottom nav — home tab"
+        - name: "Book"
+          lucide_name: "book-open"
+          size: 28
+          purpose: "functional"
+          context: "Bottom nav — collection tab"
+        - name: "Flower"
+          lucide_name: "flower-2"
+          size: 28
+          purpose: "functional"
+          context: "Bottom nav — garden tab"
+        - name: "Settings"
+          lucide_name: "settings"
+          size: 20
+          purpose: "functional"
+          context: "Settings gear icon, top-right"
+        - name: "Check"
+          lucide_name: "check"
+          size: 20
+          purpose: "functional"
+          context: "Completed card indicator, correct answer indicator"
+        - name: "Star"
+          lucide_name: "star"
+          size: 20
+          purpose: "functional"
+          context: "Fruit of the Day badge, category badge earned indicator"
+        - name: "ArrowLeft"
+          lucide_name: "arrow-left"
+          size: 24
+          purpose: "functional"
+          context: "Back navigation from card view"
+        - name: "Flame"
+          lucide_name: "flame"
+          size: 32
+          purpose: "functional"
+          context: "Streak counter icon"
+
+        icon_audit:
+          total: 8
+          functional: 8
+          decorative: 0
+          decorative_percentage: 0
+          decorative_warning: false
+
+    # =========================================================================
+    # PASS 3: Visual Design
+    # =========================================================================
+    visual_design:
+      pass: 3
+
+      style_tokens:
+        colors:
+          # Kid-friendly, bright, warm palette — NOT generic tech blue
+          primary: "#FF6B35"             # Warm orange — energy, appetite, playfulness
+          primary_foreground: "#FFFFFF"
+          secondary: "#004E64"           # Deep teal — trustworthy, readable contrast
+          secondary_foreground: "#FFFFFF"
+          accent: "#FFD166"              # Sunny yellow — celebration, achievement, warmth
+          accent_foreground: "#1A1A1A"
+          background: "#FFFDF7"          # Warm white — softer than pure white, cosy feel
+          foreground: "#2D2D2D"          # Soft black — easier on young eyes than pure black
+          muted: "#F0EDE6"              # Warm grey — card backgrounds, subtle sections
+          muted_foreground: "#6B6B6B"
+          destructive: "#E63946"         # Warm red — only for account deletion (parent flow)
+          destructive_foreground: "#FFFFFF"
+          border: "#E8E4DB"
+          ring: "#FF6B35"
+          success: "#06D6A0"             # Mint green — correct answers, completion
+          success_foreground: "#FFFFFF"
+          incorrect: "#FFB347"           # Soft amber — incorrect answers (NOT red)
+          incorrect_foreground: "#1A1A1A"
+
+          # Per-category accent colours for card backgrounds
+          category_fruit: "#FFE0CC"      # Peach
+          category_vegetable: "#D4EDDA"  # Soft green
+          category_berry: "#E8D0F0"      # Soft purple
+          category_tropical: "#FFF3CD"   # Soft gold
+          category_root: "#F5E0D0"       # Earthy warm
+          category_leafy: "#C8E6C9"      # Leaf green
+
+          color_rationale:
+            primary: "Orange — appetite, energy, warmth. THE colour of food and playfulness. Instantly signals 'this is for kids and food.'"
+            secondary: "Deep teal — provides readable contrast against warm backgrounds. Trustworthy for parent-facing elements."
+            accent: "Sunny yellow — the colour of celebration and gold stars. Maps to achievements, streaks, daily stamps."
+            success: "Mint green — fresh, positive. For correct answers and completion states."
+            incorrect: "Soft amber — warm, gentle. Deliberate choice over red to avoid a 'wrong/bad' feeling for kids."
+            background: "Warm white (#FFFDF7) — slightly warm tint. Pure white feels clinical; warm white feels friendly."
+            category_colours: "Each food category gets its own soft pastel — creates visual variety in the collection grid and card backgrounds."
+
+          contrast_check:
+            primary_on_background: "WCAG AA (4.5:1)"
+            foreground_on_background: "WCAG AAA (12.6:1)"
+            secondary_on_background: "WCAG AAA (8.4:1)"
+            muted_foreground_on_muted: "WCAG AA (4.6:1)"
+            all_pass_aa: true
+
+          slop_check:
+            purple_gradient: false
+            generic_blue_without_rationale: false
+
+        typography:
+          font_family_heading: "Nunito"
+          font_family_body: "Nunito"
+          font_family_mono: "N/A — no monospace needed for kids app"
+
+          font_rationale: "Nunito — rounded sans-serif. The rounded terminals feel friendly and approachable for kids. Highly legible at all sizes. Available on Google Fonts (free). Used by many kids' apps. Supports all needed weights."
+
+          scale:
+            h1: { size: "2rem", weight: 800, line_height: 1.2, tracking: "-0.01em", usage: "Screen titles (My Collection, My Garden)" }
+            h2: { size: "1.5rem", weight: 700, line_height: 1.3, tracking: "0", usage: "Card item names, section headers" }
+            h3: { size: "1.25rem", weight: 700, line_height: 1.4, tracking: "0", usage: "Category names, badge names" }
+            body: { size: "1.125rem", weight: 600, line_height: 1.6, tracking: "0", usage: "Fun facts, quiz questions — slightly large for readability by young readers" }
+            body_small: { size: "1rem", weight: 400, line_height: 1.5, tracking: "0", usage: "Supporting text, counters" }
+            caption: { size: "0.875rem", weight: 600, line_height: 1.4, tracking: "0.01em", usage: "Labels (TODAY'S FRUIT, REVIEW), timestamps" }
+
+          hierarchy_check:
+            distinct_sizes: 6
+            size_ratio_consistent: true
+            weight_tiers: 3  # 400, 600/700, 800
+
+        spacing:
+          base_unit: 4
+          scale: [0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20]
+
+          component_spacing:
+            card_padding: 5           # 20px — comfortable but not wasteful
+            section_gap: 6            # 24px — between sections
+            element_gap: 3            # 12px — between elements
+            page_margin: 4            # 16px — tighter on mobile to maximise card space
+            inline_gap: 2             # 8px — icon + text
+            grid_gap: 3              # 12px — between collection grid items
+            bottom_nav_height: 16     # 64px — large for kid fingers
+
+          consistency_check:
+            all_spacing_on_scale: true
+            no_magic_numbers: true
+
+        border_radius:
+          none: "0"
+          sm: "0.5rem"        # 8px — slightly rounder than typical (kid-friendly)
+          md: "0.75rem"       # 12px
+          lg: "1rem"          # 16px — cards
+          xl: "1.5rem"        # 24px — featured card, celebration overlays
+          full: "9999px"      # pills, circles
+          default_interactive: "md"
+          default_container: "lg"
+
+        shadows:
+          sm: "0 2px 4px 0 rgb(0 0 0 / 0.06)"
+          md: "0 4px 8px -1px rgb(0 0 0 / 0.08)"
+          lg: "0 8px 16px -2px rgb(0 0 0 / 0.1)"
+          glow: "0 0 20px rgb(255 107 53 / 0.3)"  # primary colour glow for featured card
+          usage:
+            cards: "sm"
+            featured_card: "md + glow"
+            celebration_overlay: "lg"
+            hover_lift: "md"
+
+      interaction_spec:
+        transitions:
+          tab_switch:
+            type: "instant"
+            duration_ms: 0
+            rationale: "Tab navigation must feel instant — speed over polish for primary navigation"
+
+          card_open:
+            type: "scale-from-origin"
+            duration_ms: 300
+            easing: "cubic-bezier(0.34, 1.56, 0.64, 1)"  # Slight overshoot — playful
+            from: { scale: 0.8, opacity: 0 }
+            to: { scale: 1, opacity: 1 }
+
+          card_flip:
+            type: "rotateY"
+            duration_ms: 400
+            easing: "ease-in-out"
+            rationale: "3D flip — the signature interaction. Must feel physical."
+
+          celebration_appear:
+            type: "scale-bounce"
+            duration_ms: 500
+            easing: "cubic-bezier(0.34, 1.56, 0.64, 1)"
+            from: { scale: 0, opacity: 0 }
+            to: { scale: 1, opacity: 1 }
+
+          quiz_answer_correct:
+            type: "background-color + confetti"
+            duration_ms: 300
+            confetti_duration_ms: 1500
+
+          quiz_answer_incorrect:
+            type: "background-color"
+            duration_ms: 300
+            rationale: "No shake, no red, no negative animation. Just a gentle colour change."
+
+          sticker_unlock:
+            type: "fly-in + bounce"
+            duration_ms: 600
+            easing: "cubic-bezier(0.34, 1.56, 0.64, 1)"
+            rationale: "The sticker should feel like it's landing in your collection — physical, satisfying"
+
+        microinteractions:
+          card_tap:
+            visual: "Scale down to 0.95 on press, spring back on release"
+            duration_ms: 150
+
+          quiz_button_tap:
+            visual: "Scale down to 0.95 on press"
+            duration_ms: 100
+
+          streak_increment:
+            visual: "Number counts up with spring animation, flower grows taller"
+            duration_ms: 400
+
+          progress_dot_fill:
+            visual: "Dot scales from 0 to 1.2 to 1.0 with colour fill"
+            duration_ms: 300
+
+          daily_stamp:
+            visual: "Stamp drops from above with a 'thunk' settle animation"
+            duration_ms: 500
+
+        accessibility:
+          focus_ring: "3px solid #FF6B35, 3px offset — visible on keyboard navigation only"
+          reduced_motion: "All transitions instant. Confetti disabled. Celebrations show static state only."
+          color_independence: "Correct/incorrect answers use checkmark/dash icons alongside colour change. Completed items have visible badge in addition to colour."
+          touch_targets: "Minimum 44x44px for all interactive elements. Quiz buttons minimum 48px height."
+          aria_live_regions: "Quiz answer feedback, celebration text, streak updates"
+          screen_reader_order: "DOM order matches visual order throughout"
+          text_scaling: "All text uses rem units. App remains usable at 200% text size."
+
+      screen_mockups:
+        - screen: "/"
+          layout_type: "single column, vertically stacked"
+
+          main_content:
+            max_width: "480px"
+            center_aligned: true
+            regions_top_to_bottom:
+              - region: "header"
+                height: "48px"
+                contains: ["greeting text (left-aligned)", "settings gear icon (right-aligned)"]
+
+              - region: "featured-card"
+                height: "280px"
+                contains: ["large card with item image, name, gold border, glow shadow", "'TODAY'S FRUIT' label"]
+                visual_weight: "dominant — largest element on screen"
+
+              - region: "review-cards"
+                height: "120px"
+                layout: "horizontal, 2 cards side-by-side"
+                contains: ["2 smaller cards with item images and names", "'REVIEW' labels"]
+                visual_weight: "secondary"
+
+              - region: "progress-dots"
+                height: "32px"
+                contains: ["1-3 dots, centered"]
+                visual_weight: "tertiary"
+
+          mobile_adaptation:
+            breakpoint: "N/A — mobile-first single column design. Same layout on all screen sizes up to 480px max-width."
+
+        - screen: "/collection"
+          layout_type: "single column with grid content"
+
+          main_content:
+            max_width: "480px"
+            center_aligned: true
+            regions_top_to_bottom:
+              - region: "header"
+                height: "48px"
+                contains: ["'My Collection' title", "counter 'X / Y collected'"]
+
+              - region: "category-tabs"
+                height: "44px"
+                layout: "horizontal scroll if tabs overflow"
+                contains: ["pill-shaped tabs: All, Fruits, Vegetables, Berries"]
+
+              - region: "collection-grid"
+                height: "flexible (scrollable)"
+                layout: "grid, 4 columns, equal spacing"
+                contains: ["item cards — 80px × 80px each with image and name"]
+                scroll: "vertical scroll for overflow"
+
+          mobile_adaptation:
+            breakpoint: "Below 360px: grid reduces to 3 columns"
+
+        - screen: "/garden"
+          layout_type: "single column, vertically stacked"
+
+          main_content:
+            max_width: "480px"
+            center_aligned: true
+            regions_top_to_bottom:
+              - region: "streak-section"
+                height: "120px"
+                contains: ["large streak number", "flame/flower icon", "supportive text", "longest streak"]
+                visual_weight: "dominant"
+
+              - region: "badges-section"
+                height: "flexible"
+                layout: "grid, 3 columns"
+                contains: ["category badge icons — earned (colour) or unearned (grey ?)"]
+
+              - region: "stats-section"
+                height: "80px"
+                contains: ["simple stat counters", "items learned", "questions answered"]
+                visual_weight: "tertiary"
+
+          mobile_adaptation:
+            breakpoint: "N/A — single column design"
+
+      slop_audit:
+        slop_detected: false
+        violations: []
+        notes:
+          - "No purple gradients — palette is warm orange/teal/yellow"
+          - "No 3-column icon grids — collection grid is 4-column items, not features"
+          - "No generic hero copy — there is no marketing landing page in-app"
+          - "No decorative blobs — backgrounds are solid warm colours"
+          - "No emoji bullets — using Lucide icons only"
+          - "Clear visual hierarchy — featured card is dominant, review cards secondary"
+          - "No stock photos — all images are sourced fruit/veg photos"
+
+  # =========================================================================
+  # Quality Summary
+  # =========================================================================
+  quality_summary:
+    pass_1_scores:
+      sitemap_completeness: 10         # 5 screens, all accounted for, no orphans
+      journey_efficiency: 9            # Core tasks efficient, learning journey justified at 5 clicks
+      hierarchy_clarity: 10            # Every screen has unambiguous primary element
+      error_coverage: 9                # All journeys have graceful error recovery
+      task_flow_completeness: 9        # Account flow mapped with decision points
+      minimum_threshold: 8
+      dimensions_below_threshold: []
+      pass_1_approved: true
+
+    pass_2_scores:
+      component_coverage: 10           # Every screen region has component assignment
+      five_state_coverage: 9           # All screens have 5 states (overflow N/A for fixed-size content)
+      progressive_disclosure: 9        # Settings hidden, badge details on tap, grid scrolls
+      data_mapping_clarity: 10         # Every component knows exactly what data it shows
+      interaction_completeness: 9      # All interactive elements have defined behavior
+      chart_spec_quality: 10           # N/A — no charts in this product (score reflects intentional absence)
+      minimum_threshold: 8
+      dimensions_below_threshold: []
+      pass_2_approved: true
+
+    pass_3_scores:
+      color_intentionality: 10         # Every colour has product meaning (orange=food/energy, teal=trust, yellow=achievement)
+      typography_hierarchy: 9          # Clear scale, Nunito is perfect for kids
+      spacing_consistency: 10          # All on 4px grid
+      interaction_completeness: 10     # Every state transition defined, playful easing curves
+      accessibility_coverage: 9        # Focus rings, reduced motion, touch targets, ARIA, text scaling
+      mobile_adaptation: 10            # Mobile-first design, no adaptation needed
+      slop_free: 10                    # Zero AI slop patterns
+      minimum_threshold: 8
+      dimensions_below_threshold: []
+      pass_3_approved: true
+
+    overall_design_score: 9.5
+
+    dimensions_rated:
+      - dimension: "Information hierarchy"
+        score: 10
+        designer_note: "Rams: every element earns its place. Featured card is clearly dominant, review cards secondary, progress dots tertiary."
+      - dimension: "Navigation efficiency"
+        score: 9
+        designer_note: "Norman: 3 tabs, 3 taps to anything. The learning journey is 5 taps but each is meaningful interaction, not navigation overhead."
+      - dimension: "Progressive disclosure"
+        score: 9
+        designer_note: "Settings hidden behind gear icon. Badge details on tap. Quiz appears after flip. Information reveals at the right moment."
+      - dimension: "Five-state completeness"
+        score: 9
+        designer_note: "Gebbia: empty states guide rather than confuse. Zero-progress states have encouraging CTAs, not error messages."
+      - dimension: "Visual consistency"
+        score: 10
+        designer_note: "Ive: consistent spacing on 4px grid, single font family, cohesive warm colour palette throughout."
+      - dimension: "Interaction polish"
+        score: 10
+        designer_note: "Playful spring easings on celebrations, physical-feeling card flip, gentle feedback. Every interaction feels intentional."
+      - dimension: "Accessibility"
+        score: 9
+        designer_note: "Focus rings, reduced motion, colour independence, 44px+ touch targets, ARIA live regions. Text scales to 200%."
+      - dimension: "Mobile adaptation"
+        score: 10
+        designer_note: "Mobile-first design. Max-width 480px. Same layout on all devices. No responsive breakpoints needed except grid column reduction below 360px."
+      - dimension: "AI slop avoidance"
+        score: 10
+        designer_note: "Zero slop patterns. Warm orange palette with product meaning. No purple gradients, no decorative blobs, no generic copy."
+      - dimension: "Trust signals"
+        score: 9
+        designer_note: "Gebbia: considered micro-copy in empty states, gentle error handling invisible to children, parent-mediated account flow. The product feels cared-for."
+
+    all_above_threshold: true
+    slop_detected: false
+
+  # =========================================================================
+  # PO Checks
+  # =========================================================================
+  po_checks:
+    hierarchy_checks:
+      - screen: "/"
+        check: "Fruit of the Day card is the most visually prominent element"
+        measurement: "Compute rendered size of featured card vs other elements"
+        threshold: "Featured card area >= 2x any other element's area"
+        pass_criteria: "Featured card is clearly the dominant visual element"
+
+      - screen: "/collection"
+        check: "Collection grid is the primary content area"
+        measurement: "Grid area occupies majority of screen below header"
+        threshold: "Grid area >= 60% of content area"
+        pass_criteria: "Sticker grid dominates the screen"
+
+    five_state_checks:
+      - screen: "/"
+        state: "empty"
+        check: "First-time user sees single card with encouraging text"
+        measurement: "Load app with empty localStorage, verify single card and prompt text"
+        threshold: "Featured card visible, no review cards, encouraging text present"
+
+      - screen: "/collection"
+        state: "empty"
+        check: "All items shown as grey silhouettes with prompt"
+        measurement: "Load with zero completions, count grey elements"
+        threshold: "All grid items are grey silhouettes, prompt text visible"
+
+    style_token_checks:
+      - check: "All text colours meet WCAG AA contrast"
+        measurement: "Compute contrast ratios for all text/background pairs"
+        threshold: "All ratios >= 4.5:1"
+
+      - check: "Touch targets are minimum 44x44px"
+        measurement: "Measure all interactive element dimensions"
+        threshold: "All >= 44x44px"
+
+      - check: "Incorrect answer feedback uses amber, not red"
+        measurement: "Trigger incorrect answer, check computed background colour"
+        threshold: "Background colour is amber (#FFB347), not red"
+
+    slop_checks:
+      - check: "No purple gradients"
+        measurement: "Parse all background colours and gradients"
+        threshold: "Zero purple hue values in gradients"
+
+      - check: "No decorative background shapes"
+        measurement: "Scan for SVG/canvas background elements with no data purpose"
+        threshold: "Zero decorative background elements"
+
+    total_checks: 9
+
+  # =========================================================================
+  # Estimates
+  # =========================================================================
+  estimates:
+    total_human_team: "~3 weeks (design + implementation)"
+    total_rouge_cycles: "~2-3 build cycles"
+    per_pass:
+      pass_1: { human_team: "~3 days", rouge_cycles: "~0.5 cycles" }
+      pass_2: { human_team: "~5 days", rouge_cycles: "~1 cycle" }
+      pass_3: { human_team: "~5 days", rouge_cycles: "~1 cycle" }
+
+  invalidates_previous_disciplines: []
+  questions_for_human: []

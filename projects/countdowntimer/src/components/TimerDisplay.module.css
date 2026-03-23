@@ -1,0 +1,80 @@
+.container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.glow {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--glow) 0%, transparent 70%);
+  opacity: 0.15;
+  filter: blur(60px);
+  transition: opacity var(--transition-duration) var(--transition-easing),
+              background var(--transition-duration) var(--transition-easing);
+  pointer-events: none;
+}
+
+.glowPulsing {
+  animation: pulse 4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.12; transform: scale(1); }
+  50% { opacity: 0.2; transform: scale(1.05); }
+}
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 48px 64px;
+  border-radius: 24px;
+  background: var(--glass-surface);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  transition: border-color var(--transition-duration) var(--transition-easing);
+}
+
+.phaseLabel {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  transition: color var(--transition-duration) var(--transition-easing);
+}
+
+.time {
+  font-family: var(--font-mono);
+  font-size: clamp(72px, 15vw, 120px);
+  font-weight: 300;
+  line-height: 1;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 480px) {
+  .card {
+    padding: 32px 40px;
+    border-radius: 16px;
+  }
+
+  .glow {
+    width: 250px;
+    height: 250px;
+  }
+}
+
+@media (max-width: 320px) {
+  .card {
+    padding: 24px 28px;
+  }
+}

@@ -1,0 +1,80 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=Inter:wght@400;500;600&display=swap');
+
+:root {
+  /* Focus phase (default) */
+  --bg: #0a0a0f;
+  --accent: #4a9eff;
+  --glow: #4a9eff;
+
+  /* Text */
+  --text-primary: #f0f0f5;
+  --text-secondary: #6b7280;
+
+  /* Glass */
+  --glass-surface: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
+
+  /* Typography */
+  --font-mono: 'JetBrains Mono', 'Space Mono', monospace;
+  --font-ui: 'Inter', system-ui, sans-serif;
+
+  /* Transitions */
+  --transition-duration: 1.2s;
+  --transition-easing: ease-in-out;
+}
+
+[data-phase='focus'] {
+  --bg: #0a0a0f;
+  --accent: #4a9eff;
+  --glow: #4a9eff;
+}
+
+[data-phase='short-break'] {
+  --bg: #0f0a14;
+  --accent: #c084fc;
+  --glow: #c084fc;
+}
+
+[data-phase='long-break'] {
+  --bg: #0a100f;
+  --accent: #34d399;
+  --glow: #34d399;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-ui);
+  color: var(--text-primary);
+  background: var(--bg);
+  transition: background var(--transition-duration) var(--transition-easing);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#__next {
+  height: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --transition-duration: 0.01s;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

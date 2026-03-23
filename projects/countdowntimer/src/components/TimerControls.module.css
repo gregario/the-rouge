@@ -1,0 +1,68 @@
+.controls {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.buttonGroup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.shortcutHint {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: #9ca3af;
+  letter-spacing: 0.05em;
+  user-select: none;
+}
+
+@media (max-width: 767px) {
+  .shortcutHint {
+    display: none;
+  }
+}
+
+.button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  background: var(--glass-surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.button:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.button:active {
+  transform: scale(0.95);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.primary {
+  width: 56px;
+  height: 56px;
+  color: var(--accent);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.primary:hover {
+  background: rgba(255, 255, 255, 0.1);
+}

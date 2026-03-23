@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# NOTE: Not using set -e globally — the main loop must survive individual phase failures.
+# Individual functions use explicit error handling instead.
+set -uo pipefail
 
 # Resolve paths
 ROUGE_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -14,8 +16,155 @@ log() { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*" | tee -a "$LOG_DIR/rouge.log"
 
 is_rate_limited() {
   local log_file="$1"
-  tail -20 "$log_file" 2>/dev/null | grep -qi "rate.limit\|too.many.requests\|429" && return 0
+  tail -20 "$log_file" 2>/dev/null | grep -qi "rate.limit\|too.many.requests\|429\|hit your limit" && return 0
   return 1
+}
+
+# ============================================================================
+# FIX #1: State machine transitions
+# After each phase completes, advance to the next state based on the
+# phase output in cycle_context.json.
+# ============================================================================
+advance_state() {
+  local project_dir="$1"
+  local project_name="$(basename "$project_dir")"
+  local state_file="$project_dir/state.json"
+  local context_file="$project_dir/cycle_context.json"
+  local current_state="$(jq -r '.current_state' "$state_file")"
+  local next_state=""
+
+  case "$current_state" in
+    building)
+      # Building done → test integrity
+      next_state="test-integrity"
+      ;;
+    test-integrity)
+      # Test integrity done → QA gate
+      local verdict=""
+      if [[ -f "$context_file" ]]; then
+        verdict="$(jq -r '.test_integrity_report.verdict // "PASS"' "$context_file")"
+      fi
+      if [[ "$verdict" == "FAIL" ]]; then
+        # Test integrity failed — rebuild tests then retry
+        next_state="test-integrity"
+        log "[$project_name] Test integrity FAIL — re-running"
+      else
+        next_state="qa-gate"
+      fi
+      ;;
+    qa-gate)
+      # QA gate → check verdict
+      local verdict=""
+      if [[ -f "$context_file" ]]; then
+        verdict="$(jq -r '.qa_report.verdict // "PASS"' "$context_file")"
+      fi
+      if [[ "$verdict" == "FAIL" ]]; then
+        local fix_attempts="$(jq -r '.qa_fix_attempts // 0' "$state_file")"
+        if [[ "$fix_attempts" -ge 3 ]]; then
+          next_state="waiting-for-human"
+          log "[$project_name] QA failed 3 times — escalating to human"
+        else
+          next_state="qa-fixing"
+          jq ".qa_fix_attempts = $((fix_attempts + 1))" "$state_file" > "$state_file.tmp" && mv "$state_file.tmp" "$state_file"
+        fi
+      else
+        next_state="po-reviewing"
+      fi
+      ;;
+    qa-fixing)
+      # QA fix done → back to test integrity (then QA will re-run)
+      next_state="test-integrity"
+      ;;
+    po-reviewing)
+      # PO review done → analyzing
+      next_state="analyzing"
+      ;;
+    analyzing)
+      # Analyzer decides: promote, generate specs, rollback, or notify human
+      local action=""
+      if [[ -f "$context_file" ]]; then
+        action="$(jq -r '.po_review_report.recommended_action // "continue"' "$context_file")"
+      fi
+      case "$action" in
+        continue)
+          next_state="vision-checking"
+          ;;
+        deepen*|broaden)
+          next_state="generating-change-spec"
+          ;;
+        rollback)
+          next_state="rolling-back"
+          ;;
+        notify-human|notify*)
+          next_state="waiting-for-human"
+          ;;
+        *)
+          next_state="vision-checking"
+          ;;
+      esac
+      ;;
+    generating-change-spec)
+      # New specs generated → back to building
+      next_state="building"
+      # Increment cycle number
+      local cycle="$(jq -r '.cycle_number // 0' "$state_file")"
+      jq ".cycle_number = $((cycle + 1)) | .qa_fix_attempts = 0" "$state_file" > "$state_file.tmp" && mv "$state_file.tmp" "$state_file"
+      ;;
+    vision-checking)
+      # Vision check done → promote
+      next_state="promoting"
+      ;;
+    promoting)
+      # Promoted → check if more feature areas remain
+      local pending
+      pending="$(jq '[.feature_areas[] | select(.status == "pending")] | length' "$state_file")"
+      if [[ "$pending" -gt 0 ]]; then
+        # Advance to next feature area
+        local next_area
+        next_area="$(jq -r '[.feature_areas[] | select(.status == "pending")][0].name' "$state_file")"
+        jq --arg area "$next_area" '
+          .current_feature_area = $area |
+          (.feature_areas[] | select(.name == $area)).status = "in-progress" |
+          .cycle_number = (.cycle_number + 1) |
+          .qa_fix_attempts = 0
+        ' "$state_file" > "$state_file.tmp" && mv "$state_file.tmp" "$state_file"
+        next_state="building"
+        log "[$project_name] Advancing to feature area: $next_area"
+      else
+        next_state="complete"
+        log "[$project_name] All feature areas complete!"
+      fi
+      ;;
+    rolling-back)
+      # Rolled back → waiting for human
+      next_state="waiting-for-human"
+      ;;
+    *)
+      # Unknown or non-transitional state
+      return 0
+      ;;
+  esac
+
+  if [[ -n "$next_state" ]]; then
+    log "[$project_name] State transition: $current_state → $next_state"
+    jq --arg s "$next_state" '.current_state = $s' "$state_file" > "$state_file.tmp" && mv "$state_file.tmp" "$state_file"
+
+    # Notify on significant transitions
+    if [[ -n "${ROUGE_SLACK_WEBHOOK:-}" ]]; then
+      case "$next_state" in
+        qa-gate)
+          "$LAUNCHER_DIR/notify.sh" "🔍 [$project_name] Build complete → QA gate starting" 2>/dev/null || true ;;
+        po-reviewing)
+          "$LAUNCHER_DIR/notify.sh" "👀 [$project_name] QA passed → PO review starting" 2>/dev/null || true ;;
+        promoting)
+          "$LAUNCHER_DIR/notify.sh" "🚀 [$project_name] Vision check passed → promoting to production" 2>/dev/null || true ;;
+        complete)
+          "$LAUNCHER_DIR/notify.sh" "✅ [$project_name] All feature areas complete! Product ready." 2>/dev/null || true ;;
+        waiting-for-human)
+          "$LAUNCHER_DIR/notify.sh" "⏸️ [$project_name] Needs human input (from: $current_state)" 2>/dev/null || true ;;
+      esac
+    fi
+  fi
 }
 
 run_phase() {
@@ -44,18 +193,53 @@ run_phase() {
 
   log "[$project_name] Running phase: $state (model: $model)"
 
-  # Spawn Claude Code — pipe prompt via stdin, cwd = project dir for context
-  if cat "$prompt_file" | (cd "$project_dir" && claude -p \
+  # FIX #6: Count files before phase for visibility
+  local files_before
+  files_before="$(find "$project_dir" -type f -not -path "*/node_modules/*" -not -path "*/.git/*" | wc -l | tr -d ' ')"
+
+  # FIX #3 & #4: Run Claude from project dir, prompt via stdin
+  local phase_log="$LOG_DIR/${project_name}-${state}.log"
+  # Pass prompt via process substitution to avoid stdin/background issues
+  # and shell expansion of special chars in prompt content
+  pushd "$project_dir" > /dev/null
+  local claude_exit=0
+  claude -p \
     --dangerously-skip-permissions \
     --model "$model" \
-    --max-turns 200) \
-    >> "$LOG_DIR/${project_name}-${state}.log" 2>&1; then
-    log "[$project_name] Phase $state completed successfully"
+    --max-turns 200 \
+    "Read the phase prompt at $prompt_file and execute it. The project directory is $(pwd). Read cycle_context.json and state.json for context." \
+    < /dev/null \
+    >> "$phase_log" 2>&1 || claude_exit=$?
+  popd > /dev/null
+  if [[ $claude_exit -eq 0 ]]; then
+
+    # FIX #6: Count files after and log delta
+    local files_after
+    files_after="$(find "$project_dir" -type f -not -path "*/node_modules/*" -not -path "*/.git/*" | wc -l | tr -d ' ')"
+    local delta=$((files_after - files_before))
+    log "[$project_name] Phase $state completed (files: $files_before → $files_after, delta: +$delta)"
+
+    # FIX #5: Log last meaningful line from phase output
+    local last_line
+    last_line="$(tail -5 "$phase_log" 2>/dev/null | grep -v '^$' | tail -1 | head -c 200)"
+    if [[ -n "$last_line" ]]; then
+      log "[$project_name] Phase output: $last_line"
+    fi
+
+    # FIX #1: Advance the state machine
+    advance_state "$project_dir"
     return 0
   else
-    local exit_code=$?
-    log "[$project_name] Phase $state failed (exit $exit_code)"
-    return $exit_code
+    log "[$project_name] Phase $state failed (exit $claude_exit)"
+
+    # FIX #5: Log error context
+    local error_line
+    error_line="$(tail -3 "$phase_log" 2>/dev/null | grep -v '^$' | tail -1 | head -c 200)"
+    if [[ -n "$error_line" ]]; then
+      log "[$project_name] Error context: $error_line"
+    fi
+
+    return $claude_exit
   fi
 }
 
@@ -113,12 +297,8 @@ while true; do
           jq --arg s "$current_state" '.paused_from_state = $s | .current_state = "waiting-for-human"' \
             "$state_file" > "$state_file.tmp" && mv "$state_file.tmp" "$state_file"
 
-          # Notify via Slack if configured
           if [[ -n "${ROUGE_SLACK_WEBHOOK:-}" ]]; then
-            curl -s -X POST "$ROUGE_SLACK_WEBHOOK" \
-              -H 'Content-Type: application/json' \
-              -d "$(jq -n --arg t "⚠️ [$project_name] Phase $current_state failed 3 times. Moved to waiting-for-human." '{text: $t}')" \
-              > /dev/null 2>&1 || true
+            "$LAUNCHER_DIR/notify.sh" "⚠️ [$project_name] Phase $current_state failed 3 times. Moved to waiting-for-human." 2>/dev/null || true
           fi
         fi
 
