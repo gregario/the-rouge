@@ -45,8 +45,8 @@ const STATE_TO_PROMPT = {
   'rolling-back': 'loop/07-ship-promote.md',
 };
 
-// All phases run on Opus — Sonnet times out on complex phases like test-integrity
-const MODEL = 'opus';
+// Default to opus; override with ROUGE_MODEL env var for testing
+const MODEL = process.env.ROUGE_MODEL || 'opus';
 
 // Per-phase timeouts (ms) — heavy phases get more time
 const PHASE_TIMEOUT = {
@@ -675,15 +675,33 @@ async function main() {
   }
 }
 
+// --- Signal handlers (daemon resilience) ---
+// Parent and child share PGID — signals to the process group propagate to both.
+// Without handlers, SIGTERM/SIGHUP use default behavior (terminate).
+process.on('SIGTERM', () => {
+  log('SIGTERM received — ignoring (launcher is long-running)');
+});
+
+process.on('SIGHUP', () => {
+  log('SIGHUP received — ignoring (terminal disconnect)');
+});
+
+process.on('SIGINT', () => {
+  log('SIGINT received — shutting down');
+  process.exit(130);
+});
+
 // Prevent unhandled errors from crashing the launcher
 process.on('unhandledRejection', (err) => {
   log(`Unhandled rejection: ${err?.message || err}`);
+  if (err?.stack) log(err.stack);
 });
 process.on('uncaughtException', (err) => {
   log(`Uncaught exception: ${err?.message || err}`);
+  if (err?.stack) log(err.stack);
 });
 
 main().catch(err => {
-  log(`FATAL: ${err.message}`);
+  log(`FATAL: ${err.message}\n${err.stack}`);
   process.exit(1);
 });
