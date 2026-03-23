@@ -28,3 +28,21 @@ describe('[AC-counter-4] counter display', () => {
     expect(screen.getByTestId('session-counter')).toHaveAttribute('aria-label', '5 sessions completed today');
   });
 });
+
+// @criterion: AC-counter-celebrate-1
+// Session counter has celebration animation on increment
+// @criterion-hash: c4loop4cel01
+describe('[AC-counter-celebrate-1] counter celebration', () => {
+  it('applies celebration class when count increases', () => {
+    const { rerender } = render(<SessionCounter count={0} />);
+    rerender(<SessionCounter count={1} />);
+    const count = screen.getByTestId('session-count');
+    expect(count.className).toMatch(/celebrate/);
+  });
+
+  it('does not apply celebration class on initial render', () => {
+    render(<SessionCounter count={3} />);
+    const count = screen.getByTestId('session-count');
+    expect(count.className).not.toMatch(/celebrate/);
+  });
+});

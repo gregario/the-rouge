@@ -12,6 +12,17 @@
   font-size: 14px;
   font-weight: 500;
   color: var(--text-primary);
+  transition: transform 0.3s ease, color 0.3s ease;
+}
+
+.celebrate {
+  animation: pulse 0.6s ease;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); color: var(--text-primary); }
+  30% { transform: scale(1.4); color: var(--accent); }
+  100% { transform: scale(1); color: var(--text-primary); }
 }
 
 .label {
