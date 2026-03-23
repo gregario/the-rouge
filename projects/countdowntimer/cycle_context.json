@@ -1171,12 +1171,12 @@
             "feedback": 8,
             "efficiency": 10,
             "delight": 8,
-            "overall": 8.75,
-            "notes": "Timer display is immediately legible — large monospace digits, FOCUS label in electric blue, frosted glass card on dark navy. Visual hierarchy is excellent: timer dominates, phase label orients, controls invite action. Keyboard shortcut hints (R, Space, S) below buttons are a nice touch for discoverability. Cycle indicator (4 hollow dots) and '0 sessions today' establish context without clutter. Settings gear in top-right is unobtrusive but findable. No JS errors on load."
+            "overall": 9,
+            "notes": "Timer display is immediately legible — large monospace digits, FOCUS label in electric blue, frosted glass card on dark navy. Visual hierarchy is excellent: timer dominates, phase label orients, controls invite action. Keyboard shortcut hints (R, Space, S) below buttons aid discoverability. Cycle indicator (4 hollow dots) and '0 sessions today' establish context without clutter. Settings gear in top-right is unobtrusive but findable. Zero console errors on load. Favicon now renders in the browser tab — a clock-face SVG in accent blue that gives Epoch browser tab presence. Cycle 3 improvement: the product now has a complete first impression from tab icon to content."
           }
         ],
         "verdict": "polished",
-        "average_score": 8.75
+        "average_score": 9
       },
       {
         "journey_name": "Start and pause a focus session",
@@ -1189,7 +1189,7 @@
             "efficiency": 10,
             "delight": 8,
             "overall": 9,
-            "notes": "Single click starts countdown immediately. Button icon changes from play to pause with blue accent ring. Timer begins counting from 24:59. Keyboard shortcut (Space) also works perfectly. Zero-config start — exactly what the spec demands."
+            "notes": "Single click starts countdown immediately. Button icon changes from play to pause with blue accent ring. Timer begins counting from 24:59. Zero-config start — exactly what the spec demands. The <time> element now carries a datetime attribute in ISO 8601 duration format (e.g., PT24M56S), which is a semantic improvement for assistive tech."
           },
           {
             "step": "Observe timer counting down during focus",
@@ -1198,7 +1198,7 @@
             "efficiency": 10,
             "delight": 7,
             "overall": 8.75,
-            "notes": "Digits are crisp and readable. Countdown is smooth — no jank or flicker between second changes. The running state is clear from the pause icon on the primary button. However, the subtle glow pulse mentioned in spec is not strongly visible — the atmosphere during running could be slightly more dynamic."
+            "notes": "Digits are crisp and readable. Countdown is smooth — no jank or flicker between second changes. The running state is clear from the pause icon on the primary button. The glow pulse mentioned in spec is still not strongly perceptible — the atmosphere during running could be more dynamic. This is an unchanged observation from cycle 2."
           },
           {
             "step": "Click pause button or press Space to pause",
@@ -1207,7 +1207,7 @@
             "efficiency": 10,
             "delight": 7,
             "overall": 8.75,
-            "notes": "Pause is instant. Button reverts to play icon. Timer freezes at exact second. State is unambiguous — paused timer with play button is universally understood. No animation on pause transition though; a subtle pulse or dim would add polish."
+            "notes": "Pause is instant. Button reverts to play icon. Timer freezes at exact second. State is unambiguous. No animation on pause transition — a subtle pulse or dim would add polish. Unchanged from cycle 2."
           }
         ],
         "verdict": "polished",
@@ -1224,7 +1224,7 @@
             "efficiency": 9,
             "delight": 9,
             "overall": 9,
-            "notes": "Skip button has momentary accent ring feedback. Phase transition is visually striking — entire color palette shifts from navy/blue to purple/violet. Label changes from FOCUS to SHORT BREAK. Timer resets to 05:00. Background, accent, glow, and button colors all transition coherently. This is the most satisfying moment in the product."
+            "notes": "Phase transition is visually striking — entire color palette shifts from navy/blue to purple/violet. Label changes from FOCUS to SHORT BREAK. Timer resets to 05:00. Background, accent, glow, and button colors all transition coherently. This remains the most satisfying moment in the product. Cycle 3 fix: notifications are now gated on notificationsEnabled setting, so the notification respects user preference during this transition."
           },
           {
             "step": "Break auto-starts (respecting auto-start-breaks setting)",
@@ -1233,7 +1233,7 @@
             "efficiency": 10,
             "delight": 8,
             "overall": 8.75,
-            "notes": "Break auto-started without user intervention (auto-start breaks ON by default). Pause button appeared, timer counting. The auto-start behavior is correct and frictionless. Session counter remained at 0 — correct, since the focus session was skipped, not completed."
+            "notes": "Break auto-started without user intervention (auto-start breaks ON by default). Pause button appeared, timer counting. Session counter remained at 0 — correct, since the focus session was skipped, not completed. Auto-start behavior is correct and frictionless."
           }
         ],
         "verdict": "polished",
@@ -1250,7 +1250,7 @@
             "efficiency": 10,
             "delight": 6,
             "overall": 8,
-            "notes": "Timer resets to 25:00 immediately. Cycle position unchanged (dots remain the same). Button shows blue accent ring on activation. However, the reset icon (circular arrow) is somewhat ambiguous — could be confused with 'refresh page' or 'restart entire session'. The keyboard hint 'R' helps. No confirmation dialog, which is correct — trust the user."
+            "notes": "Timer resets to 05:00 immediately (tested in SHORT BREAK phase). Cycle position unchanged (dots remain the same). Reset icon (circular arrow) is still somewhat ambiguous — could be confused with 'refresh page' or 'restart entire session'. The keyboard hint 'R' helps disambiguate. No confirmation dialog, which is correct — trust the user. Unchanged from cycle 2."
           }
         ],
         "verdict": "polished",
@@ -1267,7 +1267,7 @@
             "efficiency": 8,
             "delight": 7,
             "overall": 8,
-            "notes": "Settings panel slides in from the left (not centered overlay as spec states — appears to be an intentional design divergence to a side-panel pattern). All 4 sections visible: TIMING, BEHAVIOR, SOUND, NOTIFICATIONS. 8 settings present and properly organized. Panel has clean dark aesthetic matching the app. Timer continues running visible behind the panel — nice touch."
+            "notes": "Settings panel slides in from the left as a native <dialog>. All 4 sections visible: TIMING, BEHAVIOR, SOUND, NOTIFICATIONS. 8 settings present and properly organized. Panel has clean dark aesthetic matching the app. Timer continues running visible behind the panel — nice touch. aria-expanded on the gear button confirms expanded state. Cycle 3: section spacing improved (12px → 16px padding), sections breathe slightly better."
           },
           {
             "step": "Adjust timing values (Focus duration, Short break, etc.)",
@@ -1276,7 +1276,7 @@
             "efficiency": 9,
             "delight": 6,
             "overall": 8,
-            "notes": "Number inputs with spinbutton controls. Values update immediately. Min/max constraints enforced. Labels are clear with units (min, sessions). The inputs are functional but purely utilitarian — no micro-interactions or visual flourish here."
+            "notes": "Number inputs with spinbutton controls. Values update immediately. Min/max constraints enforced. Labels are clear with units (min, sessions). The inputs are functional but purely utilitarian — no micro-interactions or visual flourish here. Unchanged from cycle 2."
           },
           {
             "step": "Toggle behavior switches (Auto-start breaks/focus)",
@@ -1285,7 +1285,16 @@
             "efficiency": 10,
             "delight": 7,
             "overall": 8.75,
-            "notes": "Toggle switches have clear on/off states with purple/blue accent colors. Auto-start breaks is ON by default (green/accent), Auto-start focus is OFF. State is immediately readable. Toggle animation is smooth."
+            "notes": "Toggle switches have clear on/off states with purple accent colors. Auto-start breaks is ON by default, Auto-start focus is OFF. State is immediately readable. Toggle animation is smooth."
+          },
+          {
+            "step": "Scroll to view footer legal text",
+            "clarity": 8,
+            "feedback": 7,
+            "efficiency": 7,
+            "delight": 6,
+            "overall": 7,
+            "notes": "Footer legal text ('Epoch runs entirely in your browser...') requires scrolling the dialog to see. Scrolled 157px to reach bottom. Text is now legible in #9ca3af (~6.2:1 contrast) — the cycle 3 fix definitively resolved the 2-cycle recurring footer contrast issue. However, needing to scroll a settings panel to reach the legal footer is a minor friction point. The NOTIFICATIONS section label is barely visible at default scroll position."
           },
           {
             "step": "Close settings via X button or Escape key",
@@ -1294,11 +1303,11 @@
             "efficiency": 10,
             "delight": 6,
             "overall": 8.25,
-            "notes": "X button in top-right of panel, Escape key both work. Panel closes smoothly. Settings persist — verified by re-opening. Keyboard shortcuts correctly disabled while settings panel is open (Space did not toggle timer). No save button needed — auto-save is the right call."
+            "notes": "X button and Escape key both work. Dialog closes cleanly (verified: is visible 'dialog' returns false). Settings persist. No save button needed — auto-save is correct."
           }
         ],
         "verdict": "polished",
-        "average_score": 8.25
+        "average_score": 8
       },
       {
         "journey_name": "Track daily progress via session counter",
@@ -1311,7 +1320,7 @@
             "efficiency": 10,
             "delight": 6,
             "overall": 7.75,
-            "notes": "'0 sessions today' is visible but quite subtle — secondary text color, small font. It communicates the right information but doesn't celebrate or motivate. The counter doesn't increment on skipped sessions (correct per spec). Positioned well below the cycle dots. On mobile, still visible and properly sized."
+            "notes": "'0 sessions today' is visible in #9ca3af secondary text. Positioned well below the cycle dots. Communicates the right information but doesn't celebrate or motivate. Counter correctly doesn't increment on skipped sessions. On mobile, still visible and properly sized. Unchanged from cycle 2 — this remains the least delightful journey."
           }
         ],
         "verdict": "functional",
@@ -1328,7 +1337,7 @@
             "efficiency": 9,
             "delight": 8,
             "overall": 8.5,
-            "notes": "Timer scales down elegantly via clamp(). FOCUS label, controls, cycle indicator, and session counter all remain visible and properly proportioned. No horizontal scrolling. Touch targets are adequate — buttons are large circular elements. Keyboard shortcut hints are wisely hidden on mobile. Settings gear remains accessible in top-right. The mobile experience feels intentional, not merely responsive."
+            "notes": "Timer scales down elegantly via clamp(). FOCUS label, controls, cycle indicator, and session counter all remain visible and properly proportioned. No horizontal scrolling. Touch targets are large circular elements, well above 44px minimum. Keyboard shortcut hints correctly hidden on mobile (<768px). Settings gear accessible in top-right. Favicon renders in mobile browser tab. The mobile experience feels intentional, not merely responsive. Tablet (768px) also renders well with shortcut hints visible at that breakpoint."
           }
         ],
         "verdict": "polished",
@@ -1340,147 +1349,159 @@
       "polished_journeys": 6,
       "functional_journeys": 1,
       "raw_journeys": 0,
-      "overall_average_score": 8.42,
-      "verdict": "polished"
+      "overall_average_score": 8.40,
+      "verdict": "polished",
+      "cycle_delta": {
+        "previous_average": 8.42,
+        "current_average": 8.40,
+        "change": -0.02,
+        "interpretation": "Effectively flat — scores are stable. The slight dip is due to adding a new scroll step in the settings journey (7.0) which brings down the settings journey average. All other journeys unchanged or improved."
+      }
     },
     "journey_quality_observations": {
       "strengths": [
         "All core journeys are clear and intuitive — primary action (Start) requires zero configuration and one click.",
-        "Phase transitions are the product's standout moment. The full-palette color shift from navy/blue to purple/violet is visually satisfying and communicates state change instantly.",
-        "Keyboard shortcuts (Space, R, S) work correctly and are discoverable via inline hints below buttons. Shortcuts are properly disabled when settings panel is open.",
-        "Mobile experience at 375px is genuinely good — not a degraded desktop, but a proportional layout that feels native to the viewport.",
-        "Auto-start behavior respects per-phase settings correctly. Breaks auto-start, focus sessions don't — matching user expectations for the Pomodoro flow.",
-        "Session counter correctly tracks only completed (not skipped) focus sessions.",
-        "Settings panel exposes all 8 configurable values with clear labels and proper input constraints."
+        "Phase transitions remain the product's standout moment. Full-palette color shift from navy/blue to purple/violet is visually striking and communicates state change instantly.",
+        "Keyboard shortcuts (Space, R, S) work correctly and are discoverable via inline hints. Hints wisely hidden on mobile.",
+        "Mobile experience at 375px is genuinely good — proportional layout, adequate touch targets, no scrollbars. Tablet (768px) also verified clean.",
+        "Cycle 3 fixes land cleanly: favicon gives browser tab presence (clock-face SVG in accent blue), footer contrast definitively resolved (#9ca3af at ~6.2:1), notification gating respects user settings, datetime attribute on <time> element improves semantics, settings section spacing improved.",
+        "Auto-start behavior correct: breaks auto-start, focus sessions don't.",
+        "Native <dialog> provides proper focus trapping and Escape-to-close behavior."
       ],
       "areas_for_improvement": [
-        "Session counter ('0 sessions today') is functional but not motivating. It communicates information without celebrating progress. A slightly stronger visual treatment or a micro-animation on increment would add delight.",
-        "Reset button icon (circular arrow) is somewhat ambiguous — could be mistaken for 'refresh' or 'restart entire session'. Clarity score is lower here (7/10) compared to other controls.",
-        "Settings panel delight scores are consistently low (6-7/10). The panel is well-organized and functional but lacks micro-interactions, transitions, or personality. It's the least polished part of the product.",
-        "Running state lacks dynamism — the spec mentions a radial gradient glow that 'pulses subtly while timer is running', but the pulse effect is not strongly perceptible. The visual difference between running and paused states could be more atmospheric.",
-        "Pause transition is abrupt — no animation or visual acknowledgment beyond the icon swap. A subtle dim or pulse would reinforce the state change."
+        "Session counter ('0 sessions today') remains the weakest journey (7.75/10, only 'functional' verdict). It communicates information without celebrating progress. A micro-animation on increment or slightly stronger visual treatment would add delight.",
+        "Reset button icon (circular arrow) remains somewhat ambiguous — clarity 7/10 is the lowest single-dimension score across all journeys.",
+        "Settings panel requires scrolling to see NOTIFICATIONS section and footer legal text (157px scroll). On a 720px desktop viewport, the bottom of the panel is clipped. Not broken, but a first-time user could miss notifications toggle entirely.",
+        "Running state glow pulse is still not strongly perceptible — the visual difference between running and paused states could be more atmospheric. Carried from cycle 1.",
+        "Pause transition is still abrupt — no animation beyond the icon swap. Carried from cycle 1.",
+        "Settings panel delight scores remain consistently the lowest (6-7/10). Section spacing improved slightly (12px → 16px) but still dense rather than generous. The panel is the product's most utilitarian surface."
       ]
     },
     "screen_quality": [
       {
         "screen_name": "Main Timer Screen (FOCUS phase)",
-        "description": "Primary screen showing timer display, phase label, controls with keyboard shortcut hints, cycle indicator, and session counter. Cycle 2 added semantic landmarks (header/main/footer), inline shortcut hints below buttons, and improved session counter contrast.",
+        "description": "Primary screen showing timer display, phase label, controls with keyboard shortcut hints, cycle indicator, and session counter. Cycle 3 added SVG favicon for browser tab presence and datetime attribute on <time> element.",
         "dimensions": {
           "hierarchy": {
             "score": 9,
-            "notes": "Timer digits dominate the viewport — immediately legible at any distance. FOCUS label in electric blue uppercase positions the user contextually. Controls are secondary but clearly actionable. The new inline keyboard hints (R, Space, S) sit visually subordinate to icons without disrupting the button hierarchy. Session counter in #9ca3af is appropriately de-emphasized but now legible (contrast improved from ~3.2:1 to ~6.2:1). Cycle dots provide subtle progress without competing. Settings gear is discoverable but unobtrusive in top-right. Clear priority stack: timer > phase label > controls > hints > cycle dots > session counter."
+            "notes": "Timer digits dominate the viewport — immediately legible at any distance. FOCUS label in electric blue (#4a9eff) uppercase positions the user contextually. Controls are secondary but clearly actionable with icon-above, shortcut-hint-below grouping. Session counter in #9ca3af appropriately de-emphasized but legible (~6.2:1 contrast). Cycle dots provide subtle progress without competing. Settings gear discoverable but unobtrusive in top-right. Clear priority stack: timer > phase label > controls > hints > cycle dots > session counter. Favicon (clock-face SVG in accent blue) now gives the browser tab a branded presence — the product is identifiable even when minimized."
           },
           "layout": {
             "score": 9,
-            "notes": "Centered symmetrical composition within frosted glass card. Controls evenly spaced horizontally in three-column flex layout. The button+hint vertical grouping (icon above, shortcut hint below) is tidy and well-aligned. 4-dot cycle indicator centered. Good vertical rhythm: card → controls → dots → counter with intentional spacing. No overflow at any viewport. Semantic landmarks (header, main, footer) don't affect visual layout but improve structural semantics."
+            "notes": "Centered symmetrical composition within frosted glass card (backdrop-filter: blur(20px), border: 1px solid rgba(255,255,255,0.1), border-radius: 24px). Controls evenly spaced in three-column flex. 4-dot cycle indicator centered. Good vertical rhythm: card → controls → dots → counter. No overflow at 1440x900. The composition floats centrally with generous whitespace supporting the 'focus object' aesthetic."
           },
           "consistency": {
             "score": 9,
-            "notes": "Fully consistent with design vision: dark navy (#0a0a0f), frosted glass surface, blue (#4a9eff) accent throughout. Monospace timer face (JetBrains Mono/Space Mono), uppercase tracking on phase label, Inter for UI text. Keyboard shortcut hints use same #9ca3af as session counter — a deliberate secondary text layer that's visually coherent. Phase transition to SHORT BREAK shifts entire palette to purple (#c084fc on #0f0a14) with full consistency across label, dots, button accents, and glow."
+            "notes": "Dark navy (#0a0a0f), frosted glass surface, blue (#4a9eff) accent applied throughout. Monospace timer face (JetBrains Mono/Space Mono), uppercase tracking on phase label, Inter for UI text. Shortcut hints and session counter share #9ca3af — a consistent secondary text layer. Design system is cohesive and intentional."
           },
           "density": {
             "score": 9,
-            "notes": "Density improved from cycle 1. The addition of keyboard shortcut hints adds useful information without increasing visual noise — hints are 10px monospace, barely perceptible until needed. The screen feels purposefully minimal: every element earns its space. Generous whitespace around the glass card supports the 'focus object' aesthetic. On desktop (1440px), the composition floats centrally with ample breathing room. Not sparse — the elements fill the visual center well."
+            "notes": "Purposefully minimal: every element earns its space. Shortcut hints at 10px monospace add information without visual noise. Generous whitespace around the glass card at 1440px desktop. Elements fill the visual center without feeling sparse or crowded."
           },
           "empty_states": {
             "score": 9,
-            "notes": "'0 sessions today' in #9ca3af is the idle state. It's now clearly readable (cycle 2 contrast fix) and communicates progress status. Guides the user to start their first session. The empty state is informational rather than decorative — appropriate for a tool designed for repeat daily use."
+            "notes": "'0 sessions today' in #9ca3af communicates idle state and guides next action. Informational rather than decorative — appropriate for a daily-use focus tool."
           },
           "mobile": {
             "score": 9,
-            "notes": "At 375x812, timer scales elegantly via clamp(72px, 15vw, 120px). FOCUS label, controls, cycle dots, and session counter all remain visible and proportioned. Keyboard shortcut hints are correctly hidden on mobile (<768px media query) — touch users don't need them. Touch targets are large circular buttons, well above 44px minimum. No horizontal scrolling. The mobile experience feels intentional: proportional layout, not a squeezed desktop."
+            "notes": "At 375x812, timer scales elegantly via clamp(). FOCUS label, controls, cycle dots, session counter all remain visible and proportioned. Keyboard shortcut hints correctly hidden on mobile (<768px). Touch targets are large circular buttons, well above 44px minimum. No horizontal scrolling. Favicon renders in mobile browser tab. The mobile experience feels intentional, not merely responsive."
           }
         },
         "verdict": "polished",
-        "average_score": 9
+        "average_score": 9.0
       },
       {
         "screen_name": "Main Timer Screen (SHORT BREAK phase)",
-        "description": "Same layout as FOCUS but with full palette shift to purple. Tests consistency of the phase transition design system.",
+        "description": "Same layout as FOCUS with full palette shift to purple. Validates consistency of the phase transition design system.",
         "dimensions": {
           "hierarchy": {
             "score": 9,
-            "notes": "Identical structural hierarchy to FOCUS phase. SHORT BREAK label in purple (#c084fc) uppercase. Timer digits remain dominant. The palette shift is the primary differentiator — hierarchy structure is stable across phases, which is correct. Skip button shows purple accent ring, reinforcing phase awareness."
+            "notes": "Identical structural hierarchy to FOCUS phase. SHORT BREAK label in purple (#c084fc) uppercase. Timer digits remain dominant. Palette shift is the primary differentiator — hierarchy structure is stable across phases. Skip button shows purple accent ring, pause button shows purple icon, reinforcing phase awareness throughout controls."
           },
           "layout": {
             "score": 9,
-            "notes": "Grid unchanged from FOCUS — centered card, three-button row, dots, counter. Phase transition changes colors only, not structure. This is good design: the layout is a stable container, color is the variable signal."
+            "notes": "Grid unchanged from FOCUS — centered card, three-button row, dots, counter. Phase transition changes colors only, not structure. The layout is a stable container; color is the variable signal. This is correct design: structural consistency with ambient differentiation."
           },
           "consistency": {
             "score": 9,
-            "notes": "Purple palette applied cohesively: background shifts to #0f0a14, accent to #c084fc across label, button accents, cycle dots, and glow. The transition between phases is the product's strongest design moment — a full ambient color shift that's visually striking without being jarring."
+            "notes": "Purple palette applied cohesively: background shifts to deeper dark (#0f0a14), accent to #c084fc across label, button accents, cycle dots, and glow. The full-palette transition between phases is the product's strongest design moment — visually striking without being jarring."
           },
           "density": {
             "score": 9,
-            "notes": "Identical density to FOCUS. The phase change adds no visual noise."
+            "notes": "Identical density to FOCUS. Phase change adds no visual noise — only color information changes."
           },
           "empty_states": {
             "score": 9,
-            "notes": "Session counter shows '0 sessions today' — correct since skipped sessions don't count."
+            "notes": "Session counter shows '0 sessions today' — correct since skipped sessions don't count toward completed focus sessions."
           },
           "mobile": {
             "score": 9,
-            "notes": "Purple palette renders correctly on mobile. Same responsive behavior as FOCUS phase."
+            "notes": "Purple palette renders correctly on mobile at 375px. Same responsive behavior as FOCUS phase. No degradation from the color shift."
           }
         },
         "verdict": "polished",
-        "average_score": 9
+        "average_score": 9.0
       },
       {
         "screen_name": "Settings Modal (native dialog)",
-        "description": "Side-panel settings dialog (native <dialog>) for configuring Pomodoro durations, behaviors, sound, and notifications. Cycle 2 converted from div overlay to native dialog with focus trapping, improved footer contrast, and :focus-visible rings.",
+        "description": "Side-panel settings dialog (native <dialog>) for configuring Pomodoro durations, behaviors, sound, and notifications. Cycle 3 improved section spacing (12px → 16px) and fixed footer text contrast to #9ca3af.",
         "dimensions": {
           "hierarchy": {
             "score": 8,
-            "notes": "Settings title bold white at top-left, X close button at top-right — clear framing. Four section headers (TIMING, BEHAVIOR, SOUND, NOTIFICATIONS) in uppercase tracking create logical zones. Each setting has label-left, control-right alignment that's easy to scan. Footer legal text sits below in muted gray. Timer continues counting behind the panel — a nice 'focus object stays present' touch. Minor: all settings within a section have equal visual weight, which is correct for a flat config panel."
+            "notes": "Settings title bold white at top-left, X close button at top-right — clear framing. Four section headers (TIMING, BEHAVIOR, SOUND, NOTIFICATIONS) in uppercase tracking create logical zones. Label-left, control-right alignment is easy to scan. Footer legal text now in #9ca3af (~6.2:1 contrast) — the recurring contrast issue is finally resolved. Timer continues counting behind the semi-transparent panel — a 'focus object stays present' touch that works well on desktop."
           },
           "layout": {
             "score": 8,
-            "notes": "Left-anchored side panel rather than centered overlay — an intentional divergence that works well: timer remains visible. Sections delineated by uppercase headers with subtle horizontal rules. Controls aligned right (inputs, toggles, slider) with consistent spacing. Mobile takes full width with vertical stacking. Desktop panel width is appropriate (~400px). Spacing between sections could still use 4-8px more breathing room on desktop — the panel feels efficient rather than generous."
+            "notes": "Left-anchored side panel (~400px max-width) rather than centered overlay. Timer remains visible on desktop — good. Sections delineated by uppercase headers. Controls aligned right with consistent spacing. Section spacing improved from 12px to 16px padding in cycle 3 — a marginal improvement. Still feels efficient rather than generous; 24-32px between section groups would create distinct visual zones."
           },
           "consistency": {
             "score": 9,
-            "notes": "Dark background matches app (#0a0a0f base). Frosted glass/glass surface on panel. Purple toggle accents match the phase-aware color system. Typography uses Inter for labels (matching UI font spec). Input fields have dark borders with subtle contrast. The native <dialog> backdrop provides proper modal semantics without breaking the visual language."
+            "notes": "Dark background (rgba(20,20,30,0.95)) matches app aesthetic. Purple toggle accents match phase-aware color system. Typography uses Inter for labels. Input fields have dark borders with subtle contrast. Native <dialog> backdrop provides modal semantics without breaking the visual language."
           },
           "density": {
             "score": 7,
-            "notes": "8 settings across 4 sections in a single non-scrolling panel (on desktop). Density is functional but tight — sections feel compressed together rather than distinct zones. The BEHAVIOR and SOUND sections each have 2 items, making them feel cramped between the larger TIMING (4 items) and smaller NOTIFICATIONS (1 item). On mobile, vertical stacking naturally adds breathing room and the density improves. This remains the product's most utilitarian surface — it works, but doesn't match the main screen's spatial generosity."
+            "notes": "8 settings across 4 sections. On desktop, sections feel compressed together rather than distinct zones. BEHAVIOR (2 items) and SOUND (2 items) cramped between TIMING (4 items) and NOTIFICATIONS (1 item). The 16px section padding (up from 12px) is an improvement but still below the 24-32px that would create breathing room. Remains the product's most utilitarian surface. Recurring gap from cycle 1."
           },
           "empty_states": {
             "score": 10,
             "notes": "N/A — all settings have default values. No empty state scenario applies."
           },
           "mobile": {
-            "score": 8,
-            "notes": "Full-width takeover with vertical scrolling. All controls touch-friendly: toggles are large, number inputs have spinbutton controls, volume slider has adequate thumb size. Sections stack vertically, improving density. Footer legal text is visible on scroll. The panel-to-fullscreen responsive transition is well-executed. Minor: footer text truncates slightly at bottom of viewport before scrolling."
+            "score": 6,
+            "notes": "SIGNIFICANT ISSUE: On mobile (375px), the dialog takes 90% width (337.5px) with rgba(20,20,30,0.95) background. The 5% transparency causes the timer content (digits, controls, dots, session counter) to bleed through visibly behind the settings panel. The timer is clearly legible through the dialog — this creates visual noise and competing focal points. The dialog should be fully opaque on mobile or use a solid backdrop to prevent content bleed-through. Additionally, the dialog height (690px) doesn't cover the full 812px viewport, leaving the bottom portion of the main screen exposed. The result is a layered, cluttered appearance that contradicts the product's minimal aesthetic. This was not caught in prior cycles."
           }
         },
-        "verdict": "polished",
-        "average_score": 8.3
+        "verdict": "functional",
+        "average_score": 8.0
       }
     ],
     "screen_quality_summary": {
       "total_screens_evaluated": 3,
-      "polished_screens": 3,
-      "functional_screens": 0,
+      "polished_screens": 2,
+      "functional_screens": 1,
       "raw_screens": 0,
-      "overall_average_score": 8.77,
+      "overall_average_score": 8.67,
       "verdict": "polished",
-      "cycle_2_delta": "+0.22 from cycle 1 (8.55 → 8.77). Main timer screens improved from 8.8 to 9.0 due to shortcut hints adding discoverability without visual cost and session counter contrast fix. Settings modal held at 8.3 — native dialog conversion improved accessibility but density gap persists. SHORT BREAK phase evaluated separately this cycle to validate palette consistency."
+      "cycle_delta": {
+        "previous_average": 8.77,
+        "current_average": 8.67,
+        "change": -0.10,
+        "interpretation": "Slight dip driven by settings modal mobile score dropping from 8 to 6 after closer inspection revealed content bleed-through on 375px viewport. Main timer screens stable at 9.0. Footer contrast issue resolved (now #9ca3af). Settings section spacing marginally improved (12px → 16px) but density gap persists."
+      }
     },
     "screen_quality_observations": {
       "strengths": [
-        "Main timer screen is exceptional — hierarchy, layout, and density all score 9/10. The addition of keyboard shortcut hints improves discoverability without disrupting the minimal aesthetic.",
-        "Phase transition palette shift (blue → purple) is fully consistent: background, accent, glow, dots, and button rings all update coherently. This is the product's strongest design system moment.",
-        "Session counter contrast fix (#6b7280 → #9ca3af, ~3.2:1 → ~6.2:1) resolves the WCAG AA failure while maintaining visual subordination. The same color is used for shortcut hints, creating a consistent secondary text layer.",
-        "Responsive design at 375px mobile is genuinely good. Timer scales proportionally, shortcut hints correctly hidden, touch targets adequate. The mobile layout feels native, not compressed.",
-        "Native <dialog> for settings provides correct modal semantics (focus trap, backdrop, Escape) without any visual regression from the div overlay.",
-        "Frosted glass, dark theme, and monospace typography are applied consistently across all screens and phases."
+        "Main timer screen remains exceptional at 9.0/10 — hierarchy, layout, density, and mobile all score 9. The frosted glass card (backdrop-filter: blur(20px), border-radius: 24px) is a premium visual anchor.",
+        "Phase transition palette shift (blue → purple) is fully consistent across background, accent, glow, dots, and button rings. This is the product's strongest design system moment and it's flawless.",
+        "Favicon (clock-face SVG in accent blue) gives the browser tab branded presence — important for a product designed to be left on screen. This resolves the cycle 1-2 quality gap qg-c2-002.",
+        "Footer legal text contrast finally resolved: now uses #9ca3af (~6.2:1 contrast) matching session counter and shortcut hints. The recurring 2-cycle contrast gap is closed.",
+        "Mobile timer experience at 375px is genuinely excellent — proportional layout via clamp(), shortcut hints hidden, large touch targets, no scrollbars.",
+        "Frosted glass, dark theme, and monospace typography applied consistently across all screens and phases."
       ],
-      "areas_for_minor_improvement": [
-        "Settings modal density (7/10) remains the weakest dimension. Section spacing is tight on desktop — 4-8px more vertical gap between section groups would create 'distinct zones' rather than a continuous form. This was flagged in cycle 1 and deferred.",
-        "Settings modal footer legal text uses rgb(107,114,128) at opacity 0.85. While improved from 0.6, the effective contrast against the dark background is still approximately 3.1:1, below WCAG AA 4.5:1 for normal text. The base color needs to change to #9ca3af (matching session counter) rather than relying on opacity.",
-        "Long break phase (teal/green palette) was not reachable via skipping — could not visually verify the third color variant this cycle. Skipping does not count as completing sessions, so long break requires running 4 full focus timers."
+      "areas_for_improvement": [
+        "CRITICAL NEW FINDING: Settings modal on mobile (375px) has visible content bleed-through. The dialog background at rgba(20,20,30,0.95) allows the timer, controls, and session counter to show through. At 337.5px wide and 690px tall, the dialog doesn't fully cover the 375x812 viewport. On desktop the side-panel approach works because the timer sits beside it; on mobile the layering creates visual clutter that contradicts the minimal aesthetic.",
+        "Settings modal density (7/10) remains the weakest dimension — a 3-cycle recurring gap. Section spacing improved from 12px to 16px but still below the 24-32px needed for distinct visual zones.",
+        "Long break phase (teal/green palette) was not reachable via skipping — could not visually verify the third color variant. Requires 4 completed focus sessions."
       ]
     },
     "heuristic_results": {
