@@ -1,0 +1,16 @@
+{
+  "phase_minutes": {
+    "analyzing": 3.9,
+    "building": 10.1,
+    "po-review-heuristics": 5.8,
+    "po-review-journeys": 5.8,
+    "po-review-screens": 7,
+    "promoting": 4.1,
+    "qa-gate": 8.4,
+    "test-integrity": 4.3,
+    "vision-checking": 2.8
+  },
+  "waste_multiplier": 6.26,
+  "calibrated_at": "2026-03-23T22:53:27.066Z",
+  "calibrated_from": "countdowntimer"
+}
