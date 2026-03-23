@@ -33,11 +33,52 @@ function run(cmd, opts) {
   return execSync(cmd, { encoding: 'utf8', timeout: 120000, stdio: 'pipe', ...opts });
 }
 
+function getDeploymentVersion(projectDir) {
+  try {
+    const output = run('npx wrangler deployments list --env staging 2>/dev/null || true', { cwd: projectDir });
+    // Extract the most recent deployment ID
+    const match = output.match(/([a-f0-9-]{36})/);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
+
+function healthCheck(url) {
+  try {
+    const output = execSync(`curl -s -o /dev/null -w "%{http_code}" --max-time 10 "${url}"`, {
+      encoding: 'utf8', timeout: 15000,
+    });
+    const status = parseInt(output.trim(), 10);
+    return status >= 200 && status < 400;
+  } catch {
+    return false;
+  }
+}
+
+function rollback(projectDir, versionId, reason) {
+  log(`ROLLING BACK to ${versionId}: ${reason}`);
+  try {
+    run(`npx wrangler rollback ${versionId} --env staging --yes --message "Auto-rollback: ${reason}"`, { cwd: projectDir });
+    log('Rollback successful');
+    return true;
+  } catch (err) {
+    log(`Rollback FAILED: ${(err.message || '').slice(0, 200)}`);
+    return false;
+  }
+}
+
 function deploy(projectDir) {
   const projectName = path.basename(projectDir);
   const ctxFile = path.join(projectDir, 'cycle_context.json');
 
   log(`Deploying ${projectName} to staging`);
+
+  // Capture current deployment version for rollback
+  const previousVersion = getDeploymentVersion(projectDir);
+  if (previousVersion) {
+    log(`Previous deployment: ${previousVersion}`);
+  }
 
   // Cloudflare: build + deploy
   let stagingUrl = null;
@@ -52,6 +93,26 @@ function deploy(projectDir) {
     }
   } catch (err) {
     log(`Cloudflare deploy failed: ${(err.message || '').slice(0, 200)}`);
+    return null;
+  }
+
+  // Health check — verify the deploy actually works
+  if (stagingUrl) {
+    log('Running post-deploy health check...');
+    const healthy = healthCheck(stagingUrl);
+    if (healthy) {
+      log('Health check PASSED');
+    } else {
+      log('Health check FAILED — site not responding');
+      if (previousVersion) {
+        rollback(projectDir, previousVersion, 'post-deploy health check failed');
+        // Re-check after rollback
+        if (healthCheck(stagingUrl)) {
+          log('Rollback verified — previous version is healthy');
+        }
+      }
+      return null; // deploy failed
+    }
   }
 
   // Supabase: push migrations
@@ -71,11 +132,27 @@ function deploy(projectDir) {
     }
   }
 
-  // Update cycle_context with staging URL
+  // Update cycle_context with staging URL and deployment info
   if (stagingUrl && ctx) {
     ctx.infrastructure = ctx.infrastructure || {};
     ctx.infrastructure.staging_url = stagingUrl;
     ctx.deployment_url = stagingUrl;
+
+    // Track deployment history for audit trail
+    if (!ctx.infrastructure.deploy_history) ctx.infrastructure.deploy_history = [];
+    const newVersion = getDeploymentVersion(projectDir);
+    ctx.infrastructure.deploy_history.push({
+      version: newVersion,
+      previous: previousVersion,
+      url: stagingUrl,
+      timestamp: new Date().toISOString(),
+      cycle: ctx._cycle_number || 0,
+    });
+    // Keep last 10 deploys
+    if (ctx.infrastructure.deploy_history.length > 10) {
+      ctx.infrastructure.deploy_history = ctx.infrastructure.deploy_history.slice(-10);
+    }
+
     writeJson(ctxFile, ctx);
   }
 
