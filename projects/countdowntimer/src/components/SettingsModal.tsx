@@ -99,7 +99,7 @@ export function SettingsModal({ isOpen, settings, onClose, onUpdate }: SettingsM
       </div>
 
       <div className={styles.body}>
-        <section className={styles.section}>
+        <section className={styles.section} data-testid="settings-section-timing">
           <h3 className={styles.sectionTitle}>Timing</h3>
           <NumberField label="Focus duration" value={settings.focusDuration} min={1} max={99} unit="min" onChange={handleNumberChange('focusDuration', 1, 99)} />
           <NumberField label="Short break" value={settings.shortBreakDuration} min={1} max={99} unit="min" onChange={handleNumberChange('shortBreakDuration', 1, 99)} />
@@ -107,13 +107,13 @@ export function SettingsModal({ isOpen, settings, onClose, onUpdate }: SettingsM
           <NumberField label="Long break interval" value={settings.longBreakInterval} min={1} max={10} unit="sessions" onChange={handleNumberChange('longBreakInterval', 1, 10)} />
         </section>
 
-        <section className={styles.section}>
+        <section className={styles.section} data-testid="settings-section-behavior">
           <h3 className={styles.sectionTitle}>Behavior</h3>
           <ToggleField label="Auto-start breaks" checked={settings.autoStartBreaks} onToggle={handleToggle('autoStartBreaks')} />
           <ToggleField label="Auto-start focus" checked={settings.autoStartFocus} onToggle={handleToggle('autoStartFocus')} />
         </section>
 
-        <section className={styles.section}>
+        <section className={styles.section} data-testid="settings-section-sound">
           <h3 className={styles.sectionTitle}>Sound</h3>
           <ToggleField label="Sound" checked={settings.soundEnabled} onToggle={handleToggle('soundEnabled')} />
           {settings.soundEnabled && (
@@ -133,17 +133,17 @@ export function SettingsModal({ isOpen, settings, onClose, onUpdate }: SettingsM
           )}
         </section>
 
-        <section className={styles.section}>
+        <section className={styles.section} data-testid="settings-section-notifications">
           <h3 className={styles.sectionTitle}>Notifications</h3>
           <ToggleField label="Browser notifications" checked={settings.notificationsEnabled} onToggle={handleToggle('notificationsEnabled')} />
         </section>
       </div>
 
       <footer className={styles.footer}>
-        <p className={styles.disclosure}>
+        <p className={styles.disclosure} data-testid="footer-disclosure">
           Epoch runs entirely in your browser. No data is collected or transmitted.
         </p>
-        <p className={styles.trademark}>
+        <p className={styles.trademark} data-testid="footer-trademark">
           The Pomodoro Technique is a registered trademark of Francesco Cirillo.
         </p>
       </footer>

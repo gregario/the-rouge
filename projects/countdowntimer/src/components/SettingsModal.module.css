@@ -80,7 +80,7 @@
 }
 
 .section {
-  padding: 12px 0;
+  padding: 16px 0;
 }
 
 .section + .section {
@@ -206,8 +206,7 @@
 .disclosure,
 .trademark {
   font-size: 11px;
-  color: var(--text-secondary);
-  opacity: 0.85;
+  color: #9ca3af;
   line-height: 1.5;
 }
 
