@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.0] - 2026-03-23
+
+### Added
+- SVG clock-face favicon in Epoch accent blue for browser tab presence
+- Machine-readable `datetime` attribute on timer element (ISO 8601 duration format)
+
+### Changed
+- Settings modal section spacing improved for better visual breathing room
+
+### Fixed
+- Notifications now respect the "notifications enabled" setting (previously fired unconditionally)
+- Settings footer text contrast fixed definitively — uses #9ca3af base color (~6.2:1 ratio) instead of opacity adjustments
+- Removed unused 'completed' status from timer state type
+
 ## [0.2.0] - 2026-03-23
 
 ### Added
