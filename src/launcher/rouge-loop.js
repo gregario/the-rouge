@@ -109,6 +109,33 @@ function isRateLimited(text) {
          lower.includes('resets ');
 }
 
+/**
+ * Parse a reset time like "5pm", "10pm", "5:30pm" into a timestamp (ms).
+ * Assumes the reset is today or tomorrow (if the time has already passed today).
+ */
+function parseResetTime(timeStr) {
+  const match = timeStr.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/i);
+  if (!match) return 0;
+
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2] || '0', 10);
+  const ampm = match[3].toLowerCase();
+
+  if (ampm === 'pm' && hours < 12) hours += 12;
+  if (ampm === 'am' && hours === 12) hours = 0;
+
+  const now = new Date();
+  const reset = new Date(now);
+  reset.setHours(hours, minutes, 0, 0);
+
+  // If reset time already passed today, it means tomorrow
+  if (reset <= now) {
+    reset.setDate(reset.getDate() + 1);
+  }
+
+  return reset.getTime();
+}
+
 function countFiles(dir) {
   try {
     const result = execSync(
@@ -640,21 +667,24 @@ async function main() {
 
         // FIX-3: Rate limits do NOT count toward retry limit
         if (result.rateLimited) {
-          const backoff = 60000 * (retries + 1); // escalating backoff without incrementing retries
-          globalRateLimitUntil = Date.now() + backoff; // FW.31: pause ALL projects
-          log(`[${projectName}] Rate limited. Backing off ${backoff / 1000}s (global). (retries NOT incremented: ${retries}/${MAX_RETRIES})`);
-
-          // FW.32: Try to parse reset time from phase log
+          // Parse reset time from phase log — sleep until actual reset instead of short retry loops
+          let backoff = 60000 * (retries + 1); // fallback: escalating backoff
           try {
             const phaseState = readJson(path.join(projectDir, 'state.json'));
             const logFile = path.join(LOG_DIR, `${projectName}-${phaseState?.current_state || 'unknown'}.log`);
-            const logContent = fs.readFileSync(logFile, 'utf8').slice(-2000); // last 2KB
+            const logContent = fs.readFileSync(logFile, 'utf8').slice(-2000);
             const resetMatch = logContent.match(/resets?\s+(?:at\s+)?(\d{1,2}(?::\d{2})?\s*(?:am|pm))/i);
             if (resetMatch) {
-              log(`[${projectName}] Rate limit resets at: ${resetMatch[1]}`);
+              const resetTime = parseResetTime(resetMatch[1]);
+              if (resetTime > Date.now()) {
+                backoff = resetTime - Date.now() + 60000; // +1 min buffer after reset
+                log(`[${projectName}] Rate limit resets at ${resetMatch[1]} — sleeping ${Math.ceil(backoff / 60000)} min`);
+              }
             }
           } catch {}
 
+          globalRateLimitUntil = Date.now() + backoff;
+          log(`[${projectName}] Rate limited. Backing off ${Math.ceil(backoff / 60000)} min (global). (retries NOT incremented: ${retries}/${MAX_RETRIES})`);
           await sleep(backoff);
           continue; // retry without incrementing
         }
