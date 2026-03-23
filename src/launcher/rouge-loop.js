@@ -61,7 +61,7 @@ const PHASE_TIMEOUT = {
   analyzing: 10 * 60 * 1000,          // 10 min — reading reports, deciding action
   'generating-change-spec': 10 * 60 * 1000, // 10 min — writing specs
   'vision-checking': 10 * 60 * 1000,  // 10 min — alignment check
-  promoting: 5 * 60 * 1000,           // 5 min — merge PR, deploy
+  promoting: 10 * 60 * 1000,          // 10 min — merge PR, deploy (was 5, timed out in retro)
   'rolling-back': 5 * 60 * 1000,      // 5 min — revert
 };
 
@@ -162,13 +162,45 @@ function advanceState(projectDir) {
 
   switch (current) {
     case 'building': {
-      // Deploy to staging after building
+      const buildDelta = state.last_build_delta || 0;
+
+      // No-op build detection: if build produced no meaningful changes,
+      // this feature area was already built in a prior cycle. Skip the
+      // entire review pipeline — mark area complete and advance.
+      if (buildDelta <= 0 && state.current_feature_area) {
+        log(`[${projectName}] Build produced no changes for "${state.current_feature_area}" — already built, skipping review`);
+        const fa = (state.feature_areas || []).find(f => f.name === state.current_feature_area);
+        if (fa) fa.status = 'complete';
+
+        // Check for more pending areas
+        const pending = (state.feature_areas || []).filter(f => f.status === 'pending');
+        if (pending.length > 0) {
+          const nextArea = pending[0].name;
+          const nextFa = state.feature_areas.find(f => f.name === nextArea);
+          if (nextFa) nextFa.status = 'in-progress';
+          state.current_feature_area = nextArea;
+          state.cycle_number = (state.cycle_number || 0) + 1;
+          state.completed_phases = [];
+          state.last_build_delta = undefined;
+          writeJson(stateFile, state);
+          next = 'building';
+          log(`[${projectName}] Advancing to feature area: ${nextArea}`);
+        } else {
+          next = 'complete';
+          log(`[${projectName}] All feature areas already built — complete!`);
+        }
+        break;
+      }
+
+      // Normal build with changes — deploy and continue to review
       try {
         const { deploy } = require('./deploy-to-staging');
         deploy(projectDir);
       } catch (err) {
         log(`[${projectName}] Deploy failed: ${(err.message || '').slice(0, 200)}`);
       }
+      state.last_build_delta = undefined; // clean up
+      writeJson(stateFile, state);
       next = 'test-integrity';
       break;
     }
@@ -277,6 +309,12 @@ function advanceState(projectDir) {
       break;
 
     case 'promoting': {
+      // Mark current feature area as complete
+      if (state.current_feature_area) {
+        const currentFa = (state.feature_areas || []).find(f => f.name === state.current_feature_area);
+        if (currentFa) currentFa.status = 'complete';
+      }
+
       const pending = (state.feature_areas || []).filter(fa => fa.status === 'pending');
       if (pending.length > 0) {
         const nextArea = pending[0].name;
@@ -285,7 +323,7 @@ function advanceState(projectDir) {
         state.current_feature_area = nextArea;
         state.cycle_number = (state.cycle_number || 0) + 1;
         state.qa_fix_attempts = 0;
-        state.completed_phases = []; // new feature area — reset checkpoints
+        state.completed_phases = [];
         writeJson(stateFile, state);
         next = 'building';
         log(`[${projectName}] Advancing to feature area: ${nextArea}`);
@@ -550,6 +588,14 @@ async function runPhase(projectDir) {
       const filesAfter = countFiles(projectDir);
       const delta = filesAfter - filesBefore;
       log(`[${projectName}] Phase ${currentState} completed (files: ${filesBefore} → ${filesAfter}, delta: +${delta})`);
+
+      // Store build delta in state so advanceState can detect no-op builds
+      if (currentState === 'building') {
+        try {
+          const s = readJson(stateFile);
+          if (s) { s.last_build_delta = delta; writeJson(stateFile, s); }
+        } catch {}
+      }
 
       // Log last line from the log file
       try {
