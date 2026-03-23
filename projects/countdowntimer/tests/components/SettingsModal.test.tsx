@@ -20,9 +20,11 @@ describe('[AC-settings-1] settings fields', () => {
     expect(screen.getByTestId('settings-modal')).toBeInTheDocument();
   });
 
-  it('does not render when closed', () => {
-    render(<SettingsModal {...defaultProps} isOpen={false} />);
-    expect(screen.queryByTestId('settings-modal')).not.toBeInTheDocument();
+  it('dialog is not open when isOpen=false', () => {
+    const { container } = render(<SettingsModal {...defaultProps} isOpen={false} />);
+    const dialog = container.querySelector('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(dialog).not.toHaveAttribute('open');
   });
 
   it('has all 8 settings fields', () => {
@@ -76,12 +78,11 @@ describe('[AC-settings-1] settings fields', () => {
 // Modal opens/closes with smooth animation
 // @criterion-hash: 39307a1a07d7
 describe('[AC-settings-3] modal animation', () => {
-  it('modal has CSS classes for animation', () => {
+  it('dialog element has CSS class for animation', () => {
     const { container } = render(<SettingsModal {...defaultProps} />);
-    const overlay = container.querySelector('[class*="overlay"]');
-    expect(overlay).toBeTruthy();
-    const modal = container.querySelector('[class*="modal"]');
-    expect(modal).toBeTruthy();
+    const dialog = container.querySelector('dialog');
+    expect(dialog).toBeTruthy();
+    expect(dialog?.className).toMatch(/dialog/);
   });
 
   it('closes via X button', async () => {
@@ -97,11 +98,12 @@ describe('[AC-settings-3] modal animation', () => {
 // Escape key closes modal
 // @criterion-hash: 4ddd808f097f
 describe('[AC-settings-4] escape key', () => {
-  it('closes on Escape key', async () => {
-    const user = userEvent.setup();
+  it('closes on Escape key via native dialog close event', () => {
     const onClose = vi.fn();
-    render(<SettingsModal {...defaultProps} onClose={onClose} />);
-    await user.keyboard('{Escape}');
+    const { container } = render(<SettingsModal {...defaultProps} onClose={onClose} />);
+    const dialog = container.querySelector('dialog')!;
+    // Simulate the native close event that fires when Escape is pressed on a dialog
+    dialog.dispatchEvent(new Event('close'));
     expect(onClose).toHaveBeenCalledOnce();
   });
 });
@@ -109,11 +111,12 @@ describe('[AC-settings-4] escape key', () => {
 // @criterion: AC-settings-5
 // Overlay click closes modal
 // @criterion-hash: 9c5e3ca2cf0b
-describe('[AC-settings-5] overlay click', () => {
-  it('closes on overlay click', async () => {
+describe('[AC-settings-5] backdrop click', () => {
+  it('closes on backdrop (dialog element) click', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     render(<SettingsModal {...defaultProps} onClose={onClose} />);
+    // Clicking the dialog element itself (not a child) triggers backdrop close
     await user.click(screen.getByTestId('settings-modal'));
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -200,8 +203,6 @@ describe('[AC-settings-8] settings apply on next phase', () => {
     // This tests that the modal communicates changes correctly.
     const onUpdate = vi.fn();
     render(<SettingsModal {...defaultProps} onUpdate={onUpdate} />);
-    // The modal exists and can be interacted with — settings propagation
-    // to next phase is handled by useTimer, tested in integration.
     expect(screen.getByTestId('settings-modal')).toBeInTheDocument();
   });
 });
