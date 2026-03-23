@@ -1,7 +1,28 @@
 .controls {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 16px;
+}
+
+.buttonGroup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.shortcutHint {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: #9ca3af;
+  letter-spacing: 0.05em;
+  user-select: none;
+}
+
+@media (max-width: 767px) {
+  .shortcutHint {
+    display: none;
+  }
 }
 
 .button {
