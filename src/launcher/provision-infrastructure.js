@@ -344,6 +344,26 @@ function main() {
     }
   }
 
+  // Production readiness checklist — log what's configured vs missing
+  const envFile = path.join(projectDir, '.env.local');
+  const envContent = fs.existsSync(envFile) ? fs.readFileSync(envFile, 'utf8') : '';
+  const readiness = {
+    posthog: envContent.includes('POSTHOG_KEY') && !envContent.includes('POSTHOG_KEY=\n') && !envContent.includes('POSTHOG_KEY=""'),
+    sentry: envContent.includes('SENTRY_DSN') && !envContent.includes('SENTRY_DSN=\n') && !envContent.includes('SENTRY_DSN=""'),
+    supabase: !!ctx.supabase?.project_ref,
+    cloudflare: !!ctx.infrastructure?.staging_url,
+  };
+
+  ctx.infrastructure = ctx.infrastructure || {};
+  ctx.infrastructure.readiness = readiness;
+
+  const missing = Object.entries(readiness).filter(([, v]) => !v).map(([k]) => k);
+  if (missing.length > 0) {
+    log(`Production readiness — missing: ${missing.join(', ')}. Set env vars in .env.local`);
+  } else {
+    log('Production readiness — all integrations configured');
+  }
+
   // Write updated context
   writeJson(ctxFile, ctx);
   log('Infrastructure provisioning complete');
