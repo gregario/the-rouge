@@ -48,22 +48,16 @@ const STATE_TO_PROMPT = {
 // Default to opus; override with ROUGE_MODEL env var for testing
 const MODEL = process.env.ROUGE_MODEL || 'opus';
 
-// Per-phase timeouts (ms) — heavy phases get more time
-const PHASE_TIMEOUT = {
-  building: 20 * 60 * 1000,           // 20 min — scaffolding, TDD, deployment
-  'test-integrity': 15 * 60 * 1000,   // 15 min — scanning tests, generating gaps
-  'qa-gate': 25 * 60 * 1000,          // 25 min — browser QA, Lighthouse, code quality, security
-  'qa-fixing': 15 * 60 * 1000,        // 15 min — debugging, fixing, redeploying
-  'po-reviewing': 15 * 60 * 1000,     // 15 min — legacy single-phase (fallback)
-  'po-review-journeys': 10 * 60 * 1000,  // 10 min — journey quality walks
-  'po-review-screens': 10 * 60 * 1000,   // 10 min — screen quality assessment
-  'po-review-heuristics': 10 * 60 * 1000, // 10 min — heuristic eval + reference comparison
-  analyzing: 10 * 60 * 1000,          // 10 min — reading reports, deciding action
-  'generating-change-spec': 10 * 60 * 1000, // 10 min — writing specs
-  'vision-checking': 10 * 60 * 1000,  // 10 min — alignment check
-  promoting: 10 * 60 * 1000,          // 10 min — merge PR, deploy (was 5, timed out in retro)
-  'rolling-back': 5 * 60 * 1000,      // 5 min — revert
-};
+// --- Progress-based watchdog (replaces hard per-phase timeouts) ---
+// Three conditions, ALL must be true to kill:
+//   1. No progress events for PROGRESS_STALE_THRESHOLD
+//   2. No log growth for LOG_STALE_THRESHOLD
+//   3. Total elapsed time > HARD_CEILING
+// This means: opus thinking silently for 15 min is fine (hard ceiling not hit),
+// and an agent writing output but not advancing is caught by progress staleness.
+const PROGRESS_STALE_THRESHOLD = parseInt(process.env.ROUGE_PROGRESS_STALE || '15', 10) * 60 * 1000; // 15 min no progress events
+const LOG_STALE_THRESHOLD = parseInt(process.env.ROUGE_LOG_STALE || '10', 10) * 60 * 1000; // 10 min no log growth
+const HARD_CEILING = parseInt(process.env.ROUGE_HARD_CEILING || '60', 10) * 60 * 1000; // 60 min absolute max
 
 const SKIP_STATES = new Set(['seeding', 'ready', 'waiting-for-human', 'complete']);
 
@@ -429,14 +423,13 @@ async function runPhase(projectDir) {
   }
 
   const model = MODEL;
-  const timeout = PHASE_TIMEOUT[currentState] || 10 * 60 * 1000;
   const phaseLog = path.join(LOG_DIR, `${projectName}-${currentState}.log`);
 
-  log(`[${projectName}] Running phase: ${currentState} (model: ${model}, timeout: ${timeout / 60000}min)`);
+  log(`[${projectName}] Running phase: ${currentState} (model: ${model}, ceiling: ${HARD_CEILING / 60000}min, stale: ${PROGRESS_STALE_THRESHOLD / 60000}min)`);
 
   const filesBefore = countFiles(projectDir);
 
-  // FIX-1 + FIX-2: Async execFile with streaming output + reliable SIGKILL timeout
+  // Async spawn with streaming output + progress-based watchdog
   return new Promise((resolve) => {
     const logStream = fs.createWriteStream(phaseLog, { flags: 'a' });
     let stderrChunks = [];
@@ -494,24 +487,32 @@ async function runPhase(projectDir) {
       });
     }
 
-    // FIX-11: Heartbeat — extend timeout if log file is growing
+    // --- Progress-based watchdog ---
+    // Tracks both log growth and meaningful progress events.
+    // Kills only when the agent is truly stuck, not just thinking.
+    const HEARTBEAT_INTERVAL = 30000; // check every 30s (was 60s)
     let lastLogSize = 0;
-    let staleChecks = 0;
-    const STALE_THRESHOLD = 3; // 3 consecutive checks with no growth = stale
-    const HEARTBEAT_INTERVAL = 60000; // check every 60s
+    let lastLogGrowthAt = Date.now();
+    let lastProgressEventAt = Date.now();
+    const phaseStartedAt = Date.now();
 
     const heartbeat = setInterval(() => {
       try {
         const currentSize = fs.statSync(phaseLog).size;
+        const now = Date.now();
+        const elapsed = now - phaseStartedAt;
+
         if (currentSize > lastLogSize) {
-          // Log file is growing — extract progress events
+          lastLogGrowthAt = now;
+
+          // Extract progress events from new content
           try {
             const newContent = fs.readFileSync(phaseLog, 'utf8').slice(lastLogSize);
             const { extractEvents } = require('./progress-streamer');
             const events = extractEvents(newContent);
             if (events.length > 0) {
+              lastProgressEventAt = now;
               log(`[${projectName}] Progress: ${events.join(' | ')}`);
-              // Post to Slack if configured
               if (process.env.ROUGE_SLACK_WEBHOOK) {
                 notifyRich('transition', {
                   project: projectName,
@@ -523,39 +524,54 @@ async function runPhase(projectDir) {
             }
           } catch {}
           lastLogSize = currentSize;
-          staleChecks = 0;
-        } else {
-          staleChecks++;
-          if (staleChecks >= STALE_THRESHOLD) {
-            log(`[${projectName}] Phase ${currentState} stale (no output for ${staleChecks * HEARTBEAT_INTERVAL / 1000}s)`);
-          }
+        }
+
+        const logStaleDuration = now - lastLogGrowthAt;
+        const progressStaleDuration = now - lastProgressEventAt;
+
+        // Decision logic: should we kill this phase?
+        let shouldKill = false;
+        let killReason = '';
+
+        // Hard ceiling — absolute safety net
+        if (elapsed >= HARD_CEILING) {
+          shouldKill = true;
+          killReason = `hard ceiling (${HARD_CEILING / 60000}min)`;
+        }
+        // No log growth AND no progress events — agent is stuck
+        else if (logStaleDuration >= LOG_STALE_THRESHOLD && progressStaleDuration >= PROGRESS_STALE_THRESHOLD) {
+          shouldKill = true;
+          killReason = `no output for ${Math.floor(logStaleDuration / 60000)}min and no progress for ${Math.floor(progressStaleDuration / 60000)}min`;
+        }
+
+        // Log stale status periodically (every 3 min of staleness)
+        if (logStaleDuration >= 180000 && logStaleDuration % 60000 < HEARTBEAT_INTERVAL) {
+          log(`[${projectName}] Phase ${currentState} — no output for ${Math.floor(logStaleDuration / 1000)}s (progress last seen ${Math.floor(progressStaleDuration / 1000)}s ago)`);
+        }
+
+        if (shouldKill) {
+          killed = true;
+          clearInterval(heartbeat);
+          log(`[${projectName}] Phase ${currentState} killed: ${killReason}`);
+          try { child.kill('SIGTERM'); } catch {}
+          setTimeout(() => {
+            try { child.kill('SIGKILL'); } catch {}
+          }, 5000);
         }
       } catch {
         // Log file doesn't exist yet — that's fine
       }
     }, HEARTBEAT_INTERVAL);
 
-    // FIX-1: Reliable timeout with SIGKILL
-    const timer = setTimeout(() => {
-      killed = true;
-      clearInterval(heartbeat);
-      log(`[${projectName}] Phase ${currentState} timeout (${timeout / 60000}min) — killing process`);
-      try { child.kill('SIGTERM'); } catch {}
-      // Give it 5s to clean up, then force kill
-      setTimeout(() => {
-        try { child.kill('SIGKILL'); } catch {}
-      }, 5000);
-    }, timeout);
-
     child.on('close', (code) => {
-      try { clearTimeout(timer); } catch {}
       try { clearInterval(heartbeat); } catch {}
       try { logStream.end(); } catch {}
 
       const stderr = stderrChunks.map(c => typeof c === 'string' ? c : c.toString()).join('');
 
       if (killed) {
-        log(`[${projectName}] Phase ${currentState} timed out after ${timeout / 60000}min`);
+        const elapsed = Math.floor((Date.now() - phaseStartedAt) / 60000);
+        log(`[${projectName}] Phase ${currentState} killed after ${elapsed}min`);
         resolve({ success: false, timedOut: true });
         return;
       }
@@ -626,7 +642,6 @@ async function runPhase(projectDir) {
 
     // Handle spawn errors
     child.on('error', (err) => {
-      clearTimeout(timer);
       clearInterval(heartbeat);
       logStream.end();
       log(`[${projectName}] Phase ${currentState} spawn error: ${err.message.slice(0, 200)}`);
