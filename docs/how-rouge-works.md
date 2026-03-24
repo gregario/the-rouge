@@ -6,6 +6,44 @@ Let's watch it build a product from scratch.
 
 ---
 
+## The Stack
+
+Rouge is a Node.js orchestrator that drives Claude via the Anthropic API to build, test, and evaluate web products. Every product it ships comes with a full production stack, provisioned automatically.
+
+### How it runs
+
+A Node.js launcher (`rouge-loop.js`) orchestrates the Karpathy Loop. For each phase, it calls the Claude API with a phase-specific system prompt, the project context, and the working directory. Claude reads the codebase, writes code, runs tests, and commits — all through API tool use. The launcher monitors progress, handles rate limits, manages state transitions, and advances to the next phase.
+
+The Slack bot (`bot.js`, Bolt.js in Socket Mode) provides the human control plane: seeding new products, monitoring progress, pausing/resuming builds, approving final reviews, and sending feedback.
+
+### What gets deployed
+
+Every Rouge-built product deploys to this stack:
+
+| Layer | Tool | Provisioned by |
+|-------|------|---------------|
+| **Hosting** | Cloudflare Workers (via OpenNext) | Rouge — automatic |
+| **Database** | Supabase (Postgres + Auth + Realtime) | Rouge — automatic (slot rotation for free tier) |
+| **Payments** | Stripe | Rouge — sandbox auth, human activates production |
+| **Error monitoring** | Sentry | Rouge — auto-creates project, writes DSN to env |
+| **Product analytics** | PostHog (EU hosting) | Rouge — shared project, product-tagged events |
+| **Session recording** | PostHog | Included with analytics |
+| **CI/CD** | GitHub Actions (lint, type check, test, build) | Template — ships with project |
+| **Security headers** | Next.js middleware (CSP, HSTS, X-Frame-Options) | Template — ships with project |
+| **i18n** | next-intl (key-based, Claude-translated) | Template — ships with project |
+| **Legal pages** | Privacy policy + Terms of Service scaffolds | Template — ships with project |
+| **Browser QA** | GStack (headless browser for automated testing) | Rouge — used during product-walk phase |
+
+### What Rouge manages automatically
+
+- **Deployment**: `npm run build` → `opennext build` → `wrangler deploy` with post-deploy health check and automatic rollback on failure
+- **Database migrations**: dry-run preview, destructive operation detection (DROP/TRUNCATE blocked), audit trail
+- **State snapshots**: before each phase, state.json and cycle_context.json are snapshotted for corruption recovery
+- **Cost tracking**: self-calibrating cost estimation from actual phase timings
+- **Cross-product learning**: after each completed product, learnings feed into a personal Library that calibrates future builds
+
+---
+
 ## The Idea
 
 The product: **Epoch** — a focus timer that's beautiful enough to leave on screen. A Pomodoro timer for knowledge workers who have tried every timer app and found them either ugly or bloated.
@@ -232,7 +270,7 @@ flowchart TB
         PO[PO Lens<br/>journey quality + confidence]
     end
 
-    CR[code-review<br/>engineering lens, CLI only] --> PW
+    CR[code-review<br/>engineering lens, no browser] --> PW
     PW -->|screenshots + observations| QA
     PW -->|screenshots + observations| DL
     PW -->|screenshots + observations| PO
@@ -254,7 +292,7 @@ The countdowntimer run was Rouge's first end-to-end test. It exposed several sys
 
 ### Rate limits and wasted executions
 
-Rouge invokes `claude -p` (Claude Code in pipe mode) for each phase. During cycle 2, the launcher hit Anthropic API rate limits and responded by retrying immediately — 95 times. Each retry was a wasted execution that burned tokens and produced no useful output.
+Rouge calls the Claude API for each phase. During cycle 2, the launcher hit API rate limits and responded by retrying immediately — 95 times. Each retry was a wasted execution that burned tokens and produced no useful output.
 
 **Fix**: Smart backoff. The launcher now detects rate limit responses in stdout, parses the reset timestamp, and sleeps until the limit clears. A single `sleep` call replaces 95 wasted retries.
 
