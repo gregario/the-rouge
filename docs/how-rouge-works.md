@@ -10,14 +10,36 @@ Let's watch it build a product from scratch.
 
 The product: **Epoch** — a focus timer that's beautiful enough to leave on screen. A Pomodoro timer for knowledge workers who have tried every timer app and found them either ugly or bloated.
 
-The idea entered Rouge through **Rouge Spec**, the seeding phase. A Slack conversation established the vision:
+The idea entered Rouge through **Rouge Spec**, the interactive seeding phase. This is where a human and AI co-design a product through Slack conversation — not a requirements document, but a dialogue.
+
+### How Rouge Spec Works
+
+Rouge Spec runs a **seeding swarm**: eight discipline-specific AI personas that each interrogate the idea from a different angle. They don't run simultaneously — they take turns, building on each other's output:
+
+1. **Brainstormer** — Expands the idea. What's the 10-star version? What's the emotional core? Who is this for and why do they care?
+2. **Competition Analyst** — Maps the landscape. What exists? What's the gap? Where can we be meaningfully different?
+3. **Product Taster** — Challenges the idea. Is this worth building? What's the killer edge? Should we expand, hold, or reduce scope?
+4. **Spec Writer** — Converts the vision into structured specifications. Feature areas, acceptance criteria, data models.
+5. **Designer** — Three-pass design: UX architecture (sitemaps, journey maps), component design (screen-to-component mapping, 5-state design), visual design (style tokens, mockups).
+6. **Legal Advisor** — Privacy, terms, compliance considerations.
+7. **Marketing Strategist** — Positioning, landing page structure, launch strategy.
+8. **Technical Architect** — Stack selection, infrastructure decisions, deployment target.
+
+The human participates throughout — answering questions, making taste decisions, vetoing bad ideas. The swarm asks; the human decides. When the conversation converges, Rouge Spec produces a complete **seed package**:
+
+- **Vision document** — emotional north star, aesthetic direction, anti-goals
+- **Feature area specifications** — with acceptance criteria per area
+- **Design artifact** — style tokens, screen mappings, interaction specs
+- **Infrastructure plan** — deployment target, database needs, auth requirements
+
+For Epoch, this conversation established:
 
 - **Emotional north star**: "From 'where did the last 3 hours go?' to 'I can see my focus happening.'"
 - **Aesthetic**: Techno-futuristic. Frosted glass, subtle glows, precise typography. Linear's design language meets a high-end watch face.
 - **Scope**: Full Pomodoro cycle (focus, short break, long break), configurable settings, session counter, keyboard shortcuts, synthesized audio chime. No accounts, no history beyond today, no themes, no task lists.
 - **Differentiator**: Optimizes for *presence* — how it feels on your screen — not for features. The design IS the product.
 
-Rouge Spec produced six feature area specifications with 37 acceptance criteria, a complete design system (color palettes per phase, typography scale, glass effects), and deployment target (Cloudflare Workers, static Next.js export). The system estimated one Rouge cycle for the initial build. It took five.
+The seed package contained six feature areas with 37 acceptance criteria, a complete design system (color palettes per phase, typography scale, glass effects), and deployment target (Cloudflare Workers, static Next.js export). The system estimated one Rouge cycle for the initial build. It took five.
 
 ---
 
@@ -278,12 +300,57 @@ The real cost was in system development: building Rouge itself. But that cost am
 
 ---
 
-## What's Next
+## The Rouge Product Line
 
-The countdowntimer run validated Rouge's core loop. The system can take a vision, build it, evaluate it, identify gaps, and fix them across multiple cycles without human intervention.
+The countdowntimer run validated Rouge's core loop. But building a product from scratch is only one capability. The full vision is a product line covering the entire lifecycle:
 
-What it revealed as the next frontiers:
+```mermaid
+flowchart LR
+    subgraph "Open Source"
+        RS[Rouge Spec<br/>seed ideas into specs]
+        RB[Rouge Build<br/>autonomous build loop]
+    end
 
-- **Module hierarchy**: Large products need dependency-aware build ordering. A feature that depends on an auth system should not be built before auth exists. Rouge now has a DAG-based module resolver for this.
-- **Cross-product learning**: The Library layer accumulates design intelligence across projects. Standards discovered building Epoch (e.g., "use native `<dialog>` for modals", "use Date.now() for timers") become heuristics for future products.
-- **Rouge Grow**: Building a product from scratch is one capability. Taking an existing shipped product and expanding it with new features — while maintaining quality and coherence — is the next product in the Rouge line.
+    subgraph "Closed Source"
+        RG[Rouge Grow<br/>expand shipped products]
+        RM[Rouge Maintain<br/>keep products alive]
+    end
+
+    RS -->|seed package| RB
+    RB -->|shipped product| RG
+    RB -->|shipped product| RM
+    RG -->|new features| RB
+```
+
+### Rouge Spec — "What to build"
+
+Interactive seeding via Slack. Human + AI co-design a product through conversation with eight discipline-specific personas. Produces a vision, specs, design artifacts, and infrastructure plan. **Open source.**
+
+### Rouge Build — "How to build it"
+
+The Karpathy Loop. Takes a seed package and autonomously builds the product through iterative cycles of building, testing, evaluating, and refining. This is what built Epoch. **Open source.**
+
+### Rouge Grow — "Make it better"
+
+Feature expansion on shipped products. Unlike Build (which creates from zero), Grow works with existing users, existing data, and existing patterns that must be preserved. It reads analytics (PostHog), user feedback, and market signals to decide what to build next. Then it runs a modified loop that respects backwards compatibility and existing user expectations. **Closed source** — touches production systems with real users.
+
+### Rouge Maintain — "Keep it alive"
+
+Autonomous production upkeep. SBOM and CVE scanning, bug triage from Sentry error streams, dependency updates, database migration management, SSL certificate renewal, performance regression detection. No new features — just keeping the lights on and the foundation solid. **Closed source** — touches production databases and infrastructure.
+
+### Why the split?
+
+Spec and Build are creative tools — they produce new things from ideas. Anyone can use them safely. Grow and Maintain touch live production systems with real user data. They need trust guardrails, safety gates, and careful human oversight. The closed-source boundary is a trust boundary.
+
+---
+
+## What We're Building Toward
+
+The countdowntimer was a 6-screen timer app. The architecture now supports much larger projects:
+
+- **Module hierarchy**: Large products decompose into modules with dependency-aware build ordering. A billing module that depends on auth waits until auth is complete. Rouge has a DAG-based resolver for this.
+- **Cross-product learning**: The personal Library layer accumulates intelligence across projects. Standards discovered building Epoch (e.g., "use native `<dialog>` for modals", "Date.now() for timers") become calibration data for future products. Product #11 benefits from everything learned building products #1 through #10.
+- **Cost predictability**: Before a build starts, the cost estimation engine projects low/mid/high bounds based on project complexity and historical calibration data. "This SaaS will cost $50-150 in compute" — then the human decides whether to proceed.
+- **Production readiness from day one**: Every Rouge-built product ships with analytics (PostHog), error monitoring (Sentry), security headers, CI/CD, legal pages, and i18n support. Not bolted on after — baked into the scaffold.
+
+The goal: a factory where you describe a product over coffee, approve a cost estimate, and come back to a deployed, monitored, production-ready application. Rouge handles everything between the idea and the first user.
