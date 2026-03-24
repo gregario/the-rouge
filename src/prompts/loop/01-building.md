@@ -84,6 +84,40 @@ Organize tasks by dependency:
 
 ---
 
+## Step 3.5: Search Before Building
+
+Before writing any new code, map every extracted task to existing code in the project. This is especially critical on cycle 2+ — prior cycles left code, utilities, patterns, and abstractions that you MUST reuse rather than reinvent.
+
+For each task:
+
+1. **Search for existing implementations.** Grep the codebase for keywords from the task's acceptance criteria, data model entities, and component names. Check:
+   - `src/` for existing components, utilities, hooks, API wrappers
+   - `src/lib/` or `src/utils/` for shared helpers
+   - Prior cycle's `factory_decisions` for "I created X for Y" patterns
+   - Prior cycle's `implemented` entries for overlapping file paths
+
+2. **Classify each task:**
+   - **BUILD** — No existing code covers this. Write from scratch with TDD.
+   - **EXTEND** — Existing code partially covers this. Extend it, don't duplicate it.
+   - **REUSE** — Existing code already does this. Wire it up, don't rebuild it.
+   - **REFACTOR-THEN-BUILD** — Existing code is close but needs restructuring before the new task can use it. Refactor first (with tests), then build on top.
+
+3. **Log the search results** to `factory_decisions`:
+   ```json
+   {
+     "decision": "Search Before Building audit for cycle <N>",
+     "context": "Pre-implementation code reuse analysis",
+     "alternatives_considered": [],
+     "rationale": "Found: <N> BUILD, <N> EXTEND, <N> REUSE, <N> REFACTOR-THEN-BUILD tasks. Key reuse: <list specific reused code>",
+     "confidence": "high",
+     "affects": ["<task list>"]
+   }
+   ```
+
+**Why this matters:** Without this step, an autonomous builder with no human watching is *more* likely to reinvent existing code than a supervised one. Code duplication compounds across cycles — the PO Review catches it as "code quality degradation" but by then the damage requires refactoring to undo. Finding reuse opportunities upfront is cheaper than fixing duplication later.
+
+---
+
 ## Step 4: Build with TDD — Red, Green, Refactor
 
 For every task, follow the TDD rhythm. This is not optional. This is not a suggestion. This is how you build.
