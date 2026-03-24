@@ -14,9 +14,14 @@ const PROGRESS_PATTERNS = [
   { pattern: /commit[ted]?\s+([a-f0-9]{7})/i, format: (m) => `📝 Committed ${m[1]}` },
   { pattern: /PASS|FAIL/i, format: (m) => `${m[0] === 'PASS' ? '✅' : '❌'} Verdict: ${m[0]}` },
   { pattern: /health.?score:?\s*(\d+)/i, format: (m) => `📊 Health: ${m[1]}/100` },
-  { pattern: /lighthouse.*?(\d+)/i, format: (m) => `💡 Lighthouse: ${m[1]}` },
+  { pattern: /lighthouse.*?performance.*?(\d+)/i, format: (m) => `💡 Lighthouse: ${m[1]}` },
+  { pattern: /accessibility.*?(\d+)/i, format: (m) => `♿ A11y: ${m[1]}` },
+  { pattern: /bundle.?size:?\s*([\d.]+\s*[kmg]?b)/i, format: (m) => `📦 Bundle: ${m[1]}` },
+  { pattern: /first.?contentful.?paint:?\s*([\d.]+\s*[sm]?s?)/i, format: (m) => `⏱️ FCP: ${m[1]}` },
   { pattern: /npm install/i, format: () => `📦 Installing dependencies` },
   { pattern: /building|compiling/i, format: () => `🔨 Building` },
+  { pattern: /criteria.*?(\d+)\/(\d+)/i, format: (m) => `📋 Criteria: ${m[1]}/${m[2]}` },
+  { pattern: /confidence:?\s*(0?\.\d+)/i, format: (m) => `🎯 Confidence: ${(parseFloat(m[1]) * 100).toFixed(0)}%` },
 ];
 
 /**

@@ -96,37 +96,62 @@ function qaResult(projectName, verdict, healthScore, criteriaPass, criteriaTotal
   };
 }
 
-function escalation(projectName, phase, reason) {
-  return {
-    blocks: [
+function escalation(projectName, phase, reason, context) {
+  const blocks = [
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `⚠️ *${projectName}* needs human input`,
+      },
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `Phase \`${phase}\` escalated: ${reason}`,
+      },
+    },
+  ];
+
+  // Add cycle context summary if available
+  if (context) {
+    const lines = [];
+    if (context.cycle != null) lines.push(`Cycle: ${context.cycle}`);
+    if (context.featureArea) lines.push(`Feature area: ${context.featureArea}`);
+    if (context.healthScore != null) lines.push(`QA health: ${context.healthScore}/100`);
+    if (context.confidence != null) lines.push(`Confidence: ${(context.confidence * 100).toFixed(0)}%`);
+    if (context.lastProgress) lines.push(`Last progress: ${context.lastProgress}`);
+    if (context.completedPhases?.length) lines.push(`Completed: ${context.completedPhases.join(' → ')}`);
+
+    if (lines.length > 0) {
+      blocks.push({
+        type: 'context',
+        elements: [{ type: 'mrkdwn', text: lines.join(' | ') }],
+      });
+    }
+  }
+
+  blocks.push({
+    type: 'actions',
+    elements: [
       {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: `⚠️ *${projectName}* needs human input`,
-        },
+        type: 'button',
+        text: { type: 'plain_text', text: '▶️ Resume' },
+        action_id: `resume_${projectName}`,
+        value: projectName,
+        style: 'primary',
       },
       {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: `Phase \`${phase}\` escalated: ${reason}`,
-        },
-      },
-      {
-        type: 'actions',
-        elements: [
-          {
-            type: 'button',
-            text: { type: 'plain_text', text: '▶️ Resume' },
-            action_id: `resume_${projectName}`,
-            value: projectName,
-            style: 'primary',
-          },
-        ],
+        type: 'button',
+        text: { type: 'plain_text', text: '⏭️ Skip Phase' },
+        action_id: `skip_${projectName}`,
+        value: projectName,
       },
     ],
-  };
+  });
+
+  return { blocks };
 }
 
 function morningBriefing(projects) {

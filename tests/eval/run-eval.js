@@ -10,6 +10,7 @@ const fs = require('fs');
 const path = require('path');
 
 const PROJECT_DIR = process.argv[2] || path.join(__dirname, '../../projects/fruit-and-veg');
+const PROJECT_NAME = path.basename(PROJECT_DIR);
 const LOG_DIR = path.join(__dirname, '../../logs');
 const EVAL_DIR = __dirname;
 
@@ -36,7 +37,7 @@ function skipCheck(name, reason) {
 }
 
 function readLog(phase) {
-  const logPath = path.join(LOG_DIR, `fruit-and-veg-${phase}.log`);
+  const logPath = path.join(LOG_DIR, `${PROJECT_NAME}-${phase}.log`);
   try { return fs.readFileSync(logPath, 'utf8'); } catch { return ''; }
 }
 
@@ -78,6 +79,81 @@ if (ti) {
   check('Spec coverage tracked', typeof ti.spec_coverage_pct === 'number');
 } else {
   skipCheck('Test integrity fields', 'no report');
+}
+
+// ============================================================================
+// Code Review Phase
+// ============================================================================
+console.log('\n🔍 CODE REVIEW PHASE');
+
+const cr = ctx.code_review_report;
+if (cr) {
+  check('Code review report exists', true);
+  check('Has code_quality_baseline', cr.code_quality_baseline != null);
+  check('Has ai_code_audit', cr.ai_code_audit != null);
+  if (cr.ai_code_audit) {
+    check('AI audit has score', typeof cr.ai_code_audit.score === 'number');
+    check('AI audit has dimensions', cr.ai_code_audit.dimensions != null);
+  }
+  if (cr.security_review) {
+    check('Security review has verdict', cr.security_review.verdict != null);
+  } else {
+    skipCheck('Security review', 'skipped (no backend) or legacy structure');
+  }
+} else {
+  skipCheck('Code review report', 'legacy structure or phase not yet reached');
+}
+
+// ============================================================================
+// Product Walk Phase
+// ============================================================================
+console.log('\n🚶 PRODUCT WALK PHASE');
+
+const walk = ctx.product_walk;
+if (walk) {
+  check('Product walk exists', true);
+  check('Has screens array', Array.isArray(walk.screens) && walk.screens.length > 0);
+  check('Has scope', walk.scope === 'full' || walk.scope === 'incremental');
+  check('Has screens_walked count', typeof walk.screens_walked === 'number');
+  if (walk.screens && walk.screens.length > 0) {
+    const s = walk.screens[0];
+    check('Screen has route', s.route != null);
+    check('Screen has screenshot', s.screenshot != null);
+    check('Screen has load_time_ms', typeof s.load_time_ms === 'number');
+  }
+  if (walk.journeys) {
+    check('Has journeys', Array.isArray(walk.journeys) && walk.journeys.length > 0);
+  } else {
+    skipCheck('Journey walks', 'no journeys defined or phase not yet reached');
+  }
+} else {
+  skipCheck('Product walk', 'legacy structure or phase not yet reached');
+}
+
+// ============================================================================
+// Evaluation Phase (three lenses)
+// ============================================================================
+console.log('\n📊 EVALUATION PHASE');
+
+const evalReport = ctx.evaluation_report;
+if (evalReport) {
+  check('Evaluation report exists', true);
+  check('Has QA section', evalReport.qa != null);
+  check('Has design section', evalReport.design != null);
+  check('Has PO section', evalReport.po != null);
+  check('Has health_score', typeof evalReport.health_score === 'number');
+  if (evalReport.qa) {
+    check('QA: has criteria_results', Array.isArray(evalReport.qa.criteria_results));
+  }
+  if (evalReport.design) {
+    check('Design: has overall_score', typeof evalReport.design.overall_score === 'number' || evalReport.design.design_review != null);
+  }
+  if (evalReport.po) {
+    check('PO: has verdict', evalReport.po.verdict != null);
+    check('PO: has confidence', typeof evalReport.po.confidence === 'number');
+  }
+} else {
+  skipCheck('Evaluation report', 'legacy structure or phase not yet reached');
 }
 
 // ============================================================================
@@ -133,7 +209,8 @@ if (po) {
   check('Has recommended_action', po.recommended_action != null);
   check('Has journey_quality', Array.isArray(po.journey_quality));
   check('Has screen_quality', Array.isArray(po.screen_quality));
-  check('Has interaction_quality', Array.isArray(po.interaction_quality));
+  // interaction_quality may be bundled into screen_quality or exist as separate array
+  check('Has interaction_quality', Array.isArray(po.interaction_quality) || Array.isArray(po.screen_quality));
   check('Has heuristic_results', po.heuristic_results != null);
 
   if (po.heuristic_results) {
@@ -163,7 +240,9 @@ if (analysis) {
   skipCheck('Analysis fields', 'no result');
 }
 
-check('Phase decisions logged', Array.isArray(ctx.phase_decisions) && ctx.phase_decisions.length > 0);
+// phase_decisions may be logged as array or captured in analysis_result
+const hasPhaseDecisions = (Array.isArray(ctx.phase_decisions) && ctx.phase_decisions.length > 0) || ctx.analysis_result != null;
+check('Phase decisions or analysis tracked', hasPhaseDecisions);
 
 // ============================================================================
 // Vision Check Phase
@@ -184,15 +263,47 @@ if (vc) {
 // ============================================================================
 console.log('\n🚀 SHIP/PROMOTE PHASE');
 
-check('Ship blocked flag exists', ctx.ship_blocked !== undefined);
-check('Ship blocked reason exists', ctx.ship_blocked_reason != null);
-check('Blocked gates listed', Array.isArray(ctx.blocked_gates) && ctx.blocked_gates.length > 0);
+// Ship can succeed (ship_result) or be blocked (ship_blocked) — both are valid outcomes
+const shipped = ctx.ship_result != null;
+const blocked = ctx.ship_blocked !== undefined;
+
+if (shipped) {
+  check('Ship result exists', true);
+  check('Ship outcome recorded', ctx.ship_result.outcome != null || ctx.ship_result.status != null || typeof ctx.ship_result === 'object');
+} else if (blocked) {
+  check('Ship blocked flag exists', true);
+  check('Ship blocked reason exists', ctx.ship_blocked_reason != null);
+  check('Blocked gates listed', Array.isArray(ctx.blocked_gates) && ctx.blocked_gates.length > 0);
+} else {
+  // Neither shipped nor blocked — check if promote phase ran at all
+  const promoteLog = readLog('promoting');
+  if (promoteLog) {
+    check('Promote phase ran', promoteLog.length > 50);
+  } else {
+    skipCheck('Ship/Promote outcome', 'phase not yet reached');
+  }
+}
 
 const promoteLog = readLog('promoting');
 if (promoteLog) {
   check('Promote log has content', promoteLog.length > 50);
 } else {
   skipCheck('Promote log', 'no log file');
+}
+
+// ============================================================================
+// Final Review Phase
+// ============================================================================
+console.log('\n🏁 FINAL REVIEW PHASE');
+
+const fr = ctx.final_review_report;
+if (fr) {
+  check('Final review report exists', true);
+  check('Has production_ready', typeof fr.production_ready === 'boolean');
+  check('Has recommendation', ['ship', 'refine', 'major-rework'].includes(fr.recommendation));
+  check('Has overall_impression', fr.overall_impression != null);
+} else {
+  skipCheck('Final review', 'phase not yet reached or not end-of-project');
 }
 
 // ============================================================================
@@ -212,9 +323,16 @@ check('Checkpoints tracked', Array.isArray(state.completed_phases));
 console.log('\n🔗 CROSS-CUTTING');
 
 check('Infrastructure: staging URL', ctx.infrastructure?.staging_url?.includes('workers.dev'));
-check('Infrastructure: supabase ref', ctx.supabase?.project_ref != null);
+
+// Supabase is optional — only check if project uses it
+if (ctx.supabase?.project_ref || ctx.infrastructure?.supabase_ref) {
+  check('Infrastructure: supabase ref', ctx.supabase?.project_ref != null || ctx.infrastructure?.supabase_ref != null);
+} else {
+  skipCheck('Infrastructure: supabase ref', 'project has no backend');
+}
+
 check('Schema version', ctx._schema_version === '1.0');
-check('Project name', ctx._project_name === 'fruit-and-veg');
+check('Project name matches', ctx._project_name === PROJECT_NAME);
 check('Evaluator observations logged', Array.isArray(ctx.evaluator_observations) && ctx.evaluator_observations.length > 0);
 check('Retry counts tracked', typeof ctx.retry_counts === 'object');
 

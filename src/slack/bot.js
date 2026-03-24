@@ -11,7 +11,7 @@ const app = new App({
 });
 
 const PROJECTS_DIR = process.env.ROUGE_PROJECTS_DIR || path.join(__dirname, '../../projects');
-const KNOWN_COMMANDS = ['status', 'start', 'pause', 'resume', 'new', 'seed', 'help'];
+const KNOWN_COMMANDS = ['status', 'start', 'pause', 'resume', 'new', 'seed', 'ship', 'feedback', 'help'];
 
 function readState(projectName) {
   const statePath = path.join(PROJECTS_DIR, projectName, 'state.json');
@@ -256,14 +256,17 @@ function sendSeedingResponse(say, result, seedProject) {
 const STATE_EMOJI = {
   building: '\u{1F528}',
   'test-integrity': '\u{1F9EA}',
-  'qa-gate': '\u{1F50D}',
+  'code-review': '\u{1F50D}',
+  'product-walk': '\u{1F6B6}',
+  'evaluation': '\u{1F4CA}',
+  're-walk': '\u{1F504}',
   'qa-fixing': '\u{1F527}',
-  'po-reviewing': '\u{1F440}',
   analyzing: '\u{1F9E0}',
   'generating-change-spec': '\u{1F4DD}',
   'vision-checking': '\u{1F52D}',
   promoting: '\u{1F680}',
   'rolling-back': '\u23EA',
+  'final-review': '\u{1F3C1}',
   complete: '\u2705',
   'waiting-for-human': '\u23F8\uFE0F',
   ready: '\u{1F4CB}',
@@ -279,6 +282,8 @@ function showHelp(say) {
     '\u2022 `start <project>` \u2014 Start a ready project',
     '\u2022 `pause <project>` \u2014 Pause an active project',
     '\u2022 `resume <project>` \u2014 Resume a paused project',
+    '\u2022 `ship <project>` \u2014 Approve a product in final-review for production',
+    '\u2022 `feedback <project> <text>` \u2014 Send feedback during final-review',
     '\u2022 `<project> <feedback>` \u2014 Send feedback to a waiting project',
     '',
     '_During an active seeding session, just talk naturally \u2014 messages are relayed to Claude._',
@@ -399,6 +404,24 @@ app.action(/^resume_/, async ({ action, ack, respond }) => {
     delete state.paused_from_state;
     writeState(projectName, state);
     await respond({ text: `▶️ Resumed \`${projectName}\` → \`${resumeTo}\`.` });
+  }
+});
+
+// Skip phase — advance past stuck phase to next one in pipeline
+app.action(/^skip_/, async ({ action, ack, respond }) => {
+  await ack();
+  const projectName = action.value;
+  const state = readState(projectName);
+  if (state && state.current_state === 'waiting-for-human') {
+    const stuckPhase = state.paused_from_state || 'unknown';
+    // Advance past the stuck phase
+    const pipeline = ['building', 'test-integrity', 'qa-gate', 'po-review-journeys', 'po-review-screens', 'po-review-heuristics', 'analyzing', 'vision-checking', 'promoting'];
+    const idx = pipeline.indexOf(stuckPhase);
+    const nextPhase = idx >= 0 && idx < pipeline.length - 1 ? pipeline[idx + 1] : 'promoting';
+    state.current_state = nextPhase;
+    delete state.paused_from_state;
+    writeState(projectName, state);
+    await respond({ text: `⏭️ Skipped \`${stuckPhase}\` → advanced to \`${nextPhase}\` for \`${projectName}\`.` });
   }
 });
 
@@ -637,6 +660,53 @@ app.event('app_mention', async ({ event, say }) => {
             writeState(projectName, state);
           }
           await say(`\u{1F331} Resumed seeding for \`${projectName}\`. Continue the conversation.`);
+          return;
+        }
+
+        case 'ship': {
+          if (!projectName) { await say('Usage: `rouge ship <project>`'); return; }
+          const state = readState(projectName);
+          if (!state) { await say(`Project \`${projectName}\` not found.`); return; }
+          if (state.current_state !== 'final-review') {
+            await say(`\`${projectName}\` is \`${state.current_state}\`, not in final-review.`);
+            return;
+          }
+          const projectDir = path.join(PROJECTS_DIR, projectName);
+          const ctxFile = path.join(projectDir, 'cycle_context.json');
+          let ctx = null;
+          try { ctx = JSON.parse(fs.readFileSync(ctxFile, 'utf8')); } catch {}
+          if (ctx) {
+            ctx.final_review_report = ctx.final_review_report || {};
+            ctx.final_review_report.human_approved = true;
+            ctx.final_review_report.approved_by = event.user;
+            ctx.final_review_report.approved_at = new Date().toISOString();
+            const tmp = ctxFile + '.tmp';
+            fs.writeFileSync(tmp, JSON.stringify(ctx, null, 2) + '\n');
+            fs.renameSync(tmp, ctxFile);
+          }
+          state.current_state = 'complete';
+          writeState(projectName, state);
+          await say(`\u{1F680} \`${projectName}\` approved for production! Launcher will deploy on next iteration.`);
+          return;
+        }
+
+        case 'feedback': {
+          if (!projectName) { await say('Usage: `rouge feedback <project> <text>`'); return; }
+          const feedbackText = parts.slice(2).join(' ');
+          if (!feedbackText) { await say('Usage: `rouge feedback <project> your feedback here`'); return; }
+          const projectDir = path.join(PROJECTS_DIR, projectName);
+          const feedbackFile = path.join(projectDir, 'feedback.json');
+          let existing = { items: [] };
+          try { existing = JSON.parse(fs.readFileSync(feedbackFile, 'utf8')); } catch {}
+          if (!existing.items) existing.items = [];
+          existing.items.push({
+            text: feedbackText,
+            source: 'human',
+            user: event.user,
+            timestamp: new Date().toISOString(),
+          });
+          fs.writeFileSync(feedbackFile, JSON.stringify(existing, null, 2));
+          await say(`\u{1F4DD} Feedback recorded for \`${projectName}\`. The final-review phase will incorporate it.`);
           return;
         }
       }
@@ -943,6 +1013,8 @@ app.command('/rouge', async ({ command, ack, respond }) => {
             '\u2022 `/rouge start <project>` \u2014 Start a ready project',
             '\u2022 `/rouge pause <project>` \u2014 Pause an active project',
             '\u2022 `/rouge resume <project>` \u2014 Resume a paused project',
+            '\u2022 `/rouge ship <project>` \u2014 Approve a product in final-review for production',
+            '\u2022 `/rouge feedback <project> <text>` \u2014 Send feedback during final-review',
           ].join('\n'),
         });
         break;
@@ -1131,6 +1203,53 @@ app.command('/rouge', async ({ command, ack, respond }) => {
           writeState(projectName, state);
         }
         await respond({ response_type: 'in_channel', text: `\u{1F331} Resumed seeding for \`${projectName}\`. Continue the conversation.` });
+        break;
+      }
+
+      case 'ship': {
+        if (!projectName) { await respond({ response_type: 'ephemeral', text: 'Usage: `/rouge ship <project>`' }); return; }
+        const state = readState(projectName);
+        if (!state) { await respond({ response_type: 'ephemeral', text: `Project \`${projectName}\` not found.` }); return; }
+        if (state.current_state !== 'final-review') {
+          await respond({ response_type: 'ephemeral', text: `\`${projectName}\` is \`${state.current_state}\`, not in final-review.` });
+          return;
+        }
+        const projectDir = path.join(PROJECTS_DIR, projectName);
+        const ctxFile = path.join(projectDir, 'cycle_context.json');
+        let ctx = null;
+        try { ctx = JSON.parse(fs.readFileSync(ctxFile, 'utf8')); } catch {}
+        if (ctx) {
+          ctx.final_review_report = ctx.final_review_report || {};
+          ctx.final_review_report.human_approved = true;
+          ctx.final_review_report.approved_by = command.user_id;
+          ctx.final_review_report.approved_at = new Date().toISOString();
+          const tmp = ctxFile + '.tmp';
+          fs.writeFileSync(tmp, JSON.stringify(ctx, null, 2) + '\n');
+          fs.renameSync(tmp, ctxFile);
+        }
+        state.current_state = 'complete';
+        writeState(projectName, state);
+        await respond({ response_type: 'in_channel', text: `\u{1F680} \`${projectName}\` approved for production! Launcher will deploy on next iteration.` });
+        break;
+      }
+
+      case 'feedback': {
+        if (!projectName) { await respond({ response_type: 'ephemeral', text: 'Usage: `/rouge feedback <project> <text>`' }); return; }
+        const feedbackText = parts.slice(2).join(' ');
+        if (!feedbackText) { await respond({ response_type: 'ephemeral', text: 'Usage: `/rouge feedback <project> your feedback here`' }); return; }
+        const projectDir = path.join(PROJECTS_DIR, projectName);
+        const feedbackFile = path.join(projectDir, 'feedback.json');
+        let existing = { items: [] };
+        try { existing = JSON.parse(fs.readFileSync(feedbackFile, 'utf8')); } catch {}
+        if (!existing.items) existing.items = [];
+        existing.items.push({
+          text: feedbackText,
+          source: 'human',
+          user: command.user_id,
+          timestamp: new Date().toISOString(),
+        });
+        fs.writeFileSync(feedbackFile, JSON.stringify(existing, null, 2));
+        await respond({ response_type: 'in_channel', text: `\u{1F4DD} Feedback recorded for \`${projectName}\`. The final-review phase will incorporate it.` });
         break;
       }
 
