@@ -149,6 +149,15 @@ If `evaluation_tier` is `gate`:
 
 PO Review is a quality assessment, not a bug hunt — it assumes functional correctness.
 
+Before dispatching PO Review, determine dual-voice eligibility:
+
+Enable dual-voice (`"dual_voice_po_review": true` in cycle_context.json) when ANY of:
+- This is the first `full` evaluation for the current feature area (no prior `po_review_report` exists in journey.json for this feature area)
+- The previous PO confidence was < 0.8
+- The `active_spec` was updated by the analyzing phase (re-evaluation after spec changes)
+
+Write `dual_voice_po_review` to `cycle_context.json` before dispatching.
+
 - Read the prompt from `src/prompts/loop/02c-po-review.md`
 - Execute it
 - Read the resulting `po_review_report` from `cycle_context.json`
