@@ -34,7 +34,7 @@ export B=~/.claude/skills/gstack/browse/dist/browse
 
 ## Performance Against Deployed URL
 
-Tested against `https://rouge-testbed-staging.gregj64.workers.dev/`:
+Tested against `https://your-project.your-account.workers.dev/`:
 - DNS resolution: 10ms
 - TCP connect: 70ms
 - SSL handshake: 60ms

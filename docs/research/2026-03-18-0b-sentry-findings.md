@@ -65,8 +65,8 @@ Requires `org:admin` scope — NOT available with our token. Not needed for Roug
 
 ## Org/Team Info
 
-- Org slug: `greg-j`
-- Team slug: `greg-j` (default team matches org)
+- Org slug: `your-sentry-org`
+- Team slug: `your-sentry-org` (default team matches org)
 - Region: `de` (Europe, based on DSN ingest URL)
 
 ## Rouge Integration Flow

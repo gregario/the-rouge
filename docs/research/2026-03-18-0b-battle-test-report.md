@@ -108,7 +108,7 @@ curl -s -X POST "https://api.supabase.com/v1/projects/<ref>/restore" \
 
 ### GStack Browse (0b.8)
 
-All commands tested against `https://rouge-testbed-staging.gregj64.workers.dev/`:
+All commands tested against `https://your-project.your-account.workers.dev/`:
 
 | Command | Result | Latency |
 |---------|--------|---------|

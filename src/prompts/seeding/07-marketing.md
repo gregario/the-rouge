@@ -133,7 +133,7 @@ A complete README following the conventions of the product's type. The README is
 
 Structure:
 1. **Badge row** (centered `<p>` block). Choose badges based on project type:
-   - Always: MIT License badge, GitHub Sponsors badge (`[![Sponsor](https://img.shields.io/badge/sponsor-♥-ea4aaa.svg)](https://github.com/sponsors/gregario)`)
+   - Always: License badge (match the project's chosen license), GitHub Sponsors badge (if the owner has sponsorship enabled)
    - npm packages: npm version, npm downloads/month, Node.js 18+ badge
    - MCP servers: add MCP Compatible badge (`[![MCP Compatible](https://img.shields.io/badge/MCP-compatible-purple.svg)](https://modelcontextprotocol.io)`), Glama score badge
    - Web apps: framework badge if applicable, deploy status badge placeholder

@@ -218,7 +218,7 @@ Rouge runs real tools against real deployed code and feeds structured results in
 GStack is a headless Chromium browser controlled via a single-binary CLI. During the product-walk phase, Claude drives it to navigate every screen, click every element, fill forms, test keyboard navigation, and capture screenshots:
 
 ```
-$B goto https://countdowntimer-staging.gregj64.workers.dev
+$B goto https://your-project.your-account.workers.dev
 $B click button:has-text("Start")
 $B screenshot screenshots/cycle-3/timer-running.png
 $B eval document.querySelectorAll('[aria-label]').length

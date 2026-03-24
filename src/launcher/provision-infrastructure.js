@@ -358,8 +358,8 @@ function main() {
   if (!envContent.includes('NEXT_PUBLIC_SENTRY_DSN') || envContent.includes('SENTRY_DSN=\n') || envContent.includes('SENTRY_DSN=""')) {
     try {
       // Create Sentry project
-      const sentryOrg = 'greg-j';
-      const sentryTeam = 'greg-j'; // default team = org slug
+      const sentryOrg = process.env.SENTRY_ORG || '';
+      const sentryTeam = process.env.SENTRY_TEAM || sentryOrg;
       run(`sentry-cli projects create "${projectName}" --org ${sentryOrg} --team ${sentryTeam} 2>/dev/null || true`);
       // Get DSN
       const keysOutput = run(`sentry-cli projects list-keys "${projectName}" --org ${sentryOrg} 2>/dev/null || true`);
