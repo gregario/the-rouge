@@ -52,12 +52,20 @@ Score 8 design categories from screenshots and interaction observations in `prod
 | 4 | Layout | Screenshots + responsive data: grid alignment, flow, responsive behavior |
 | 5 | Components | Interactive elements: button hierarchy, input styling, component consistency |
 | 6 | Interaction | Before/after screenshots: hover feedback, transitions, loading indicators |
-| 7 | Content | Screenshots + journeys: heading clarity, error messages, empty states |
+| 7 | Content & Copy | Screenshots + journeys: heading clarity, error messages, empty states, copy tone, brand voice |
 | 8 | Polish | Screenshots: favicon, loading screen, 404 page, selection color, details |
 
 Each category scored 0-10 with findings. Overall: weighted average (equal weight unless project specifies otherwise).
 
-**AI slop detection** (0-100, lower is better): From visual evidence, flag generic placeholder text, stock-photo aesthetics, repetitive Lorem Ipsum, cookie-cutter layouts with no product personality, gratuitous gradients, or meaningless decorative elements.
+**Copy quality sub-check** (part of Content & Copy, category 7):
+- Does the UI copy sound human or AI-generated? Flag: generic phrases ("Welcome to our platform"), filler words, overly formal tone, marketing-speak in UI labels.
+- Is the tone consistent across all screens? Flag: mixing casual and formal, inconsistent capitalization, different voice in error messages vs success messages.
+- Are error messages helpful and specific? Flag: "Something went wrong" without context, technical jargon in user-facing messages.
+- Are empty states actionable? Flag: blank screens with no guidance, "No items found" without a CTA.
+- Does the copy match the product's personality (from `vision`)? A playful app shouldn't have corporate copy.
+Output a `copy_quality` sub-score (0-10) within the Content category, plus `copy_findings[]`.
+
+**AI slop detection** (0-100, lower is better): From visual evidence AND copy, flag generic placeholder text, stock-photo aesthetics, repetitive Lorem Ipsum, cookie-cutter layouts with no product personality, gratuitous gradients, meaningless decorative elements, and AI-generated marketing copy ("Next-generation", "AI-powered", "Seamlessly integrated").
 
 **A11y assessment:** From `product_walk.screens[].a11y_tree_summary` and keyboard test results in interactive elements:
 - Contrast issues (from Lighthouse accessibility score + visual inspection)
