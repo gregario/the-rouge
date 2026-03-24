@@ -83,7 +83,7 @@ The builder made architectural decisions along the way:
 
 Result: 89 tests passing. Deployed to Cloudflare Workers. The product loaded, the timer counted down, the phase transitions shifted the entire color palette.
 
-![First build — desktop focus state](projects/countdowntimer/screenshots/cycle-2/epoch-desktop-focus.png)
+![First build — desktop focus state](../projects/countdowntimer/screenshots/cycle-2/epoch-desktop-focus.png)
 
 But the quality evaluation found gaps.
 
@@ -244,13 +244,13 @@ Before fixes: **59% efficiency** — 41% of execution time was wasted on retries
 
 After 5 cycles, Rouge produced a deployed Pomodoro timer that met its vision: atmospheric, opinionated, crafted.
 
-![Timer first load — focus state](projects/countdowntimer/screenshots/cycle-5/final-review/01-first-load.png)
+![Timer first load — focus state](../projects/countdowntimer/screenshots/cycle-5/final-review/01-first-load.png)
 
-![Timer running](projects/countdowntimer/screenshots/cycle-5/final-review/02-timer-running.png)
+![Timer running](../projects/countdowntimer/screenshots/cycle-5/final-review/02-timer-running.png)
 
-![Settings panel open](projects/countdowntimer/screenshots/cycle-5/final-review/03-settings-open.png)
+![Settings panel open](../projects/countdowntimer/screenshots/cycle-5/final-review/03-settings-open.png)
 
-![Mobile and desktop responsive views](projects/countdowntimer/screenshots/cycle-5/final-review/mobile-desktop.png)
+![Mobile and desktop responsive views](../projects/countdowntimer/screenshots/cycle-5/final-review/mobile-desktop.png)
 
 Vision alignment score: **0.91** (converging). The vision check summary:
 
