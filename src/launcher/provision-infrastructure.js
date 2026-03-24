@@ -344,11 +344,43 @@ function main() {
     }
   }
 
-  // Production readiness checklist — log what's configured vs missing
+  // Auto-provision PostHog (shared project, product-tagged)
   const envFile = path.join(projectDir, '.env.local');
-  const envContent = fs.existsSync(envFile) ? fs.readFileSync(envFile, 'utf8') : '';
+  let envContent = fs.existsSync(envFile) ? fs.readFileSync(envFile, 'utf8') : '';
+  if (!envContent.includes('NEXT_PUBLIC_POSTHOG_PRODUCT')) {
+    const posthogLine = `\nNEXT_PUBLIC_POSTHOG_PRODUCT=${projectName}\n`;
+    fs.appendFileSync(envFile, posthogLine);
+    envContent += posthogLine;
+    log(`PostHog: product tag "${projectName}" added to .env.local`);
+  }
+
+  // Auto-provision Sentry (create project via CLI if not configured)
+  if (!envContent.includes('NEXT_PUBLIC_SENTRY_DSN') || envContent.includes('SENTRY_DSN=\n') || envContent.includes('SENTRY_DSN=""')) {
+    try {
+      // Create Sentry project
+      const sentryOrg = 'greg-j';
+      const sentryTeam = 'greg-j'; // default team = org slug
+      run(`sentry-cli projects create "${projectName}" --org ${sentryOrg} --team ${sentryTeam} 2>/dev/null || true`);
+      // Get DSN
+      const keysOutput = run(`sentry-cli projects list-keys "${projectName}" --org ${sentryOrg} 2>/dev/null || true`);
+      const dsnMatch = keysOutput.match(/(https:\/\/[a-f0-9]+@[^/]+\/\d+)/);
+      if (dsnMatch) {
+        fs.appendFileSync(envFile, `\nNEXT_PUBLIC_SENTRY_DSN=${dsnMatch[1]}\n`);
+        log(`Sentry: project "${projectName}" created, DSN configured`);
+        ctx.infrastructure = ctx.infrastructure || {};
+        ctx.infrastructure.sentry_dsn = dsnMatch[1];
+      } else {
+        log('Sentry: project created but could not extract DSN');
+      }
+    } catch (err) {
+      log(`Sentry: provisioning failed — ${(err.message || '').slice(0, 100)}`);
+    }
+  }
+
+  // Production readiness checklist
+  envContent = fs.existsSync(envFile) ? fs.readFileSync(envFile, 'utf8') : '';
   const readiness = {
-    posthog: envContent.includes('POSTHOG_KEY') && !envContent.includes('POSTHOG_KEY=\n') && !envContent.includes('POSTHOG_KEY=""'),
+    posthog: envContent.includes('POSTHOG_PRODUCT'),
     sentry: envContent.includes('SENTRY_DSN') && !envContent.includes('SENTRY_DSN=\n') && !envContent.includes('SENTRY_DSN=""'),
     supabase: !!ctx.supabase?.project_ref,
     cloudflare: !!ctx.infrastructure?.staging_url,
