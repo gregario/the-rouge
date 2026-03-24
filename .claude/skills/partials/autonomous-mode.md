@@ -281,3 +281,20 @@ Your phase prompt (below this partial) tells you:
 - What state.json transition to make (if any)
 
 Follow it exactly. You are a specialist executing one phase, not a generalist planning the whole project.
+
+### Context Loading Tiers
+
+Each phase prompt declares a tier that determines how much of `cycle_context.json` and the Library to load into working context.
+
+| Tier | Phases | Loads |
+|------|--------|-------|
+| **T1 — Focused** | qa-fixing, test-integrity, document-release, ship-promote | Active spec (summary only), QA/test reports, factory_decisions (current cycle only), deployment_url. Does NOT load Library heuristics, vision document, or prior cycle history. |
+| **T2 — Standard** | building, evaluation-orchestrator, change-spec-generation, cycle-retrospective | Everything in T1, plus: full active spec, Library heuristics (applicable domain only), prior cycle factory_decisions, evaluation_deltas. Does NOT load full vision document or cross-domain Library. |
+| **T3 — Full** | po-review, analyzing, vision-check, final-review, product-walk, evaluation | Everything. Full vision document, all Library tiers (global + domain + personal), full journey.json history, all prior cycle data. These phases need maximum context for subjective judgment. |
+
+**How to use tiers in prompts:**
+- Each phase prompt declares `Context Tier: T1|T2|T3` in its Phase Contract section
+- The "Read the Full Shared Context" step is replaced with tier-appropriate loading instructions
+- A phase MAY escalate its tier for a specific invocation by logging the reason (e.g., building phase escalates to T3 on first cycle because no prior context exists)
+
+**Why this matters:** A 24K-line prompt loading the full Library, full vision, and 5 cycles of history dilutes the model's attention. A QA-fixing phase needs the bug report and the code — not the product vision and Library heuristics about information hierarchy. Focused context produces focused work.

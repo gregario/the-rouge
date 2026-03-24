@@ -27,12 +27,24 @@ Do not enumerate these as a checklist. Internalize them. Let them shape how you 
 **Git:** Creates branch, makes bisectable commits. Does NOT create a PR.
 **Deploys:** Staging ONLY. Never production.
 **Decides:** Nothing about what phase runs next. Build, report, exit.
+**Context Tier:** T2 — Standard. Loads active spec, applicable Library heuristics, current + prior cycle decisions. Does NOT load full vision document (summary from cycle_context is sufficient) or cross-domain Library heuristics. On cycle 1, escalate to T3 for full vision context.
 
 ---
 
 ## Step 1: Read the Full Shared Context
 
 Read `cycle_context.json` in the project root. This is your entire world. Do not summarize it, do not skim it, do not skip sections. Read it all.
+
+**Context Tier T2 loading:** Focus your reading on:
+- `active_spec` — your build contract (read in full)
+- `library_heuristics` — only heuristics tagged with the project's domain (e.g., `domain: web`). Skip cross-domain heuristics.
+- `factory_decisions` — current cycle and previous cycle only
+- `evaluation_deltas` — the quality trend
+- `previous_evaluations` — QA and PO reports from the last cycle only
+- `skipped` and `divergences` — from the last cycle only
+- `vision` — read as a summary reference (product purpose and target user), not line-by-line internalization
+
+On cycle 1 (no prior evaluations exist), escalate to T3: read everything including full vision and all Library heuristics regardless of domain.
 
 Extract and internalize:
 
