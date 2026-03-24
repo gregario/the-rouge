@@ -220,3 +220,23 @@ The Notifier SHALL support creating new projects entirely through Slack conversa
 - **THEN** the Slack bot SHALL write all seed artifacts (vision, product standard, seed spec) to the project directory
 - **AND** write `state.json` with `current_state: "ready"` (NOT "building")
 - **AND** message: "{name} seeded and ready. Send 'rouge start {name}' when you want to begin the autonomous loop."
+
+### Requirement: Each Slack message requests exactly one decision
+The Notifier SHALL send one decision request per Slack message. When multiple issues require human input (e.g., two separate escalations from different feature areas), each SHALL be sent as a separate message with its own options and context.
+
+#### Scenario: Multiple escalations in one cycle
+- **WHEN** two or more issues require human input in the same cycle
+- **THEN** the Notifier SHALL send separate messages for each, spaced 2 seconds apart
+- **AND** each message SHALL contain:
+  - The specific issue context
+  - Concrete options (lettered A/B/C/D)
+  - Enough context to decide without reading other messages
+- **AND** the Slack bot SHALL track responses per-issue (keyed by issue ID, not message timestamp)
+
+#### Scenario: Morning briefing with pending decisions
+- **WHEN** the morning briefing includes issues awaiting human input
+- **THEN** the briefing SHALL list pending decisions as a summary ("3 decisions pending")
+- **AND** each decision SHALL be sent as a follow-up message after the briefing
+- **AND** the briefing itself SHALL NOT contain decision options (it is informational only)
+
+**Rationale:** Batching multiple decisions into one message causes snap decisions. Sequential, focused messages force deliberation on each issue independently. This is adapted from gstack's "one decision per AskUserQuestion" principle.
