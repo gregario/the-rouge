@@ -463,3 +463,13 @@ Questions:
 - [ ] FW.48 Slack markdown sanitization — convert Claude's markdown (headers, code blocks, tables) to Slack-compatible mrkdwn before posting. Strip unsupported syntax.
 - [ ] FW.49 Per-project status detail — `/rouge status <project>` shows detailed view (current phase, cycle, confidence, last action, staging URL) vs the current list view.
 - [ ] FW.50 API/integration-aware seeding — seeding swarm asks about integrations (Stripe, Supabase, third-party APIs, OAuth, webhooks) and incorporates them into the spec. Products built on integrations need them specced from the start.
+
+## Future Work — gstack Migration (2026-03-24)
+
+Adapted from garrytan/gstack. Design docs in `docs/design/`. Phase prompt changes already landed.
+
+- [ ] FW.51 Safety hooks implementation — build `rouge-safety-check` bash CLI and register hooks in `.claude/settings.json`. Blocks production deploys, credential writes, destructive ops. Must ship before open source. Design: `docs/design/safety-hooks.md`
+- [ ] FW.52 External reviewer triage — implement classify/act/learn pattern for Dependabot, Snyk, CodeQL feedback in Rouge Maintain. Per-project history tracking with suppression lists. Design: `docs/design/rouge-maintain-external-reviewer-triage.md`
+- [ ] FW.53 Worktree-based parallel module builds — implement scale architecture parallelism using gstack WorktreeManager as reference (SHA-256 dedup, artifact copying). Trigger: first large project seeded. Design: `docs/plans/2026-03-24-scale-architecture-design.md`
+- [ ] FW.54 Soft dependencies (BENEFITS_FROM) — phases declare optional cross-phase consultations. Non-blocking, logged. Design: `docs/design/soft-dependencies-and-routing.md`
+- [ ] FW.55 Natural language Slack routing — intent-based command mapping for open source users. Keyword matching in Slack bot. Design: `docs/design/soft-dependencies-and-routing.md`
