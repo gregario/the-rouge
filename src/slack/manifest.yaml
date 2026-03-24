@@ -19,7 +19,7 @@ features:
   slash_commands:
     - command: /rouge
       description: Rouge product development commands
-      usage_hint: "[new|status|start|pause|resume|seed] [project-name]"
+      usage_hint: "[new|status|start|pause|resume|ship|feedback|seed] [project-name]"
       should_escape: false
 
 oauth_config:
