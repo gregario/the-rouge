@@ -152,6 +152,26 @@ Criterion: {criterion text from spec}
 
 Each criterion fix is its own commit. This makes `git bisect` work and keeps the history clean for the Runner's audit trail.
 
+#### 2h. Blast Radius Check (After Each Fix)
+
+After committing the fix, check the blast radius of the files you just changed:
+- The fixed file(s)
+- Files that directly import them (one hop)
+
+Look for:
+1. Related bugs that share the same root cause
+2. Dead code or stale comments left by the original implementation
+3. Missing error handling patterns consistent with the fix you just applied
+
+Fix anything that:
+- Is clearly related to the bug you just fixed (same root cause family)
+- Touches fewer than 3 additional files
+- Does not change public interfaces
+
+Commit blast radius fixes separately from the primary fix (preserve bisectability). Use commit type `refactor`, not `fix`.
+
+**Boundary:** This is NOT an invitation to improve the codebase. You are still a debugger on an on-call rotation. The blast radius check catches *related* issues that the original bug masks or creates. If you find an unrelated issue, log it to `factory_questions` and move on.
+
 ### Step 3: Redeploy to Staging
 
 After ALL fixes are committed (or all remaining issues are either fixed or escalated):
