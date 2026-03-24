@@ -252,6 +252,64 @@ Overall PO confidence: **0.89**. Verdict: **PRODUCTION_READY**.
 
 ---
 
+## QA Tooling
+
+Rouge doesn't just ask Claude "does this look right?" — it runs real tools against real deployed code and feeds structured results into the evaluation.
+
+### Browser testing — GStack
+
+GStack is a headless Chromium browser controlled via a single-binary CLI. During the product-walk phase, Claude drives it to navigate every screen, click every element, fill forms, test keyboard navigation, and capture screenshots. Commands are simple:
+
+```
+$B goto https://countdowntimer-staging.gregj64.workers.dev
+$B click button:has-text("Start")
+$B screenshot screenshots/cycle-3/timer-running.png
+$B eval document.querySelectorAll('[aria-label]').length
+```
+
+This is how Rouge verifies that buttons actually work, modals actually open, and forms actually validate — not by reading code, but by using the product.
+
+### Performance — Lighthouse
+
+GStack runs Lighthouse audits on key pages, producing scores for Performance, Accessibility, Best Practices, and SEO. These scores are tracked across cycles — a regression triggers a finding. Epoch's progression:
+
+| Metric | Cycle 1 | Cycle 5 |
+|--------|:-------:|:-------:|
+| Performance | 91 | 91 |
+| Accessibility | 89 | **100** |
+| Best Practices | 96 | **100** |
+| SEO | 100 | 100 |
+
+### Static analysis — code-review phase
+
+The code-review phase runs CLI tools directly, without a browser:
+
+| Tool | What it checks |
+|------|---------------|
+| **ESLint** | Lint errors and warnings |
+| **jscpd** | Code duplication percentage |
+| **madge** | Circular dependency detection |
+| **knip** | Dead code and unused exports |
+| **npm audit** | Known dependency vulnerabilities |
+| **AI code audit** | Seven-dimension review: architecture, consistency, robustness, production risks, security, dead/hallucinated code, tech debt |
+
+Each tool produces structured output. The evaluation phase reads all of it and computes the health score.
+
+### Accessibility
+
+Accessibility is tested through three channels:
+1. **Lighthouse a11y score** — automated WCAG checks
+2. **GStack keyboard testing** — Tab through every element, verify Enter/Space activation, check focus trapping in modals
+3. **Accessibility tree inspection** — `$B eval` captures landmarks, heading hierarchy, ARIA labels, and roles
+
+This is how Rouge found the missing focus trap in Epoch's settings modal — it literally tabbed through the UI 11 times and observed the focus escaping to the background.
+
+### Visual and copy quality
+
+The evaluation phase's Design lens scores screenshots across eight categories (typography, color, spacing, layout, components, interaction, content, polish) and runs an AI slop detector to flag generic or AI-generated-feeling design. The Content & Copy sub-check evaluates whether UI text sounds human, is tonally consistent, and matches the product's personality.
+
+---
+
 ## The Architecture: Observe Once, Judge Through Lenses
 
 The original architecture ran QA and PO review as separate phases, each launching its own browser session. This was wasteful — the browser is slow and expensive, and both phases looked at the same product. Worse, observations could diverge between sessions if state differed.
