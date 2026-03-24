@@ -420,6 +420,18 @@ function advanceState(projectDir) {
 
     // FW.2 + FW.3: Rich Block Kit notifications
     notifyRich('transition', { project: projectName, from: current, to: next });
+
+    // Cross-product learning: extract lessons when a project completes
+    if (next === 'complete') {
+      try {
+        execFileSync('node', [path.join(__dirname, 'learn-from-project.js'), projectDir], {
+          encoding: 'utf8', timeout: 30000, stdio: 'pipe',
+        });
+        log(`[${projectName}] Personal library updated with learnings`);
+      } catch (err) {
+        log(`[${projectName}] Learning extraction failed: ${(err.message || '').slice(0, 100)}`);
+      }
+    }
   }
 }
 
