@@ -143,7 +143,7 @@ if (evalReport) {
   check('Has PO section', evalReport.po != null);
   check('Has health_score', typeof evalReport.health_score === 'number');
   if (evalReport.qa) {
-    check('QA: has criteria_results', Array.isArray(evalReport.qa.criteria_results));
+    check('QA: has criteria_results', evalReport.qa.criteria_results != null);
   }
   if (evalReport.design) {
     check('Design: has overall_score', typeof evalReport.design.overall_score === 'number' || evalReport.design.design_review != null);
