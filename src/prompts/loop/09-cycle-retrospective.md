@@ -198,16 +198,95 @@ Classify `overall_health`:
 - **attention_needed**: Quality stable but with flagged hotspots or medium-confidence decisions, or 1 escalation.
 - **degrading**: Quality declining, multiple retries, escalations, or failed to ship.
 
+### Step 7.5 — Cross-Cycle Trend Analysis
+
+Read `journey.json` and extract trends across the last 5 cycles (or all cycles if fewer than 5 exist). This step produces a trend snapshot that future phases and the launcher can use for decision-making.
+
+#### Quality Trajectory
+
+```json
+{
+  "trend_snapshot": {
+    "window": "<oldest cycle in window> to <current cycle>",
+    "cycles_analyzed": 0,
+
+    "quality_trajectory": {
+      "qa_health_scores": [0.0, 0.0, 0.0, 0.0, 0.0],
+      "po_confidence_scores": [0.0, 0.0, 0.0, 0.0, 0.0],
+      "vision_confidence_scores": [0.0, 0.0, 0.0, 0.0, 0.0],
+      "direction": "improving | stable | declining | oscillating",
+      "velocity": "accelerating | steady | decelerating"
+    },
+
+    "efficiency_trajectory": {
+      "fix_to_feature_ratio_per_cycle": [0.0, 0.0, 0.0, 0.0, 0.0],
+      "escalations_per_cycle": [0, 0, 0, 0, 0],
+      "retries_per_cycle": [0, 0, 0, 0, 0],
+      "direction": "improving | stable | declining"
+    },
+
+    "debt_indicators": {
+      "hotspot_frequency": {
+        "<file>": { "cycles_touched": 0, "last_touched": "<cycle N>" }
+      },
+      "recurring_quality_gaps": [
+        { "gap": "<description>", "first_seen": "<cycle N>", "occurrences": 0, "resolved": false }
+      ],
+      "test_coverage_trend": [0.0, 0.0, 0.0, 0.0, 0.0]
+    },
+
+    "process_insights": [
+      "Concrete, actionable insight derived from the trend data"
+    ]
+  }
+}
+```
+
+#### How to Calculate Direction
+
+- **improving**: 3+ of last 5 values are increasing (each > previous)
+- **stable**: values stay within ±5% of the mean
+- **declining**: 3+ of last 5 values are decreasing
+- **oscillating**: alternating up/down with >10% swings (indicates instability, not steady state)
+
+#### How to Calculate Velocity
+
+- **accelerating**: the delta between consecutive values is increasing
+- **steady**: deltas are roughly constant
+- **decelerating**: deltas are shrinking (improvement is slowing)
+
+#### Process Insights
+
+Generate 2-4 actionable insights by reading the trend data. Examples of good insights:
+- "Fix-to-feature ratio increased from 0.2 to 0.8 over 3 cycles — the codebase is accumulating debt faster than features. Next cycle should include a dedicated refactoring pass."
+- "PO confidence plateaued at 0.82 for 3 cycles. The remaining quality gaps are likely taste-level issues that require Library heuristic updates, not more building."
+- "src/components/Dashboard.tsx has been a hotspot for 4 consecutive cycles. It should be split — the current abstraction is carrying too many responsibilities."
+
+Bad insights (too vague to act on):
+- "Quality is improving" (no action)
+- "Tests could be better" (which tests? better how?)
+
+#### Write the Trend Snapshot
+
+Write `trend_snapshot` to `cycle_context.json` alongside `retro_metrics`. Also append a summary to `journey.json` under the current cycle's entry as `trend_at_this_point`.
+
+The launcher reads `trend_snapshot` to make macro decisions:
+- If `quality_trajectory.direction` is `declining` for 3+ cycles: trigger human notification
+- If `efficiency_trajectory.escalations_per_cycle` trend is rising: flag process issue
+- If `debt_indicators.recurring_quality_gaps` has items with `occurrences >= 3`: these become priority specs for the next analyzing phase
+
 ---
 
 ## What You Write
 
 To `cycle_context.json`:
 - `retro_metrics` — the aggregate metrics object from Step 7
+- `trend_snapshot` — the cross-cycle trend analysis from Step 7.5
 - Append to `previous_cycles` — a summary of this cycle for future reference
 
 To `journey.json`:
 - Append the journey entry from Step 6
+- Add `trend_at_this_point` to the current cycle's entry from Step 7.5
 
 Git:
 - Commit the updated `journey.json` and `cycle_context.json`
