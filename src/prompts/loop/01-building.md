@@ -133,6 +133,29 @@ After every refactor step, run all tests. If anything breaks, your refactor chan
 
 **The refactor step is not optional.** Skipping it produces code that passes tests but accumulates accidental complexity. The PO Review will catch this as "code quality" failures. Fix it now.
 
+### Boil the Lake — Fix the Blast Radius
+
+When you modify a file, you own its blast radius for this cycle. The blast radius is:
+- The file you modified
+- Files that directly import it (one hop)
+- Files it directly imports (one hop)
+
+For each file in the blast radius, check:
+1. Does it have obvious issues you can see now that you're reading it? (dead code, inconsistent naming, missing error handling, stale comments)
+2. Does it conform to `product_standard` heuristics?
+3. Is it covered by tests?
+
+Fix anything that fails these checks IF:
+- The fix touches fewer than 5 files
+- The fix doesn't require new infrastructure or dependencies
+- The fix doesn't change public interfaces other components depend on
+
+If a fix would exceed these bounds, log it to `factory_questions` with severity `minor` and move on. Do not let blast radius cleanup block forward progress.
+
+**Why this matters:** Autonomous loops accumulate micro-debt faster than supervised sessions because there's no human noticing adjacent problems. Each cycle is an opportunity to improve the neighborhood, not just the house. The PO Review evaluates overall code quality — it will catch the debt you leave behind.
+
+Do not log blast radius fixes as separate `implemented` tasks. They are part of the refactor step, committed alongside the task that surfaced them.
+
 ---
 
 ## Step 5: Subagent-Driven Development
