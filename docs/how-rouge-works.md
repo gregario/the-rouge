@@ -329,12 +329,12 @@ The countdowntimer run validated Rouge's core loop. But building a product from 
 
 ```mermaid
 flowchart LR
-    subgraph "Open Source"
+    subgraph "Create"
         RS[Rouge Spec<br/>seed ideas into specs]
         RB[Rouge Build<br/>autonomous build loop]
     end
 
-    subgraph "Closed Source"
+    subgraph "Operate"
         RG[Rouge Grow<br/>expand shipped products]
         RM[Rouge Maintain<br/>keep products alive]
     end
@@ -347,23 +347,19 @@ flowchart LR
 
 ### Rouge Spec — "What to build"
 
-Interactive seeding via Slack. Human + AI co-design a product through conversation with eight discipline-specific personas. Produces a vision, specs, design artifacts, and infrastructure plan. **Open source.**
+Interactive seeding via Slack. Human + AI co-design a product through conversation with eight discipline-specific personas. Produces a vision, specs, design artifacts, and infrastructure plan.
 
 ### Rouge Build — "How to build it"
 
-The Karpathy Loop. Takes a seed package and autonomously builds the product through iterative cycles of building, testing, evaluating, and refining. This is what built Epoch. **Open source.**
+The Karpathy Loop. Takes a seed package and autonomously builds the product through iterative cycles of building, testing, evaluating, and refining. This is what built Epoch.
 
 ### Rouge Grow — "Make it better"
 
-Feature expansion on shipped products. Unlike Build (which creates from zero), Grow works with existing users, existing data, and existing patterns that must be preserved. It reads analytics (PostHog), user feedback, and market signals to decide what to build next. Then it runs a modified loop that respects backwards compatibility and existing user expectations. **Closed source** — touches production systems with real users.
+Feature expansion on shipped products. Unlike Build (which creates from zero), Grow works with existing users, existing data, and existing patterns that must be preserved. It reads analytics (PostHog), user feedback, and market signals to decide what to build next. Then it runs a modified loop that respects backwards compatibility and existing user expectations.
 
 ### Rouge Maintain — "Keep it alive"
 
-Autonomous production upkeep. SBOM and CVE scanning, bug triage from Sentry error streams, dependency updates, database migration management, SSL certificate renewal, performance regression detection. No new features — just keeping the lights on and the foundation solid. **Closed source** — touches production databases and infrastructure.
-
-### Why the split?
-
-Spec and Build are creative tools — they produce new things from ideas. Anyone can use them safely. Grow and Maintain touch live production systems with real user data. They need trust guardrails, safety gates, and careful human oversight. The closed-source boundary is a trust boundary.
+Autonomous production upkeep. SBOM and CVE scanning, bug triage from Sentry error streams, dependency updates, database migration management, SSL certificate renewal, performance regression detection. No new features — just keeping the lights on and the foundation solid.
 
 ---
 
