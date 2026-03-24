@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.1] - 2026-03-24
+
+### Added
+- Session counter celebration pulse animation when completing a focus session
+- Full close animation on settings modal (reverse of open animation with 0.2s scale-out)
+
+### Changed
+- Settings modal sections now have increased padding (24px) for improved visual hierarchy and breathing room
+- Mobile settings modal now displays with full-screen opaque overlay on viewports <768px
+
+### Fixed
+- Settings modal no longer shows timer content behind it on mobile viewports
+- Removed unused `UseTimerReturn` interface export from useTimer hook
+- Removed unused `validateSettings` function export from storage module
+
 ## [0.3.0] - 2026-03-23
 
 ### Added
