@@ -17,38 +17,35 @@ The idea entered Rouge through **Rouge Spec**, the interactive seeding phase. Th
 Rouge Spec runs a **seeding swarm**: eight discipline-specific AI personas that each interrogate the idea from a different angle. They don't run simultaneously — they take turns, building on each other's output:
 
 ```mermaid
-flowchart TB
-    IDEA[💡 Product idea via Slack] --> BS
-
-    subgraph "Seeding Swarm (human participates throughout)"
-        BS[🧠 Brainstormer<br/>expand the vision] --> CA[🔍 Competition Analyst<br/>map the landscape]
-        CA --> PT[🎯 Product Taster<br/>challenge & scope]
-        PT -->|kill| GY[🪦 Graveyard]
-        PT -->|proceed| SW[📋 Spec Writer<br/>features & criteria]
-        SW --> DS[🎨 Designer<br/>3-pass: UX → components → visual]
-        DS --> LA[⚖️ Legal Advisor<br/>privacy & compliance]
-        LA --> MS[📣 Marketing Strategist<br/>positioning & launch]
-        MS --> TA[🔧 Technical Architect<br/>stack & infrastructure]
-    end
-
+flowchart LR
+    IDEA[💡 Idea] --> BS[Brainstormer]
+    BS --> CA[Competition<br/>Analyst]
+    CA --> PT{Product<br/>Taster}
+    PT -->|kill| GY[🪦 Graveyard]
+    PT -->|proceed| SW[Spec Writer]
+    SW --> DS[Designer]
+    DS --> LA[Legal]
+    LA --> MS[Marketing]
+    MS --> TA[Architect]
     TA --> SP[📦 Seed Package]
-
-    SP --> V[Vision document]
-    SP --> FS[Feature area specs<br/>+ acceptance criteria]
-    SP --> DA[Design artifact<br/>tokens, mappings, mockups]
-    SP --> IP[Infrastructure plan<br/>deploy target, DB, auth]
 ```
 
-1. **Brainstormer** — Expands the idea. What's the 10-star version? What's the emotional core? Who is this for and why do they care?
-2. **Competition Analyst** — Maps the landscape. What exists? What's the gap? Where can we be meaningfully different?
-3. **Product Taster** — Challenges the idea. Is this worth building? What's the killer edge? Should we expand, hold, or reduce scope? Ideas that don't survive go to the graveyard.
-4. **Spec Writer** — Converts the vision into structured specifications. Feature areas, acceptance criteria, data models.
-5. **Designer** — Three-pass design: UX architecture (sitemaps, journey maps), component design (screen-to-component mapping, 5-state design), visual design (style tokens, mockups).
-6. **Legal Advisor** — Privacy, terms, compliance considerations.
-7. **Marketing Strategist** — Positioning, landing page structure, launch strategy.
-8. **Technical Architect** — Stack selection, infrastructure decisions, deployment target.
+The **human participates throughout** — answering questions, making taste decisions, vetoing bad ideas at any stage. The swarm asks; the human decides. The Product Taster is the hard gate: ideas that aren't worth building go to the graveyard before any specs are written.
 
-The human participates throughout — answering questions, making taste decisions, vetoing bad ideas. The swarm asks; the human decides. When the conversation converges, Rouge Spec produces a complete **seed package**:
+The eight personas in order:
+
+| # | Persona | Role |
+|---|---------|------|
+| 1 | **Brainstormer** | Expand the idea — 10-star version, emotional core, target user |
+| 2 | **Competition Analyst** | Map the landscape — what exists, where's the gap |
+| 3 | **Product Taster** | Challenge the idea — kill it or scope it |
+| 4 | **Spec Writer** | Convert vision into feature areas + acceptance criteria |
+| 5 | **Designer** | Three-pass: UX architecture → components → visual design |
+| 6 | **Legal Advisor** | Privacy, terms, compliance |
+| 7 | **Marketing Strategist** | Positioning, landing page, launch strategy |
+| 8 | **Technical Architect** | Stack selection, infrastructure, deployment target |
+
+When the conversation converges, the seed package contains:
 
 - **Vision document** — emotional north star, aesthetic direction, anti-goals
 - **Feature area specifications** — with acceptance criteria per area
