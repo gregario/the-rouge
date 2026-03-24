@@ -115,20 +115,81 @@ function deploy(projectDir) {
     }
   }
 
-  // Supabase: push migrations
+  // Supabase: push migrations with safety checks
   const ctx = readJson(ctxFile);
   if (ctx?.supabase?.project_ref) {
+    const ref = ctx.supabase.project_ref;
     try {
       const migrationDir = path.join(projectDir, 'supabase', 'migrations');
-      const hasMigrations = fs.existsSync(migrationDir) && fs.readdirSync(migrationDir).some(f => f.endsWith('.sql'));
-      if (hasMigrations) {
-        run(`supabase db push --project-ref ${ctx.supabase.project_ref}`, { cwd: projectDir, timeout: 60000 });
-        log('Supabase migrations pushed');
-      } else {
+      const migrations = fs.existsSync(migrationDir)
+        ? fs.readdirSync(migrationDir).filter(f => f.endsWith('.sql')).sort()
+        : [];
+
+      if (migrations.length === 0) {
         log('Supabase: no migrations to push');
+      } else {
+        // Step 1: Dry run — preview what would be applied
+        log('Supabase: running migration dry-run...');
+        let dryRunOutput = '';
+        try {
+          dryRunOutput = run(`supabase db push --project-ref ${ref} --dry-run`, { cwd: projectDir, timeout: 60000 });
+          log(`Supabase dry-run:\n${dryRunOutput.slice(0, 500)}`);
+        } catch (err) {
+          dryRunOutput = err.stdout || err.message || '';
+          log(`Supabase dry-run output:\n${dryRunOutput.slice(0, 500)}`);
+        }
+
+        // Step 2: Check for destructive operations
+        const destructivePatterns = /\bDROP\s+(TABLE|COLUMN|INDEX|CONSTRAINT|DATABASE)\b|\bTRUNCATE\b|\bDELETE\s+FROM\b(?!\s+.*\bWHERE\b)|\bALTER\s+.*\bTYPE\b/i;
+        const pendingMigrations = migrations.map(f =>
+          fs.readFileSync(path.join(migrationDir, f), 'utf8')
+        ).join('\n');
+
+        const hasDestructive = destructivePatterns.test(pendingMigrations);
+
+        if (hasDestructive) {
+          log('⚠️  Supabase: DESTRUCTIVE migration detected (DROP/TRUNCATE/ALTER TYPE)');
+          // Log which migration files contain destructive ops
+          for (const f of migrations) {
+            const content = fs.readFileSync(path.join(migrationDir, f), 'utf8');
+            if (destructivePatterns.test(content)) {
+              log(`  Destructive: ${f}`);
+            }
+          }
+          // Block autonomous execution — require human approval
+          log('Supabase: blocking destructive migration — requires human approval');
+          ctx.migration_blocked = {
+            reason: 'destructive operations detected',
+            files: migrations.filter(f => destructivePatterns.test(
+              fs.readFileSync(path.join(migrationDir, f), 'utf8')
+            )),
+            dry_run: dryRunOutput.slice(0, 1000),
+            timestamp: new Date().toISOString(),
+          };
+          writeJson(ctxFile, ctx);
+          // Don't push — the builder will see this and escalate
+        } else {
+          // Step 3: Safe migration — push it
+          run(`supabase db push --project-ref ${ref}`, { cwd: projectDir, timeout: 60000 });
+          log('Supabase migrations pushed successfully');
+
+          // Track migration history
+          ctx.infrastructure = ctx.infrastructure || {};
+          if (!ctx.infrastructure.migration_history) ctx.infrastructure.migration_history = [];
+          ctx.infrastructure.migration_history.push({
+            files: migrations,
+            timestamp: new Date().toISOString(),
+            cycle: ctx._cycle_number || 0,
+            destructive: false,
+          });
+          if (ctx.infrastructure.migration_history.length > 10) {
+            ctx.infrastructure.migration_history = ctx.infrastructure.migration_history.slice(-10);
+          }
+          writeJson(ctxFile, ctx);
+        }
       }
     } catch (err) {
-      log(`Supabase migration push failed: ${(err.message || '').slice(0, 200)}`);
+      log(`Supabase migration failed: ${(err.message || '').slice(0, 200)}`);
     }
   }
 
