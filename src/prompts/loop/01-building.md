@@ -416,3 +416,15 @@ This phase absorbs patterns from established methodologies but applies them auto
 - **TDD** — Red-green-refactor as the fundamental build rhythm. Tests are not validation — they are design tools that force you to think about interfaces before implementations.
 - **Systematic Debugging** — When things break (and they will), use hypothesis-driven debugging. "The test fails because X" → verify X → if wrong, form new hypothesis. Do not shotgun-fix by changing random things until the test passes.
 - **Verification Before Completion** — Evidence before claims. "All tests pass" means you ran them and saw green. "Staging is deployed" means you hit the URL and saw a response. Do not report success without evidence.
+
+---
+
+## Work Unit Guidelines
+
+Each feature area should be buildable in one session (10-20 min). If you find yourself needing more time:
+- The feature area is too large — flag this in `factory_questions`
+- Split it: create sub-areas and note the split in `divergences`
+
+If the feature area is trivially small (< 5 min):
+- Combine it with the next area if they share screens
+- Note the combination in `factory_decisions`

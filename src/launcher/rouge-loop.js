@@ -365,6 +365,68 @@ function advanceState(projectDir) {
         if (currentFa) currentFa.status = 'complete';
       }
 
+      // Module-aware advancement (large projects)
+      if (Array.isArray(state.modules) && state.modules.length > 0) {
+        // Find current module
+        const currentModule = state.modules.find(m => m.status === 'in-progress');
+        if (currentModule) {
+          // Mark current area complete within module
+          const area = currentModule.feature_areas?.find(fa => fa.name === state.current_feature_area);
+          if (area) area.status = 'complete';
+
+          // Check for more pending areas in current module
+          const pendingInModule = (currentModule.feature_areas || []).filter(fa => fa.status === 'pending');
+          if (pendingInModule.length > 0) {
+            // More areas in this module
+            const nextArea = pendingInModule[0];
+            nextArea.status = 'in-progress';
+            state.current_feature_area = nextArea.name;
+            state.cycle_number = (state.cycle_number || 0) + 1;
+            state.qa_fix_attempts = 0;
+            state.completed_phases = [];
+            writeJson(stateFile, state);
+            next = 'building';
+            log(`[${projectName}] Module "${currentModule.name}": advancing to area "${nextArea.name}"`);
+            break;
+          }
+
+          // Current module complete
+          currentModule.status = 'complete';
+          log(`[${projectName}] Module "${currentModule.name}" complete`);
+        }
+
+        // Find next module (respecting dependencies)
+        const completedModules = new Set(state.modules.filter(m => m.status === 'complete').map(m => m.name));
+        const nextModule = state.modules.find(m => {
+          if (m.status !== 'pending') return false;
+          const deps = m.dependencies || [];
+          return deps.every(d => completedModules.has(d));
+        });
+
+        if (nextModule) {
+          nextModule.status = 'in-progress';
+          const firstArea = (nextModule.feature_areas || [])[0];
+          if (firstArea) {
+            firstArea.status = 'in-progress';
+            state.current_feature_area = firstArea.name;
+          }
+          state.current_module = nextModule.name;
+          state.cycle_number = (state.cycle_number || 0) + 1;
+          state.qa_fix_attempts = 0;
+          state.completed_phases = [];
+          writeJson(stateFile, state);
+          next = 'building';
+          log(`[${projectName}] Advancing to module "${nextModule.name}", area "${firstArea?.name}"`);
+          break;
+        }
+
+        // All modules complete
+        next = 'final-review';
+        log(`[${projectName}] All modules complete — entering final review`);
+        break;
+      }
+
+      // Flat feature_areas fallback (small projects — existing behavior)
       const pending = (state.feature_areas || []).filter(fa => fa.status === 'pending');
       if (pending.length > 0) {
         const nextArea = pending[0].name;
