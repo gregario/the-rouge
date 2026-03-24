@@ -58,7 +58,7 @@ Note everything:
 - **Moments of delight** — things that feel genuinely good (smooth animations, clever defaults, thoughtful empty states)
 - **Moments of confusion** — times you did not know what to do next
 
-Take screenshots throughout. Not systematically — when something catches your eye, good or bad.
+Take screenshots throughout. Not systematically — when something catches your eye, good or bad. **All screenshots must be clean** — no element annotations, no red bounding boxes. If annotations are visible, run `$B snapshot --reset` before screenshotting.
 
 ```bash
 $B goto "${DEPLOYMENT_URL}"

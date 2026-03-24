@@ -1,0 +1,151 @@
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #1a1a1a;
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 40px 50px;
+}
+h1 {
+  font-size: 30px;
+  font-weight: 700;
+  border-bottom: 2px solid #dc2626;
+  padding-bottom: 10px;
+  margin-top: 48px;
+  color: #0d1117;
+}
+h2 {
+  font-size: 22px;
+  font-weight: 600;
+  border-bottom: 1px solid #e1e4e8;
+  padding-bottom: 6px;
+  margin-top: 40px;
+  color: #0d1117;
+}
+h3 {
+  font-size: 17px;
+  font-weight: 600;
+  margin-top: 28px;
+  color: #24292f;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 13px;
+}
+th, td {
+  border: 1px solid #d0d7de;
+  padding: 8px 12px;
+  text-align: left;
+}
+th {
+  background: #f6f8fa;
+  font-weight: 600;
+  color: #24292f;
+}
+tr:nth-child(even) {
+  background: #fafbfc;
+}
+code {
+  background: #f0f2f4;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12.5px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+pre {
+  background: #f6f8fa;
+  padding: 16px 20px;
+  border-radius: 8px;
+  overflow-x: auto;
+  border: 1px solid #e1e4e8;
+}
+pre code {
+  background: none;
+  padding: 0;
+}
+blockquote {
+  border-left: 4px solid #dc2626;
+  margin: 20px 0;
+  padding: 12px 20px;
+  color: #57606a;
+  background: #fafbfc;
+  border-radius: 0 6px 6px 0;
+}
+img {
+  max-width: 100%;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+  margin: 20px 0;
+}
+hr {
+  border: none;
+  border-top: 1px solid #e1e4e8;
+  margin: 32px 0;
+}
+strong {
+  color: #0d1117;
+}
+a {
+  color: #dc2626;
+  text-decoration: none;
+}
+/* --- Page break control --- */
+
+/* Headings must never be orphaned at the bottom of a page */
+h1, h2, h3 {
+  page-break-after: avoid;
+  break-after: avoid;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+/* Major sections (h2) start on a new page for clean breaks */
+h2 {
+  page-break-before: always;
+  break-before: page;
+  margin-top: 0;
+  padding-top: 24px;
+}
+
+/* First h2 after h1 should NOT force a new page */
+h1 + hr + h2,
+h1 + h2 {
+  page-break-before: avoid;
+  break-before: avoid;
+  margin-top: 40px;
+}
+
+/* Tables should not split across pages if possible */
+table {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+/* Images should not split */
+img {
+  page-break-inside: avoid;
+  break-inside: avoid;
+  page-break-before: auto;
+  page-break-after: auto;
+}
+
+/* Blockquotes stay together */
+blockquote {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+/* Code blocks stay together */
+pre {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+/* List items stay with their content */
+li {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}

@@ -98,7 +98,10 @@ function captureScreenshots(projectDir, loopNumber) {
     // Wait for page to settle
     execSync('sleep 1');
 
-    // Capture screenshot
+    // Clear any lingering element annotations before clean screenshot
+    browse('snapshot --reset');
+
+    // Capture clean screenshot (no annotations)
     const result = browse(`screenshot ${filepath}`);
     if (result !== null && fs.existsSync(filepath)) {
       captured.push({ name: screen.name, path: screen.path, file: filepath });

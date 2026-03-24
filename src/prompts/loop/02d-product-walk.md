@@ -41,6 +41,15 @@ fi
 mkdir -p screenshots/cycle-${CYCLE}/walk
 ```
 
+## Screenshot Rules
+
+**IMPORTANT**: All screenshots for evaluation and documentation must be **clean** — no element annotations, no bounding boxes, no `@e` labels.
+
+- Use `$B screenshot <path>` for clean screenshots (this is the default)
+- Only use `$B screenshot -a <path>` when you specifically need annotated element references for your own navigation during the walk
+- If annotations are visible (red bounding boxes with `@e` labels), run `$B snapshot --reset` before taking the clean screenshot
+- Every screen gets a clean screenshot. Annotated versions are optional and secondary.
+
 ## Observation Protocol
 
 ### Step 1 — Screen Inventory
