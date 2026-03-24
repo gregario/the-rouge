@@ -300,15 +300,43 @@ app.event('app_home_opened', async ({ event, client }) => {
       : projects.flatMap(name => {
           const state = readState(name);
           const seedState = getSeedingState(name);
+          const projectDir = path.join(PROJECTS_DIR, name);
+          const ctx = readJson(path.join(projectDir, 'cycle_context.json'));
           const emoji = STATE_EMOJI[state?.current_state] || '❓';
           const cycle = state?.cycle_number || 0;
           const feature = state?.current_feature_area || 'n/a';
-          const qaAttempts = state?.qa_fix_attempts || 0;
-          const checkpoints = (state?.completed_phases || []).length;
+          const currentModule = state?.current_module || null;
 
-          let statusLine = `${emoji} *${name}* — \`${state?.current_state || 'unknown'}\``;
+          let statusLine = `${emoji} *${name}*`;
+          if (state?.name && state.name !== name) statusLine += ` _(${state.name})_`;
+          statusLine += ` — \`${state?.current_state || 'unknown'}\``;
           if (state?.current_state === 'seeding') {
             statusLine += seedState?.status === 'active' ? ' _(active)_' : ' _(paused)_';
+          }
+
+          // Build context line with available data
+          const contextParts = [`Cycle ${cycle}`];
+          if (currentModule) contextParts.push(`Module: ${currentModule}`);
+          if (feature !== 'n/a') contextParts.push(`Area: ${feature}`);
+
+          // Add quality metrics if available
+          const health = ctx?.qa_report?.health_score || ctx?.evaluation_report?.health_score;
+          const confidence = ctx?.po_review_report?.confidence || ctx?.evaluation_report?.po?.confidence;
+          if (health != null) contextParts.push(`Health: ${health}/100`);
+          if (confidence != null) contextParts.push(`Conf: ${(confidence * 100).toFixed(0)}%`);
+
+          // Staging URL
+          const stagingUrl = ctx?.infrastructure?.staging_url;
+          if (stagingUrl) contextParts.push(`<${stagingUrl}|staging>`);
+
+          // Module progress (if modules exist)
+          if (Array.isArray(state?.modules)) {
+            const done = state.modules.filter(m => m.status === 'complete').length;
+            contextParts.push(`Modules: ${done}/${state.modules.length}`);
+          } else {
+            const done = (state?.feature_areas || []).filter(fa => fa.status === 'complete').length;
+            const total = (state?.feature_areas || []).length;
+            if (total > 0) contextParts.push(`Areas: ${done}/${total}`);
           }
 
           const blocks = [
@@ -316,7 +344,7 @@ app.event('app_home_opened', async ({ event, client }) => {
             {
               type: 'context',
               elements: [
-                { type: 'mrkdwn', text: `Cycle: ${cycle} | Feature: ${feature} | QA attempts: ${qaAttempts} | Checkpoints: ${checkpoints}` },
+                { type: 'mrkdwn', text: contextParts.join(' | ') },
               ],
             },
           ];
@@ -326,11 +354,15 @@ app.event('app_home_opened', async ({ event, client }) => {
           if (state?.current_state === 'ready') {
             actions.push({ type: 'button', text: { type: 'plain_text', text: '🚀 Start' }, action_id: `start_${name}`, value: name, style: 'primary' });
           }
-          if (state?.current_state !== 'waiting-for-human' && state?.current_state !== 'complete' && state?.current_state !== 'ready') {
+          if (state?.current_state === 'final-review') {
+            actions.push({ type: 'button', text: { type: 'plain_text', text: '🚀 Ship It' }, action_id: `ship_home_${name}`, value: name, style: 'primary' });
+          }
+          if (!['waiting-for-human', 'complete', 'ready', 'final-review'].includes(state?.current_state)) {
             actions.push({ type: 'button', text: { type: 'plain_text', text: '⏸️ Pause' }, action_id: `pause_${name}`, value: name });
           }
           if (state?.current_state === 'waiting-for-human') {
             actions.push({ type: 'button', text: { type: 'plain_text', text: '▶️ Resume' }, action_id: `resume_${name}`, value: name, style: 'primary' });
+            actions.push({ type: 'button', text: { type: 'plain_text', text: '⏭️ Skip' }, action_id: `skip_${name}`, value: name });
           }
 
           if (actions.length > 0) {
@@ -379,6 +411,27 @@ app.action(/^start_/, async ({ action, ack, respond }) => {
     state.current_state = 'building';
     writeState(projectName, state);
     await respond({ text: `🚀 Started \`${projectName}\`.` });
+  }
+});
+
+// Ship from App Home dashboard
+app.action(/^ship_home_/, async ({ action, ack, respond }) => {
+  await ack();
+  const projectName = action.value;
+  const state = readState(projectName);
+  if (state && state.current_state === 'final-review') {
+    const projectDir = path.join(PROJECTS_DIR, projectName);
+    const ctxFile = path.join(projectDir, 'cycle_context.json');
+    const ctx = readJson(ctxFile);
+    if (ctx) {
+      ctx.final_review_report = ctx.final_review_report || {};
+      ctx.final_review_report.human_approved = true;
+      ctx.final_review_report.approved_at = new Date().toISOString();
+      writeJson(ctxFile, ctx);
+    }
+    state.current_state = 'complete';
+    writeState(projectName, state);
+    await respond({ text: `🚀 \`${projectName}\` approved for production!` });
   }
 });
 
