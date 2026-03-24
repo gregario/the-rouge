@@ -45,6 +45,44 @@ Write the results to `cycle_context.json` under `diff_scope`:
 }
 ```
 
+### Step 1.5: Classify Cycle Type (Gate vs Full Evaluation)
+
+Determine the cycle type from `state.json` and `cycle_context.json`:
+
+| Cycle Type | Trigger | Evaluation Tier |
+|------------|---------|-----------------|
+| **initial-build** | First cycle for a feature area | **Full** — all sub-phases |
+| **feature-build** | Building phase added new features | **Full** — all sub-phases |
+| **qa-fix** | Previous state was `qa-fixing`, only bug fixes applied | **Gate** — test integrity + QA gate only |
+| **re-evaluation** | PO Review requested re-check after analyzing phase generated new specs | **Full** — all sub-phases |
+
+**How to detect cycle type:**
+1. Read `state.json.previous_state`. If it was `qa-fixing`, this is a `qa-fix` cycle.
+2. Read `cycle_context.json.implemented`. If all tasks are classified as `fix` (not `feat`), confirm `qa-fix`.
+3. If `state.json.previous_state` was `analyzing` and the current cycle implements change specs, this is a `re-evaluation`.
+4. Otherwise, check `cycle_context.json.implemented` for new feature tasks → `feature-build` or `initial-build`.
+
+Write the classification to `cycle_context.json`:
+
+```json
+{
+  "evaluation_tier": "full | gate",
+  "cycle_type": "initial-build | feature-build | qa-fix | re-evaluation",
+  "tier_rationale": "<why this tier was selected>"
+}
+```
+
+**Gate tier behavior:**
+- Sub-Phase 0 (Test Integrity): **Always runs**
+- Sub-Phase 1 (QA Gate): **Always runs** (but scope-aware sub-checks still apply)
+- Sub-Phase 2 (PO Review): **Skipped** — carry forward the previous cycle's PO Review verdict and confidence unchanged
+- When PO Review is skipped, log it: `"evaluator_observations": [{"phase": "evaluation-orchestrator", "decision": "Skipped PO Review — gate-tier cycle (qa-fix). Carrying forward previous PO verdict."}]`
+
+**Full tier behavior:**
+- All sub-phases run as currently defined.
+
+**Override:** If a `qa-fix` cycle's diff touches more than 10 files OR modifies any file not mentioned in the QA report's failure list (i.e., the fix had unexpected scope), upgrade to `full` tier and log the override reason.
+
 ### Step 2: Reset Review Readiness Dashboard
 
 At the start of each evaluation run, reset all gates to `{"passed": false, "timestamp": null}`. Previous cycle results are stale — every gate must be re-earned.
@@ -99,7 +137,17 @@ Scope-based sub-check activation:
 
 #### Sub-Phase 2: PO Review (02c-po-review.md)
 
-**Only runs if Sub-Phase 0 and Sub-Phase 1 both passed.** PO Review is a quality assessment, not a bug hunt — it assumes functional correctness.
+**Only runs if:**
+1. Sub-Phase 0 and Sub-Phase 1 both passed, AND
+2. `evaluation_tier` is `full`
+
+If `evaluation_tier` is `gate`:
+- Skip PO Review entirely
+- Carry forward `po_review_report` from `cycle_context.json` (written by the previous full-tier cycle)
+- Update dashboard: preserve previous PO Review gate status (do not reset it in Step 2 for gate-tier cycles)
+- Log the skip to `evaluator_observations`
+
+PO Review is a quality assessment, not a bug hunt — it assumes functional correctness.
 
 - Read the prompt from `src/prompts/loop/02c-po-review.md`
 - Execute it
