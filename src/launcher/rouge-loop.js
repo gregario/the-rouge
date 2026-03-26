@@ -70,6 +70,8 @@ const STATE_TO_PROMPT = {
   // 'po-review-journeys': 'loop/02c-po-review.md',
   // 'po-review-screens': 'loop/02c-po-review.md',
   // 'po-review-heuristics': 'loop/02c-po-review.md',
+  'foundation-building': 'loop/00-foundation-building.md',
+  'foundation-evaluating': 'loop/00-foundation-evaluating.md',
   'qa-fixing': 'loop/03-qa-fixing.md',
   analyzing: 'loop/04-analyzing.md',
   'generating-change-spec': 'loop/05-change-spec-generation.md',
@@ -236,7 +238,42 @@ function advanceState(projectDir) {
   let next = null;
 
   switch (current) {
+    case 'foundation-building': {
+      state.foundation = state.foundation || {};
+      state.foundation.status = 'in-progress';
+      state._foundation_context = true;
+      writeJson(stateFile, state);
+      next = 'test-integrity';
+      break;
+    }
+
+    case 'foundation-evaluating': {
+      const ctx = readJson(contextFile);
+      const fVerdict = ctx?.foundation_eval_report?.verdict || 'PASS';
+      if (fVerdict === 'PASS') {
+        state.foundation.status = 'complete';
+        state.foundation.completed_at = new Date().toISOString();
+        delete state._foundation_context;
+        writeJson(stateFile, state);
+        next = 'building';
+        log(`[${projectName}] Foundation complete — proceeding to feature building`);
+      } else {
+        next = 'foundation-building';
+        log(`[${projectName}] Foundation eval FAIL — retrying foundation build`);
+      }
+      break;
+    }
+
     case 'building': {
+      // Foundation gate: if foundation needed but not complete, redirect
+      if (state.foundation && state.foundation.status === 'pending') {
+        log(`[${projectName}] Foundation needed — redirecting to foundation-building`);
+        state.current_state = 'foundation-building';
+        writeJson(stateFile, state);
+        next = 'foundation-building';
+        break;
+      }
+
       const buildDelta = state.last_build_delta || 0;
 
       // No-op build detection: if build produced no meaningful changes,
@@ -283,8 +320,12 @@ function advanceState(projectDir) {
     case 'test-integrity': {
       const ctx = readJson(contextFile);
       const verdict = ctx?.test_integrity_report?.verdict || 'PASS';
-      next = verdict === 'FAIL' ? 'test-integrity' : 'code-review';
-      if (verdict === 'FAIL') log(`[${projectName}] Test integrity FAIL — re-running`);
+      if (verdict === 'FAIL') {
+        next = 'test-integrity';
+        log(`[${projectName}] Test integrity FAIL — re-running`);
+      } else {
+        next = state._foundation_context ? 'foundation-evaluating' : 'code-review';
+      }
       break;
     }
 
@@ -366,6 +407,16 @@ function advanceState(projectDir) {
         break;
       }
       const action = ctx?.po_review_report?.recommended_action || 'continue';
+      // Foundation insertion: analyzing can trigger foundation mid-flight (Scale 2 pivots)
+      if (action === 'insert-foundation') {
+        state.foundation = state.foundation || {};
+        state.foundation.status = 'pending';
+        state.foundation.scope = ctx?.analysis_recommendation?.foundation_scope || [];
+        writeJson(stateFile, state);
+        next = 'foundation-building';
+        log(`[${projectName}] Analyzing recommends foundation insertion: ${state.foundation.scope.join(', ')}`);
+        break;
+      }
       if (action === 'continue') next = 'vision-checking';
       else if (action.startsWith('deepen') || action === 'broaden') next = 'generating-change-spec';
       else if (action === 'rollback') next = 'rolling-back';
