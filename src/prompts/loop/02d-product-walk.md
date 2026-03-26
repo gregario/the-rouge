@@ -204,7 +204,7 @@ git commit -m "eval(walk): cycle ${CYCLE} — ${SCREENS_WALKED} screens, ${JOURN
 ## Anti-Patterns
 
 - **Never score or verdict anything.** That is the evaluation phase's job. You produce raw observations.
-- **Never write to `qa_report` or `po_review_report`.** You write to `product_walk` only.
+- **Never write to `evaluation_report`.** You write to `product_walk` only.
 - **Never skip screenshots.** They are the primary evidence for every downstream lens. No screenshot = no evidence.
 - **Never judge anomalies.** Record them factually. "Button label shows 'undefined'" not "Bug: broken button."
 - **Never infer what you cannot observe.** If a page is blank, record "page is blank" — do not guess why.

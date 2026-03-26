@@ -15,7 +15,7 @@ From `cycle_context.json`:
 - `implemented` — what was built this cycle
 - `divergences` — where implementation diverged from spec
 - `factory_decisions` — decisions made during building
-- `po_review_report.quality_gaps` — known gaps (some may affect docs)
+- `evaluation_report.po.quality_gaps` — known gaps (some may affect docs)
 - `infrastructure.production_url` — current production URL
 - `_project_name` — project name
 
@@ -93,7 +93,7 @@ Already updated by the ship/promote phase. Your job here is voice polish only:
 #### TODOS.md (if exists)
 
 - Mark completed items based on `implemented` list.
-- Add new items from `po_review_report.quality_gaps` that were deferred.
+- Add new items from `evaluation_report.po.quality_gaps` that were deferred.
 - Remove items that are no longer relevant (feature was descoped or approach changed).
 
 ### Step 3 — Factual vs. Subjective Changes

@@ -8,7 +8,7 @@
 `cycle_context.json` containing:
 - `active_spec` with journeys, screens, interactions
 - `deployment_url` (staging)
-- `qa_report` with PASS verdict, Lighthouse scores, code quality baseline
+- `evaluation_report.qa` with PASS verdict, Lighthouse scores, code quality baseline
 - `library_heuristics` (global + domain/web)
 - `reference_products` with URLs and dimensions
 - `product_standard` with overrides
@@ -65,7 +65,7 @@
 
 ### AC 10.2: Measurement dispatch
 - [ ] dom-analysis measurements executed
-- [ ] lighthouse-metric pulled from qa_report baseline
+- [ ] lighthouse-metric pulled from evaluation_report.qa baseline
 - [ ] interaction-test measurements executed via $B commands
 
 ### AC 10.3-10.4: Reference comparison
@@ -80,7 +80,7 @@
 ## Report Aggregation Assertions (11.1-11.6)
 
 ### AC 11.1: Report structure
-- [ ] `po_review_report` contains: journey_quality, screen_quality, interaction_quality, heuristic_results, reference_comparison, quality_gaps
+- [ ] `evaluation_report.po` contains: journey_quality, screen_quality, interaction_quality, heuristic_results, reference_comparison, quality_gaps
 
 ### AC 11.2: Quality gap categorization
 - [ ] Each gap categorized: design_change / interaction_improvement / content_change / flow_restructure / performance_improvement
@@ -102,7 +102,7 @@
 - [ ] notify-human: <0.7 OR NOT_READY with critical
 
 ### Protocol assertions
-- [ ] Writes po_review_report to cycle_context.json
+- [ ] Writes evaluation_report.po to cycle_context.json
 - [ ] Updates review_readiness_dashboard
 - [ ] Does NOT invoke slash commands
 - [ ] Does NOT modify state.json

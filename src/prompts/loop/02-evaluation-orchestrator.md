@@ -128,7 +128,7 @@ Scope-based sub-check activation:
 - Read the prompt from `src/prompts/loop/02b-qa-gate.md`
 - Pass `diff_scope` so it knows which sub-checks to activate
 - Execute it
-- Read the resulting `qa_report` from `cycle_context.json`
+- Read the resulting `evaluation_report.qa` from `cycle_context.json`
 - Update dashboard gates: `qa_gate`, `ai_code_audit`, `security_review`, `a11y_review`, `design_review`
 
 **On FAIL:** Route to `qa-fixing` state. QA failures are bugs — they go back to the builder as fix tasks, not as new specs.
@@ -143,7 +143,7 @@ Scope-based sub-check activation:
 
 If `evaluation_tier` is `gate`:
 - Skip PO Review entirely
-- Carry forward `po_review_report` from `cycle_context.json` (written by the previous full-tier cycle)
+- Carry forward `evaluation_report.po` from `cycle_context.json` (written by the previous full-tier cycle)
 - Update dashboard: preserve previous PO Review gate status (do not reset it in Step 2 for gate-tier cycles)
 - Log the skip to `evaluator_observations`
 
@@ -152,7 +152,7 @@ PO Review is a quality assessment, not a bug hunt — it assumes functional corr
 Before dispatching PO Review, determine dual-voice eligibility:
 
 Enable dual-voice (`"dual_voice_po_review": true` in cycle_context.json) when ANY of:
-- This is the first `full` evaluation for the current feature area (no prior `po_review_report` exists in journey.json for this feature area)
+- This is the first `full` evaluation for the current feature area (no prior `evaluation_report.po` exists in journey.json for this feature area)
 - The previous PO confidence was < 0.8
 - The `active_spec` was updated by the analyzing phase (re-evaluation after spec changes)
 
@@ -160,7 +160,7 @@ Write `dual_voice_po_review` to `cycle_context.json` before dispatching.
 
 - Read the prompt from `src/prompts/loop/02c-po-review.md`
 - Execute it
-- Read the resulting `po_review_report` from `cycle_context.json`
+- Read the resulting `evaluation_report.po` from `cycle_context.json`
 - Update dashboard: `src/review-readiness.sh pass po_review <confidence>` or `src/review-readiness.sh fail po_review`
 
 **On PRODUCTION_READY:** All evaluation complete. Route to shipping.
@@ -211,7 +211,7 @@ To `cycle_context.json`:
 - `diff_scope` — the scope detection results
 - `review_readiness_dashboard` — updated by `review-readiness.sh` after each sub-phase
 - `evaluator_observations` — your orchestration decisions and routing rationale
-- Sub-phases write their own reports: `test_integrity_report`, `qa_report`, `po_review_report`
+- Sub-phases write their results into `evaluation_report`: `test_integrity_report`, `evaluation_report.qa`, `evaluation_report.po`
 
 ## State Transition
 

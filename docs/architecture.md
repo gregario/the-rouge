@@ -277,6 +277,44 @@ The LLM-as-judge eval pattern (testable assertions scored against a standard) is
 
 The eval infrastructure (test runners, scoring persistence, comparison tools) informs The Library's implementation.
 
+## Decomposition Innovation
+
+The loop uses composable capabilities that activate based on product complexity measurements, not product categories. Six capabilities:
+
+1. **Foundation cycle** — horizontal infrastructure before vertical features
+2. **Dependency ordering** — DAG-resolved build order for feature areas
+3. **Parallel building** — independent modules via worktrees (deferred)
+4. **Integration pass** — cross-cutting concerns after features
+5. **Integration escalation** — hard-block on missing patterns, never silently degrade
+6. **Foundation evaluation** — structural review, not user journeys
+
+The complexity profile is derived from spec analysis (entities, integrations, dependency graph density, cross-cutting concerns). The building phase detects the profile and activates capabilities. The analyzing phase can insert foundation cycles mid-flight when it discovers the decomposition was wrong (Scale 2 pivots).
+
+### Foundation Cycle in the State Machine
+
+When a product's complexity profile warrants it, the launcher sets `state.foundation.status = 'pending'` and the cycle follows a modified flow with distinct `foundation-building` and `foundation-evaluating` states:
+
+```
+seeding → [complexity profile detected] → foundation-building → foundation-evaluating → analyzing
+                                              ↑                                            |
+                                              └────── insert-foundation (if needed) ───────┘
+                                                                                           |
+                                                                                           ↓
+                                                                          building (feature) → normal flow...
+```
+
+State machine states for foundation cycles:
+- `foundation-building` — builds horizontal infrastructure (schema, integrations, auth, UI shell)
+- `foundation-evaluating` — structural review of foundation (not user journeys)
+
+These are distinct from the feature-cycle states (`building`, `evaluation`). The `state.foundation` object tracks:
+- `status`: `'pending'` | `'in-progress'` | `'complete'`
+- `scope`: array of infrastructure items to build
+
+Foundation cycles use `rouge-foundation-build` (horizontal infrastructure) and `rouge-foundation-evaluate` (structural review) instead of the standard building and QA phases. The analyzing phase can insert additional foundation cycles via `insert-foundation` factory decisions when it discovers missing infrastructure mid-flight.
+
+See `docs/design/decomposition-complete-vision.md` for the full design.
+
 ## Open Questions for Future Sessions
 
 1. **GStack browse on Linux:** Need to verify if a Linux build exists or if V1 needs Playwright CLI from the start.

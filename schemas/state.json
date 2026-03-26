@@ -8,9 +8,13 @@
     "current_state": {
       "type": "string",
       "enum": [
-        "seeding", "ready", "building", "test-integrity", "qa-gate",
-        "qa-fixing", "po-reviewing", "analyzing", "generating-change-spec",
-        "vision-checking", "promoting", "rolling-back", "waiting-for-human", "complete"
+        "seeding", "ready",
+        "foundation-building", "foundation-evaluating",
+        "building", "test-integrity",
+        "code-review", "product-walk", "evaluation", "re-walk",
+        "qa-fixing", "analyzing", "generating-change-spec",
+        "vision-checking", "promoting", "rolling-back",
+        "waiting-for-human", "complete"
       ]
     },
     "cycle_number": { "type": "integer", "minimum": 0 },
@@ -31,6 +35,23 @@
     "change_specs_pending": { "type": "array", "items": { "type": "string" } },
     "confidence_history": { "type": "array", "items": { "type": "number", "minimum": 0, "maximum": 1 } },
     "paused_from_state": { "type": "string" },
+    "foundation": {
+      "type": "object",
+      "properties": {
+        "status": { "type": "string", "enum": ["pending", "not-needed", "in-progress", "complete"] },
+        "scope": { "type": "array", "items": { "type": "string" }, "description": "What foundation builds: shared-schema, auth, stripe-integration, app-shell, etc." },
+        "completed_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "detected_profile": {
+      "type": "object",
+      "properties": {
+        "primary": { "type": "string", "enum": ["single-page", "multi-route", "stateful", "api-first", "full-stack"] },
+        "secondary": { "type": "array", "items": { "type": "string", "enum": ["single-page", "multi-route", "stateful", "api-first", "full-stack"] }, "maxItems": 1 },
+        "detection_method": { "type": "string", "enum": ["explicit", "stack-inferred", "feature-analysis"] },
+        "capabilities_activated": { "type": "array", "items": { "type": "string", "enum": ["foundation-cycle", "dependency-ordering", "parallel-building", "integration-pass", "integration-escalation", "foundation-evaluation"] } }
+      }
+    },
     "timestamp": { "type": "string", "format": "date-time" }
   }
 }

@@ -1,0 +1,39 @@
+id: counterscale
+name: Counterscale
+tier: 2
+category: analytics
+description: >
+  Privacy-focused, self-hosted web analytics running on Cloudflare Workers
+  and Analytics Engine. No cookies, no personal data collection, GDPR
+  compliant by design. Zero cost beyond your existing Cloudflare account.
+cost_tier: free
+
+requires:
+  env_vars:
+    - COUNTERSCALE_SITE_ID
+  packages: []
+  cli_tools:
+    - wrangler
+
+setup_steps:
+  - Clone the Counterscale repository
+  - Deploy to Cloudflare Workers with `wrangler deploy`
+  - Note the deployed worker URL as your dashboard
+  - Add the tracking script tag to your application layout
+  - Set the site ID in environment variables
+
+teardown_steps:
+  - Remove the script tag from your application layout
+  - Delete the Cloudflare Worker via `wrangler delete` or the dashboard
+  - Remove environment variables
+
+tested_with:
+  - nextjs-cloudflare
+
+free_tier_limits:
+  data_points: unlimited
+  sites: unlimited
+  retention: unlimited
+  note: "Runs on your own Cloudflare account; subject to Workers free tier (100K requests/day) or paid plan"
+
+staleness_date: "2026-03-26"

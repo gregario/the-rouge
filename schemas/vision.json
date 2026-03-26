@@ -86,13 +86,33 @@
         "definition_of_done": { "type": "string" }
       }
     },
+    "complexity_profile": {
+      "type": "object",
+      "properties": {
+        "primary": {
+          "type": "string",
+          "enum": ["single-page", "multi-route", "stateful", "api-first", "full-stack"]
+        },
+        "secondary": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["single-page", "multi-route", "stateful", "api-first", "full-stack"] },
+          "maxItems": 1
+        }
+      },
+      "required": ["primary"]
+    },
     "infrastructure": {
       "type": "object",
       "properties": {
         "needs_database": { "type": "boolean" },
         "needs_auth": { "type": "boolean" },
         "needs_payments": { "type": "boolean" },
-        "deployment_target": { "type": "string", "default": "cloudflare-workers" }
+        "deployment_target": { "type": "string", "default": "cloudflare-workers" },
+        "services": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "External services needed: supabase, stripe, mapbox, sentry, etc."
+        }
       }
     }
   }

@@ -124,19 +124,15 @@ const projectQuality = {
 };
 
 // Extract from evaluation reports
-if (ctx.qa_report?.health_score) {
-  projectQuality.health_scores.push(ctx.qa_report.health_score);
-}
-if (ctx.po_review_report?.confidence) {
-  projectQuality.confidence_scores.push(ctx.po_review_report.confidence);
-}
 if (ctx.evaluation_report?.health_score) {
   projectQuality.health_scores.push(ctx.evaluation_report.health_score);
+}
+if (ctx.evaluation_report?.po?.confidence) {
+  projectQuality.confidence_scores.push(ctx.evaluation_report.po.confidence);
 }
 
 // Track recurring finding categories
 const findings = [
-  ...(ctx.qa_report?.fix_tasks || []),
   ...(ctx.evaluation_report?.qa?.fix_tasks || []),
 ];
 for (const f of findings) {
@@ -172,7 +168,7 @@ console.log(`  Quality patterns: ${findings.length} findings recorded`);
 const heuristicsFile = path.join(PERSONAL_DIR, 'heuristic-performance.json');
 const heuristics = readJson(heuristicsFile) || { heuristics: {} };
 
-const heuristicResults = ctx.po_review_report?.heuristic_results || ctx.evaluation_report?.po?.heuristic_results;
+const heuristicResults = ctx.evaluation_report?.po?.heuristic_results;
 if (heuristicResults?.details) {
   for (const h of heuristicResults.details) {
     const id = h.id || h.name;

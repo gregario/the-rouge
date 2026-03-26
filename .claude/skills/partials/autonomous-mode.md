@@ -144,71 +144,72 @@ The complete schema. Every phase reads the full file. Fields are grouped by who 
     "verdict": "PASS | FAIL"
   },
 
-  "qa_report": {
-    "verdict": "PASS | FAIL",
-    "criteria_results": "Array of {id, criterion, status: pass|fail|partial, evidence}",
-    "functional_correctness": {
-      "pages_checked": "integer",
-      "console_errors": "integer",
-      "dead_elements": "integer",
-      "broken_links": "integer"
-    },
-    "health_score": "0-100 (GStack methodology: 8 weighted categories, severity deductions)",
-    "performance_baseline": {
-      "lighthouse_scores": "Object of {url: {performance, accessibility, best_practices, seo}}"
-    },
-    "code_quality_baseline": {
-      "cyclomatic_complexity_max": "integer",
-      "cyclomatic_complexity_avg": "number",
-      "duplication_pct": "number",
-      "files_over_300_lines": "integer",
-      "circular_deps": "integer",
-      "cross_layer_violations": "integer",
-      "test_coverage_branch_pct": "number",
-      "dead_code_items": "integer",
-      "new_warnings_vs_previous": "integer"
-    },
-    "code_quality_warning": "boolean (true if degradation thresholds breached)",
-    "ai_code_audit": {
-      "score": "0-100",
-      "dimensions": "Object of {architecture, consistency, robustness, production_risks, security, dead_hallucinated, tech_debt} each with score and findings[]",
-      "critical_findings": "Array of findings with severity CRITICAL"
-    },
-    "security_review": {
+  "evaluation_report": {
+    "qa": {
       "verdict": "PASS | FAIL",
-      "categories": "Object of {input_validation, auth, data_exposure, dependencies, config} each with findings[]",
-      "critical_findings": "Array of findings with severity CRITICAL"
+      "criteria_results": "Array of {id, criterion, status: pass|fail|partial, evidence}",
+      "functional_correctness": {
+        "pages_checked": "integer",
+        "console_errors": "integer",
+        "dead_elements": "integer",
+        "broken_links": "integer"
+      },
+      "performance_baseline": {
+        "lighthouse_scores": "Object of {url: {performance, accessibility, best_practices, seo}}"
+      },
+      "code_quality_baseline": {
+        "cyclomatic_complexity_max": "integer",
+        "cyclomatic_complexity_avg": "number",
+        "duplication_pct": "number",
+        "files_over_300_lines": "integer",
+        "circular_deps": "integer",
+        "cross_layer_violations": "integer",
+        "test_coverage_branch_pct": "number",
+        "dead_code_items": "integer",
+        "new_warnings_vs_previous": "integer"
+      },
+      "code_quality_warning": "boolean (true if degradation thresholds breached)",
+      "ai_code_audit": {
+        "score": "0-100",
+        "dimensions": "Object of {architecture, consistency, robustness, production_risks, security, dead_hallucinated, tech_debt} each with score and findings[]",
+        "critical_findings": "Array of findings with severity CRITICAL"
+      },
+      "security_review": {
+        "verdict": "PASS | FAIL",
+        "categories": "Object of {input_validation, auth, data_exposure, dependencies, config} each with findings[]",
+        "critical_findings": "Array of findings with severity CRITICAL"
+      },
+      "a11y_review": {
+        "verdict": "PASS | FAIL",
+        "contrast_issues": "integer",
+        "keyboard_issues": "integer",
+        "aria_issues": "integer",
+        "findings": "Array of {element, issue, wcag_criterion, severity}"
+      }
     },
-    "a11y_review": {
-      "verdict": "PASS | FAIL",
-      "contrast_issues": "integer",
-      "keyboard_issues": "integer",
-      "aria_issues": "integer",
-      "findings": "Array of {element, issue, wcag_criterion, severity}"
-    }
-  },
-
-  "po_review_report": {
-    "verdict": "PRODUCTION_READY | NEEDS_IMPROVEMENT | NOT_READY",
-    "confidence": "0.0-1.0 (weighted: journey 30%, screen 20%, heuristic 20%, spec 15%, reference 15%)",
-    "recommended_action": "continue | deepen:<area> | broaden | rollback | notify-human",
-    "journey_quality": "Array of {journey_name, steps: [{step, clarity, feedback, efficiency, delight, overall}], verdict}",
-    "screen_quality": "Array of {screen_url, hierarchy, layout, consistency, density, empty_states, mobile, verdict}",
-    "interaction_quality": "Array of {element, hover, click, loading, success, transitions, rating: polished|functional|raw}",
-    "heuristic_results": {
-      "total": "integer",
-      "passed": "integer",
-      "failed": "integer",
-      "pass_rate_pct": "number",
-      "failures": "Array of {heuristic_id, rule, measured, threshold, gap}"
-    },
-    "reference_comparison": "Array of {dimension, our_product, reference_product, verdict: matches|approaching|significantly-below}",
-    "quality_gaps": "Array of {id, category: design_change|interaction_improvement|content_change|flow_restructure|performance_improvement, severity: critical|high|medium|low, description, evidence, what_good_looks_like, affected_screens[], affected_journeys[]}",
-    "design_review": {
+    "design": {
       "score": "0-100",
       "ai_slop_score": "0-100 (lower is better — 0 means no AI slop detected)",
       "findings": "Array from 80-item design checklist"
-    }
+    },
+    "po": {
+      "verdict": "PRODUCTION_READY | NEEDS_IMPROVEMENT | NOT_READY",
+      "confidence": "0.0-1.0 (weighted: journey 30%, screen 20%, heuristic 20%, spec 15%, reference 15%)",
+      "recommended_action": "continue | deepen:<area> | broaden | rollback | notify-human",
+      "journey_quality": "Array of {journey_name, steps: [{step, clarity, feedback, efficiency, delight, overall}], verdict}",
+      "screen_quality": "Array of {screen_url, hierarchy, layout, consistency, density, empty_states, mobile, verdict}",
+      "interaction_quality": "Array of {element, hover, click, loading, success, transitions, rating: polished|functional|raw}",
+      "heuristic_results": {
+        "total": "integer",
+        "passed": "integer",
+        "failed": "integer",
+        "pass_rate_pct": "number",
+        "failures": "Array of {heuristic_id, rule, measured, threshold, gap}"
+      },
+      "reference_comparison": "Array of {dimension, our_product, reference_product, verdict: matches|approaching|significantly-below}",
+      "quality_gaps": "Array of {id, category: design_change|interaction_improvement|content_change|flow_restructure|performance_improvement, severity: critical|high|medium|low, description, evidence, what_good_looks_like, affected_screens[], affected_journeys[]}"
+    },
+    "health_score": "0-100 (GStack methodology: 8 weighted categories, severity deductions)"
   },
 
   "evaluator_observations": "Array of observation entries. Written by evaluation phases.",
@@ -282,6 +283,31 @@ Your phase prompt (below this partial) tells you:
 - What state.json transition to make (if any)
 
 Follow it exactly. You are a specialist executing one phase, not a generalist planning the whole project.
+
+### Soft Dependencies (BENEFITS_FROM)
+
+Some phases declare optional soft dependencies that enhance their output without being required for correctness.
+
+#### Protocol
+
+Before beginning your main work:
+1. Check if this phase declares a `benefits_from` list (see Phase Contract header)
+2. For each soft dependency:
+   - Is the capability available? (e.g., Library exists, test files exist)
+   - Is it fast (<30 seconds) and cheap (<$0.10)?
+   - If YES to both: execute inline, absorb output into your context
+   - If NO: skip it — proceed without. The phase works correctly either way.
+3. Log usage to `factory_decisions`:
+   ```json
+   { "soft_dep": "library-lookup", "status": "used", "value": "Found 3 relevant patterns" }
+   { "soft_dep": "test-integrity", "status": "skipped", "reason": "no test files yet" }
+   ```
+
+#### Rules
+- Soft dependencies are NEVER blocking. If one fails, continue.
+- Soft dependencies run BEFORE main work, not during.
+- Do not add soft dependencies to phases that don't declare them.
+- When soft dependencies provide useful context, reference it but don't depend on it.
 
 ### Context Loading Tiers
 

@@ -46,9 +46,9 @@ From `cycle_context.json`, extract:
    - Write acceptance criteria that align with the heuristics the PO Review will check
    - Ensure fixes don't just close the immediate gap but meet the full Library standard
 
-6. **`po_review_report`** — The full PO Review report. The source of evidence for each quality gap. You reference screenshots, measurements, and assessments directly from this report.
+6. **`evaluation_report.po`** — The PO Review section of the evaluation report. The source of evidence for each quality gap. You reference screenshots, measurements, and assessments directly from this report.
 
-7. **`qa_report`** — The QA report. Provides code quality baselines and performance data. If the change spec affects code structure (e.g., refactoring a component's hierarchy), reference the code quality baseline to ensure the change doesn't degrade it.
+7. **`evaluation_report.qa`** — The QA section of the evaluation report. Provides code quality baselines and performance data. If the change spec affects code structure (e.g., refactoring a component's hierarchy), reference the code quality baseline to ensure the change doesn't degrade it.
 
 8. **`factory_decisions`** — What the builder chose previously. Critical for writing specs that the builder can act on: if the builder chose approach A and it failed, your spec must explain why approach A failed and direct toward approach B.
 
@@ -108,7 +108,7 @@ Document exactly what is wrong, with hard evidence from the PO Review:
 ## Gap Evidence
 
 ### Quality Gap
-- **Gap ID:** <from po_review_report.quality_gaps[].id>
+- **Gap ID:** <from evaluation_report.po.quality_gaps[].id>
 - **Category:** <design_change | interaction_improvement | content_change | flow_restructure | performance_improvement>
 - **Severity:** <critical | high | medium | low>
 - **Root Cause:** <spec_ambiguity | design_choice | missing_context | implementation_bug>
@@ -171,7 +171,7 @@ AC-<spec-slug>-<N>: <short name>
   THEN <observable outcome — what appears, changes, or is measurable>
   MEASUREMENT: <how the Evaluator verifies — DOM query, screenshot diff, timing, LLM vision>
   HEURISTIC: <Library heuristic ID this criterion validates, if applicable>
-  CLOSES_GAP: <quality gap ID from po_review_report>
+  CLOSES_GAP: <quality gap ID from evaluation_report.po>
 ```
 
 **Minimum criteria per change spec:**
@@ -342,7 +342,7 @@ This should not happen — you should not be invoked without briefs. If it does:
 - Log an `evaluator_observation`: "change-spec-generation invoked with zero briefs — possible state machine error"
 - Exit without generating specs
 
-### Brief references a gap that doesn't exist in po_review_report
+### Brief references a gap that doesn't exist in evaluation_report.po
 Data integrity issue. Log it as an `evaluator_observation`, skip the brief, and continue with remaining briefs.
 
 ---

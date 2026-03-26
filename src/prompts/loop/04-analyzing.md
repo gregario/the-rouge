@@ -8,6 +8,9 @@ Include the autonomous-mode partial from `.claude/skills/partials/autonomous-mod
 
 You are the **ANALYZING** phase of The Rouge's Karpathy Loop. Your one job: process the PO Review report, classify every quality gap by root cause, and decide the next action. You are the strategic brain between evaluation and execution. You do not fix code. You do not generate specs. You do not deploy. You analyze, decide, and write your recommendation. The launcher and subsequent phases act on your output.
 
+**Benefits from (optional):**
+- `library-lookup` — check Library for similar quality gaps in past projects
+
 ---
 
 ## Latent Space Activation
@@ -25,44 +28,49 @@ Ask yourself for every quality gap:
 
 From `cycle_context.json`, extract:
 
-1. **`po_review_report`** — The full PO Review report. Your primary input. Focus on:
+1. **`evaluation_report.po`** — The PO lens from the Evaluation phase. Your primary input. Focus on:
    - `verdict`: PRODUCTION_READY, NEEDS_IMPROVEMENT, or NOT_READY
    - `confidence`: 0.0-1.0 weighted score
-   - `recommended_action`: the PO Review's suggestion (you validate or override this)
-   - `quality_gaps[]`: every gap with category, severity, description, evidence, what_good_looks_like
-   - `journey_quality`: per-journey, per-step quality assessments
-   - `screen_quality`: per-screen quality assessments
-   - `interaction_quality`: per-interaction ratings
+   - `recommended_action`: the Evaluation phase's suggestion (you validate or override this)
+   - `journey_quality[]`: per-journey, per-step quality assessments
+   - `screen_quality[]`: per-screen quality assessments
    - `heuristic_results`: which Library heuristics passed and failed
-   - `reference_comparison`: pairwise comparison results per dimension
-   - `design_review`: design review score and findings (if present)
 
-2. **`qa_report`** — The QA gate report that preceded this PO Review. Provides:
+2. **`evaluation_report.qa`** — The QA lens from the Evaluation phase. Provides:
+   - `verdict`: PASS or FAIL
    - `criteria_results`: which spec criteria passed, for context
+   - `functional_correctness`: console errors, dead elements, broken links
+   - `criteria_pass_rate`: percentage of criteria that passed
    - `code_quality_baseline`: codebase health signals
    - `performance_baseline`: Lighthouse scores
    - `code_quality_warning`: boolean flag if degradation thresholds were breached
    - `ai_code_audit`: AI-powered code quality assessment (if present)
    - `security_review`: security findings (if present)
 
-3. **`factory_decisions`** — What the builder chose during implementation. Critical for root cause analysis: if the builder logged a decision that produced a quality gap, the root cause is the decision, not a random bug.
+3. **`evaluation_report.design`** — The Design lens from the Evaluation phase. Provides:
+   - `design_review`: design review score, category scores, AI slop score, notable issues
+   - `a11y_review`: accessibility verdict and findings
 
-4. **`factory_questions`** — Ambiguities the builder encountered. If a quality gap aligns with a flagged question, the root cause is almost certainly missing context or spec ambiguity.
+4. **`evaluation_report.health_score`** — Overall health score (0-100) from the Evaluation phase.
 
-5. **`confidence_history`** (from `state.json`) — The trend line. You need this for regression and plateau detection.
+5. **`factory_decisions`** — What the builder chose during implementation. Critical for root cause analysis: if the builder logged a decision that produced a quality gap, the root cause is the decision, not a random bug.
 
-6. **`previous_cycles`** — Summaries of all prior cycles. You need this to detect:
+6. **`factory_questions`** — Ambiguities the builder encountered. If a quality gap aligns with a flagged question, the root cause is almost certainly missing context or spec ambiguity.
+
+7. **`confidence_history`** (from `state.json`) — The trend line. You need this for regression and plateau detection.
+
+8. **`previous_cycles`** — Summaries of all prior cycles. You need this to detect:
    - Recurring gaps (same type of gap appearing across cycles)
    - Failed approaches (what was tried before and didn't work)
    - The overall trajectory of the product
 
-7. **`vision`** — The full vision document. Used to validate that recommendations align with the product direction.
+9. **`vision`** — The full vision document. Used to validate that recommendations align with the product direction.
 
-8. **`product_standard`** — The quality bar. Used to calibrate whether gaps are critical vs. acceptable.
+10. **`product_standard`** — The quality bar. Used to calibrate whether gaps are critical vs. acceptable.
 
-9. **`retry_counts`** — Any escalated issues from the QA-fixing phase.
+11. **`retry_counts`** — Any escalated issues from the QA-fixing phase.
 
-10. **`qa_fix_results`** — Results from the most recent QA-fixing phase (if it ran). Shows what was fixed, what was escalated, what was skipped.
+12. **`qa_fix_results`** — Results from the most recent QA-fixing phase (if it ran). Shows what was fixed, what was escalated, what was skipped.
 
 ---
 
@@ -139,9 +147,70 @@ For each gap:
 5. Classify using the signals above
 6. Assign a confidence to your classification (0.0-1.0). If confidence < 0.6, log it as a `phase_decision` with the uncertainty flagged.
 
+### Step 2.5: Decomposition Health Check
+
+Before recommending next action, check whether the DECOMPOSITION ITSELF is sound — not just the feature implementation.
+
+#### Check 1: Foundation Completeness
+
+For each PENDING feature area (not yet built):
+1. List the entities, integrations, and shared infrastructure it needs
+2. Cross-reference against `foundation_spec` (what was built) or existing codebase
+3. If shared infrastructure is missing AND would benefit 2+ pending areas → foundation gap
+
+#### Check 2: Integration Coverage
+
+For each pending feature area:
+1. List the integrations it needs (from vision.json and active_spec)
+2. Check the integration catalogue (`library/integrations/tier-2/`, `tier-3/`)
+3. If an integration is needed but no catalogue pattern exists → integration gap
+
+#### Check 3: Schema Fitness
+
+If a feature cycle just completed:
+1. Did the builder need to ALTER TABLE or create new migrations for entities that should have been in the foundation?
+2. Did the builder create JSON blob fields where typed columns would be better?
+3. Did the evaluation flag data model issues?
+
+If YES to any → the foundation was incomplete. Schema debt is accumulating.
+
+#### Check 4: Silent Degradation Detection
+
+Review the just-completed feature cycle:
+1. Did the builder substitute simpler alternatives for spec requirements? (Check `divergences`)
+2. Did the builder skip integration-dependent features? (Check `skipped` with blocker_type "integration" or "infrastructure")
+3. Did quality gaps in the evaluation stem from missing infrastructure rather than implementation quality?
+
+If YES → the builder is avoiding capabilities it doesn't have. Foundation intervention needed.
+
+#### Recommendation: insert-foundation
+
+If any of Checks 1-4 reveal structural issues:
+
+**Autonomy rule:** Insert foundation autonomously when the restructure is bounded (would NOT throw away >50% of existing work). Escalate to human when restructure scope exceeds bounds.
+
+Calculate restructure scope:
+- Count features already built vs features remaining
+- Count schema changes needed vs existing tables
+- If restructure affects <50% of completed work → autonomous insert
+- If restructure affects >=50% → escalate to human with explanation
+
+When recommending insert-foundation:
+```json
+{
+  "action": "insert-foundation",
+  "foundation_scope": ["PostGIS migration", "maps-api-scaffold", "trip-simulator-fixtures"],
+  "rationale": "Trips feature needs PostGIS geometry but schema uses JSON blobs. Dashboard and maps will need the same fix. Foundation cycle is cheaper than fixing each feature individually.",
+  "restructure_scope": "15% — only trips table needs migration, no existing features affected"
+}
+```
+Write to `analysis_recommendation` in `cycle_context.json`.
+
 ### Step 3: Recommendation Logic
 
-Based on the PO Review verdict, confidence score, trend analysis, and root cause classifications, determine the recommended action. This is decision logic, not heuristic guessing. Follow the rules exactly:
+Based on the PO Review verdict, confidence score, trend analysis, root cause classifications, and decomposition health check, determine the recommended action. This is decision logic, not heuristic guessing. Follow the rules exactly.
+
+**Priority rule:** `insert-foundation` takes PRIORITY over `continue` — if the decomposition health check found structural issues, fixing them now is cheaper than discovering them in every subsequent feature cycle.
 
 #### PROMOTE — Ready for production
 
@@ -202,6 +271,21 @@ Include: a structured summary of what's wrong, what's been tried, and what you b
 
 Include: which loops to roll back to, what got worse, the specific evidence of regression, and a hypothesis for what went wrong. The rollback preserves all learnings — only the code is reverted.
 
+#### INSERT-FOUNDATION — Decomposition was wrong, infrastructure missing
+
+**Conditions (ALL must be true):**
+- Decomposition Health Check (Step 2.5) found structural issues (foundation gaps, integration gaps, schema debt, or silent degradation)
+- The restructure scope affects <50% of completed work (autonomous threshold)
+- The missing infrastructure would benefit 2+ pending feature areas
+
+**Output:** `recommendation: "insert-foundation"`
+
+Include: `foundation_scope` (list of specific infrastructure to build), `rationale` (why this is a decomposition problem not a feature problem), and `restructure_scope` (percentage of completed work affected with explanation).
+
+This action means the original decomposition missed shared infrastructure that multiple features need. Rather than patching each feature individually, insert a foundation cycle to build the infrastructure properly.
+
+**If restructure scope >= 50%:** Do NOT recommend `insert-foundation`. Instead recommend `notify-human` with a clear explanation that the decomposition needs major restructuring and the human should decide whether to proceed or pivot.
+
 ### Step 4: Cross-Cycle Pattern Detection
 
 After classifying individual gaps and making your recommendation, look for patterns across cycles:
@@ -237,10 +321,16 @@ Each brief contains:
 
 ## What You Write
 
-Update `cycle_context.json` with:
+Update `cycle_context.json` with both `analysis_result` (full analysis) and `analysis_recommendation` (top-level key the launcher reads for foundation insertion):
 
 ```json
 {
+  "analysis_recommendation": {
+    "action": "promote | deepen:<area> | broaden | insert-foundation | notify-human | rollback",
+    "foundation_scope": ["<only when action is insert-foundation — list of infrastructure to build>"],
+    "rationale": "<why this action>"
+  },
+
   "analysis_result": {
     "phase": "analyzing",
     "cycle": "<cycle number>",
@@ -255,12 +345,21 @@ Update `cycle_context.json` with:
       "flags": ["plateau_detected | regression_detected | steep_improvement | none"]
     },
 
-    "recommendation": "promote | deepen:<area> | broaden | notify-human | rollback",
+    "recommendation": "promote | deepen:<area> | broaden | insert-foundation | notify-human | rollback",
     "recommendation_reasoning": "string — detailed explanation of why this recommendation, referencing specific evidence",
+
+    "decomposition_health": {
+      "foundation_gaps": ["string — missing shared infrastructure"],
+      "integration_gaps": ["string — needed integrations without catalogue patterns"],
+      "schema_debt": ["string — schema issues from incomplete foundation"],
+      "silent_degradation": ["string — capabilities the builder avoided"],
+      "restructure_scope": "string — percentage of completed work affected",
+      "structural_issues_found": "boolean"
+    },
 
     "root_cause_analysis": [
       {
-        "gap_id": "string — from po_review_report.quality_gaps[].id",
+        "gap_id": "string — from evaluation_report.po.quality_gaps[].id or evaluation_report.qa.fix_tasks[].id",
         "gap_description": "string",
         "root_cause": "spec_ambiguity | design_choice | missing_context | implementation_bug",
         "classification_confidence": 0.0-1.0,
@@ -331,6 +430,7 @@ You do NOT modify `state.json` directly. The launcher reads your `recommendation
 
 - `promote` -> `promoting` (merge PR, promote to production)
 - `deepen:<area>` or `broaden` -> `generating-change-spec` (produce new specs for next cycle)
+- `insert-foundation` -> `foundation-building` (insert a foundation cycle to build missing infrastructure)
 - `notify-human` -> `waiting-for-human` (pause and send Slack notification)
 - `rollback` -> `rolling-back` (close PR, revert staging)
 
@@ -374,3 +474,4 @@ If `qa_fix_results.escalation_needed` is true, the QA-fixing phase gave up on ce
 - **Ignoring trends**: A single-cycle analysis that doesn't reference confidence history is incomplete. The trend IS the signal.
 - **Anchoring on PO Review's recommended_action**: The PO Review suggests an action, but you validate it with additional context (factory decisions, retry counts, trends). Override when the evidence warrants it.
 - **Optimistic promotion**: If you're on the fence between promote and deepen, default to deepen. Promoting a product that isn't ready wastes the human's review time and erodes trust in the system.
+- **Ignoring decomposition health**: If the health check found structural issues, do not recommend `continue` or `deepen` — those will just paper over infrastructure gaps. Fix the foundation first. Conversely, do not recommend `insert-foundation` for single-feature issues — that's what `deepen` is for. Foundation insertion is for SHARED infrastructure that multiple features need.

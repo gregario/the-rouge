@@ -109,7 +109,7 @@ Emit: `Security: <PASS|FAIL>`
 
 ## What You Write
 
-To `cycle_context.json`, write a `code_review_report` key (NOT `qa_report`):
+To `cycle_context.json`, write a `code_review_report` key (NOT `evaluation_report`):
 
 ```json
 {
@@ -178,6 +178,6 @@ git commit -m "eval(code-review): cycle <N> — audit <score>/100"
 - **Never modify production code.** You are a reviewer, not a fixer. Log findings; the builder fixes them.
 - **Never inflate scores.** Downstream phases make routing decisions from your numbers. Dishonest scores waste cycles.
 - **Never run security review on frontend-only changes.** Check `diff_scope.backend` — scope awareness prevents wasted work.
-- **Never write to `qa_report`.** That key belongs to the evaluation phase. You write to `code_review_report` only.
+- **Never write to `evaluation_report`.** That key belongs to the evaluation phase. You write to `code_review_report` only.
 - **Never skip the degradation comparison.** Every metric must be compared to the previous cycle. Regressions that slip through compound.
 - **Never compare against arbitrary baselines.** Compare against the project's OWN previous cycle. Improvement is relative to self.

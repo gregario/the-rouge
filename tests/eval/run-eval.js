@@ -161,7 +161,7 @@ if (evalReport) {
 // ============================================================================
 console.log('\n🔍 QA GATE PHASE');
 
-const qa = ctx.qa_report;
+const qa = ctx.evaluation_report?.qa;
 check('QA report exists', qa != null);
 if (qa) {
   check('Has verdict', qa.verdict === 'PASS' || qa.verdict === 'FAIL');
@@ -201,7 +201,7 @@ if (qa) {
 // ============================================================================
 console.log('\n👀 PO REVIEW PHASE');
 
-const po = ctx.po_review_report;
+const po = ctx.evaluation_report?.po;
 check('PO report exists', po != null);
 if (po) {
   check('Has verdict', ['PRODUCTION_READY', 'NEEDS_IMPROVEMENT', 'NOT_READY'].includes(po.verdict));

@@ -1,0 +1,43 @@
+id: stripe
+name: Stripe
+tier: 2
+category: payments
+description: >
+  Payment processing platform supporting one-time payments, subscriptions,
+  invoicing, and marketplace payouts. Test mode provides full API access
+  with no cost. Production charges per-transaction with no monthly fee.
+cost_tier: usage-based
+
+requires:
+  env_vars:
+    - STRIPE_SECRET_KEY
+    - STRIPE_PUBLISHABLE_KEY
+    - STRIPE_WEBHOOK_SECRET
+  packages:
+    - stripe
+  cli_tools:
+    - stripe
+
+setup_steps:
+  - Create a Stripe account at dashboard.stripe.com
+  - Get API keys from Developers > API keys (use test mode keys first)
+  - Install the Stripe CLI and run `stripe login`
+  - Set up a webhook endpoint in the application
+  - Register the webhook in Stripe dashboard or via `stripe listen --forward-to`
+  - Configure environment variables in .env.local
+
+teardown_steps:
+  - Disable the webhook endpoint in Stripe dashboard
+  - Remove API keys from environment variables
+  - Remove Stripe package if no longer needed
+
+tested_with:
+  - nextjs-cloudflare
+
+free_tier_limits:
+  test_mode: unlimited
+  test_transactions: unlimited
+  production_fee: "2.9% + 30c per successful card charge"
+  monthly_fee: none
+
+staleness_date: "2026-03-26"

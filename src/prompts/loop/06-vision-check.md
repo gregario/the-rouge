@@ -23,8 +23,8 @@ From `cycle_context.json`:
 - `factory_decisions` — decisions made during building phases (rationale, alternatives considered)
 - `factory_questions` — unresolved questions from building phases
 - `evaluator_observations` — observations from QA and PO review phases
-- `po_review_report.confidence` — current PO confidence level
-- `po_review_report.quality_gaps` — known gaps between current state and quality bar
+- `evaluation_report.po.confidence` — current PO confidence level
+- `evaluation_report.po.quality_gaps` — known gaps between current state and quality bar
 
 From `state.json`:
 - `confidence_history` — array of confidence scores from previous vision checks

@@ -1,0 +1,54 @@
+id: sentry-react-boundary
+name: Sentry React Error Boundary
+tier: 3
+service: sentry
+category: error-handling
+tags:
+  - error-boundary
+  - react
+  - monitoring
+description: >
+  React error boundary powered by Sentry that captures component tree errors,
+  reports them with full context (breadcrumbs, user info, tags), and renders
+  a user-facing fallback UI instead of a white screen.
+applies_when: >
+  React app needs error capturing with user-facing fallback UI. Should wrap
+  major application sections (layout, page content, widget areas) to provide
+  graceful degradation when components throw.
+
+requires:
+  packages:
+    - "@sentry/nextjs"
+  env_vars:
+    - NEXT_PUBLIC_SENTRY_DSN
+
+code_patterns:
+  - file: components/error-boundary.tsx
+    description: >
+      Wrapper component using Sentry.ErrorBoundary with a custom fallback
+      component. The fallback receives the error and resetError callback,
+      displaying a user-friendly message with a retry button. Includes
+      beforeCapture callback to add tags and context to the Sentry event.
+  - file: app/layout.tsx
+    description: >
+      Root layout wrapping children in the error boundary. Optionally wraps
+      individual page sections in separate boundaries for granular fallbacks
+      (e.g., sidebar error does not crash the main content).
+  - file: lib/sentry/breadcrumbs.ts
+    description: >
+      Custom breadcrumb tracking for user interactions (button clicks,
+      navigation, form submissions) to provide context leading up to errors.
+      Uses Sentry.addBreadcrumb() at key interaction points.
+
+tested_with:
+  - nextjs-cloudflare
+
+scale_considerations: >
+  Error sampling rate matters at scale — set sampleRate to 0.1 (10%) for
+  high-traffic apps to stay within free tier limits and avoid noise. Configure
+  tracesSampleRate separately for performance monitoring. Source maps must be
+  uploaded via sentry-cli in CI for readable production stack traces — without
+  them, minified errors are nearly useless. For Next.js on Cloudflare, use
+  @sentry/cloudflare instead of @sentry/nextjs for the edge runtime, as the
+  Node.js APIs are not available. Consider using Sentry's beforeSend callback
+  to filter noisy errors (e.g., network timeouts, browser extensions).

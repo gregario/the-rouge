@@ -1,0 +1,45 @@
+id: stripe-checkout-session
+name: Stripe Checkout Session
+tier: 3
+service: stripe
+category: payments
+tags:
+  - checkout
+  - server-side
+  - redirect
+description: >
+  Server-side creation of Stripe Checkout Sessions for one-time or subscription
+  payments. Redirects the user to Stripe-hosted checkout page, then back to
+  your success/cancel URLs. Handles PCI compliance automatically.
+applies_when: >
+  Product needs one-time or subscription payments with hosted checkout.
+  Preferred when you want minimal payment UI code and full PCI compliance
+  without handling card details directly.
+
+requires:
+  packages:
+    - stripe
+  env_vars:
+    - STRIPE_SECRET_KEY
+    - STRIPE_PUBLISHABLE_KEY
+
+code_patterns:
+  - file: app/api/checkout/route.ts
+    description: >
+      API route that creates a Stripe Checkout Session with line items,
+      mode (payment or subscription), and success/cancel URLs. Returns
+      the session URL for client-side redirect.
+  - file: app/api/webhooks/stripe/route.ts
+    description: >
+      Webhook handler that listens for checkout.session.completed events
+      to fulfill orders, activate subscriptions, or update database records.
+
+tested_with:
+  - nextjs-cloudflare
+
+scale_considerations: >
+  Hosted checkout scales infinitely — Stripe handles the payment page rendering
+  and PCI compliance. For high-volume products where redirect friction hurts
+  conversion, consider Stripe Elements for embedded checkout (keeps users on
+  your domain). Checkout Sessions expire after 24 hours by default; for
+  time-sensitive offers, set expires_at to a shorter window.

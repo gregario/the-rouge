@@ -45,7 +45,7 @@ The Runner SHALL manage the full autonomous cycle as a state machine with define
   - `cycle_number`: integer, incremented after each full build-evaluate loop
   - `feature_areas`: list of all feature areas with status (`pending`, `in-progress`, `complete`)
   - `current_feature_area`: which feature area is active (null for whole-product)
-  - `last_qa_report`: the most recent QA gate report
+  - `last_evaluation_report`: the most recent evaluation report (contains `.qa`, `.po`, `.design`, `.health_score`)
   - `last_po_review`: the most recent PO Review report
   - `change_specs_pending`: list of change specs not yet sent to Factory
   - `vision_check_results`: array of past vision check outcomes

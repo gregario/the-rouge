@@ -128,7 +128,7 @@ Emit: `Health: <score>/100`
 
 ## QA Verdict Rules
 
-For `qa_report.verdict`:
+For `evaluation_report.qa.verdict`:
 - **PASS:** zero CRITICAL findings AND criteria pass rate >= 90% AND health >= 70 AND security PASS AND a11y PASS
 - **FAIL:** any CRITICAL finding OR criteria < 90% OR health < 70 OR security FAIL OR a11y FAIL
 
@@ -159,38 +159,23 @@ If any lens needs observations not captured in the walk, do NOT hallucinate them
 
 ## What You Write
 
-To `cycle_context.json`, write THREE keys for backwards compatibility. The `qa_report` and `po_review_report` keys ensure the analyzing phase and eval suite work unchanged. The `evaluation_report` is the new canonical structure.
+To `cycle_context.json`, write a single `evaluation_report` key containing all three lenses:
 
 ```json
 {
-  "qa_report": {
-    "verdict": "PASS|FAIL",
-    "health_score": 82,
-    "criteria_results": ["...from QA lens..."],
-    "functional_correctness": {"...from QA lens..."},
-    "code_quality_baseline": {"...from code_review_report.code_quality_baseline..."},
-    "performance_baseline": {
-      "lighthouse_scores": {"...aggregated from product_walk.screens[].lighthouse..."}
-    },
-    "code_quality_warning": false,
-    "ai_code_audit": {"...from code_review_report.ai_code_audit..."},
-    "security_review": {"...from code_review_report.security_review..."},
-    "a11y_review": {"...from Design lens..."},
-    "design_review": {"...from Design lens..."}
-  },
-  "po_review_report": {
-    "verdict": "PRODUCTION_READY|NEEDS_IMPROVEMENT|NOT_READY",
-    "confidence": 0.91,
-    "recommended_action": "continue",
-    "journey_quality": ["...from PO lens..."],
-    "screen_quality": ["...from PO lens..."],
-    "heuristic_results": {"...from PO lens..."}
-  },
   "evaluation_report": {
     "qa": {
+      "verdict": "PASS|FAIL",
       "criteria_results": [],
       "functional_correctness": {},
-      "criteria_pass_rate": 0.95
+      "criteria_pass_rate": 0.95,
+      "code_quality_baseline": {"...from code_review_report.code_quality_baseline..."},
+      "performance_baseline": {
+        "lighthouse_scores": {"...aggregated from product_walk.screens[].lighthouse..."}
+      },
+      "code_quality_warning": false,
+      "ai_code_audit": {"...from code_review_report.ai_code_audit..."},
+      "security_review": {"...from code_review_report.security_review..."}
     },
     "design": {
       "design_review": {},
@@ -200,7 +185,7 @@ To `cycle_context.json`, write THREE keys for backwards compatibility. The `qa_r
       "journey_quality": [],
       "screen_quality": [],
       "heuristic_results": {},
-      "verdict": "PRODUCTION_READY",
+      "verdict": "PRODUCTION_READY|NEEDS_IMPROVEMENT|NOT_READY",
       "confidence": 0.91,
       "recommended_action": "continue"
     },
@@ -229,7 +214,7 @@ git commit -m "eval(evaluation): cycle <N> — health <score>, QA <verdict>, PO 
 
 - **Never open a browser or run `$B` commands.** You read walk data; you do not walk.
 - **Never run CLI tools.** Code-review already ran static analysis. You read its report.
-- **Never skip the backwards-compat writes.** The analyzing phase reads `qa_report` and `po_review_report`. Breaking those keys breaks the loop.
+- **Never skip the `evaluation_report` write.** The launcher reads `evaluation_report.qa.verdict` and `evaluation_report.po.recommended_action` to route the loop. Missing keys break transitions.
 - **Never hallucinate observations.** If data is missing from the walk, add a `re_walk_requests` entry. Base every claim on a specific screen route, element, or finding from the evidence.
 - **Never modify production code.** You are a judge, not a fixer.
 - **Never inflate or deflate scores.** Downstream phases route on your numbers. Dishonest scores waste cycles or ship broken products.

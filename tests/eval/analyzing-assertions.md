@@ -6,7 +6,7 @@
 ## Mock Input
 
 `cycle_context.json` containing:
-- `po_review_report` with verdict, quality_gaps, recommended_action
+- `evaluation_report.po` with verdict, quality_gaps, recommended_action
 - `factory_decisions` from building phase
 - `factory_questions` from building phase
 - `confidence_history` array

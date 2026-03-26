@@ -119,8 +119,7 @@ function generateCycleContext(projectName) {
     divergences: [],
     factory_decisions: [],
     factory_questions: [],
-    qa_report: null,
-    po_review_report: null,
+    evaluation_report: null,
     deployment_url: null,
     infrastructure: {
       staging_url: null,
@@ -320,8 +319,8 @@ app.event('app_home_opened', async ({ event, client }) => {
           if (feature !== 'n/a') contextParts.push(`Area: ${feature}`);
 
           // Add quality metrics if available
-          const health = ctx?.qa_report?.health_score || ctx?.evaluation_report?.health_score;
-          const confidence = ctx?.po_review_report?.confidence || ctx?.evaluation_report?.po?.confidence;
+          const health = ctx?.evaluation_report?.health_score;
+          const confidence = ctx?.evaluation_report?.po?.confidence;
           if (health != null) contextParts.push(`Health: ${health}/100`);
           if (confidence != null) contextParts.push(`Conf: ${(confidence * 100).toFixed(0)}%`);
 

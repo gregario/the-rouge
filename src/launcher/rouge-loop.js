@@ -64,12 +64,8 @@ const STATE_TO_PROMPT = {
   'product-walk': 'loop/02d-product-walk.md',
   'evaluation': 'loop/02e-evaluation.md',
   're-walk': 'loop/02f-re-walk.md',
-  // Legacy (commented out — kept for reference during migration)
-  // 'qa-gate': 'loop/02b-qa-gate.md',
-  // 'po-reviewing': 'loop/02c-po-review.md',
-  // 'po-review-journeys': 'loop/02c-po-review.md',
-  // 'po-review-screens': 'loop/02c-po-review.md',
-  // 'po-review-heuristics': 'loop/02c-po-review.md',
+  'foundation-building': 'loop/00-foundation-building.md',
+  'foundation-evaluating': 'loop/00-foundation-evaluating.md',
   'qa-fixing': 'loop/03-qa-fixing.md',
   analyzing: 'loop/04-analyzing.md',
   'generating-change-spec': 'loop/05-change-spec-generation.md',
@@ -236,7 +232,42 @@ function advanceState(projectDir) {
   let next = null;
 
   switch (current) {
+    case 'foundation-building': {
+      state.foundation = state.foundation || {};
+      state.foundation.status = 'in-progress';
+      state._foundation_context = true;
+      writeJson(stateFile, state);
+      next = 'test-integrity';
+      break;
+    }
+
+    case 'foundation-evaluating': {
+      const ctx = readJson(contextFile);
+      const fVerdict = ctx?.foundation_eval_report?.verdict || 'PASS';
+      if (fVerdict === 'PASS') {
+        state.foundation.status = 'complete';
+        state.foundation.completed_at = new Date().toISOString();
+        delete state._foundation_context;
+        writeJson(stateFile, state);
+        next = 'building';
+        log(`[${projectName}] Foundation complete — proceeding to feature building`);
+      } else {
+        next = 'foundation-building';
+        log(`[${projectName}] Foundation eval FAIL — retrying foundation build`);
+      }
+      break;
+    }
+
     case 'building': {
+      // Foundation gate: if foundation needed but not complete, redirect
+      if (state.foundation && state.foundation.status === 'pending') {
+        log(`[${projectName}] Foundation needed — redirecting to foundation-building`);
+        state.current_state = 'foundation-building';
+        writeJson(stateFile, state);
+        next = 'foundation-building';
+        break;
+      }
+
       const buildDelta = state.last_build_delta || 0;
 
       // No-op build detection: if build produced no meaningful changes,
@@ -283,8 +314,12 @@ function advanceState(projectDir) {
     case 'test-integrity': {
       const ctx = readJson(contextFile);
       const verdict = ctx?.test_integrity_report?.verdict || 'PASS';
-      next = verdict === 'FAIL' ? 'test-integrity' : 'code-review';
-      if (verdict === 'FAIL') log(`[${projectName}] Test integrity FAIL — re-running`);
+      if (verdict === 'FAIL') {
+        next = 'test-integrity';
+        log(`[${projectName}] Test integrity FAIL — re-running`);
+      } else {
+        next = state._foundation_context ? 'foundation-evaluating' : 'code-review';
+      }
       break;
     }
 
@@ -321,8 +356,8 @@ function advanceState(projectDir) {
       state.re_walk_count = 0;
       state.skip_re_walk = false;
 
-      // Check QA verdict (from backwards-compat qa_report)
-      const qaVerdict = ctx?.qa_report?.verdict || 'PASS';
+      // Check QA verdict from evaluation report
+      const qaVerdict = ctx?.evaluation_report?.qa?.verdict || 'PASS';
       if (qaVerdict === 'FAIL') {
         if ((state.qa_fix_attempts || 0) >= 3) {
           next = 'waiting-for-human';
@@ -360,13 +395,28 @@ function advanceState(projectDir) {
     case 'analyzing': {
       const ctx = readJson(contextFile);
       // FW.46: Don't generate change specs from synthetic data
-      if (ctx?.po_review_report?.synthetic) {
-        log(`[${projectName}] PO report is synthetic — skipping change spec generation`);
+      if (ctx?.evaluation_report?.synthetic) {
+        log(`[${projectName}] Evaluation report is synthetic — skipping change spec generation`);
         next = 'vision-checking';
         break;
       }
-      const action = ctx?.po_review_report?.recommended_action || 'continue';
-      if (action === 'continue') next = 'vision-checking';
+      // Read the analyzing prompt's recommendation (top-level analysis_recommendation)
+      // Falls back to analysis_result.recommendation, then evaluation_report.po.recommended_action
+      const action = ctx?.analysis_recommendation?.action
+        || ctx?.analysis_result?.recommendation
+        || ctx?.evaluation_report?.po?.recommended_action
+        || 'continue';
+      // Foundation insertion: analyzing can trigger foundation mid-flight (Scale 2 pivots)
+      if (action === 'insert-foundation') {
+        state.foundation = state.foundation || {};
+        state.foundation.status = 'pending';
+        state.foundation.scope = ctx?.analysis_recommendation?.foundation_scope || [];
+        writeJson(stateFile, state);
+        next = 'foundation-building';
+        log(`[${projectName}] Analyzing recommends foundation insertion: ${state.foundation.scope.join(', ')}`);
+        break;
+      }
+      if (action === 'continue' || action === 'promote') next = 'vision-checking';
       else if (action.startsWith('deepen') || action === 'broaden') next = 'generating-change-spec';
       else if (action === 'rollback') next = 'rolling-back';
       else if (action.startsWith('notify')) next = 'waiting-for-human';
@@ -934,8 +984,8 @@ async function main() {
             context: {
               cycle: state?.cycle_number,
               featureArea: state?.current_feature_area,
-              healthScore: ctx?.qa_report?.health_score,
-              confidence: ctx?.po_review_report?.confidence,
+              healthScore: ctx?.evaluation_report?.health_score,
+              confidence: ctx?.evaluation_report?.po?.confidence,
               lastProgress: ctx?.evaluator_observations?.slice(-1)?.[0],
               completedPhases: state?.completed_phases,
             },

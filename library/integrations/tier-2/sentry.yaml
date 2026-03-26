@@ -1,0 +1,43 @@
+id: sentry
+name: Sentry
+tier: 2
+category: error-monitoring
+description: >
+  Application monitoring platform for error tracking, performance monitoring,
+  and session replay. Captures exceptions with full stack traces, breadcrumbs,
+  and context. Supports source maps for readable production errors.
+cost_tier: free-to-start
+
+requires:
+  env_vars:
+    - SENTRY_AUTH_TOKEN
+    - NEXT_PUBLIC_SENTRY_DSN
+  packages:
+    - "@sentry/nextjs"
+    - "@sentry/cloudflare"
+  cli_tools:
+    - sentry-cli
+
+setup_steps:
+  - Create a Sentry project at sentry.io (select Next.js or Cloudflare platform)
+  - Copy the DSN from Settings > Client Keys
+  - Generate an auth token from Settings > Auth Tokens
+  - Install the SDK package appropriate to your runtime
+  - Run the Sentry wizard or manually configure sentry.client.config.ts and sentry.server.config.ts
+  - Configure source map uploads in CI via sentry-cli
+
+teardown_steps:
+  - Remove Sentry SDK packages and configuration files
+  - Clear the DSN and auth token from environment variables
+  - Delete the project in Sentry dashboard if no longer needed
+
+tested_with:
+  - nextjs-cloudflare
+
+free_tier_limits:
+  errors_per_month: 5000
+  performance_transactions_per_month: 10000
+  session_replays_per_month: 50
+  retention_days: 30
+
+staleness_date: "2026-03-26"

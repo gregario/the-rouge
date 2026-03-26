@@ -12,11 +12,12 @@ You are the CYCLE RETROSPECTIVE phase of The Rouge's Karpathy Loop. You run at t
 
 From `cycle_context.json`:
 - Everything. You read the entire file. Every phase's output is your input.
-- Pay special attention to: `implemented`, `skipped`, `divergences`, `factory_decisions`, `factory_questions`, `qa_report`, `po_review_report`, `ship_result`, `doc_release_result`, `vision_check_results` (if present), `retry_counts`.
+- Pay special attention to: `implemented`, `skipped`, `divergences`, `factory_decisions`, `factory_questions`, `evaluation_report`, `ship_result`, `doc_release_result`, `vision_check_results` (if present), `retry_counts`.
 
 From `state.json`:
 - `cycle_number` — current cycle
 - `confidence_history` — vision check confidence over time
+- `foundation` — if `state.foundation.status` is `'in-progress'` or `'complete'`, this was a foundation cycle (horizontal infrastructure). If `state.foundation` is absent or `state.foundation.status` is `'pending'` or missing, this was a feature cycle (vertical functionality).
 
 From the project root:
 - `journey.json` — historical record of all previous cycles
@@ -103,6 +104,41 @@ Analyze the cycle's execution characteristics:
 
 Identify the bottleneck: which phase consumed the most time or required the most retries? This informs process improvement.
 
+### Step 3.5 — Decomposition Metrics
+
+Track how the decomposition system performed this cycle. Read `state.foundation.status` to determine cycle type (`'in-progress'` or `'complete'` = foundation cycle, otherwise feature cycle), and scan `factory_decisions` and `skipped` entries in `cycle_context.json` for decomposition events.
+
+```json
+{
+  "decomposition_metrics": {
+    "cycle_type": "foundation | feature",
+    "foundation_investment": {
+      "foundation_cycles_total": 0,
+      "foundation_retries": 0,
+      "foundation_duration_estimate": "<duration of foundation cycles in this product, or null if feature cycle>"
+    },
+    "decomposition_feedback": {
+      "mid_flight_foundation_insertions": 0,
+      "insertion_reasons": ["<reason from factory_decisions insert-foundation entries>"]
+    },
+    "integration_escalation": {
+      "hard_blocks": 0,
+      "hard_block_patterns": ["<missing pattern that caused the block>"],
+      "silent_degradations": 0
+    }
+  }
+}
+```
+
+**How to populate:**
+- **cycle_type**: Read `state.foundation.status`. `'in-progress'` or `'complete'` → `"foundation"`, otherwise → `"feature"`.
+- **foundation_investment**: Count foundation cycles from `journey.json` for this product. Count retries from `retry_counts` during foundation cycles.
+- **mid_flight_foundation_insertions**: Count entries in `factory_decisions` where the decision type is `insert-foundation`. These occur when the analyzing phase discovers the decomposition was wrong and injects a foundation cycle mid-flight (Scale 2 pivot).
+- **hard_blocks**: Count entries in `skipped` where `blocker_type` is `"integration"`. These are cases where the builder correctly hard-blocked instead of silently degrading.
+- **silent_degradations**: Should always be 0 — if you find `skipped` entries without `blocker_type: "integration"` that reference missing shared patterns, flag this as a process failure in `process_insights`.
+
+This data feeds the trend analysis in Step 7.5. Rising `mid_flight_foundation_insertions` across cycles indicates the analyzing phase is consistently underestimating complexity. Rising `hard_blocks` with decreasing `mid_flight_foundation_insertions` indicates the foundation is stabilizing.
+
 ### Step 4 — Test Health
 
 Analyze testing metrics for this cycle:
@@ -166,7 +202,12 @@ Compose the definitive record for this cycle and append it to `journey.json`:
   "commit_breakdown": { "feature": 0, "fix": 0, "refactor": 0, "test": 0, "docs": 0, "config": 0 },
   "hotspots": ["<top 3 files>"],
   "escalations": 0,
-  "retry_count": 0
+  "retry_count": 0,
+  "cycle_type": "foundation | feature",
+  "decomposition_feedback": {
+    "mid_flight_foundation_insertions": 0,
+    "hard_blocks": 0
+  }
 }
 ```
 
@@ -187,6 +228,7 @@ Write aggregate metrics back to `cycle_context.json` for the launcher and future
     "session_analysis": {},
     "test_health": {},
     "hotspots": [],
+    "decomposition_metrics": {},
     "cycle_outcome": "promoted | rolled_back | blocked | partial",
     "overall_health": "healthy | attention_needed | degrading"
   }

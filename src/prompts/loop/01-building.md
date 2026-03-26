@@ -28,6 +28,9 @@ Do not enumerate these as a checklist. Internalize them. Let them shape how you 
 **Deploys:** Staging ONLY. Never production.
 **Decides:** Nothing about what phase runs next. Build, report, exit.
 **Context Tier:** T2 — Standard. Loads active spec, applicable Library heuristics, current + prior cycle decisions. Does NOT load full vision document (summary from cycle_context is sufficient) or cross-domain Library heuristics. On cycle 1, escalate to T3 for full vision context.
+**Benefits from (optional):**
+- `library-lookup` — check Library for patterns relevant to current feature area
+- `catalogue-check` — verify integration patterns exist before building
 
 ---
 
@@ -77,7 +80,67 @@ If the branch already exists (crash recovery, re-invocation), check it out rathe
 
 ---
 
-## Step 3: Extract Tasks from the Active Spec
+## Step 2.5: Detect Complexity Profile
+
+Before extracting tasks, determine HOW to decompose this product. The profile isn't a category — it's a set of measurements that determine which capabilities activate.
+
+### Three-Input Detection (priority order)
+
+**Input 1 — Explicit declaration:** Read `vision.json`. If `complexity_profile` exists, use it. The seeding phase confirmed this with the human.
+
+**Input 2 — Stack inference (fallback if no explicit declaration):**
+| Signal | Inferred Profile |
+|--------|-----------------|
+| `@modelcontextprotocol/sdk` in deps | `api-first` |
+| `bin` field in package.json | `api-first` |
+| No UI files, CLI framework present | `api-first` |
+| Godot project, game framework | `stateful` |
+| Next.js/Remix/SvelteKit + `infrastructure.needs_database` | `full-stack` |
+| Next.js/Remix without database | `multi-route` |
+| Single HTML file or single-page framework | `single-page` |
+
+**Input 3 — Feature area validation (cross-check):**
+- If `multi-route` but feature areas reference state machines → escalate to `stateful`
+- If `multi-route` but `infrastructure.needs_database` is true → escalate to `full-stack`
+- If only 1 feature area with no dependencies → downgrade to `single-page`
+
+### Derive Decomposition Strategy
+
+After profile detection, derive the strategy:
+
+1. Count entities across all feature areas. Count relationships. Count integrations from `vision.json.infrastructure.services`.
+2. Build dependency graph from `feature_areas[].dependencies`.
+3. Calculate graph density: `edges / (nodes * (nodes - 1) / 2)`
+4. Identify cross-cutting concerns (features that span multiple areas).
+5. Determine which capabilities activate:
+
+| Capability | Activates When |
+|-----------|---------------|
+| `foundation-cycle` | `needs_unified_schema` (entities shared by 2+ areas) OR `services.length > 0` |
+| `dependency-ordering` | graph density > 0.2 |
+| `parallel-building` | independent clusters > 1 (deferred — log only) |
+| `integration-pass` | cross-cutting concerns > 0 |
+| `integration-escalation` | any service in vision NOT in integration catalogue |
+| `foundation-evaluation` | foundation-cycle activated |
+
+6. Write `decomposition_strategy` to `cycle_context.json`.
+7. Write `detected_profile` to `state.json`.
+8. Log detection reasoning to `factory_decisions`.
+
+### Foundation Gate
+
+If `foundation-cycle` capability is activated AND `state.foundation.status !== 'complete'`:
+- Write `state.current_state = "foundation-building"` to `state.json`
+- Write `foundation_spec` to `cycle_context.json` with scope and acceptance criteria derived from the analysis
+- EXIT. The launcher will dispatch the foundation building phase.
+
+Do NOT proceed to task extraction. Foundation must complete first.
+
+---
+
+## Step 3: Extract and Organize Tasks (Profile-Aware)
+
+Task extraction depends on the detected complexity profile. The profile determines the decomposition strategy, NOT a switch statement on product type.
 
 Parse `active_spec` from `cycle_context.json`. Extract every implementable task:
 
@@ -88,11 +151,37 @@ Parse `active_spec` from `cycle_context.json`. Extract every implementable task:
 5. **Interaction patterns** — Each interactive element's states (default, hover, active, disabled, loading, error, success) become implementation and visual regression tests.
 6. **Edge cases** — Each edge case becomes a test. Some require implementation changes; others verify existing behavior.
 
-Organize tasks by dependency:
-- **Foundation first:** Database schema, auth, shared utilities, layout scaffolding.
-- **Core flows second:** Primary user journeys, the thing the product exists to do.
-- **Supporting features third:** Secondary journeys, settings, edge case handling.
-- **Polish last:** Micro-interactions, transitions, empty states, overflow handling.
+### Decomposition Strategy Table
+
+| Profile | Foundation Pass | Vertical Unit | Task Granularity |
+|---------|----------------|---------------|-----------------|
+| `single-page` | None | Entire product | 1 task total |
+| `multi-route` | Layout, routing, shared components | Feature area (screen group) | 1 task per feature area |
+| `stateful` | State machine skeleton, game loop | Individual state + transitions | 1 task per state node |
+| `api-first` | Project scaffold, shared types, test harness | Single tool/command/endpoint | 1 task per public interface unit |
+| `full-stack` | DB schema, API skeleton, auth, deploy pipeline | Full vertical slice (migration + API + UI) | 1 task per feature area spanning all layers |
+
+### Composition
+
+If the profile has a `secondary`:
+- The **primary** profile determines the overall task structure
+- The **secondary** profile's decomposition applies to relevant feature areas within
+- Example: `primary: "full-stack", secondary: ["stateful"]` — full-stack foundation + vertical slices, but feature areas with state machines use stateful decomposition internally
+
+### Dependency Ordering
+
+When `dependency-ordering` capability is active:
+1. Read `decomposition_strategy.build_order` from `cycle_context.json`
+2. Build feature areas in that order — areas with no unmet dependencies first
+3. If the current feature area has unmet dependencies, skip it and try the next one
+4. Log ordering decisions to `factory_decisions`
+
+### Integration Escalation
+
+When `integration-escalation` capability is active:
+- For each feature area about to be built, check: does it need an integration that's missing from the catalogue?
+- If YES: write to `factory_questions` with specifics. Do NOT substitute.
+- If the integration is in `decomposition_strategy.integration_blockers`: HARD BLOCK, write to `factory_questions`, transition to `waiting-for-human`
 
 ---
 
