@@ -1,0 +1,13 @@
+{
+  "name": "the-rouge",
+  "version": "0.1.0",
+  "description": "Autonomous product development system that builds production-quality products through iterative self-evaluation",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "author": "gregario",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gregario/the-rouge.git"
+  }
+}
