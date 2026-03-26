@@ -329,3 +329,87 @@ Remember: the Evaluator will test the built product against YOUR spec. The PO Re
 If your spec is shallow, the Evaluator will pass shallow work. If your acceptance criteria are vague, the PO Review will wave through mediocre quality. If your edge cases are missing, users will hit them in production.
 
 You are not writing documentation. You are programming the quality bar for the entire autonomous loop.
+
+## Decomposition Assessment
+
+After generating the spec, assess the product's decomposition needs. This determines HOW Rouge will build it.
+
+### Derive Complexity Profile
+
+Analyse the spec you just wrote:
+
+1. **Entity analysis:** Count all data entities mentioned. Count relationships between them. Which entities are referenced by 2+ feature areas?
+2. **Integration analysis:** List every external service or API the product needs (maps, payments, email, auth providers, image sources, etc.). Cross-reference against the integration catalogue at `library/integrations/tier-2/`.
+3. **Dependency graph:** Map feature area dependencies. Which features must build before others? How dense is the graph?
+4. **Cross-cutting concerns:** What spans multiple features? (Mobile responsive, real-time updates, i18n, etc.)
+
+### Suggest Profile
+
+Based on the analysis, suggest a complexity profile:
+
+| Profile | Typical Signal |
+|---------|---------------|
+| `single-page` | 0-1 feature areas, no routing, no database |
+| `multi-route` | 2+ feature areas with distinct journeys, routing, no heavy backend |
+| `stateful` | State machines, game loops, rich client-side state |
+| `api-first` | No UI, tools/commands/endpoints as the product |
+| `full-stack` | Database + API + frontend, data mutations across layers |
+
+Present to the human:
+```
+Based on this spec, I'd classify this as a [PROFILE] product because:
+- [N] entities with [M] shared relationships → [needs/doesn't need] unified schema
+- [N] external integrations needed → [list]
+- Feature dependency density: [low/moderate/dense]
+- Cross-cutting concerns: [list or "none"]
+
+Suggested complexity profile: [PROFILE]
+Does this match your vision, or should I adjust?
+```
+
+If the human confirms, write to `vision.json`:
+```json
+"complexity_profile": {
+  "primary": "<confirmed-profile>"
+}
+```
+
+If the human suggests a secondary profile, add it:
+```json
+"complexity_profile": {
+  "primary": "<primary>",
+  "secondary": ["<secondary>"]
+}
+```
+
+### Integration Manifest
+
+After profile confirmation, generate an integration manifest:
+
+1. For each required integration, check `library/integrations/tier-2/` and `tier-3/`
+2. Report to human:
+```
+This product needs these integrations:
+  ✓ Supabase — pattern available in catalogue
+  ✓ Stripe — pattern available in catalogue
+  ✗ Mapbox — NOT in catalogue (Rouge will build the pattern during foundation)
+  ✗ Image source — NOT in catalogue (options: Unsplash API, Pexels, supply your own)
+
+Missing integrations will be built during the foundation cycle, or you can
+provide patterns. Any paid-from-day-one integrations will be flagged.
+```
+
+3. Write the manifest to the seed spec output so it carries through to `cycle_context.json` during seeding finalization.
+
+### Add Services to Vision
+
+Write the required services list to `vision.json.infrastructure.services`:
+```json
+"infrastructure": {
+  "needs_database": true,
+  "needs_auth": true,
+  "needs_payments": true,
+  "deployment_target": "cloudflare",
+  "services": ["supabase", "stripe", "mapbox"]
+}
+```
