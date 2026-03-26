@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 /**
  * The Rouge Launcher — Karpathy Loop of Claude Code invocations.
- * Node.js rewrite of rouge-loop.sh for reliable child process handling.
+ * Canonical launcher for The Rouge's Karpathy Loop.
  */
 
 const { execFileSync, execSync, spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { loadProjectSecrets } = require('./secrets.js');
 
 const ROUGE_ROOT = path.resolve(__dirname, '../..');
 const PROJECTS_DIR = process.env.ROUGE_PROJECTS_DIR || path.join(ROUGE_ROOT, 'projects');
@@ -15,6 +16,33 @@ const LOOP_DELAY = parseInt(process.env.ROUGE_LOOP_DELAY || '30', 10) * 1000;
 const MAX_RETRIES = 3;
 
 fs.mkdirSync(LOG_DIR, { recursive: true });
+
+// --- Secrets loading ---
+
+/**
+ * Load secrets from OS credential store for a project.
+ * Sets env vars for the current process so they're inherited by child processes.
+ * Logs key names only — NEVER values.
+ *
+ * @param {string} projectDir — absolute path to the project
+ * @param {string} projectName — display name for logging
+ * @returns {Record<string, string>} — env vars to merge into spawn env
+ */
+function loadSecretsForProject(projectDir, projectName) {
+  try {
+    const { env, missing, loaded } = loadProjectSecrets(projectDir);
+    if (loaded.length > 0) {
+      log(`[${projectName}] Loaded secrets: ${loaded.join(', ')}`);
+    }
+    if (missing.length > 0) {
+      log(`[${projectName}] Missing secrets (non-blocking): ${missing.join(', ')}`);
+    }
+    return env;
+  } catch (err) {
+    log(`[${projectName}] Secrets loading failed: ${(err.message || '').slice(0, 200)}`);
+    return {};
+  }
+}
 
 // --- Logging ---
 
@@ -590,6 +618,9 @@ async function runPhase(projectDir) {
     // FIX-6: Save state.json before phase — restore if phase overwrites it
     const stateBeforePhase = JSON.stringify(readJson(stateFile));
 
+    // Load project secrets from OS credential store
+    const secretsEnv = loadSecretsForProject(projectDir, projectName);
+
     // spawn (not execFile) for real-time stdout streaming
     const child = spawn('claude', [
       '-p',
@@ -599,7 +630,7 @@ async function runPhase(projectDir) {
       '--max-turns', '200',
     ], {
       cwd: projectDir,
-      env: { ...process.env },
+      env: { ...process.env, ...secretsEnv },
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 
