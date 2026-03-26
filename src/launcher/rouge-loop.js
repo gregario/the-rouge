@@ -400,7 +400,12 @@ function advanceState(projectDir) {
         next = 'vision-checking';
         break;
       }
-      const action = ctx?.evaluation_report?.po?.recommended_action || 'continue';
+      // Read the analyzing prompt's recommendation (top-level analysis_recommendation)
+      // Falls back to analysis_result.recommendation, then evaluation_report.po.recommended_action
+      const action = ctx?.analysis_recommendation?.action
+        || ctx?.analysis_result?.recommendation
+        || ctx?.evaluation_report?.po?.recommended_action
+        || 'continue';
       // Foundation insertion: analyzing can trigger foundation mid-flight (Scale 2 pivots)
       if (action === 'insert-foundation') {
         state.foundation = state.foundation || {};
@@ -411,7 +416,7 @@ function advanceState(projectDir) {
         log(`[${projectName}] Analyzing recommends foundation insertion: ${state.foundation.scope.join(', ')}`);
         break;
       }
-      if (action === 'continue') next = 'vision-checking';
+      if (action === 'continue' || action === 'promote') next = 'vision-checking';
       else if (action.startsWith('deepen') || action === 'broaden') next = 'generating-change-spec';
       else if (action === 'rollback') next = 'rolling-back';
       else if (action.startsWith('notify')) next = 'waiting-for-human';

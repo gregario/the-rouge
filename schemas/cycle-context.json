@@ -59,8 +59,26 @@
     },
     "factory_decisions": { "type": "array", "items": { "type": "object" } },
     "factory_questions": { "type": "array", "items": { "type": "object" } },
-    "qa_report": { "type": ["object", "null"] },
-    "po_review_report": { "type": ["object", "null"] },
+    "evaluation_report": {
+      "type": ["object", "null"],
+      "description": "Unified evaluation report from the Evaluation phase, containing qa, design, and po lenses plus health_score",
+      "properties": {
+        "qa": { "type": "object" },
+        "design": { "type": "object" },
+        "po": { "type": "object" },
+        "health_score": { "type": "number" },
+        "re_walk_requests": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "analysis_recommendation": {
+      "type": ["object", "null"],
+      "description": "Top-level recommendation from the analyzing phase, read by the launcher for state transitions",
+      "properties": {
+        "action": { "type": "string" },
+        "foundation_scope": { "type": "array", "items": { "type": "string" } },
+        "rationale": { "type": "string" }
+      }
+    },
     "deployment_url": { "type": ["string", "null"] },
     "infrastructure": {
       "type": "object",

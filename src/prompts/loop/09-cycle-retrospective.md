@@ -12,12 +12,12 @@ You are the CYCLE RETROSPECTIVE phase of The Rouge's Karpathy Loop. You run at t
 
 From `cycle_context.json`:
 - Everything. You read the entire file. Every phase's output is your input.
-- Pay special attention to: `implemented`, `skipped`, `divergences`, `factory_decisions`, `factory_questions`, `qa_report`, `po_review_report`, `ship_result`, `doc_release_result`, `vision_check_results` (if present), `retry_counts`.
+- Pay special attention to: `implemented`, `skipped`, `divergences`, `factory_decisions`, `factory_questions`, `evaluation_report`, `ship_result`, `doc_release_result`, `vision_check_results` (if present), `retry_counts`.
 
 From `state.json`:
 - `cycle_number` — current cycle
 - `confidence_history` — vision check confidence over time
-- `foundation` — if present and `true`, this was a foundation cycle (horizontal infrastructure). If absent or `false`, this was a feature cycle (vertical functionality).
+- `foundation` — if `state.foundation.status` is `'in-progress'` or `'complete'`, this was a foundation cycle (horizontal infrastructure). If `state.foundation` is absent or `state.foundation.status` is `'pending'` or missing, this was a feature cycle (vertical functionality).
 
 From the project root:
 - `journey.json` — historical record of all previous cycles
@@ -106,7 +106,7 @@ Identify the bottleneck: which phase consumed the most time or required the most
 
 ### Step 3.5 — Decomposition Metrics
 
-Track how the decomposition system performed this cycle. Read `state.foundation` to determine cycle type, and scan `factory_decisions` and `skipped` entries in `cycle_context.json` for decomposition events.
+Track how the decomposition system performed this cycle. Read `state.foundation.status` to determine cycle type (`'in-progress'` or `'complete'` = foundation cycle, otherwise feature cycle), and scan `factory_decisions` and `skipped` entries in `cycle_context.json` for decomposition events.
 
 ```json
 {
@@ -131,7 +131,7 @@ Track how the decomposition system performed this cycle. Read `state.foundation`
 ```
 
 **How to populate:**
-- **cycle_type**: Read `state.foundation`. `true` → `"foundation"`, otherwise → `"feature"`.
+- **cycle_type**: Read `state.foundation.status`. `'in-progress'` or `'complete'` → `"foundation"`, otherwise → `"feature"`.
 - **foundation_investment**: Count foundation cycles from `journey.json` for this product. Count retries from `retry_counts` during foundation cycles.
 - **mid_flight_foundation_insertions**: Count entries in `factory_decisions` where the decision type is `insert-foundation`. These occur when the analyzing phase discovers the decomposition was wrong and injects a foundation cycle mid-flight (Scale 2 pivot).
 - **hard_blocks**: Count entries in `skipped` where `blocker_type` is `"integration"`. These are cases where the builder correctly hard-blocked instead of silently degrading.

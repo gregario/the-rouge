@@ -292,16 +292,24 @@ The complexity profile is derived from spec analysis (entities, integrations, de
 
 ### Foundation Cycle in the State Machine
 
-When a product's complexity profile warrants it, the launcher sets `state.foundation = true` and the cycle follows a modified flow:
+When a product's complexity profile warrants it, the launcher sets `state.foundation.status = 'pending'` and the cycle follows a modified flow with distinct `foundation-building` and `foundation-evaluating` states:
 
 ```
-seeding → [complexity profile detected] → building (foundation) → foundation-evaluating → analyzing
+seeding → [complexity profile detected] → foundation-building → foundation-evaluating → analyzing
                                               ↑                                            |
                                               └────── insert-foundation (if needed) ───────┘
                                                                                            |
                                                                                            ↓
                                                                           building (feature) → normal flow...
 ```
+
+State machine states for foundation cycles:
+- `foundation-building` — builds horizontal infrastructure (schema, integrations, auth, UI shell)
+- `foundation-evaluating` — structural review of foundation (not user journeys)
+
+These are distinct from the feature-cycle states (`building`, `evaluation`). The `state.foundation` object tracks:
+- `status`: `'pending'` | `'in-progress'` | `'complete'`
+- `scope`: array of infrastructure items to build
 
 Foundation cycles use `rouge-foundation-build` (horizontal infrastructure) and `rouge-foundation-evaluate` (structural review) instead of the standard building and QA phases. The analyzing phase can insert additional foundation cycles via `insert-foundation` factory decisions when it discovers missing infrastructure mid-flight.
 

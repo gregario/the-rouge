@@ -28,44 +28,49 @@ Ask yourself for every quality gap:
 
 From `cycle_context.json`, extract:
 
-1. **`po_review_report`** — The full PO Review report. Your primary input. Focus on:
+1. **`evaluation_report.po`** — The PO lens from the Evaluation phase. Your primary input. Focus on:
    - `verdict`: PRODUCTION_READY, NEEDS_IMPROVEMENT, or NOT_READY
    - `confidence`: 0.0-1.0 weighted score
-   - `recommended_action`: the PO Review's suggestion (you validate or override this)
-   - `quality_gaps[]`: every gap with category, severity, description, evidence, what_good_looks_like
-   - `journey_quality`: per-journey, per-step quality assessments
-   - `screen_quality`: per-screen quality assessments
-   - `interaction_quality`: per-interaction ratings
+   - `recommended_action`: the Evaluation phase's suggestion (you validate or override this)
+   - `journey_quality[]`: per-journey, per-step quality assessments
+   - `screen_quality[]`: per-screen quality assessments
    - `heuristic_results`: which Library heuristics passed and failed
-   - `reference_comparison`: pairwise comparison results per dimension
-   - `design_review`: design review score and findings (if present)
 
-2. **`qa_report`** — The QA gate report that preceded this PO Review. Provides:
+2. **`evaluation_report.qa`** — The QA lens from the Evaluation phase. Provides:
+   - `verdict`: PASS or FAIL
    - `criteria_results`: which spec criteria passed, for context
+   - `functional_correctness`: console errors, dead elements, broken links
+   - `criteria_pass_rate`: percentage of criteria that passed
    - `code_quality_baseline`: codebase health signals
    - `performance_baseline`: Lighthouse scores
    - `code_quality_warning`: boolean flag if degradation thresholds were breached
    - `ai_code_audit`: AI-powered code quality assessment (if present)
    - `security_review`: security findings (if present)
 
-3. **`factory_decisions`** — What the builder chose during implementation. Critical for root cause analysis: if the builder logged a decision that produced a quality gap, the root cause is the decision, not a random bug.
+3. **`evaluation_report.design`** — The Design lens from the Evaluation phase. Provides:
+   - `design_review`: design review score, category scores, AI slop score, notable issues
+   - `a11y_review`: accessibility verdict and findings
 
-4. **`factory_questions`** — Ambiguities the builder encountered. If a quality gap aligns with a flagged question, the root cause is almost certainly missing context or spec ambiguity.
+4. **`evaluation_report.health_score`** — Overall health score (0-100) from the Evaluation phase.
 
-5. **`confidence_history`** (from `state.json`) — The trend line. You need this for regression and plateau detection.
+5. **`factory_decisions`** — What the builder chose during implementation. Critical for root cause analysis: if the builder logged a decision that produced a quality gap, the root cause is the decision, not a random bug.
 
-6. **`previous_cycles`** — Summaries of all prior cycles. You need this to detect:
+6. **`factory_questions`** — Ambiguities the builder encountered. If a quality gap aligns with a flagged question, the root cause is almost certainly missing context or spec ambiguity.
+
+7. **`confidence_history`** (from `state.json`) — The trend line. You need this for regression and plateau detection.
+
+8. **`previous_cycles`** — Summaries of all prior cycles. You need this to detect:
    - Recurring gaps (same type of gap appearing across cycles)
    - Failed approaches (what was tried before and didn't work)
    - The overall trajectory of the product
 
-7. **`vision`** — The full vision document. Used to validate that recommendations align with the product direction.
+9. **`vision`** — The full vision document. Used to validate that recommendations align with the product direction.
 
-8. **`product_standard`** — The quality bar. Used to calibrate whether gaps are critical vs. acceptable.
+10. **`product_standard`** — The quality bar. Used to calibrate whether gaps are critical vs. acceptable.
 
-9. **`retry_counts`** — Any escalated issues from the QA-fixing phase.
+11. **`retry_counts`** — Any escalated issues from the QA-fixing phase.
 
-10. **`qa_fix_results`** — Results from the most recent QA-fixing phase (if it ran). Shows what was fixed, what was escalated, what was skipped.
+12. **`qa_fix_results`** — Results from the most recent QA-fixing phase (if it ran). Shows what was fixed, what was escalated, what was skipped.
 
 ---
 
@@ -316,10 +321,16 @@ Each brief contains:
 
 ## What You Write
 
-Update `cycle_context.json` with:
+Update `cycle_context.json` with both `analysis_result` (full analysis) and `analysis_recommendation` (top-level key the launcher reads for foundation insertion):
 
 ```json
 {
+  "analysis_recommendation": {
+    "action": "promote | deepen:<area> | broaden | insert-foundation | notify-human | rollback",
+    "foundation_scope": ["<only when action is insert-foundation — list of infrastructure to build>"],
+    "rationale": "<why this action>"
+  },
+
   "analysis_result": {
     "phase": "analyzing",
     "cycle": "<cycle number>",
@@ -348,7 +359,7 @@ Update `cycle_context.json` with:
 
     "root_cause_analysis": [
       {
-        "gap_id": "string — from po_review_report.quality_gaps[].id",
+        "gap_id": "string — from evaluation_report.po.quality_gaps[].id or evaluation_report.qa.fix_tasks[].id",
         "gap_description": "string",
         "root_cause": "spec_ambiguity | design_choice | missing_context | implementation_bug",
         "classification_confidence": 0.0-1.0,
