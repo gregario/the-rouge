@@ -31,7 +31,7 @@ Inspired by [Karpathy's AutoResearch](https://github.com/karpathy/autoresearch):
 
 You describe the product. Rouge runs eight discipline-specific personas through it: brainstorming, competition analysis, product taste, spec generation, design, legal, marketing. You approve the vision, Rouge writes `vision.json` (the north star for all autonomous decisions), and hands off to the loop.
 
-About 30 minutes of your time. Then it's autonomous.
+About 10-20 minutes of your time. Then it's autonomous.
 
 ### The autonomous loop (Rouge does this part)
 
