@@ -105,7 +105,7 @@ Between these, it runs autonomously. Prefers batching (one daily briefing) over 
 
 ### 8. Karpathy Loop execution model
 
-Each phase of the state machine runs as a separate, short-lived `claude -p` invocation. No long-running process. State lives on disk (`state.json`, `cycle_context.json`). A bash launcher script (~50 lines) reads state, spawns the right Claude Code session, handles errors, and loops forever. Inspired by Karpathy's AutoResearch: each iteration is self-contained, starts fresh, reads state from disk.
+Each phase of the state machine runs as a separate, short-lived `claude -p` invocation. No long-running process. State lives on disk (`state.json`, `cycle_context.json`). A Node.js launcher (`rouge-loop.js`) reads state, spawns the right Claude Code session, handles errors, and loops forever. Inspired by Karpathy's AutoResearch: each iteration is self-contained, starts fresh, reads state from disk.
 
 **Why not a long-running Node.js process?** Claude Code sessions die (context limits, session timeouts). Fighting this with session chaining and context management adds complexity without value. The Karpathy pattern embraces ephemerality — crash recovery IS the normal operating mode.
 

@@ -21,7 +21,7 @@ Inspired by Karpathy's AutoResearch: tight feedback loops, external evaluation m
 │  Persistent Machine (thin client, Mac, or cloud VM)          │
 │                                                              │
 │  ┌────────────────────────────────────────────────────────┐  │
-│  │  rouge-loop.sh (bash, ~50 lines)                       │  │
+│  │  rouge-loop.js (Node.js launcher)                       │  │
 │  │                                                        │  │
 │  │  for each project in projects/*/; do                   │  │
 │  │    state = read state.json                             │  │
@@ -43,9 +43,9 @@ Inspired by Karpathy's AutoResearch: tight feedback loops, external evaluation m
 
 ## Components
 
-### 1. The Launcher (`rouge-loop.sh`)
+### 1. The Launcher (`rouge-loop.js`)
 
-A bash script that is the entire "runtime" of The Rouge. It:
+A Node.js script that is the entire "runtime" of The Rouge. It:
 - Iterates through all project directories
 - Reads `state.json` for each project
 - Skips paused/complete projects

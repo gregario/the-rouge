@@ -38,7 +38,7 @@ AI product factories produce technically functional but shallow products. The AI
 
 Following an architecture exploration session, the execution model has been refined:
 
-- **Karpathy Loop pattern:** Each state machine phase runs as a separate, short-lived `claude -p` invocation. No long-running process. State on disk. ~50-line bash launcher manages the loop.
+- **Karpathy Loop pattern:** Each state machine phase runs as a separate, short-lived `claude -p` invocation. No long-running process. State on disk. Node.js launcher manages the loop.
 - **V1 on subscription:** Uses Claude Code subscription auth (`claude -p` with cached OAuth). ~12x cheaper than API. V2 migrates to API key for cloud deployment.
 - **Multi-project round-robin:** Launcher iterates through all projects, one phase per project per loop. Supports parallel product development.
 - **Supabase 2-slot rotation:** Free tier manages 2 active projects via pause/unpause. Data preserved. No cost.

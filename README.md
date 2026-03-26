@@ -93,8 +93,7 @@ The Library operates in three tiers:
 the-rouge/
   src/
     launcher/              # Loop runner and supporting scripts
-      rouge-loop.sh        # Main loop (bash)
-      rouge-loop.js        # Main loop (Node.js alternative)
+      rouge-loop.js        # Main loop (Node.js launcher)
       state-to-prompt.sh   # Maps state to phase prompt
       model-for-state.sh   # Selects model per phase (Opus vs Sonnet)
       notify-slack.js      # Slack notifications
@@ -201,7 +200,7 @@ the-rouge/
 
    ```bash
    # Run in a tmux/screen session
-   bash src/launcher/rouge-loop.sh
+   node src/launcher/rouge-loop.js
    ```
 
    The launcher iterates through all projects in `projects/`, advancing each one phase per iteration. Projects in `waiting-for-human` state are skipped until feedback arrives.

@@ -94,13 +94,13 @@ ROUGE_LOOP_DELAY=30  # seconds between loop iterations
 cd src/slack && node bot.js
 
 # Terminal 2: Start the launcher
-src/launcher/rouge-loop.sh
+node src/launcher/rouge-loop.js
 ```
 
 Or run both in tmux:
 ```bash
 tmux new-session -d -s rouge 'cd src/slack && node bot.js'
-tmux split-window -h 'src/launcher/rouge-loop.sh'
+tmux split-window -h 'node src/launcher/rouge-loop.js'
 tmux attach -t rouge
 ```
 

@@ -102,7 +102,7 @@ Example foundation spec acceptance criteria:
 
 **`schemas/state.json`**: Add `foundation-building` and `foundation-evaluating` to the `current_state` enum. Add the `foundation` object to properties.
 
-**`rouge-loop.sh`**: No changes. The launcher already dispatches based on `current_state`. New states map to new skills.
+**`rouge-loop.js`**: No changes. The launcher already dispatches based on `current_state`. New states map to new skills.
 
 **New skills**:
 - `rouge-foundation-build`: Reads foundation spec from `cycle_context.json`, invokes superpowers for each foundation task. Same pattern as `rouge-build` but scoped to infrastructure.

@@ -2,7 +2,7 @@
 
 ### Context
 
-Rouge runs as a Karpathy Loop. Each phase is a short-lived `claude -p` invocation. The LAUNCHER (rouge-loop.sh) controls phase sequencing via state.json. Each phase prompt is a self-contained document that:
+Rouge runs as a Karpathy Loop. Each phase is a short-lived `claude -p` invocation. The LAUNCHER (rouge-loop.js) controls phase sequencing via state.json. Each phase prompt is a self-contained document that:
 - Reads all context from cycle_context.json
 - Does its work (build, evaluate, analyze, etc.)
 - Writes results back to cycle_context.json
@@ -109,7 +109,7 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 
 ## 0c. Prerequisite — Launcher & Communication Infrastructure
 
-- [x] 0c.1 Implement `rouge-loop.sh` — bash launcher script (~50 lines). Read state.json for each project dir, skip waiting/complete, spawn `claude -p` with phase-specific prompt, handle errors and rate limits, loop forever
+- [x] 0c.1 Implement `rouge-loop.js` — Node.js launcher. Read state.json for each project dir, skip waiting/complete, spawn `claude -p` with phase-specific prompt, handle errors and rate limits, loop forever
 - [x] 0c.2 Implement model selection in launcher — map each state to opus or sonnet model, pass `--model` flag to `claude -p`
 - [x] 0c.3 Implement multi-project directory scanning — launcher discovers projects by scanning for `state.json` in `projects/*/`
 - [x] 0c.4 Implement error handling — log failures, retry up to 3 times, transition to waiting-for-human on persistent failure, notify via Slack webhook
