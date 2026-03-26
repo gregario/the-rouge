@@ -25,3 +25,6 @@ docs/*.pdf
 # Build artifacts
 .open-next/
 .next/
+
+# Worktrees
+.worktrees/
