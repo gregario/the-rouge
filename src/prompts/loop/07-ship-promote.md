@@ -12,8 +12,7 @@ You are the SHIP/PROMOTE phase of The Rouge's Karpathy Loop. You take reviewed, 
 
 From `cycle_context.json`:
 - `review_readiness_dashboard` — all review gates and their pass/fail status
-- `qa_report` — QA verdict and details
-- `po_review_report` — PO review verdict and confidence
+- `evaluation_report` — evaluation verdict, QA details (`.qa`), and PO review (`.po`)
 - `implemented` — what was built this cycle
 - `divergences` — where implementation diverged from spec
 - `factory_decisions` — decisions made during building

@@ -7,7 +7,7 @@
 
 `cycle_context.json` containing:
 - `review_readiness_dashboard` with all gates passed
-- `qa_report`, `po_review_report` with positive verdicts
+- `evaluation_report` with positive verdicts (`.qa`, `.po`)
 - `implemented` list
 - `infrastructure.staging_url`
 

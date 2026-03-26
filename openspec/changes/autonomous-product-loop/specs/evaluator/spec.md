@@ -205,7 +205,7 @@ The QA phase SHALL produce a structured report that determines whether the produ
 - **WHEN** QA completes
 - **THEN** the report SHALL contain:
   ```
-  qa_report:
+  evaluation_report.qa:
     timestamp: ISO 8601
     product: name
     deployment_url: URL tested
@@ -427,7 +427,7 @@ The PO Review SHALL produce a structured report that identifies every quality ga
 - **WHEN** PO Review completes
 - **THEN** the report SHALL contain:
   ```
-  po_review_report:
+  evaluation_report.po:
     timestamp: ISO 8601
     product: name
     deployment_url: URL

@@ -33,10 +33,10 @@ Ask yourself before every change: "If I reverted every other commit in this phas
 
 From `cycle_context.json`, extract:
 
-1. **`qa_report`** — The full QA gate report. Focus on:
-   - `qa_report.criteria_results` where `status` is `fail` or `partial`
-   - `qa_report.functional_correctness` for console errors, dead elements, broken links
-   - `qa_report.verdict` (must be `FAIL` — you should not be invoked on a PASS)
+1. **`evaluation_report.qa`** — The QA section of the evaluation report. Focus on:
+   - `evaluation_report.qa.criteria_results` where `status` is `fail` or `partial`
+   - `evaluation_report.qa.functional_correctness` for console errors, dead elements, broken links
+   - `evaluation_report.qa.verdict` (must be `FAIL` — you should not be invoked on a PASS)
 2. **`active_spec`** — The spec that defines correct behavior. This is your source of truth for what "fixed" means.
 3. **`factory_decisions`** — What the building phase chose and why. Helps you understand the implementation context without re-investigating the full codebase.
 4. **`factory_questions`** — Ambiguities the builder encountered. If a bug aligns with a flagged ambiguity, the root cause may be a spec interpretation issue rather than a code bug.

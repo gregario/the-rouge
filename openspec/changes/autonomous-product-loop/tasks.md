@@ -455,7 +455,7 @@ Questions:
 - [x] FW.43 Split PO review into sub-phases — journey quality, screen quality, interaction quality, heuristic eval as separate lighter invocations instead of one mega-session. Each sub-phase writes partial results, next sub-phase reads them.
 - [x] FW.44 Quick PO review mode — review 1 journey + 1 screen only. For testing and fast iteration cycles.
 - [x] FW.45 Fix execFileSync output capture — switch to async execFile with streaming output to log file. Partial output must be saved even if the process dies. Current: all-or-nothing means hours of work lost on timeout.
-- [x] FW.46 Guard against synthetic data propagation — when po_review_report.synthetic is true, downstream phases must NOT generate change specs or make product modifications based on synthetic data. Analyzing phase should check this flag.
+- [x] FW.46 Guard against synthetic data propagation — when evaluation_report.po.synthetic is true, downstream phases must NOT generate change specs or make product modifications based on synthetic data. Analyzing phase should check this flag.
 
 ## Future Work — Session Feedback (2026-03-22)
 

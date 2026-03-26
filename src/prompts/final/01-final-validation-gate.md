@@ -40,12 +40,12 @@ npm test 2>&1
 ```
 
 - [ ] All tests pass (zero failures)
-- [ ] Branch coverage >= 60% (from code_quality_baseline in qa_report)
+- [ ] Branch coverage >= 60% (from code_quality_baseline in evaluation_report.qa)
 - [ ] No skipped tests without documented reason
 
 ### 3. Security
 
-From `qa_report.security_review`:
+From `evaluation_report.qa.security_review`:
 - [ ] Zero CRITICAL findings
 - [ ] Zero HIGH findings unaddressed
 - [ ] All MEDIUM findings documented with accept/defer rationale
@@ -83,7 +83,7 @@ $B html | grep -i "counterscale\|cloudflare.*beacon\|analytics"
 
 ### 7. Performance
 
-From `qa_report.performance_baseline.lighthouse_scores`, check key pages:
+From `evaluation_report.qa.performance_baseline.lighthouse_scores`, check key pages:
 - [ ] Performance score >= 80 on all key pages
 - [ ] Accessibility score >= 90 on all key pages
 - [ ] Best Practices score >= 80 on all key pages
@@ -120,7 +120,7 @@ $B goto ${STAGING_URL}/robots.txt
 
 ### 11. Accessibility Baseline
 
-From `qa_report.a11y_review`:
+From `evaluation_report.qa.a11y_review`:
 - [ ] Zero CRITICAL a11y issues
 - [ ] Color contrast meets WCAG AA on all pages
 - [ ] Keyboard navigation works for all interactive elements
