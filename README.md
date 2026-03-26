@@ -1,217 +1,174 @@
 # The Rouge
 
 <p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm%20NC-blue.svg" alt="PolyForm Noncommercial"></a>
   <a href="https://github.com/sponsors/gregario"><img src="https://img.shields.io/badge/sponsor-♥-ea4aaa.svg" alt="Sponsor"></a>
 </p>
 
-> **Experimental** — Rouge is a research project exploring autonomous product development. It is token-intensive (each phase invokes Claude Code via `claude -p`), not production-hardened, and should not be used for critical systems. Use at your own risk and monitor token usage.
+> **Experimental.** Rouge is a research project. It invokes Claude Code autonomously, deploys to real infrastructure, and makes real git commits. It could rack up your token usage, deploy broken code to staging, or commit something embarrassing. It will not, to our knowledge, sell your grandmother. Use at your own risk.
 
-An autonomous product development system that builds production-quality products through iterative self-evaluation. Rouge starts from a high baseline standard of "good" and develops design taste that improves across every project it ships.
+Describe what you want to build. Rouge figures out the architecture, builds it iteratively, evaluates its own work, and ships production-quality tech products.
 
-The core idea: a tight Karpathy Loop of Claude Code invocations with state on disk — not a traditional long-running application. Each phase starts fresh, reads state from the filesystem, does one thing, saves, and exits. The filesystem is the memory. Git is the audit trail. The launcher is a small script.
+Not one-shot code generation. Iterative product development: build, evaluate against external signals, fix, repeat until the quality bar is met. The same loop a good engineering team runs, except it runs overnight while you sleep.
 
----
+## What this looks like
 
-## Three Layers
+You describe a product in Slack. Rouge seeds it (brainstorms, writes specs, produces a design system), then builds it autonomously. Five build cycles later, you've got a deployed app with passing tests, accessibility scores, security headers, analytics, and error monitoring. The evaluation system found a missing focus trap by tabbing through the UI eleven times. Nobody told it to do that.
 
-Rouge is organized into three layers that separate concerns cleanly:
+The system is designed for products that are actually complex. A fleet management system with trips, vehicles, a dashboard, maps integration, and a trip simulator. A testimonial wall with embeddable widgets, auth, and a moderation queue. Not just landing pages (though it handles those too, in one cycle).
 
-**The Rouge (Runner)** — The outer loop. Manages state across sessions, evaluates product quality against vision and standards, decides what to build next, and refuses to ship until the bar is met. This is the orchestrator that drives the entire system.
+Here's how it works.
 
-**The Factory (Studio)** — The worker. Receives scoped briefs from the Runner and builds products using an established pipeline: brainstorm, design, implement, test, QA. The Factory does not decide what to build — it executes what the Runner specifies.
+## The Karpathy Loop
 
-**The Library (Accumulated Mind)** — Persistent knowledge store. Global product standards, domain-specific taste entries (web, games, artifacts), and learned judgment from human feedback. The Library grows with every project shipped and feeds context into every phase.
+Inspired by [Karpathy's AutoResearch](https://github.com/karpathy/autoresearch): tight feedback loops with external evaluation. No long-running process. Each phase starts fresh, reads state from the filesystem, does one thing, saves, and exits. The filesystem is the memory. Git is the audit trail. The launcher is a small Node.js script.
 
----
+<p align="center">
+  <img src="docs/diagrams/karpathy-loop.png" alt="The Karpathy Loop: Seed → Foundation → Build/Evaluate → Ship, with backwards restructure flow" width="480">
+</p>
 
-## How It Works
+### Seeding (you do this part)
 
-Rouge follows a Karpathy Loop — tight feedback loops with external evaluation, inspired by [Karpathy's AutoResearch](https://github.com/karpathy/autoresearch). A product goes through two stages:
+You describe the product. Rouge runs eight discipline-specific personas through it: brainstorming, competition analysis, product taste, spec generation, design, legal, marketing. You approve the vision, Rouge writes `vision.json` (the north star for all autonomous decisions), and hands off to the loop.
 
-### Seeding (Interactive)
+About 30 minutes of your time. Then it's autonomous.
 
-Seeding is the only interactive stage. A human provides the product idea, and Rouge runs through a series of one-time phases to produce everything needed before autonomous building begins:
+### The autonomous loop (Rouge does this part)
 
-1. **Brainstorming** — Expansive exploration of the product space
-2. **Competition Review** — Maps the competitive landscape
-3. **Taste Evaluation** — Challenges the idea on premise, persona, and scope
-4. **Spec Generation** — Formal product specification
-5. **Design** — UX architecture, component design, visual design
-6. **Legal and Privacy** — License, terms, privacy policy generation
-7. **Marketing** — Landing page, README, positioning
+The launcher picks up your seeded project and iterates:
 
-Seeding produces a `vision.json` (the north star for all autonomous decisions) and a product standard that defines the quality bar.
+1. **Build** — reads specs, writes code with TDD, deploys to staging
+2. **Evaluate** — five-lens assessment: test integrity, code review, browser QA walkthrough, product evaluation, and design review. One browser session, three evaluation lenses reading the same observation data
+3. **Analyse** — reads all evaluation reports, computes quality deltas, classifies root causes, decides what to do next
+4. **Fix or advance** — if quality gaps exist, generate a change spec and rebuild. If the feature area passes, move to the next one. If everything passes, ship.
 
-### Autonomous Loop (Unattended)
+The loop runs until all feature areas meet the quality bar. Then it promotes to production and pings you on Slack.
 
-Once seeded, Rouge enters the autonomous loop. A launcher script iterates through projects, advancing each one phase per iteration:
+## Composable decomposition
 
-1. **Building** — Reads specs, writes code, deploys to staging
-2. **Evaluation** — Multi-oracle quality assessment:
-   - Test integrity verification
-   - Browser QA against staging
-   - Code review
-   - PO (product owner) review against heuristics
-   - Product walkthrough with screenshots
-3. **Analysis** — Reads evaluation reports, computes quality deltas, decides: continue improving, broaden to next feature, roll back, or notify human
-4. **Change Spec Generation** — Translates quality gaps into new specs
-5. **Vision Check** — Holistic re-evaluation against the original vision
-6. **Ship or Iterate** — Promotes to production when the bar is met, or generates another loop iteration
+This is the core innovation. Simple products (a timer app) need no decomposition. Complex products (a fleet management system with trips, vehicles, a dashboard, maps integration, mobile view, and a trip simulator) need a completely different approach.
 
-The loop runs until all feature areas pass evaluation, at which point the product is promoted and the human is notified.
+Rouge doesn't ask "are you building an MCP or a SaaS?" and hand you a different workflow. That's a switch statement, and switch statements don't scale.
 
----
+Instead, Rouge derives a **complexity profile** from your spec. Measurements, not categories:
 
-## Key Concepts
+- How many entities share relationships across feature areas?
+- How many external integrations does the product need?
+- How dense is the feature dependency graph?
+- Are there cross-cutting concerns?
 
-### Two-Loop Model
+These measurements activate **composable capabilities**:
 
-The inner loop (AI, autonomous) builds to "good" aiming for "great." The outer loop (human feedback) refines from good to great. Human involvement is reserved for taste refinement, not grunt work.
+| Capability | Activates when | What it does |
+|-----------|---------------|-------------|
+| Foundation cycle | Shared schema needed or integrations required | Horizontal infrastructure pass before any features |
+| Dependency ordering | Dense feature graph | DAG-resolved build order |
+| Integration escalation | Missing integration pattern | Hard blocks instead of silently degrading |
+| Foundation evaluation | Foundation cycle ran | Structural review, not user journeys |
 
-### External Oracles
+A timer activates nothing. Fleet management activates everything. Same system, different measurements, different capabilities.
 
-Quality evaluation is grounded in measurable signals, not self-assessment. The system uses browser QA, Lighthouse scores, spec-completeness checks, code quality analysis (complexity, duplication, circular dependencies, dead code, coverage), and structured PO reviews.
+### The capability avoidance problem
 
-### Taste as Heuristics
+Here's why this matters. Without decomposition, Rouge builds features vertically. The trips feature stores GPS coordinates as a JSON blob. The maps feature needs PostGIS geometry. The dashboard can't aggregate geographically. Three cycles wasted on rework that was predictable from the vision.
 
-Design taste is encoded as objective, testable signals — not subjective judgment. Each heuristic in the Library has a name, a measurement method, a threshold, and a rationale. Examples: "page load time under 2 seconds," "primary content occupies dominant visual position," "core tasks complete in 3 clicks or fewer."
+Worse: the builder optimises for what it CAN build, not what the product NEEDS. If it doesn't have a maps integration pattern, it substitutes a table of coordinates. Every test passes. QA is green. But the product is useless.
 
-### Library Tiers
+Rouge's fix: **hard blocking**. If the product needs maps and the integration pattern doesn't exist, Rouge blocks and pings you on Slack. It doesn't substitute. It either builds the pattern autonomously (researches the API, evaluates trade-offs at different scales, creates a wrapper, writes tests) or escalates: "This product needs maps and I can't build that pattern. Here are your options."
 
-The Library operates in three tiers:
+When it does build that maps pattern, the pattern gets added to Rouge's integration catalogue. The next product that needs maps doesn't have to build it again. Every product Rouge builds makes Rouge better at building the next one.
 
-- **Global standards** — Seeded on day one. Universal quality heuristics (accessibility, performance, error handling, responsive design).
-- **Domain-specific taste** — Grows per domain. Web apps have different standards than games or CLI tools.
-- **Personal taste / learned judgment** — Accumulated from human feedback. Tagged as global or domain-specific so learnings transfer across projects.
+A blocked product is better than a degraded one.
 
----
+### Foundation cycles
 
-## Project Structure
+When the complexity profile shows shared infrastructure, Rouge runs a foundation cycle before any features. This is a horizontal slice: unified data model, integration scaffolds, auth flows, shared UI components, deployment pipeline, test fixtures.
 
-```
-the-rouge/
-  src/
-    launcher/              # Loop runner and supporting scripts
-      rouge-loop.js        # Main loop (Node.js launcher)
-      state-to-prompt.sh   # Maps state to phase prompt
-      model-for-state.sh   # Selects model per phase (Opus vs Sonnet)
-      notify-slack.js      # Slack notifications
-      rouge-safety-check.sh # Pre-execution safety validation
-      deploy-to-staging.js # Staging deployment
-      estimate-cost.js     # Token cost estimation
-      validate-library.sh  # Library entry validation
-      ...
-    prompts/
-      seeding/             # One-time interactive phases
-        00-swarm-orchestrator.md
-        01-brainstorming.md
-        02-competition.md
-        03-taste.md
-        04-spec.md
-        05-design.md
-        06-legal-privacy.md
-        07-marketing.md
-      loop/                # Repeating autonomous phases
-        01-building.md
-        02-evaluation-orchestrator.md
-        02a-test-integrity.md
-        02b-qa-gate.md
-        02c-code-review.md
-        02c-po-review.md
-        02d-product-walk.md
-        02e-evaluation.md
-        02f-re-walk.md
-        03-qa-fixing.md
-        04-analyzing.md
-        05-change-spec-generation.md
-        06-vision-check.md
-        07-ship-promote.md
-        08-document-release.md
-        09-cycle-retrospective.md
-        10-final-review.md
-  library/                 # Accumulated design intelligence
-    global/                # Universal quality heuristics (15 entries)
-    domain/                # Domain-specific taste
-      web/                 # Web app heuristics
-      game/                # Game heuristics
-      artifact/            # Artifact heuristics
-    personal/              # Learned judgment from feedback
-    templates/             # Reusable heuristic patterns (12 entries)
-  schemas/                 # JSON schemas for all state files
-    state.json
-    cycle-context.json
-    vision.json
-    library-entry.json
-    taste-fingerprint.json
-    feedback-classification.json
-    po-check-template.json
-  projects/                # Product workspaces (one dir per product)
-  tests/                   # Test suite
-  docs/                    # Architecture docs and plans
-  rouge.config.json        # Safety hooks and deploy configuration
+Foundation cycles get evaluated differently. No user journeys to test. Instead: does the schema support all feature areas? Do integration scaffolds work? Would any feature need to ALTER TABLE? If yes, foundation fails and retries.
+
+### The backwards flow
+
+Sometimes the decomposition is wrong. Rouge builds two features, gets to the third, and discovers the data model needs rework. Instead of pushing through (silent degradation), the analysing phase detects the structural issue and inserts a foundation cycle mid-flight.
+
+This is like a startup pivot, at a smaller scale. The system goes backwards to fix the architecture, then resumes building features on solid ground. Autonomous when the restructure is bounded. Escalates to you when it isn't.
+
+## The integration catalogue
+
+Rouge maintains a catalogue of integration patterns at three tiers:
+
+- **Tier 1 (Stacks)** — Language, framework, runtime. Next.js on Cloudflare, Godot, etc.
+- **Tier 2 (Services)** — External services with lifecycle. Supabase, Stripe, Sentry, Counterscale.
+- **Tier 3 (Integrations)** — Code patterns within services. Stripe checkout session, Supabase RLS, Sentry error boundary.
+
+Each entry includes setup guides, env var management, free tier limits, scale considerations, and working code patterns. The catalogue ships with seed entries and **grows as Rouge builds products**. When Rouge builds an integration it doesn't have a pattern for, it writes a draft entry. After the product ships, that pattern can be contributed back.
+
+This is how the community grows Rouge's capabilities. You launch with 15 patterns. The community builds products, contributes patterns, and within months the catalogue has hundreds. Each one was built by Rouge itself while building a real product, so the quality is practical.
+
+## The Library
+
+The Library is Rouge's accumulated design intelligence. Not documentation. Machine-readable context that feeds into every phase.
+
+**Global standards** — 15 universal quality heuristics. Page load time, accessibility, error recovery, responsive design. Ship on day one.
+
+**Domain-specific taste** — Grows per domain. Web apps have different standards than API services or games.
+
+**Learned judgment** — Accumulated from your feedback. Phase timing calibration, quality patterns, heuristic performance. Your Rouge learns your taste.
+
+Each heuristic has a name, a measurement method, a threshold, and a rationale. "Page load time under 2 seconds." "Core tasks complete in 3 clicks or fewer." "Primary content occupies dominant visual position." Taste encoded as testable signals.
+
+## Getting started
+
+```bash
+git clone https://github.com/gregario/the-rouge.git
+cd the-rouge
+npm install
 ```
 
----
+### Prerequisites
 
-## Prerequisites
+- **Claude Code CLI** — `claude -p` is the execution engine for every phase
+- **Node.js 18+** — launcher, Slack bot, supporting scripts
+- **Git** — every phase commits. Git is the audit trail
+- **GStack browse** — browser automation for evaluation phases. Screenshots, DOM analysis, Lighthouse, console errors. Required for web products. macOS only for now (Playwright fallback is on the roadmap)
+- **Slack App** — notifications and control plane. Rouge pings you when it ships, when it's blocked, when it needs feedback. You can start, pause, and monitor projects from your phone. Free workspace, one custom app with Socket Mode
 
-- **Claude Code CLI** — `claude -p` must be available. This is the execution engine for every phase.
-- **Node.js 18+** — For the launcher scripts, Slack bot, and supporting tooling.
-- **Git** — Every phase commits its work. Git is the audit trail.
-- **Slack App** (recommended) — For notifications and control plane. Free workspace, one custom app with Socket Mode enabled. Allows starting, pausing, and monitoring projects from your phone.
-- **GStack browse** (recommended for web products) — Browser automation for QA phases. Provides navigation, screenshots, DOM analysis, and console error capture.
-- **Wrangler CLI** (for deployment) — Cloudflare Workers deployment for staging and production.
-- **Supabase CLI** (if products need a database) — Project creation, migrations, edge functions.
+Optional:
+- **Wrangler CLI** — Cloudflare Workers deployment
+- **Supabase CLI** — database, auth, storage
 
----
+### Set up integrations
 
-## Getting Started
+```bash
+# Walk through integration setup one at a time (optional, progressive)
+node src/launcher/rouge-cli.js setup stripe
+node src/launcher/rouge-cli.js setup supabase
 
-1. **Clone the repository:**
+# Check what's configured
+node src/launcher/rouge-cli.js secrets list
+```
 
-   ```bash
-   git clone https://github.com/gregario/the-rouge.git
-   cd the-rouge
-   ```
+Secrets are stored in your OS credential store (macOS Keychain, Linux secret-service, Windows Credential Manager). Rouge never sees the values. The launcher sets env vars before spawning each phase.
 
-2. **Install dependencies:**
+### Seed a product
 
-   ```bash
-   npm install
-   ```
+```bash
+claude -p --project projects/my-product "seed this product"
+```
 
-3. **Configure safety hooks** (optional but recommended):
+This runs through eight seeding disciplines and produces `vision.json`, specs, and all artifacts. About 30 minutes of your time.
 
-   Edit `rouge.config.json` to set blocked commands, allowed deploy targets, and custom pre-hooks. See [Safety Hooks](#safety-hooks) below.
+### Start the loop
 
-4. **Seed a product:**
+```bash
+# Run in tmux/screen
+node src/launcher/rouge-loop.js
+```
 
-   Seeding is interactive — you provide the product idea and collaborate with Rouge to define the vision, spec, and design.
+The launcher iterates through all projects in `projects/`, advancing each one phase per iteration. Projects waiting for human feedback are skipped until you respond via Slack.
 
-   ```bash
-   # Start a seeding session for a new product
-   claude -p --project projects/my-product "seed this product"
-   ```
+## Safety
 
-   This runs through the seeding phases (brainstorm, competition, taste, spec, design, legal, marketing) and produces `vision.json`, specs, and all artifacts needed for autonomous building.
-
-5. **Start the autonomous loop:**
-
-   ```bash
-   # Run in a tmux/screen session
-   node src/launcher/rouge-loop.js
-   ```
-
-   The launcher iterates through all projects in `projects/`, advancing each one phase per iteration. Projects in `waiting-for-human` state are skipped until feedback arrives.
-
----
-
-## Configuration
-
-### rouge.config.json
-
-Controls safety boundaries and deployment targets:
+Rouge includes a safety layer (`rouge-safety-check.sh`) that validates every phase before execution. Blocked commands, deploy target restrictions, custom pre-hooks. The defaults are conservative: only staging and preview deploys allowed. Production promotion requires passing the full evaluation pipeline.
 
 ```json
 {
@@ -223,71 +180,52 @@ Controls safety boundaries and deployment targets:
 }
 ```
 
-- `blocked_commands` — Shell commands that Rouge is never allowed to execute.
-- `allowed_deploy_targets` — Where Rouge can deploy autonomously. Production deployment requires explicit promotion.
-- `custom_pre_hooks` — Scripts to run before each phase for custom validation.
+## Economics
 
-### vision.json (per project)
+Rouge runs on your Claude Code subscription. Rough cost estimates per product:
 
-The north star for all autonomous decisions. Produced during seeding. Contains the product name, persona, problem statement, feature areas with user journeys, product standard (which Library tiers to inherit, overrides, additions), and infrastructure requirements.
+| Product size | Estimate | Examples |
+|-------------|----------|---------|
+| Small (1-3 features) | $5 to $20 | Timer app, landing page, simple tool |
+| Medium SaaS (5-10 features) | $50 to $150 | Task manager, dashboard, marketplace |
+| Large SaaS (10+ features) | $150 to $400 | Fleet management, multi-tenant platform |
 
----
-
-## Safety Hooks
-
-Rouge includes a safety layer that runs before every phase execution. The safety check (`rouge-safety-check.sh`) validates:
-
-- The phase prompt exists and is well-formed
-- No blocked commands are present in the execution context
-- Deploy targets are within the allowed set
-- Custom pre-hooks pass
-
-The system defaults to conservative settings: only staging and preview deploys are allowed. Production promotion requires passing through the full evaluation pipeline (test integrity, QA gate, code review, PO review, product walkthrough, and vision check).
-
----
-
-## The Library
-
-The Library is Rouge's accumulated design intelligence. It is not documentation — it is machine-readable context that feeds into every phase prompt.
-
-Each Library entry is a JSON file with a consistent schema:
-
-- **Name** — Human-readable identifier
-- **Signal** — What to measure
-- **Threshold** — What "passing" looks like
-- **Rationale** — Why this matters
-- **Domain** — Where it applies (global, web, game, etc.)
-
-The Library ships with 15 global heuristics (covering performance, accessibility, error recovery, visual consistency, responsive design, and more), 3 web-domain entries, and 12 reusable templates for common patterns (loading indicators, error specificity, microinteractions, etc.).
-
-The Library grows in two ways:
-
-1. **Cycle retrospectives** — After each autonomous loop, Rouge evaluates which heuristics were useful, which missed problems, and what new patterns were observed. New entries are proposed automatically.
-2. **Human feedback** — When a human reviews a shipped product and provides feedback, Rouge classifies it and creates or updates Library entries. Feedback is tagged as global or domain-specific so learnings transfer across projects.
-
----
-
-## Model Selection
-
-Rouge selects models per phase to balance quality and cost:
-
-- **Opus** for thinking phases: building, PO reviewing, analyzing, change-spec generation, vision checking
-- **Sonnet** for commodity phases: test integrity, QA gate, promoting, rolling back
-
-The launcher's `model-for-state.sh` script handles this mapping. You can override it per project.
-
----
+These are compute costs only. Infrastructure (Cloudflare free tier, Supabase free tier) adds nothing for small projects.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to contribute. The most valuable contribution areas are:
+See [CONTRIBUTING.md](CONTRIBUTING.md). The most valuable contributions:
 
-- **Library heuristics** — New global standards or domain-specific taste entries
-- **Phase prompt improvements** — Better evaluation criteria, edge case handling, prompt clarity
-- **Integration patterns** — New deployment targets, monitoring hooks, quality oracles
+**Integration catalogue entries** — New service adapters (Tier 2) or code patterns (Tier 3). Each product you build with Rouge can contribute patterns back. Two community approvals for Tier 3, core team for Tier 2. This is the fastest way to expand what Rouge can build.
 
----
+**Stack support** — New deployment targets, frameworks, or runtimes. Core team review required. This is how Rouge goes from "builds web apps" to "builds tech products."
+
+**Bug reports and prompt improvements** — If Rouge produces bad output, the fix is usually in a prompt. PRs welcome.
+
+Run `bash src/launcher/validate-contribution.sh <path>` to validate catalogue entries before submitting.
+
+## What's next
+
+Rouge currently builds web products on Next.js with Cloudflare and Supabase. The architecture is stack-agnostic. What Rouge can build depends on what stacks and integrations are in the catalogue.
+
+### Rouge Grow
+
+Feature expansion on shipped products. Unlike Build (which creates from zero), Grow works with existing users, existing data, and existing patterns that must be preserved. Reads analytics and user feedback to decide what to build next.
+
+### Rouge Maintain
+
+Autonomous production upkeep. SBOM scanning, bug triage from Sentry error streams, dependency updates, performance regression detection. No new features. Just keeping the lights on.
+
+### Rouge Embed
+
+Point Rouge at an existing live product. It reverse-engineers the architecture into specs, finds the weird patterns and spaghetti code, and produces a foundation for iterative improvement. Bring your existing products into the loop.
+
+These are on the roadmap. Early access will be available to [sponsors](https://github.com/sponsors/gregario) as they're built. If you're interested in contributing to any of them, [open a discussion](https://github.com/gregario/the-rouge/discussions) or reach out.
 
 ## License
 
-[MIT](LICENSE)
+[PolyForm Noncommercial 1.0.0](LICENSE)
+
+Rouge is free for personal and non-commercial use. Personal projects, research, learning, tinkering, hobby work, education.
+
+Commercial use (building products for clients, running a business on Rouge) is available via the [$100/month Commercial tier on GitHub Sponsors](https://github.com/sponsors/gregario).
