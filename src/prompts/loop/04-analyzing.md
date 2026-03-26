@@ -139,9 +139,70 @@ For each gap:
 5. Classify using the signals above
 6. Assign a confidence to your classification (0.0-1.0). If confidence < 0.6, log it as a `phase_decision` with the uncertainty flagged.
 
+### Step 2.5: Decomposition Health Check
+
+Before recommending next action, check whether the DECOMPOSITION ITSELF is sound — not just the feature implementation.
+
+#### Check 1: Foundation Completeness
+
+For each PENDING feature area (not yet built):
+1. List the entities, integrations, and shared infrastructure it needs
+2. Cross-reference against `foundation_spec` (what was built) or existing codebase
+3. If shared infrastructure is missing AND would benefit 2+ pending areas → foundation gap
+
+#### Check 2: Integration Coverage
+
+For each pending feature area:
+1. List the integrations it needs (from vision.json and active_spec)
+2. Check the integration catalogue (`library/integrations/tier-2/`, `tier-3/`)
+3. If an integration is needed but no catalogue pattern exists → integration gap
+
+#### Check 3: Schema Fitness
+
+If a feature cycle just completed:
+1. Did the builder need to ALTER TABLE or create new migrations for entities that should have been in the foundation?
+2. Did the builder create JSON blob fields where typed columns would be better?
+3. Did the evaluation flag data model issues?
+
+If YES to any → the foundation was incomplete. Schema debt is accumulating.
+
+#### Check 4: Silent Degradation Detection
+
+Review the just-completed feature cycle:
+1. Did the builder substitute simpler alternatives for spec requirements? (Check `divergences`)
+2. Did the builder skip integration-dependent features? (Check `skipped` with blocker_type "integration" or "infrastructure")
+3. Did quality gaps in the evaluation stem from missing infrastructure rather than implementation quality?
+
+If YES → the builder is avoiding capabilities it doesn't have. Foundation intervention needed.
+
+#### Recommendation: insert-foundation
+
+If any of Checks 1-4 reveal structural issues:
+
+**Autonomy rule:** Insert foundation autonomously when the restructure is bounded (would NOT throw away >50% of existing work). Escalate to human when restructure scope exceeds bounds.
+
+Calculate restructure scope:
+- Count features already built vs features remaining
+- Count schema changes needed vs existing tables
+- If restructure affects <50% of completed work → autonomous insert
+- If restructure affects >=50% → escalate to human with explanation
+
+When recommending insert-foundation:
+```json
+{
+  "action": "insert-foundation",
+  "foundation_scope": ["PostGIS migration", "maps-api-scaffold", "trip-simulator-fixtures"],
+  "rationale": "Trips feature needs PostGIS geometry but schema uses JSON blobs. Dashboard and maps will need the same fix. Foundation cycle is cheaper than fixing each feature individually.",
+  "restructure_scope": "15% — only trips table needs migration, no existing features affected"
+}
+```
+Write to `analysis_recommendation` in `cycle_context.json`.
+
 ### Step 3: Recommendation Logic
 
-Based on the PO Review verdict, confidence score, trend analysis, and root cause classifications, determine the recommended action. This is decision logic, not heuristic guessing. Follow the rules exactly:
+Based on the PO Review verdict, confidence score, trend analysis, root cause classifications, and decomposition health check, determine the recommended action. This is decision logic, not heuristic guessing. Follow the rules exactly.
+
+**Priority rule:** `insert-foundation` takes PRIORITY over `continue` — if the decomposition health check found structural issues, fixing them now is cheaper than discovering them in every subsequent feature cycle.
 
 #### PROMOTE — Ready for production
 
@@ -202,6 +263,21 @@ Include: a structured summary of what's wrong, what's been tried, and what you b
 
 Include: which loops to roll back to, what got worse, the specific evidence of regression, and a hypothesis for what went wrong. The rollback preserves all learnings — only the code is reverted.
 
+#### INSERT-FOUNDATION — Decomposition was wrong, infrastructure missing
+
+**Conditions (ALL must be true):**
+- Decomposition Health Check (Step 2.5) found structural issues (foundation gaps, integration gaps, schema debt, or silent degradation)
+- The restructure scope affects <50% of completed work (autonomous threshold)
+- The missing infrastructure would benefit 2+ pending feature areas
+
+**Output:** `recommendation: "insert-foundation"`
+
+Include: `foundation_scope` (list of specific infrastructure to build), `rationale` (why this is a decomposition problem not a feature problem), and `restructure_scope` (percentage of completed work affected with explanation).
+
+This action means the original decomposition missed shared infrastructure that multiple features need. Rather than patching each feature individually, insert a foundation cycle to build the infrastructure properly.
+
+**If restructure scope >= 50%:** Do NOT recommend `insert-foundation`. Instead recommend `notify-human` with a clear explanation that the decomposition needs major restructuring and the human should decide whether to proceed or pivot.
+
 ### Step 4: Cross-Cycle Pattern Detection
 
 After classifying individual gaps and making your recommendation, look for patterns across cycles:
@@ -255,8 +331,17 @@ Update `cycle_context.json` with:
       "flags": ["plateau_detected | regression_detected | steep_improvement | none"]
     },
 
-    "recommendation": "promote | deepen:<area> | broaden | notify-human | rollback",
+    "recommendation": "promote | deepen:<area> | broaden | insert-foundation | notify-human | rollback",
     "recommendation_reasoning": "string — detailed explanation of why this recommendation, referencing specific evidence",
+
+    "decomposition_health": {
+      "foundation_gaps": ["string — missing shared infrastructure"],
+      "integration_gaps": ["string — needed integrations without catalogue patterns"],
+      "schema_debt": ["string — schema issues from incomplete foundation"],
+      "silent_degradation": ["string — capabilities the builder avoided"],
+      "restructure_scope": "string — percentage of completed work affected",
+      "structural_issues_found": "boolean"
+    },
 
     "root_cause_analysis": [
       {
@@ -331,6 +416,7 @@ You do NOT modify `state.json` directly. The launcher reads your `recommendation
 
 - `promote` -> `promoting` (merge PR, promote to production)
 - `deepen:<area>` or `broaden` -> `generating-change-spec` (produce new specs for next cycle)
+- `insert-foundation` -> `foundation-building` (insert a foundation cycle to build missing infrastructure)
 - `notify-human` -> `waiting-for-human` (pause and send Slack notification)
 - `rollback` -> `rolling-back` (close PR, revert staging)
 
@@ -374,3 +460,4 @@ If `qa_fix_results.escalation_needed` is true, the QA-fixing phase gave up on ce
 - **Ignoring trends**: A single-cycle analysis that doesn't reference confidence history is incomplete. The trend IS the signal.
 - **Anchoring on PO Review's recommended_action**: The PO Review suggests an action, but you validate it with additional context (factory decisions, retry counts, trends). Override when the evidence warrants it.
 - **Optimistic promotion**: If you're on the fence between promote and deepen, default to deepen. Promoting a product that isn't ready wastes the human's review time and erodes trust in the system.
+- **Ignoring decomposition health**: If the health check found structural issues, do not recommend `continue` or `deepen` — those will just paper over infrastructure gaps. Fix the foundation first. Conversely, do not recommend `insert-foundation` for single-feature issues — that's what `deepen` is for. Foundation insertion is for SHARED infrastructure that multiple features need.
