@@ -50,6 +50,40 @@ The Rouge supports tiered integration with external services. Contributions for 
 
 Improvements to documentation, examples, and guides are always welcome.
 
+## Integration Catalogue Contributions
+
+Rouge's integration catalogue grows as the community builds products. You can contribute at three tiers:
+
+### Tier 1 — Stacks (core team review required)
+Full project scaffolds (framework + build + deploy). High-impact, affects the entire loop.
+Required files: `manifest.yaml`, `setup.md`, `build.md`, `template/`
+
+### Tier 2 — Services (core team review required)
+External service adapters (database, auth, payments). Moderate impact.
+Required files: `manifest.yaml`, `setup.md`, `teardown.md`
+
+### Tier 3 — Integrations (community review, two approvals)
+Code patterns within services. Low risk, high value.
+Required files: `manifest.yaml`, `pattern.md`, `test.md`
+
+### Submission Process
+1. Fork the repository
+2. Add your contribution under `library/integrations/tier-N/<id>/`
+3. Run `bash src/launcher/validate-contribution.sh library/integrations/tier-N/<id>/`
+4. Open a PR with: what it enables, which stacks it targets, whether it introduces paid dependencies
+
+### Manifest Format
+Every contribution needs a `manifest.yaml`:
+```yaml
+id: my-integration
+name: My Integration
+tier: 3
+version: 1.0.0
+description: What this does
+maintainer: community
+compatible_with: [nextjs-cloudflare]
+```
+
 ## How to Contribute
 
 1. **Fork** the repository.
