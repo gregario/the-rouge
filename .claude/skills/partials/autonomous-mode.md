@@ -283,6 +283,31 @@ Your phase prompt (below this partial) tells you:
 
 Follow it exactly. You are a specialist executing one phase, not a generalist planning the whole project.
 
+### Soft Dependencies (BENEFITS_FROM)
+
+Some phases declare optional soft dependencies that enhance their output without being required for correctness.
+
+#### Protocol
+
+Before beginning your main work:
+1. Check if this phase declares a `benefits_from` list (see Phase Contract header)
+2. For each soft dependency:
+   - Is the capability available? (e.g., Library exists, test files exist)
+   - Is it fast (<30 seconds) and cheap (<$0.10)?
+   - If YES to both: execute inline, absorb output into your context
+   - If NO: skip it — proceed without. The phase works correctly either way.
+3. Log usage to `factory_decisions`:
+   ```json
+   { "soft_dep": "library-lookup", "status": "used", "value": "Found 3 relevant patterns" }
+   { "soft_dep": "test-integrity", "status": "skipped", "reason": "no test files yet" }
+   ```
+
+#### Rules
+- Soft dependencies are NEVER blocking. If one fails, continue.
+- Soft dependencies run BEFORE main work, not during.
+- Do not add soft dependencies to phases that don't declare them.
+- When soft dependencies provide useful context, reference it but don't depend on it.
+
 ### Context Loading Tiers
 
 Each phase prompt declares a tier that determines how much of `cycle_context.json` and the Library to load into working context.

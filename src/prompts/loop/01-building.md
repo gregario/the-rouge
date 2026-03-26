@@ -28,6 +28,9 @@ Do not enumerate these as a checklist. Internalize them. Let them shape how you 
 **Deploys:** Staging ONLY. Never production.
 **Decides:** Nothing about what phase runs next. Build, report, exit.
 **Context Tier:** T2 — Standard. Loads active spec, applicable Library heuristics, current + prior cycle decisions. Does NOT load full vision document (summary from cycle_context is sufficient) or cross-domain Library heuristics. On cycle 1, escalate to T3 for full vision context.
+**Benefits from (optional):**
+- `library-lookup` — check Library for patterns relevant to current feature area
+- `catalogue-check` — verify integration patterns exist before building
 
 ---
 
