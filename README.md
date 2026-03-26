@@ -27,6 +27,8 @@ Inspired by [Karpathy's AutoResearch](https://github.com/karpathy/autoresearch):
   <img src="docs/diagrams/karpathy-loop.png" alt="The Karpathy Loop: Seed → Foundation → Build/Evaluate → Ship, with backwards restructure flow" width="480">
 </p>
 
+The loop iterates as many times as it needs to. A simple product might pass evaluation on the first cycle. A complex product with dense dependencies might loop dozens of times, fixing quality gaps, restructuring its foundation, and refining until every feature area meets the bar. There's no fixed limit. It's done when it's done.
+
 ### Seeding (you do this part)
 
 You describe the product. Rouge runs eight discipline-specific personas through it: brainstorming, competition analysis, product taste, spec generation, design, legal, marketing. You approve the vision, Rouge writes `vision.json` (the north star for all autonomous decisions), and hands off to the loop.
@@ -196,7 +198,7 @@ These are compute costs only. Infrastructure (Cloudflare free tier, Supabase fre
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). The most valuable contributions:
 
-**Integration catalogue entries** — New service adapters (Tier 2) or code patterns (Tier 3). Each product you build with Rouge can contribute patterns back. Two community approvals for Tier 3, core team for Tier 2. This is the fastest way to expand what Rouge can build.
+**Integration catalogue entries** — New service adapters (Tier 2) or code patterns (Tier 3). Each product you build with Rouge can contribute patterns back. All contributions reviewed by maintainers before merge. This is the fastest way to expand what Rouge can build.
 
 **Stack support** — New deployment targets, frameworks, or runtimes. Core team review required. This is how Rouge goes from "builds web apps" to "builds tech products."
 
@@ -206,19 +208,25 @@ Run `bash src/launcher/validate-contribution.sh <path>` to validate catalogue en
 
 ## What's next
 
-Rouge currently builds web products on Next.js with Cloudflare and Supabase. The architecture is stack-agnostic. What Rouge can build depends on what stacks and integrations are in the catalogue.
+Rouge currently builds web products on Next.js with Cloudflare and Supabase. The architecture is stack-agnostic, though. What Rouge can build at any given moment depends on what stacks and integrations are available in the catalogue. We aim to grow this catalogue over time with the help of contributions, expanding the palette of products Rouge can build as more service adapters, code patterns, and stack support are added by the community.
 
 ### Rouge Grow
 
-Feature expansion on shipped products. Unlike Build (which creates from zero), Grow works with existing users, existing data, and existing patterns that must be preserved. Reads analytics and user feedback to decide what to build next.
+Feature expansion on shipped products. Unlike Build (which creates from zero), Grow works from a known state: an existing codebase with existing users, existing data, and existing patterns that must be preserved. It reads analytics and user feedback to decide what to build next, then runs a modified loop that respects backwards compatibility.
+
+Grow operates on products built by Rouge Build or onboarded through Rouge Embed. In both cases, it starts from a well-understood foundation.
 
 ### Rouge Maintain
 
-Autonomous production upkeep. SBOM scanning, bug triage from Sentry error streams, dependency updates, performance regression detection. No new features. Just keeping the lights on.
+Autonomous production upkeep. SBOM scanning, bug triage from Sentry error streams, dependency updates, performance regression detection, SSL renewals. No new features. Just keeping the lights on for products that are already shipped.
 
 ### Rouge Embed
 
-Point Rouge at an existing live product. It reverse-engineers the architecture into specs, finds the weird patterns and spaghetti code, and produces a foundation for iterative improvement. Bring your existing products into the loop.
+Bring an existing codebase into the Rouge ecosystem. Embed works in three phases:
+
+1. **Understanding** — Rouge analyses the existing codebase, reverse-engineers the architecture into specs, maps the dependency graph, and documents what exists.
+2. **Standardisation** — Cleans up spaghetti code, decouples tightly bound modules, removes dead code, and brings the codebase to a state where it can be operated on predictably. No more mystery hooks or undocumented side effects.
+3. **Handoff** — The codebase is now in a known state. Rouge Maintain can keep the lights on. Rouge Grow can add features. The product is in the loop.
 
 These are on the roadmap. Early access will be available to [sponsors](https://github.com/sponsors/gregario) as they're built. If you're interested in contributing to any of them, [open a discussion](https://github.com/gregario/the-rouge/discussions) or reach out.
 

@@ -62,7 +62,7 @@ Required files: `manifest.yaml`, `setup.md`, `build.md`, `template/`
 External service adapters (database, auth, payments). Moderate impact.
 Required files: `manifest.yaml`, `setup.md`, `teardown.md`
 
-### Tier 3 — Integrations (community review, two approvals)
+### Tier 3 — Integrations (maintainer review required)
 Code patterns within services. Low risk, high value.
 Required files: `manifest.yaml`, `pattern.md`, `test.md`
 
