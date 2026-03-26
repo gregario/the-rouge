@@ -1,0 +1,7 @@
+{
+  "safety": {
+    "blocked_commands": [],
+    "allowed_deploy_targets": ["staging", "preview"],
+    "custom_pre_hooks": []
+  }
+}
