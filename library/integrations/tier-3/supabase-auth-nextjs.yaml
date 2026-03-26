@@ -1,0 +1,58 @@
+id: supabase-auth-nextjs
+name: Supabase Auth with Next.js SSR
+tier: 3
+service: supabase
+category: authentication
+tags:
+  - auth
+  - nextjs
+  - ssr
+  - middleware
+description: >
+  Server-side authentication for Next.js using Supabase SSR package. Handles
+  session management, token refresh, and auth state across server components,
+  client components, and API routes. Uses middleware for automatic session
+  refresh on every request.
+applies_when: >
+  Next.js app needs authentication with server-side rendering. Required when
+  server components need to access authenticated user data or when pages
+  should be protected at the server level (not just client-side redirects).
+
+requires:
+  packages:
+    - "@supabase/supabase-js"
+    - "@supabase/ssr"
+  env_vars:
+    - NEXT_PUBLIC_SUPABASE_URL
+    - NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+code_patterns:
+  - file: lib/supabase/server.ts
+    description: >
+      Factory function that creates a Supabase client configured for server-side
+      use with cookie-based session management. Uses createServerClient from
+      @supabase/ssr with Next.js cookies() API.
+  - file: lib/supabase/client.ts
+    description: >
+      Factory function that creates a Supabase client for client components.
+      Uses createBrowserClient from @supabase/ssr. Singleton pattern to
+      avoid multiple GoTrue instances.
+  - file: middleware.ts
+    description: >
+      Next.js middleware that refreshes the Supabase auth session on every
+      request. Creates a server client, calls getUser() to refresh tokens,
+      and updates response cookies. Protects authenticated routes by
+      redirecting unauthenticated users to login.
+
+tested_with:
+  - nextjs-cloudflare
+
+scale_considerations: >
+  Session refresh in middleware adds latency to every request (typically 10-50ms
+  for token validation, more if refresh is needed). For static/public pages,
+  consider excluding them from middleware via matcher config. For API routes
+  that receive high traffic, validate the JWT server-side without middleware
+  to avoid the cookie overhead. On Cloudflare Workers, be aware of the 10ms
+  CPU time limit on free tier — auth middleware can consume a significant
+  portion. Client-side only auth is simpler and faster for pages that do not
+  need server-rendered authenticated content.

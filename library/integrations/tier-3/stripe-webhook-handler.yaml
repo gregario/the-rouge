@@ -1,0 +1,48 @@
+id: stripe-webhook-handler
+name: Stripe Webhook Handler
+tier: 3
+service: stripe
+category: payments
+tags:
+  - webhooks
+  - server-side
+  - events
+description: >
+  Server-side webhook endpoint that receives and processes Stripe events.
+  Verifies webhook signatures to prevent spoofing, then routes events to
+  appropriate handlers based on event type.
+applies_when: >
+  Product needs to react to payment events such as subscription created,
+  payment failed, invoice paid, or dispute opened. Required for any
+  production Stripe integration beyond simple checkout.
+
+requires:
+  packages:
+    - stripe
+  env_vars:
+    - STRIPE_SECRET_KEY
+    - STRIPE_WEBHOOK_SECRET
+
+code_patterns:
+  - file: app/api/webhooks/stripe/route.ts
+    description: >
+      Webhook route that reads the raw request body, verifies the Stripe
+      signature using the webhook secret, parses the event, and dispatches
+      to handler functions based on event.type (e.g., checkout.session.completed,
+      customer.subscription.updated, invoice.payment_failed).
+  - file: lib/stripe/webhook-handlers.ts
+    description: >
+      Individual handler functions for each event type. Each handler is
+      idempotent — safe to process the same event multiple times. Updates
+      database records, sends notifications, or triggers downstream actions.
+
+tested_with:
+  - nextjs-cloudflare
+
+scale_considerations: >
+  Webhook handlers must be idempotent — Stripe retries failed webhooks for
+  up to 3 days with exponential backoff. At high volume, inline processing
+  in the webhook handler becomes a bottleneck; use a queue (e.g., Cloudflare
+  Queue or database job table) to acknowledge the webhook immediately and
+  process asynchronously. Store the event ID to deduplicate. Monitor webhook
+  delivery success rate in the Stripe dashboard.

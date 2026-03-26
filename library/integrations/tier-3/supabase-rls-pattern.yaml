@@ -1,0 +1,49 @@
+id: supabase-rls-pattern
+name: Supabase Row-Level Security Pattern
+tier: 3
+service: supabase
+category: security
+tags:
+  - security
+  - row-level-security
+  - postgres
+description: >
+  PostgreSQL Row-Level Security policies enforced at the database level via
+  Supabase. Ensures users can only access their own data (or data they are
+  authorized to see) regardless of which client or API path is used.
+applies_when: >
+  Product has multi-tenant data or per-user data access. Any table that stores
+  user-specific data should have RLS policies. Required when using Supabase
+  anon key from the client — without RLS, all data is publicly accessible.
+
+requires:
+  packages:
+    - "@supabase/supabase-js"
+  env_vars:
+    - NEXT_PUBLIC_SUPABASE_URL
+    - NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+code_patterns:
+  - file: supabase/migrations/YYYYMMDD_create_table_with_rls.sql
+    description: >
+      Migration that creates a table with RLS enabled, then defines policies
+      using auth.uid() to restrict SELECT, INSERT, UPDATE, and DELETE
+      operations to the row owner. Example: `CREATE POLICY "Users can view
+      own data" ON items FOR SELECT USING (auth.uid() = user_id)`.
+  - file: supabase/migrations/YYYYMMDD_role_based_policies.sql
+    description: >
+      Migration for role-based access where users have different permission
+      levels. Uses a user_roles table or JWT claims to check roles in
+      policy definitions. Example: admin sees all rows, member sees own rows.
+
+tested_with:
+  - nextjs-cloudflare
+
+scale_considerations: >
+  RLS adds approximately 1ms overhead per query for simple policies. For
+  read-heavy dashboards with complex multi-join policies, this overhead
+  compounds. Mitigation strategies: use materialized views for dashboard
+  queries, add a caching layer (e.g., edge cache with short TTL), or
+  pre-compute aggregations. Always test RLS policies with EXPLAIN ANALYZE
+  to catch sequential scans on policy evaluation. For tables with millions
+  of rows, ensure the columns used in RLS policies are indexed.

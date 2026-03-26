@@ -1,0 +1,47 @@
+id: supabase
+name: Supabase
+tier: 2
+category: database-auth-storage
+description: >
+  Open-source Firebase alternative providing PostgreSQL database, authentication,
+  instant APIs, edge functions, realtime subscriptions, and file storage. Single
+  platform for backend needs with generous free tier.
+cost_tier: free-to-start
+
+requires:
+  env_vars:
+    - NEXT_PUBLIC_SUPABASE_URL
+    - NEXT_PUBLIC_SUPABASE_ANON_KEY
+    - SUPABASE_SERVICE_ROLE_KEY
+  packages:
+    - "@supabase/supabase-js"
+    - "@supabase/ssr"
+  cli_tools:
+    - supabase
+
+setup_steps:
+  - Create a new Supabase project at app.supabase.com
+  - Copy the project URL and anon key from Settings > API
+  - Copy the service role key for server-side operations
+  - Run `supabase init` in the project root
+  - Create initial migration with `supabase migration new init`
+  - Push schema with `supabase db push`
+  - Configure environment variables in .env.local
+
+teardown_steps:
+  - Pause the project in Supabase dashboard (preserves data for 90 days)
+  - Remove environment variables from .env.local and deployment platform
+  - Remove Supabase packages if no longer needed
+
+tested_with:
+  - nextjs-cloudflare
+
+free_tier_limits:
+  active_projects: 2
+  database_storage: 500MB
+  file_storage: 1GB
+  monthly_active_users: 50000
+  edge_function_invocations: 500000
+  realtime_concurrent_connections: 200
+
+staleness_date: "2026-03-26"
