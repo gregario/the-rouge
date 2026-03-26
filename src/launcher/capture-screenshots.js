@@ -10,7 +10,7 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const B = path.join(process.env.HOME || '', '.claude/skills/gstack/browse/dist/browse');
+const B = process.env.ROUGE_BROWSE_BIN || path.join(process.env.HOME || '', '.claude/skills/gstack/browse/dist/browse');
 const ROUGE_ROOT = path.resolve(__dirname, '../..');
 
 function readJson(filePath) {

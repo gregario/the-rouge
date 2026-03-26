@@ -57,7 +57,7 @@ These assertions verify system-level behaviors managed by the launcher and spann
 - [ ] Determine if failures are factory-level (stacks, templates) or product-level
 
 ### AC 17.3: Factory improvement specs
-- [ ] Generate change specs targeting AI-Factory for recurring issues
+- [ ] Generate change specs targeting the factory infrastructure for recurring issues
 
 ### AC 17.4: Meta-analysis trigger
 - [ ] Runs after every 5 completed products

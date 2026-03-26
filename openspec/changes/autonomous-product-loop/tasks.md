@@ -324,7 +324,7 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 
 - [x] 17.1 Implement cross-product pattern detection — after 3+ products, aggregate evaluation reports, identify heuristics that fail across multiple products
 - [x] 17.2 Implement factory-level vs product-level classification — determine whether recurring failures are addressable at the Factory level (stacks, skills, templates) or product level
-- [x] 17.3 Implement Factory improvement spec generation — create change specs targeting AI-Factory for recurring factory-level issues
+- [x] 17.3 Implement Factory improvement spec generation — create change specs targeting the factory infrastructure for recurring factory-level issues
 - [x] 17.4 Implement meta-analysis trigger — run after every 5 completed products
 
 ## 18. The Notifier — Slack Bot + Socket Mode (replaces original Slack integration design)

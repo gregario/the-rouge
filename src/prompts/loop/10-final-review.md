@@ -25,7 +25,7 @@ From the project directory:
 ## Environment
 
 ```bash
-export B=~/.claude/skills/gstack/browse/dist/browse
+export B="${ROUGE_BROWSE_BIN:-$HOME/.claude/skills/gstack/browse/dist/browse}"
 DEPLOYMENT_URL=$(jq -r '.deployment_url // .infrastructure.staging_url' cycle_context.json)
 CYCLE=$(jq -r '._cycle_number' cycle_context.json)
 FEEDBACK_EXISTS=$(test -f feedback.json && echo "true" || echo "false")

@@ -1,6 +1,6 @@
 # The Rouge — Project Instructions
 
-This is The Rouge, an autonomous product development system. It is a peer project to AI-Factory, not a child of it.
+This is The Rouge, an autonomous product development system.
 
 ## Workflow Overview
 

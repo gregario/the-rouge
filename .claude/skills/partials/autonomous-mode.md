@@ -24,7 +24,8 @@ Before calling any CLI tools, set these paths:
 
 ```bash
 # GStack browse binary (required for browser QA commands)
-export B=~/.claude/skills/gstack/browse/dist/browse
+# Override with ROUGE_BROWSE_BIN env var if installed elsewhere
+export B="${ROUGE_BROWSE_BIN:-$HOME/.claude/skills/gstack/browse/dist/browse}"
 
 # Sentry token (if Sentry is configured for this project)
 export SENTRY_AUTH_TOKEN=$(grep 'token=' ~/.sentryclirc 2>/dev/null | cut -d= -f2)

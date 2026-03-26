@@ -12,7 +12,7 @@ This discipline synthesizes three design evaluation systems:
 
 1. **GStack plan-design-review** — 0-10 scoring per dimension, 80-item design checklist, AI slop detection
 2. **GStack design-consultation** — Competitive design browsing for reference capture
-3. **AI-Factory Design Mode** — Three-pass workflow: UX Architecture -> Component Design -> Visual Design
+3. **Three-pass Design Mode** — UX Architecture -> Component Design -> Visual Design
 
 ---
 

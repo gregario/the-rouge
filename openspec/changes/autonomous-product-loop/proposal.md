@@ -26,8 +26,8 @@ AI product factories produce technically functional but shallow products. The AI
 
 ## Impact
 
-- New project repository (The-Rouge) at peer level to AI-Factory
-- AI-Factory becomes a dependency — used as the build worker (Studio layer)
+- New project repository (The-Rouge) as a standalone system
+- Claude Code skills provide the build worker (Studio layer)
 - Requires Slack integration for notifications
 - Requires persistent state management across sessions (vision documents, Library data, loop state)
 - Requires browser QA and Lighthouse tooling for evaluation signals

@@ -245,7 +245,7 @@ The Runner SHALL provide the Factory with the complete shared context, not a sum
 
 #### Scenario: Factory invocation is a claude -p session
 - **WHEN** the Runner's launcher invokes the building phase
-- **THEN** it SHALL spawn `claude -p --project <target-project-dir>` where the target project has AI-Factory 2.0 skills installed
+- **THEN** it SHALL spawn `claude -p --project <target-project-dir>` where the target project has the required skills installed
 - **AND** the phase prompt SHALL instruct Claude Code to read `cycle_context.json` for full context, build the feature area, deploy to staging, and write `factory_decisions` and `factory_questions` back to `cycle_context.json`
 
 #### Scenario: Factory receives full context

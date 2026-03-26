@@ -248,19 +248,19 @@ The free tier allows 2 active projects. Paused projects don't count. Data is pre
 | **Autonomy** | Semi (leave machine running, restart if session dies) | Full (Docker restart policy, runs indefinitely) |
 | **Same code?** | Yes — same launcher, same skills, same state files | Yes — only auth method and browser tool change |
 
-## Relationship to AI-Factory
+## Design Influences
 
-The Rouge is NOT a wrapper on today's AI-Factory. It is built from AI-Factory's learnings:
+The Rouge's phase prompts evolved from prior tooling and workflows:
 
-- **Superpowers:** Stays roughly as-is. The engineering execution layer.
-- **OpenSpec:** Rewritten for production depth. "Comprehensive" replaces "concise 1-2 pages."
-- **Brainstorming:** Rewritten with depth mode.
-- **Design Mode:** Rewritten to produce structured/parseable artifacts (YAML/JSON, not prose).
-- **Product Taste:** Adapted for re-invocation within seeding swarm.
+- **Engineering execution:** TDD, subagent-driven development, systematic debugging.
+- **Spec generation:** Rewritten for production depth. "Comprehensive" replaces "concise 1-2 pages."
+- **Brainstorming:** Rewritten with depth mode — explores without premature narrowing.
+- **Design Mode:** Produces structured/parseable artifacts (YAML/JSON, not prose).
+- **Product Taste:** Multi-invocation premise challenge, adapted for seeding swarm.
 - **QA:** Extended with code quality baselines, architecture integrity, test integrity gate.
-- **New skills:** PO Review, Seeding Swarm, Runner Loop, Vision Check, Evaluation Orchestrator.
+- **New phases:** PO Review, Seeding Swarm, Runner Loop, Vision Check, Evaluation Orchestrator.
 
-The full skill audit is in `openspec/changes/autonomous-product-loop/tasks.md` (task group 0a).
+The full phase prompt audit is in `openspec/changes/autonomous-product-loop/tasks.md` (task group 0a).
 
 ## Swarming vs. Tight Loops
 
@@ -268,14 +268,14 @@ The full skill audit is in `openspec/changes/autonomous-product-loop/tasks.md` (
 
 **Autonomous phases:** Use tight Karpathy loops instead of swarming. If QA finds something → state transition → fix → QA again. Each iteration is a clean pass, not a negotiation. More loops, less deliberation per loop. Converges anyway.
 
-## The Library's Relationship to AI-Factory Evals
+## The Library's Relationship to LLM-as-Judge Evals
 
-The Tier 3 LLM-as-judge eval framework in AI-Factory (bun test, skill self-rating, persistent scoring) is the same pattern as The Library's heuristic evaluation — testable assertions judged against a standard. The Library is the evolution of that concept, applied to products instead of skills:
+The LLM-as-judge eval pattern (testable assertions scored against a standard) is the same pattern as The Library's heuristic evaluation. The Library is the evolution of that concept, applied to products:
 
-- AI-Factory evals: "Did this skill produce the right output?" → Score 0-10
+- Skill evals: "Did this skill produce the right output?" → Score 0-10
 - The Library: "Does this product meet production quality?" → Heuristic pass/fail with evidence
 
-The eval infrastructure (test runners, scoring persistence, comparison tools) can inform The Library's implementation.
+The eval infrastructure (test runners, scoring persistence, comparison tools) informs The Library's implementation.
 
 ## Open Questions for Future Sessions
 
