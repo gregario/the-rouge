@@ -182,7 +182,7 @@ Rouge currently builds web products on Next.js with Cloudflare and Supabase. The
 
 ### Rouge Grow
 
-Feature expansion on shipped products. Works from a known state (built by Rouge or onboarded via Embed), respects existing users and data, reads analytics to decide what to build next.
+Feature expansion on shipped products. Works from a known state (built by Rouge or onboarded via Embed), respects existing users and data, reads analytics or Rouge Spec inputs to decide what to build next.
 
 ### Rouge Maintain
 
