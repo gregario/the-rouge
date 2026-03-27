@@ -1,8 +1,13 @@
 #!/usr/bin/env node
 /**
- * The Rouge CLI — secrets management and integration setup.
+ * The Rouge CLI — project management, loop execution, and secrets.
  *
  * Usage:
+ *   rouge init <name>                Create a new project directory
+ *   rouge seed <name>                Start interactive seeding via claude -p
+ *   rouge build [name]               Start the Karpathy Loop
+ *   rouge status [name]              Show project state summary
+ *   rouge cost <name> [--actual]     Show cost estimate or actuals
  *   rouge setup <integration>        Interactive setup for an integration
  *   rouge secrets list               List all stored secret names
  *   rouge secrets check <project>    Check project against stored secrets
@@ -12,8 +17,12 @@
  */
 
 const readline = require('readline');
+const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+
+const ROUGE_ROOT = path.resolve(__dirname, '../..');
+const PROJECTS_DIR = process.env.ROUGE_PROJECTS_DIR || path.join(ROUGE_ROOT, 'projects');
 const {
   storeSecret,
   getSecret,
@@ -264,13 +273,188 @@ function cmdSecretsExpiry(action, ...rest) {
 }
 
 // ---------------------------------------------------------------------------
+// Project commands
+// ---------------------------------------------------------------------------
+
+function cmdInit(name) {
+  if (!name) {
+    console.error('Usage: rouge init <name>');
+    process.exit(1);
+  }
+
+  const projectPath = path.join(PROJECTS_DIR, name);
+  if (fs.existsSync(projectPath)) {
+    console.error(`Project already exists: ${projectPath}`);
+    process.exit(1);
+  }
+
+  fs.mkdirSync(projectPath, { recursive: true });
+  fs.writeFileSync(path.join(projectPath, '.gitkeep'), '');
+
+  console.log(`\n  Project created: ${name}`);
+  console.log(`  Path: ${projectPath}`);
+  console.log(`\n  Next: run \`rouge seed ${name}\` to start the seeding process.\n`);
+}
+
+function cmdSeed(name) {
+  if (!name) {
+    console.error('Usage: rouge seed <name>');
+    process.exit(1);
+  }
+
+  const projectPath = path.join(PROJECTS_DIR, name);
+  if (!fs.existsSync(projectPath)) {
+    console.error(`Project not found. Run \`rouge init ${name}\` first.`);
+    process.exit(1);
+  }
+
+  const promptFile = path.join(ROUGE_ROOT, 'src/prompts/seeding/00-swarm-orchestrator.md');
+  if (!fs.existsSync(promptFile)) {
+    console.error(`Seeding prompt not found: ${promptFile}`);
+    process.exit(1);
+  }
+
+  const promptContent = fs.readFileSync(promptFile, 'utf8');
+  const child = spawn('claude', ['-p', '--project', projectPath], {
+    stdio: ['pipe', 'inherit', 'inherit'],
+  });
+  child.stdin.write(promptContent);
+  child.stdin.end();
+
+  child.on('close', (code) => {
+    process.exit(code || 0);
+  });
+}
+
+function cmdBuild(name) {
+  const env = { ...process.env };
+  if (name) {
+    const projectPath = path.join(PROJECTS_DIR, name);
+    if (!fs.existsSync(projectPath)) {
+      console.error(`Project not found: ${projectPath}`);
+      process.exit(1);
+    }
+    env.ROUGE_PROJECT_FILTER = name;
+  }
+
+  console.log('Starting the Karpathy Loop...');
+
+  const loopScript = path.join(__dirname, 'rouge-loop.js');
+  const child = spawn('node', [loopScript], {
+    stdio: 'inherit',
+    env,
+  });
+
+  child.on('close', (code) => {
+    process.exit(code || 0);
+  });
+}
+
+function cmdStatus(name) {
+  if (name) {
+    const projectPath = path.join(PROJECTS_DIR, name);
+    if (!fs.existsSync(projectPath)) {
+      console.error(`Project not found: ${projectPath}`);
+      process.exit(1);
+    }
+    printProjectStatus(name, projectPath);
+    return;
+  }
+
+  // All projects
+  if (!fs.existsSync(PROJECTS_DIR)) {
+    console.log('\n  No projects directory found.\n');
+    return;
+  }
+
+  const entries = fs.readdirSync(PROJECTS_DIR, { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .map((d) => d.name)
+    .sort();
+
+  if (entries.length === 0) {
+    console.log('\n  No projects found.\n');
+    return;
+  }
+
+  console.log('');
+  console.log(`  ${'Project'.padEnd(22)} ${'State'.padEnd(22)} ${'Cycle'.padEnd(8)} Features`);
+  console.log(`  ${'-'.repeat(60)}`);
+
+  for (const projectName of entries) {
+    printProjectStatus(projectName, path.join(PROJECTS_DIR, projectName));
+  }
+  console.log('');
+}
+
+function printProjectStatus(name, projectPath) {
+  const statePath = path.join(projectPath, 'state.json');
+  if (!fs.existsSync(statePath)) {
+    console.log(`  ${name.padEnd(22)} ${'not seeded'.padEnd(22)}`);
+    return;
+  }
+
+  try {
+    const state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+    const phase = state.phase || state.state || 'unknown';
+    const cycle = state.cycle != null ? String(state.cycle) : '-';
+    const features = state.features;
+    let featureStr = '-';
+    if (features && typeof features.total === 'number') {
+      const complete = features.complete || 0;
+      featureStr = `${complete}/${features.total} complete`;
+    }
+    console.log(`  ${name.padEnd(22)} ${phase.padEnd(22)} ${cycle.padEnd(8)} ${featureStr}`);
+  } catch {
+    console.log(`  ${name.padEnd(22)} ${'invalid state.json'.padEnd(22)}`);
+  }
+}
+
+function cmdCost(name) {
+  if (!name) {
+    console.error('Usage: rouge cost <name> [--actual]');
+    process.exit(1);
+  }
+
+  const projectPath = path.join(PROJECTS_DIR, name);
+  if (!fs.existsSync(projectPath)) {
+    console.error(`Project not found: ${projectPath}`);
+    process.exit(1);
+  }
+
+  const costScript = path.join(__dirname, 'estimate-cost.js');
+  const costArgs = [costScript, projectPath];
+  if (process.argv.includes('--actual')) {
+    costArgs.push('--actual');
+  }
+
+  const child = spawn('node', costArgs, {
+    stdio: 'inherit',
+  });
+
+  child.on('close', (code) => {
+    process.exit(code || 0);
+  });
+}
+
+// ---------------------------------------------------------------------------
 // CLI router
 // ---------------------------------------------------------------------------
 
 const args = process.argv.slice(2);
 const command = args[0];
 
-if (command === 'setup') {
+if (command === 'init') {
+  cmdInit(args[1]);
+} else if (command === 'seed') {
+  cmdSeed(args[1]);
+} else if (command === 'build') {
+  cmdBuild(args[1]);
+} else if (command === 'status') {
+  cmdStatus(args[1]);
+} else if (command === 'cost') {
+  cmdCost(args[1]);
+} else if (command === 'setup') {
   cmdSetup(args[1]).catch((err) => {
     console.error(err.message);
     process.exit(1);
@@ -294,6 +478,11 @@ if (command === 'setup') {
   The Rouge CLI
 
   Commands:
+    rouge init <name>               Create a new project directory
+    rouge seed <name>               Start interactive seeding via claude -p
+    rouge build [name]              Start the Karpathy Loop
+    rouge status [name]             Show project state summary
+    rouge cost <name> [--actual]    Show cost estimate or actuals
     rouge setup <integration>       Set up integration credentials
     rouge secrets list              List stored secret names
     rouge secrets check <dir>       Check project against stored secrets
