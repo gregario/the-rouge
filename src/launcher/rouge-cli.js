@@ -1,9 +1,17 @@
 #!/usr/bin/env node
 /**
- * The Rouge CLI — secrets management and integration setup.
+ * The Rouge CLI — project management, loop execution, and secrets.
  *
  * Usage:
+ *   rouge init <name>                Create a new project directory
+ *   rouge seed <name>                Start interactive seeding via claude -p
+ *   rouge build [name]               Start the Karpathy Loop
+ *   rouge status [name]              Show project state summary
+ *   rouge cost <name> [--actual]     Show cost estimate or actuals
  *   rouge setup <integration>        Interactive setup for an integration
+ *   rouge slack setup                Print Slack setup guide
+ *   rouge slack start                Start the Slack bot
+ *   rouge slack test                 Send a test webhook message
  *   rouge secrets list               List all stored secret names
  *   rouge secrets check <project>    Check project against stored secrets
  *   rouge secrets validate <target>  Validate keys against API endpoints
@@ -12,8 +20,13 @@
  */
 
 const readline = require('readline');
+const { spawn } = require('child_process');
+const https = require('https');
 const path = require('path');
 const fs = require('fs');
+
+const ROUGE_ROOT = path.resolve(__dirname, '../..');
+const PROJECTS_DIR = process.env.ROUGE_PROJECTS_DIR || path.join(ROUGE_ROOT, 'projects');
 const {
   storeSecret,
   getSecret,
@@ -264,17 +277,317 @@ function cmdSecretsExpiry(action, ...rest) {
 }
 
 // ---------------------------------------------------------------------------
+// Project commands
+// ---------------------------------------------------------------------------
+
+function cmdInit(name) {
+  if (!name) {
+    console.error('Usage: rouge init <name>');
+    process.exit(1);
+  }
+
+  const projectPath = path.join(PROJECTS_DIR, name);
+  if (fs.existsSync(projectPath)) {
+    console.error(`Project already exists: ${projectPath}`);
+    process.exit(1);
+  }
+
+  fs.mkdirSync(projectPath, { recursive: true });
+  fs.writeFileSync(path.join(projectPath, '.gitkeep'), '');
+
+  console.log(`\n  Project created: ${name}`);
+  console.log(`  Path: ${projectPath}`);
+  console.log(`\n  Next: run \`rouge seed ${name}\` to start the seeding process.\n`);
+}
+
+function cmdSeed(name) {
+  if (!name) {
+    console.error('Usage: rouge seed <name>');
+    process.exit(1);
+  }
+
+  const projectPath = path.join(PROJECTS_DIR, name);
+  if (!fs.existsSync(projectPath)) {
+    console.error(`Project not found. Run \`rouge init ${name}\` first.`);
+    process.exit(1);
+  }
+
+  const promptFile = path.join(ROUGE_ROOT, 'src/prompts/seeding/00-swarm-orchestrator.md');
+  if (!fs.existsSync(promptFile)) {
+    console.error(`Seeding prompt not found: ${promptFile}`);
+    process.exit(1);
+  }
+
+  const promptContent = fs.readFileSync(promptFile, 'utf8');
+  const child = spawn('claude', ['-p', '--project', projectPath], {
+    stdio: ['pipe', 'inherit', 'inherit'],
+  });
+  child.stdin.write(promptContent);
+  child.stdin.end();
+
+  child.on('close', (code) => {
+    process.exit(code || 0);
+  });
+}
+
+function cmdBuild(name) {
+  const env = { ...process.env };
+  if (name) {
+    const projectPath = path.join(PROJECTS_DIR, name);
+    if (!fs.existsSync(projectPath)) {
+      console.error(`Project not found: ${projectPath}`);
+      process.exit(1);
+    }
+    env.ROUGE_PROJECT_FILTER = name;
+  }
+
+  console.log('Starting the Karpathy Loop...');
+
+  const loopScript = path.join(__dirname, 'rouge-loop.js');
+  const child = spawn('node', [loopScript], {
+    stdio: 'inherit',
+    env,
+  });
+
+  child.on('close', (code) => {
+    process.exit(code || 0);
+  });
+}
+
+function cmdStatus(name) {
+  if (name) {
+    const projectPath = path.join(PROJECTS_DIR, name);
+    if (!fs.existsSync(projectPath)) {
+      console.error(`Project not found: ${projectPath}`);
+      process.exit(1);
+    }
+    printProjectStatus(name, projectPath);
+    return;
+  }
+
+  // All projects
+  if (!fs.existsSync(PROJECTS_DIR)) {
+    console.log('\n  No projects directory found.\n');
+    return;
+  }
+
+  const entries = fs.readdirSync(PROJECTS_DIR, { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .map((d) => d.name)
+    .sort();
+
+  if (entries.length === 0) {
+    console.log('\n  No projects found.\n');
+    return;
+  }
+
+  console.log('');
+  console.log(`  ${'Project'.padEnd(22)} ${'State'.padEnd(22)} ${'Cycle'.padEnd(8)} Features`);
+  console.log(`  ${'-'.repeat(60)}`);
+
+  for (const projectName of entries) {
+    printProjectStatus(projectName, path.join(PROJECTS_DIR, projectName));
+  }
+  console.log('');
+}
+
+function printProjectStatus(name, projectPath) {
+  const statePath = path.join(projectPath, 'state.json');
+  if (!fs.existsSync(statePath)) {
+    console.log(`  ${name.padEnd(22)} ${'not seeded'.padEnd(22)}`);
+    return;
+  }
+
+  try {
+    const state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+    const phase = state.phase || state.state || 'unknown';
+    const cycle = state.cycle != null ? String(state.cycle) : '-';
+    const features = state.features;
+    let featureStr = '-';
+    if (features && typeof features.total === 'number') {
+      const complete = features.complete || 0;
+      featureStr = `${complete}/${features.total} complete`;
+    }
+    console.log(`  ${name.padEnd(22)} ${phase.padEnd(22)} ${cycle.padEnd(8)} ${featureStr}`);
+  } catch {
+    console.log(`  ${name.padEnd(22)} ${'invalid state.json'.padEnd(22)}`);
+  }
+}
+
+function cmdCost(name) {
+  if (!name) {
+    console.error('Usage: rouge cost <name> [--actual]');
+    process.exit(1);
+  }
+
+  const projectPath = path.join(PROJECTS_DIR, name);
+  if (!fs.existsSync(projectPath)) {
+    console.error(`Project not found: ${projectPath}`);
+    process.exit(1);
+  }
+
+  const costScript = path.join(__dirname, 'estimate-cost.js');
+  const costArgs = [costScript, projectPath];
+  if (process.argv.includes('--actual')) {
+    costArgs.push('--actual');
+  }
+
+  const child = spawn('node', costArgs, {
+    stdio: 'inherit',
+  });
+
+  child.on('close', (code) => {
+    process.exit(code || 0);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Slack commands
+// ---------------------------------------------------------------------------
+
+function cmdSlackSetup() {
+  const guidePath = path.join(ROUGE_ROOT, 'docs', 'slack-setup.md');
+  if (fs.existsSync(guidePath)) {
+    const content = fs.readFileSync(guidePath, 'utf8');
+    console.log(content);
+  } else {
+    console.log(`
+  Slack Setup — Quick Reference
+  ${'-'.repeat(40)}
+
+  1. Go to https://api.slack.com/apps > Create New App > From a manifest
+  2. Paste the contents of src/slack/manifest.yaml
+  3. Install to your workspace
+  4. Enable Socket Mode (Settings > Socket Mode) — create app token with connections:write
+  5. Copy Bot Token from OAuth & Permissions (xoxb-...)
+  6. Enable Incoming Webhooks and add one for your channel
+  7. Run: rouge setup slack
+  8. Run: rouge slack start
+
+  Full guide: docs/slack-setup.md
+`);
+  }
+}
+
+function cmdSlackStart() {
+  const botToken = getSecret('slack', 'SLACK_BOT_TOKEN');
+  const appToken = getSecret('slack', 'SLACK_APP_TOKEN');
+
+  if (!botToken || !appToken) {
+    console.error('Missing Slack tokens. Run `rouge setup slack` first.');
+    if (!botToken) console.error('  - SLACK_BOT_TOKEN not found');
+    if (!appToken) console.error('  - SLACK_APP_TOKEN not found');
+    process.exit(1);
+  }
+
+  const botScript = path.join(ROUGE_ROOT, 'src', 'slack', 'bot.js');
+  if (!fs.existsSync(botScript)) {
+    console.error(`Bot script not found: ${botScript}`);
+    process.exit(1);
+  }
+
+  console.log('Starting Rouge Slack bot...');
+  const child = spawn('node', [botScript], {
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      SLACK_BOT_TOKEN: botToken,
+      SLACK_APP_TOKEN: appToken,
+    },
+  });
+
+  child.on('close', (code) => {
+    process.exit(code || 0);
+  });
+}
+
+function cmdSlackTest() {
+  const webhookUrl = getSecret('slack', 'ROUGE_SLACK_WEBHOOK');
+  if (!webhookUrl) {
+    console.error('No webhook configured. Run `rouge setup slack` first.');
+    process.exit(1);
+  }
+
+  if (!webhookUrl.startsWith('https://hooks.slack.com/')) {
+    console.error(`Invalid webhook URL (must start with https://hooks.slack.com/).`);
+    console.error(`Current value starts with: ${webhookUrl.substring(0, 30)}...`);
+    process.exit(1);
+  }
+
+  const payload = JSON.stringify({
+    text: 'Rouge test message — your webhook is working.',
+  });
+
+  const url = new URL(webhookUrl);
+  const options = {
+    hostname: url.hostname,
+    path: url.pathname,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(payload),
+    },
+  };
+
+  const req = https.request(options, (res) => {
+    let body = '';
+    res.on('data', (chunk) => { body += chunk; });
+    res.on('end', () => {
+      if (res.statusCode === 200) {
+        console.log('Webhook test successful — check your Slack channel.');
+      } else {
+        console.error(`Webhook returned status ${res.statusCode}: ${body}`);
+        process.exit(1);
+      }
+    });
+  });
+
+  req.on('error', (err) => {
+    console.error(`Webhook request failed: ${err.message}`);
+    process.exit(1);
+  });
+
+  req.write(payload);
+  req.end();
+}
+
+// ---------------------------------------------------------------------------
 // CLI router
 // ---------------------------------------------------------------------------
 
 const args = process.argv.slice(2);
 const command = args[0];
 
-if (command === 'setup') {
+if (command === 'init') {
+  cmdInit(args[1]);
+} else if (command === 'seed') {
+  cmdSeed(args[1]);
+} else if (command === 'build') {
+  cmdBuild(args[1]);
+} else if (command === 'status') {
+  cmdStatus(args[1]);
+} else if (command === 'cost') {
+  cmdCost(args[1]);
+} else if (command === 'setup') {
   cmdSetup(args[1]).catch((err) => {
     console.error(err.message);
     process.exit(1);
   });
+} else if (command === 'slack') {
+  const subcommand = args[1];
+  if (subcommand === 'setup') {
+    cmdSlackSetup();
+  } else if (subcommand === 'start') {
+    cmdSlackStart();
+  } else if (subcommand === 'test') {
+    cmdSlackTest();
+  } else {
+    console.error('Usage: rouge slack <setup|start|test>');
+    console.error('  rouge slack setup    Print Slack setup guide');
+    console.error('  rouge slack start    Start the Slack bot');
+    console.error('  rouge slack test     Send a test webhook message');
+    process.exit(1);
+  }
 } else if (command === 'secrets') {
   const subcommand = args[1];
   if (subcommand === 'list') {
@@ -294,7 +607,15 @@ if (command === 'setup') {
   The Rouge CLI
 
   Commands:
+    rouge init <name>               Create a new project directory
+    rouge seed <name>               Start interactive seeding via claude -p
+    rouge build [name]              Start the Karpathy Loop
+    rouge status [name]             Show project state summary
+    rouge cost <name> [--actual]    Show cost estimate or actuals
     rouge setup <integration>       Set up integration credentials
+    rouge slack setup               Print Slack setup guide
+    rouge slack start               Start the Slack bot
+    rouge slack test                Send a test webhook message
     rouge secrets list              List stored secret names
     rouge secrets check <dir>       Check project against stored secrets
     rouge secrets validate <target> Validate keys against API endpoints
