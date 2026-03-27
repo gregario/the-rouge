@@ -21,7 +21,13 @@
     "test": "node tests/secrets.test.js && node tests/cli.test.js"
   },
   "files": [
-    "src/",
+    "src/launcher/",
+    "src/prompts/",
+    "src/slack/bot.js",
+    "src/slack/block-kit.js",
+    "src/slack/format.js",
+    "src/slack/manifest.yaml",
+    "src/slack/package.json",
     "schemas/",
     "library/global/",
     "library/domain/",
