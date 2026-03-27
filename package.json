@@ -7,13 +7,21 @@
   "author": "gregario",
   "homepage": "https://github.com/gregario/the-rouge",
   "bin": {
-    "rouge": "./src/launcher/rouge-cli.js"
+    "rouge": "src/launcher/rouge-cli.js"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/gregario/the-rouge.git"
+    "url": "git+https://github.com/gregario/the-rouge.git"
   },
-  "keywords": ["ai", "autonomous", "product-development", "claude", "karpathy-loop", "evaluation", "quality"],
+  "keywords": [
+    "ai",
+    "autonomous",
+    "product-development",
+    "claude",
+    "karpathy-loop",
+    "evaluation",
+    "quality"
+  ],
   "engines": {
     "node": ">=18"
   },
