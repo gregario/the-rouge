@@ -9,6 +9,9 @@
  *   rouge status [name]              Show project state summary
  *   rouge cost <name> [--actual]     Show cost estimate or actuals
  *   rouge setup <integration>        Interactive setup for an integration
+ *   rouge slack setup                Print Slack setup guide
+ *   rouge slack start                Start the Slack bot
+ *   rouge slack test                 Send a test webhook message
  *   rouge secrets list               List all stored secret names
  *   rouge secrets check <project>    Check project against stored secrets
  *   rouge secrets validate <target>  Validate keys against API endpoints
@@ -18,6 +21,7 @@
 
 const readline = require('readline');
 const { spawn } = require('child_process');
+const https = require('https');
 const path = require('path');
 const fs = require('fs');
 
@@ -438,6 +442,116 @@ function cmdCost(name) {
 }
 
 // ---------------------------------------------------------------------------
+// Slack commands
+// ---------------------------------------------------------------------------
+
+function cmdSlackSetup() {
+  const guidePath = path.join(ROUGE_ROOT, 'docs', 'slack-setup.md');
+  if (fs.existsSync(guidePath)) {
+    const content = fs.readFileSync(guidePath, 'utf8');
+    console.log(content);
+  } else {
+    console.log(`
+  Slack Setup — Quick Reference
+  ${'-'.repeat(40)}
+
+  1. Go to https://api.slack.com/apps > Create New App > From a manifest
+  2. Paste the contents of src/slack/manifest.yaml
+  3. Install to your workspace
+  4. Enable Socket Mode (Settings > Socket Mode) — create app token with connections:write
+  5. Copy Bot Token from OAuth & Permissions (xoxb-...)
+  6. Enable Incoming Webhooks and add one for your channel
+  7. Run: rouge setup slack
+  8. Run: rouge slack start
+
+  Full guide: docs/slack-setup.md
+`);
+  }
+}
+
+function cmdSlackStart() {
+  const botToken = getSecret('slack', 'SLACK_BOT_TOKEN');
+  const appToken = getSecret('slack', 'SLACK_APP_TOKEN');
+
+  if (!botToken || !appToken) {
+    console.error('Missing Slack tokens. Run `rouge setup slack` first.');
+    if (!botToken) console.error('  - SLACK_BOT_TOKEN not found');
+    if (!appToken) console.error('  - SLACK_APP_TOKEN not found');
+    process.exit(1);
+  }
+
+  const botScript = path.join(ROUGE_ROOT, 'src', 'slack', 'bot.js');
+  if (!fs.existsSync(botScript)) {
+    console.error(`Bot script not found: ${botScript}`);
+    process.exit(1);
+  }
+
+  console.log('Starting Rouge Slack bot...');
+  const child = spawn('node', [botScript], {
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      SLACK_BOT_TOKEN: botToken,
+      SLACK_APP_TOKEN: appToken,
+    },
+  });
+
+  child.on('close', (code) => {
+    process.exit(code || 0);
+  });
+}
+
+function cmdSlackTest() {
+  const webhookUrl = getSecret('slack', 'ROUGE_SLACK_WEBHOOK');
+  if (!webhookUrl) {
+    console.error('No webhook configured. Run `rouge setup slack` first.');
+    process.exit(1);
+  }
+
+  if (!webhookUrl.startsWith('https://hooks.slack.com/')) {
+    console.error(`Invalid webhook URL (must start with https://hooks.slack.com/).`);
+    console.error(`Current value starts with: ${webhookUrl.substring(0, 30)}...`);
+    process.exit(1);
+  }
+
+  const payload = JSON.stringify({
+    text: 'Rouge test message — your webhook is working.',
+  });
+
+  const url = new URL(webhookUrl);
+  const options = {
+    hostname: url.hostname,
+    path: url.pathname,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(payload),
+    },
+  };
+
+  const req = https.request(options, (res) => {
+    let body = '';
+    res.on('data', (chunk) => { body += chunk; });
+    res.on('end', () => {
+      if (res.statusCode === 200) {
+        console.log('Webhook test successful — check your Slack channel.');
+      } else {
+        console.error(`Webhook returned status ${res.statusCode}: ${body}`);
+        process.exit(1);
+      }
+    });
+  });
+
+  req.on('error', (err) => {
+    console.error(`Webhook request failed: ${err.message}`);
+    process.exit(1);
+  });
+
+  req.write(payload);
+  req.end();
+}
+
+// ---------------------------------------------------------------------------
 // CLI router
 // ---------------------------------------------------------------------------
 
@@ -459,6 +573,21 @@ if (command === 'init') {
     console.error(err.message);
     process.exit(1);
   });
+} else if (command === 'slack') {
+  const subcommand = args[1];
+  if (subcommand === 'setup') {
+    cmdSlackSetup();
+  } else if (subcommand === 'start') {
+    cmdSlackStart();
+  } else if (subcommand === 'test') {
+    cmdSlackTest();
+  } else {
+    console.error('Usage: rouge slack <setup|start|test>');
+    console.error('  rouge slack setup    Print Slack setup guide');
+    console.error('  rouge slack start    Start the Slack bot');
+    console.error('  rouge slack test     Send a test webhook message');
+    process.exit(1);
+  }
 } else if (command === 'secrets') {
   const subcommand = args[1];
   if (subcommand === 'list') {
@@ -484,6 +613,9 @@ if (command === 'init') {
     rouge status [name]             Show project state summary
     rouge cost <name> [--actual]    Show cost estimate or actuals
     rouge setup <integration>       Set up integration credentials
+    rouge slack setup               Print Slack setup guide
+    rouge slack start               Start the Slack bot
+    rouge slack test                Send a test webhook message
     rouge secrets list              List stored secret names
     rouge secrets check <dir>       Check project against stored secrets
     rouge secrets validate <target> Validate keys against API endpoints

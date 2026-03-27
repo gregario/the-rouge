@@ -246,6 +246,46 @@ console.log('\n[rouge — shows help with all commands]');
   assert(result.stdout.includes('rouge secrets'), 'help lists secrets');
 }
 
+// ---- rouge slack ----
+
+console.log('\n[rouge slack — no subcommand shows usage]');
+{
+  const result = runCLI(['slack']);
+  assertEqual(result.status, 1, 'exits 1 without subcommand');
+  assert(result.stderr.includes('rouge slack'), 'shows usage');
+  assert(result.stderr.includes('setup'), 'mentions setup subcommand');
+  assert(result.stderr.includes('start'), 'mentions start subcommand');
+  assert(result.stderr.includes('test'), 'mentions test subcommand');
+}
+
+console.log('\n[rouge slack setup — prints guide text]');
+{
+  const result = runCLI(['slack', 'setup']);
+  assertEqual(result.status, 0, 'exits 0');
+  assert(result.stdout.includes('api.slack.com'), 'output contains api.slack.com');
+  assert(result.stdout.includes('manifest'), 'output mentions manifest');
+  assert(result.stdout.includes('Socket Mode'), 'output mentions Socket Mode');
+}
+
+console.log('\n[rouge slack test — without webhook prints helpful error]');
+{
+  const tmpDir = makeTmpDir();
+  // Use a custom ROUGE_HOME so no real secrets are found
+  const result = runCLI(['slack', 'test'], { ROUGE_HOME: tmpDir });
+  assertEqual(result.status, 1, 'exits 1 without webhook');
+  assert(result.stderr.includes('rouge setup slack'), 'suggests running rouge setup slack');
+  cleanupDir(tmpDir);
+}
+
+// ---- rouge help includes slack ----
+
+console.log('\n[rouge — help text includes slack commands]');
+{
+  const result = runCLI([]);
+  assertEqual(result.status, 0, 'exits 0');
+  assert(result.stdout.includes('rouge slack'), 'help lists slack');
+}
+
 // ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------
