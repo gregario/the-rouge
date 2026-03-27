@@ -1,6 +1,6 @@
 {
   "name": "the-rouge",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Autonomous product development system that builds production-quality products through iterative self-evaluation",
   "type": "commonjs",
   "license": "PolyForm-Noncommercial-1.0.0",
