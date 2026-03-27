@@ -85,7 +85,7 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 
 ### Verification
 
-- [ ] 0a.30 Verify each phase prompt works individually via `claude -p` with mock cycle_context.json — test that it reads context, does its work, writes results back, and does NOT invoke external slash commands or decide the next phase.
+- [x] 0a.30 Verify each phase prompt works individually — DONE: `tests/eval/run-eval.js` (348 lines, ~91 assertions across 9 phases). Validates against real E2E output, not mocks.
 
 ### Backlog (not task 0a — fundamentally different loops needing separate design)
 
@@ -454,7 +454,7 @@ Questions:
 
 - [x] FW.47 DROPPED — slash commands control, @mentions converse. No need for /rouge respond.
 - [x] FW.48 Slack markdown sanitization — convert Claude's markdown (headers, code blocks, tables) to Slack-compatible mrkdwn before posting. Strip unsupported syntax. DONE: `src/slack/format.js`
-- [ ] FW.49 Per-project status detail — `/rouge status <project>` shows detailed view (current phase, cycle, confidence, last action, staging URL) vs the current list view.
+- [x] FW.49 Per-project status detail — DONE: `/rouge status <project>` shows phase, cycle, features, foundation, confidence, staging URL. List view unchanged.
 - [x] FW.50 API/integration-aware seeding — seeding swarm asks about integrations (Stripe, Supabase, third-party APIs, OAuth, webhooks) and incorporates them into the spec. DONE: `src/prompts/seeding/04-spec.md` decomposition assessment + integration manifest
 
 ## Future Work — gstack Migration (2026-03-24)
