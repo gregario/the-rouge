@@ -89,15 +89,15 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 
 ### Backlog (not task 0a — fundamentally different loops needing separate design)
 
-- [ ] BACKLOG: MCP testing loop — wrap `/mcp-qa` into Rouge-compatible evaluation phase for MCP server products
-- [ ] BACKLOG: Godot testing loop — wrap GUT into Rouge-compatible evaluation phase for Godot game products
+- [x] BACKLOG: MCP testing loop — MOVED to GitHub issue #39
+- [x] BACKLOG: Godot testing loop — MOVED to GitHub issue #40
 
 ## 0b. Prerequisite — Deployment Infrastructure Battle-Testing
 
 - [x] 0b.1 Test new project deployment end-to-end — Workers + Static Assets path works. See `docs/research/2026-03-18-0b-cloudflare-findings.md`
 - [x] 0b.2 Automate Supabase project creation — CLI fully non-interactive. Pause/restore via Management API. See `docs/research/2026-03-18-0b-supabase-findings.md`
 - [x] 0b.3 Automate Cloudflare setup — Workers auto-create on first deploy. No dashboard needed. See cloudflare findings
-- [ ] 0b.4 Automate local Docker deployment as fallback — deferred (not needed for V1, all cloud tools work)
+- [x] 0b.4 Automate local Docker deployment as fallback — DROPPED (not needed, all cloud tools work)
 - [x] 0b.5 Test staging → production promotion flow — `wrangler deploy --env staging` then `wrangler deploy`. Same build, cached assets
 - [x] 0b.6 Test rollback flow — `wrangler versions deploy <id>@100%` instant rollback, production unaffected
 - [x] 0b.7 Test Lighthouse against deployed staging — headless Chrome, JSON output, 96/100/100/100 baseline. See `docs/research/2026-03-18-0b-lighthouse-findings.md`
@@ -408,14 +408,7 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 
 Rouge Maintain: autonomous maintenance of deployed production systems.
 
-- [ ] FM.1 SBOM generation and CVE scanning — weekly automated dependency audit
-- [ ] FM.2 Automated security patching — CVE detected → branch → patch → test → PR
-- [ ] FM.3 Bug triage from error monitoring — Sentry errors → classify → fix or escalate
-- [ ] FM.4 Database migration planning — schema changes with rollback plans, dry-run on staging
-- [ ] FM.5 Dependency updates — automated minor/patch updates with test verification
-- [ ] FM.6 Uptime monitoring — health checks, auto-restart, incident notification
-- [ ] FM.7 Production safeguards — never auto-merge to production without human approval for destructive changes (table drops, data migrations)
-- [ ] FM.8 Weekly maintenance report — what was patched, what needs attention, security posture
+- [x] FM.1-FM.8 — MOVED to GitHub issue #34 (Rouge Maintain). FM.1 (SBOM/CVE), FM.2 (security patching), FM.5 (dependency updates), FM.6 (uptime), FM.7 (safeguards), FM.8 (weekly report) are Rouge Maintain scope. FM.3 (bug triage) moved to #41. FM.4 (migration planning) moved to #42.
 
 ## Future Work — Rate Limit Handling Rethink
 
@@ -460,16 +453,16 @@ Questions:
 ## Future Work — Session Feedback (2026-03-22)
 
 - [x] FW.47 DROPPED — slash commands control, @mentions converse. No need for /rouge respond.
-- [ ] FW.48 Slack markdown sanitization — convert Claude's markdown (headers, code blocks, tables) to Slack-compatible mrkdwn before posting. Strip unsupported syntax.
+- [x] FW.48 Slack markdown sanitization — convert Claude's markdown (headers, code blocks, tables) to Slack-compatible mrkdwn before posting. Strip unsupported syntax. DONE: `src/slack/format.js`
 - [ ] FW.49 Per-project status detail — `/rouge status <project>` shows detailed view (current phase, cycle, confidence, last action, staging URL) vs the current list view.
-- [ ] FW.50 API/integration-aware seeding — seeding swarm asks about integrations (Stripe, Supabase, third-party APIs, OAuth, webhooks) and incorporates them into the spec. Products built on integrations need them specced from the start.
+- [x] FW.50 API/integration-aware seeding — seeding swarm asks about integrations (Stripe, Supabase, third-party APIs, OAuth, webhooks) and incorporates them into the spec. DONE: `src/prompts/seeding/04-spec.md` decomposition assessment + integration manifest
 
 ## Future Work — gstack Migration (2026-03-24)
 
 Adapted from garrytan/gstack. Design docs in `docs/design/`. Phase prompt changes already landed.
 
-- [ ] FW.51 Safety hooks implementation — build `rouge-safety-check` bash CLI and register hooks in `.claude/settings.json`. Blocks production deploys, credential writes, destructive ops. Must ship before open source. Design: `docs/design/safety-hooks.md`
-- [ ] FW.52 External reviewer triage — implement classify/act/learn pattern for Dependabot, Snyk, CodeQL feedback in Rouge Maintain. Per-project history tracking with suppression lists. Design: `docs/design/rouge-maintain-external-reviewer-triage.md`
-- [ ] FW.53 Worktree-based parallel module builds — implement scale architecture parallelism using gstack WorktreeManager as reference (SHA-256 dedup, artifact copying). Trigger: first large project seeded. Design: `docs/plans/2026-03-24-scale-architecture-design.md`
-- [ ] FW.54 Soft dependencies (BENEFITS_FROM) — phases declare optional cross-phase consultations. Non-blocking, logged. Design: `docs/design/soft-dependencies-and-routing.md`
-- [ ] FW.55 Natural language Slack routing — intent-based command mapping for open source users. Keyword matching in Slack bot. Design: `docs/design/soft-dependencies-and-routing.md`
+- [x] FW.51 Safety hooks implementation — build `rouge-safety-check` bash CLI and register hooks in `.claude/settings.json`. DONE: `src/launcher/rouge-safety-check.sh` + `tests/safety-hooks.test.sh`
+- [x] FW.52 External reviewer triage — MOVED to GitHub issue #35. Separate from Rouge Maintain. Design exists at `docs/design/rouge-maintain-external-reviewer-triage.md`
+- [x] FW.53 Worktree-based parallel module builds — MOVED to GitHub issue #25 (remaining item). Post-V1.
+- [x] FW.54 Soft dependencies (BENEFITS_FROM) — DONE at prompt level: headers in building, qa-fixing, analyzing prompts + protocol in autonomous-mode.md. Launcher orchestration deferred.
+- [x] FW.55 Natural language Slack routing — MOVED to GitHub issue #36. Post-V1.
