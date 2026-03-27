@@ -2,15 +2,36 @@
   "name": "the-rouge",
   "version": "0.1.0",
   "description": "Autonomous product development system that builds production-quality products through iterative self-evaluation",
-  "private": true,
   "type": "commonjs",
-  "license": "MIT",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "author": "gregario",
+  "homepage": "https://github.com/gregario/the-rouge",
   "bin": {
     "rouge": "./src/launcher/rouge-cli.js"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/gregario/the-rouge.git"
-  }
+  },
+  "keywords": ["ai", "autonomous", "product-development", "claude", "karpathy-loop", "evaluation", "quality"],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node tests/secrets.test.js && node tests/cli.test.js"
+  },
+  "files": [
+    "src/",
+    "schemas/",
+    "library/global/",
+    "library/domain/",
+    "library/templates/",
+    "library/integrations/",
+    "library/README.md",
+    "rouge.config.json",
+    "LICENSE",
+    "README.md",
+    "CONTRIBUTING.md",
+    "docs/slack-setup.md"
+  ]
 }

@@ -128,11 +128,11 @@ npm install
 
 ### Prerequisites
 
-- **Claude Code CLI** — `claude -p` is the execution engine for every phase
+- **[Claude Code CLI](https://claude.ai/code)** — `claude -p` is the execution engine for every phase
 - **Node.js 18+** — launcher, Slack bot, supporting scripts
 - **Git** — every phase commits. Git is the audit trail
-- **GStack browse** — browser automation for evaluation phases. Screenshots, DOM analysis, Lighthouse, console errors. Required for web products. macOS only for now (Playwright fallback is on the roadmap)
-- **Slack App** — notifications and control plane. Rouge pings you when it ships, when it's blocked, when it needs feedback. You can start, pause, and monitor projects from your phone. Free workspace, one custom app with Socket Mode
+- **[GStack browse](https://github.com/garrytan/gstack)** — browser automation for evaluation phases. Screenshots, DOM analysis, Lighthouse, console errors. Required for web products. macOS only for now (Playwright fallback is on the roadmap)
+- **[Slack App](docs/slack-setup.md)** — notifications and control plane. Rouge pings you when it ships, when it's blocked, when it needs feedback. You can start, pause, and monitor projects from your phone
 
 Optional:
 - **Wrangler CLI** — Cloudflare Workers deployment
@@ -141,32 +141,36 @@ Optional:
 ### Set up integrations
 
 ```bash
-# Walk through integration setup one at a time (optional, progressive)
-node src/launcher/rouge-cli.js setup stripe
-node src/launcher/rouge-cli.js setup supabase
+# Walk through integration setup (progressive, one at a time)
+rouge setup supabase
+rouge setup stripe
 
 # Check what's configured
-node src/launcher/rouge-cli.js secrets list
+rouge secrets list
 ```
 
 Secrets are stored in your OS credential store (macOS Keychain, Linux secret-service, Windows Credential Manager). Rouge never sees the values. The launcher sets env vars before spawning each phase.
 
-### Seed a product
+### Set up Slack
 
 ```bash
-claude -p --project projects/my-product "seed this product"
+rouge slack setup     # Prints step-by-step guide
+rouge setup slack     # Store your Slack tokens
+rouge slack start     # Start the bot
+rouge slack test      # Verify it works
 ```
 
-This runs through eight seeding disciplines and produces `vision.json`, specs, and all artifacts. About 30 minutes of your time.
+See [docs/slack-setup.md](docs/slack-setup.md) for the full setup guide.
 
-### Start the loop
+### Build a product
 
 ```bash
-# Run in tmux/screen
-node src/launcher/rouge-loop.js
+rouge init my-product       # Create project directory
+rouge seed my-product       # Interactive seeding (~10-20 min)
+rouge build my-product      # Start the Karpathy Loop
+rouge status                # Check progress
+rouge cost my-product       # See cost estimate
 ```
-
-The launcher iterates through all projects in `projects/`, advancing each one phase per iteration. Projects waiting for human feedback are skipped until you respond via Slack.
 
 ## Safety
 
@@ -184,15 +188,28 @@ Rouge includes a safety layer (`rouge-safety-check.sh`) that validates every pha
 
 ## Economics
 
-Rouge runs on your Claude Code subscription. Rough cost estimates per product:
+Rouge runs on your Claude Code subscription. Each build cycle consumes session time (roughly 10-20 minutes of model time per phase). A simple product takes a few hours of total session time across all cycles. A complex product might take a day or more spread across multiple sessions.
 
-| Product size | Estimate | Examples |
-|-------------|----------|---------|
-| Small (1-3 features) | $5 to $20 | Timer app, landing page, simple tool |
-| Medium SaaS (5-10 features) | $50 to $150 | Task manager, dashboard, marketplace |
-| Large SaaS (10+ features) | $150 to $400 | Fleet management, multi-tenant platform |
+If you run Rouge via API keys instead of a subscription, token costs apply. Rough estimates based on calibration data:
 
-These are compute costs only. Infrastructure (Cloudflare free tier, Supabase free tier) adds nothing for small projects.
+| Product size | API cost estimate | Session time estimate |
+|-------------|-------------------|----------------------|
+| Small (1-3 features) | $5 to $20 | 2-4 hours |
+| Medium SaaS (5-10 features) | $50 to $150 | 1-3 days |
+| Large SaaS (10+ features) | $150 to $400 | 3-7 days |
+
+Infrastructure costs (Cloudflare free tier, Supabase free tier) add nothing for small projects. Run `rouge cost <project>` for project-specific estimates.
+
+## Built with
+
+Rouge is built on top of these excellent open source projects:
+
+- **[Claude Code](https://claude.ai/code)** by Anthropic — the execution engine for every phase
+- **[GStack](https://github.com/garrytan/gstack)** by Garry Tan — browser automation and QA patterns that inspired Rouge's evaluation system
+- **[Superpowers](https://github.com/claude-plugins-official/superpowers)** by Jesse Vincent — engineering discipline skills (TDD, code review, debugging)
+- **[Excalidraw](https://excalidraw.com)** — hand-drawn diagrams
+- **[Supabase](https://supabase.com)** — database, auth, and storage for products Rouge builds
+- **[Cloudflare Workers](https://workers.cloudflare.com)** — deployment target for products Rouge builds
 
 ## Contributing
 
