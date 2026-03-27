@@ -2,6 +2,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/the-rouge"><img src="https://img.shields.io/npm/v/the-rouge.svg" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/the-rouge"><img src="https://img.shields.io/npm/dm/the-rouge.svg" alt="npm downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm%20NC-blue.svg" alt="PolyForm Noncommercial"></a>
   <a href="https://github.com/sponsors/gregario"><img src="https://img.shields.io/badge/sponsor-♥-ea4aaa.svg" alt="Sponsor"></a>
 </p>
@@ -15,9 +16,7 @@ Not one-shot code generation. Iterative product development: build, evaluate aga
 ## Quick start
 
 ```bash
-git clone https://github.com/gregario/the-rouge.git
-cd the-rouge
-npm install
+npm install -g the-rouge
 
 rouge init my-product
 rouge seed my-product
@@ -112,6 +111,16 @@ Rouge was built using [AI Factory](https://github.com/gregario/AI-Factory), an A
 - **[Cloudflare Workers](https://workers.cloudflare.com)** — deployment target for products Rouge builds
 
 ## Getting started (detailed)
+
+```bash
+npm install -g the-rouge
+```
+
+Or clone from source:
+```bash
+git clone https://github.com/gregario/the-rouge.git
+cd the-rouge && npm install
+```
 
 ### Prerequisites
 
