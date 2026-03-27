@@ -99,10 +99,7 @@ Infrastructure (Cloudflare free tier, Supabase free tier) adds nothing for small
 
 ## Built with
 
-Rouge was built using [AI Factory](https://github.com/gregario/AI-Factory), an AI product development workbench. The factory built the factory.
-
-- **[AI Factory](https://github.com/gregario/AI-Factory)** by Greg Jackson — the workbench that built Rouge
-- **[Claude Code](https://claude.ai/code)** by Anthropic — execution engine for every phase
+- **[AI Factory](https://github.com/gregario/AI-Factory)** by Greg Jackson — the factory that built Rouge
 - **[GStack](https://github.com/garrytan/gstack)** by Garry Tan — browser automation and QA patterns that inspired Rouge's evaluation system
 - **[Superpowers](https://github.com/claude-plugins-official/superpowers)** by Jesse Vincent — engineering discipline skills
 - **[OpenSpec](https://github.com/openspecio/openspec)** — product specification and task management
