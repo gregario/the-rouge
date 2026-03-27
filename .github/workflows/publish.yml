@@ -16,5 +16,5 @@ jobs:
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
-      - run: npm test
+      - run: node tests/cli.test.js
       - run: npm publish --provenance --access public
