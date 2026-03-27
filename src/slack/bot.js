@@ -46,6 +46,85 @@ function writeFeedback(projectName, text) {
   fs.renameSync(tmp, feedbackPath);
 }
 
+function readJson(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) return null;
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch { return null; }
+}
+
+function writeJson(filePath, data) {
+  const tmp = filePath + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(data, null, 2) + '\n');
+  fs.renameSync(tmp, filePath);
+}
+
+function formatProjectDetail(name) {
+  const state = readState(name);
+  if (!state) return `Project \`${name}\` not found.`;
+
+  const projectDir = path.join(PROJECTS_DIR, name);
+  const ctx = readJson(path.join(projectDir, 'cycle_context.json'));
+  const seedState = getSeedingState(name);
+  const emoji = STATE_EMOJI[state?.current_state] || '❓';
+
+  const lines = [];
+  lines.push(`${emoji} *${name}*${state.name && state.name !== name ? ` _(${state.name})_` : ''}`);
+  lines.push('');
+
+  // Phase & cycle
+  lines.push(`*Phase:* \`${state.current_state || 'unknown'}\``);
+  if (state.current_state === 'seeding' && seedState) {
+    lines.push(`*Seeding:* ${seedState.status || 'unknown'}`);
+  }
+  lines.push(`*Cycle:* ${state.cycle_number || 0}`);
+
+  // Feature areas
+  const featureAreas = state.feature_areas || ctx?.vision?.feature_areas || [];
+  if (featureAreas.length > 0) {
+    lines.push('');
+    lines.push('*Feature Areas:*');
+    for (const fa of featureAreas) {
+      const statusEmoji = fa.status === 'complete' ? '✅' : fa.status === 'in-progress' ? '🔨' : '⬜';
+      lines.push(`  ${statusEmoji} ${fa.name} — \`${fa.status || 'pending'}\``);
+    }
+  }
+
+  // Foundation status
+  if (state.foundation) {
+    lines.push('');
+    const fStatus = state.foundation.status || 'unknown';
+    const fEmoji = fStatus === 'complete' ? '✅' : fStatus === 'in-progress' ? '🔨' : '⬜';
+    lines.push(`*Foundation:* ${fEmoji} \`${fStatus}\``);
+    if (state.foundation.completed_at) {
+      lines.push(`  _Completed: ${state.foundation.completed_at}_`);
+    }
+  }
+
+  // Confidence history
+  const confidence = state.confidence_history || [];
+  if (confidence.length > 0) {
+    const last3 = confidence.slice(-3).map(c => typeof c === 'number' ? `${(c * 100).toFixed(0)}%` : String(c));
+    lines.push('');
+    lines.push(`*Confidence (last ${last3.length}):* ${last3.join(' → ')}`);
+  }
+
+  // Staging URL
+  const stagingUrl = ctx?.deployment_url || ctx?.infrastructure?.staging_url;
+  if (stagingUrl) {
+    lines.push('');
+    lines.push(`*Staging:* <${stagingUrl}|${stagingUrl}>`);
+  }
+
+  // Last action timestamp
+  if (state.timestamp) {
+    lines.push('');
+    lines.push(`*Last action:* ${state.timestamp}`);
+  }
+
+  return lines.join('\n');
+}
+
 function getSeedingState(projectName) {
   const seedPath = path.join(PROJECTS_DIR, projectName, 'seeding-state.json');
   if (!fs.existsSync(seedPath)) return null;
@@ -275,7 +354,7 @@ const STATE_EMOJI = {
 function showHelp(say) {
   return say([
     '*Rouge Commands:*',
-    '\u2022 `status` \u2014 Show all projects and their states',
+    '\u2022 `status` \u2014 Show all projects | `status <project>` \u2014 Detailed view',
     '\u2022 `new <name>` \u2014 Create a new project and start seeding',
     '\u2022 `seed <name>` \u2014 Resume a paused seeding session',
     '\u2022 `start <project>` \u2014 Start a ready project',
@@ -520,6 +599,11 @@ app.event('app_mention', async ({ event, say }) => {
         }
 
         case 'status': {
+          // Per-project detail view
+          if (projectName) {
+            await say(formatProjectDetail(projectName));
+            return;
+          }
           const projects = listProjects();
           if (projects.length === 0) {
             await say('No projects found.');
@@ -1059,7 +1143,7 @@ app.command('/rouge', async ({ command, ack, respond }) => {
           response_type: 'ephemeral',
           text: [
             '*Rouge Commands:*',
-            '\u2022 `/rouge status` \u2014 Show all projects and their states',
+            '\u2022 `/rouge status` \u2014 Show all projects | `/rouge status <project>` \u2014 Detailed view',
             '\u2022 `/rouge new <name>` \u2014 Create a new project and start seeding',
             '\u2022 `/rouge seed <name>` \u2014 Resume a paused seeding session',
             '\u2022 `/rouge start <project>` \u2014 Start a ready project',
@@ -1073,6 +1157,11 @@ app.command('/rouge', async ({ command, ack, respond }) => {
       }
 
       case 'status': {
+        // Per-project detail view
+        if (projectName) {
+          await respond({ response_type: 'ephemeral', text: formatProjectDetail(projectName) });
+          break;
+        }
         const projects = listProjects();
         if (projects.length === 0) {
           await respond({ response_type: 'ephemeral', text: 'No projects found.' });
