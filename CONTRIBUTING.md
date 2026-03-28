@@ -44,7 +44,7 @@ Before submitting prompt changes:
 
 ### Integration Patterns
 
-The Rouge supports tiered integration with external services. Contributions for Tier 2 (recommended) and Tier 3 (optional) integrations are welcome -- things like deployment targets, monitoring hooks, notification channels, and quality oracles.
+The Rouge supports tiered integration with external services. See the Integration Catalogue Contributions section below for how to add new services and patterns.
 
 ### Documentation
 
