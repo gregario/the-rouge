@@ -20,6 +20,7 @@
  *   rouge secrets expiry set <s/K> <date>  Set key expiry date
  *   rouge feasibility <description>  Assess feasibility of a proposed change
  *   rouge contribute <path>           Contribute a draft integration pattern via PR
+ *   rouge improve [options]            Run unattended self-improvement loop
  */
 
 const readline = require('readline');
@@ -840,6 +841,16 @@ if (command === 'doctor') {
     if (result.pr) console.log(`    PR: ${result.pr}`);
     console.log('');
   }
+} else if (command === 'improve') {
+  const { run } = require('./self-improve.js');
+  const maxIdx = args.indexOf('--max-iterations');
+  const maxIterations = maxIdx >= 0 ? parseInt(args[maxIdx + 1], 10) || 1 : 1;
+  const explore = args.includes('--explore');
+  const dryRun = args.includes('--dry-run');
+  run({ maxIterations, explore, dryRun }).catch((err) => {
+    console.error(`  Fatal error: ${err.message}`);
+    process.exit(1);
+  });
 } else if (command === 'secrets') {
   const subcommand = args[1];
   if (subcommand === 'list') {
@@ -876,6 +887,10 @@ if (command === 'doctor') {
     rouge secrets expiry set <s/K> <date>  Set expiry for a secret
     rouge feasibility <description> Assess feasibility of a proposed change
     rouge contribute <path>         Contribute a draft integration pattern via PR
+    rouge improve                   Run one self-improvement iteration
+    rouge improve --max-iterations 5  Run up to 5 iterations
+    rouge improve --explore         Enable exploration when no issues remain
+    rouge improve --dry-run         Show what would be done without doing it
 
   Integrations: ${Object.keys(INTEGRATION_KEYS).join(', ')}
 `);

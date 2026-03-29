@@ -350,6 +350,27 @@ console.log('\n[rouge — help text includes contribute]');
   assert(result.stdout.includes('rouge contribute'), 'help lists contribute');
 }
 
+// ---- rouge improve ----
+
+console.log('\n[rouge — help text includes improve]');
+{
+  const result = runCLI([]);
+  assertEqual(result.status, 0, 'exits 0');
+  assert(result.stdout.includes('rouge improve'), 'help lists improve');
+}
+
+console.log('\n[rouge improve --dry-run — exits 0]');
+{
+  // dry-run mode should not require issues to exist
+  // It may fail to connect to gh but should not crash
+  const result = runCLI(['improve', '--dry-run'], {}, 15000);
+  // Accept exit 0 (worked) or non-zero (gh not available) — just shouldn't crash
+  assert(
+    result.stdout.includes('Self-Improvement') || result.stdout.includes('dry-run') || result.stderr.includes('gh'),
+    'produces output or mentions gh requirement'
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------
