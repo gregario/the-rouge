@@ -121,15 +121,21 @@ cd the-rouge && npm install
 
 ### Prerequisites
 
-- **[Claude Code CLI](https://claude.ai/code)** — `claude -p` is the execution engine
+- **Claude Code CLI** — the execution engine for every phase
+  ```bash
+  npm install -g @anthropic-ai/claude-code
+  ```
+  Requires a [Claude subscription](https://claude.ai/code) (Pro or Max). Verify: `claude --version`
 - **Node.js 18+** — launcher, Slack bot, scripts
 - **Git** — every phase commits
-- **[GStack browse](https://github.com/garrytan/gstack)** — required for web product evaluation (macOS only; Playwright fallback on the roadmap)
+- **[GStack browse](https://github.com/garrytan/gstack)** — required for web product evaluation (macOS only; Playwright fallback on the roadmap). Follow the [GStack install guide](https://github.com/garrytan/gstack#installation). Verify: `rouge doctor`
 - **[Slack App](docs/slack-setup.md)** — notifications and control plane (start, pause, monitor from your phone)
 
 Optional:
 - **Wrangler CLI** — Cloudflare Workers deployment
 - **Supabase CLI** — database, auth, storage
+
+Run `rouge doctor` to verify all prerequisites are installed.
 
 ### Set up integrations
 
