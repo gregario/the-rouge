@@ -42,13 +42,13 @@ function assertEqual(actual, expected, message) {
  * Run the CLI with the given args and env overrides.
  * Returns { status, stdout, stderr }.
  */
-function runCLI(args, envOverrides = {}) {
+function runCLI(args, envOverrides = {}, timeout = 5000) {
   const env = { ...process.env, ...envOverrides };
   try {
     const stdout = execFileSync('node', [CLI_PATH, ...args], {
       env,
       encoding: 'utf8',
-      timeout: 5000,
+      timeout,
     });
     return { status: 0, stdout, stderr: '' };
   } catch (err) {
@@ -231,12 +231,28 @@ console.log('\n[rouge cost — fails without name]');
   cleanupDir(tmpDir);
 }
 
+// ---- rouge doctor ----
+
+console.log('\n[rouge doctor — checks prerequisites]');
+{
+  const result = runCLI(['doctor'], {}, 15000);
+  assertEqual(result.status, 0, 'exits 0 (all required deps exist)');
+  assert(result.stdout.includes('Node.js'), 'output contains Node.js');
+  assert(result.stdout.includes('Git'), 'output contains Git');
+  assert(result.stdout.includes('Claude Code') || result.stdout.includes('claude'), 'output contains Claude Code or claude');
+  assert(result.stdout.includes('Integrations'), 'output contains Integrations');
+  assert(result.stdout.includes('Rouge Doctor'), 'output contains Rouge Doctor header');
+  assert(result.stdout.includes('Required'), 'output contains Required section');
+  assert(result.stdout.includes('Recommended'), 'output contains Recommended section');
+}
+
 // ---- rouge (no args) — help text ----
 
 console.log('\n[rouge — shows help with all commands]');
 {
   const result = runCLI([]);
   assertEqual(result.status, 0, 'exits 0');
+  assert(result.stdout.includes('rouge doctor'), 'help lists doctor');
   assert(result.stdout.includes('rouge init'), 'help lists init');
   assert(result.stdout.includes('rouge seed'), 'help lists seed');
   assert(result.stdout.includes('rouge build'), 'help lists build');

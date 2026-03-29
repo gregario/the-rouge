@@ -3,6 +3,7 @@
  * The Rouge CLI — project management, loop execution, and secrets.
  *
  * Usage:
+ *   rouge doctor                     Check prerequisites and dependencies
  *   rouge init <name>                Create a new project directory
  *   rouge seed <name>                Start interactive seeding via claude -p
  *   rouge build [name]               Start the Karpathy Loop
@@ -20,7 +21,7 @@
  */
 
 const readline = require('readline');
-const { spawn } = require('child_process');
+const { execSync, spawn } = require('child_process');
 const https = require('https');
 const path = require('path');
 const fs = require('fs');
@@ -564,13 +565,139 @@ function cmdSlackTest() {
 }
 
 // ---------------------------------------------------------------------------
+// Doctor — pre-flight dependency check
+// ---------------------------------------------------------------------------
+
+function cmdDoctor() {
+  const issues = [];
+  const lines = [];
+
+  lines.push('');
+  lines.push('  Rouge Doctor');
+  lines.push(`  ${'─'.repeat(35)}`);
+
+  // --- Required ---
+  lines.push('');
+  lines.push('  Required:');
+
+  // 1. Node.js version
+  const nodeVersion = process.version;
+  const nodeMajor = parseInt(nodeVersion.slice(1), 10);
+  if (nodeMajor >= 18) {
+    lines.push(`    ✓ Node.js ${nodeVersion}`);
+  } else {
+    lines.push(`    ✗ Node.js ${nodeVersion} — requires >= 18`);
+    lines.push('      Install: https://nodejs.org/');
+    issues.push('Node.js >= 18 required');
+  }
+
+  // 2. Git
+  try {
+    const gitOut = execSync('git --version', { encoding: 'utf8', stdio: 'pipe' }).trim();
+    const gitVersion = gitOut.replace('git version ', '');
+    lines.push(`    ✓ Git ${gitVersion}`);
+  } catch {
+    lines.push('    ✗ Git — not found');
+    lines.push('      Install: https://git-scm.com/');
+    issues.push('Git not found');
+  }
+
+  // 3. Claude Code CLI
+  try {
+    const claudeOut = execSync('claude --version', { encoding: 'utf8', stdio: 'pipe' }).trim();
+    lines.push(`    ✓ Claude Code CLI ${claudeOut}`);
+  } catch {
+    lines.push('    ✗ Claude Code CLI — not found');
+    lines.push('      Install: npm install -g @anthropic-ai/claude-code (requires Claude subscription)');
+    issues.push('Claude Code CLI not found');
+  }
+
+  // 4. GStack browse
+  const home = process.env.HOME || process.env.USERPROFILE || '/tmp';
+  const gstackSkillPath = path.join(home, '.claude', 'skills', 'gstack', 'browse', 'dist', 'browse');
+  let gstackFound = false;
+
+  if (fs.existsSync(gstackSkillPath)) {
+    gstackFound = true;
+    lines.push(`    ✓ GStack browse (${gstackSkillPath})`);
+  } else {
+    // Try which
+    try {
+      const whichOut = execSync('which browse', { encoding: 'utf8', stdio: 'pipe' }).trim();
+      if (whichOut) {
+        gstackFound = true;
+        lines.push(`    ✓ GStack browse (${whichOut})`);
+      }
+    } catch { /* not found via which */ }
+  }
+
+  if (!gstackFound) {
+    lines.push('    ✗ GStack browse — not found');
+    lines.push('      Install: https://github.com/garrytan/gstack (required for web products, macOS only)');
+    issues.push('GStack browse not found');
+  }
+
+  // --- Recommended ---
+  lines.push('');
+  lines.push('  Recommended:');
+
+  const slackBot = getSecret('slack', 'SLACK_BOT_TOKEN');
+  const slackApp = getSecret('slack', 'SLACK_APP_TOKEN');
+  const slackWebhook = getSecret('slack', 'ROUGE_SLACK_WEBHOOK');
+
+  if (slackBot && slackApp && slackWebhook) {
+    lines.push('    ✓ Slack — tokens configured');
+  } else {
+    lines.push('    ✗ Slack — not configured');
+    lines.push('      Run `rouge slack setup` to configure Slack (recommended for notifications)');
+  }
+
+  // --- Optional integrations ---
+  lines.push('');
+  lines.push('  Integrations:');
+
+  const integrationNames = Object.keys(INTEGRATION_KEYS).filter((name) => name !== 'slack');
+  for (const name of integrationNames) {
+    const keys = INTEGRATION_KEYS[name];
+    const hasAny = keys.some((key) => getSecret(name, key));
+    if (hasAny) {
+      lines.push(`    ✓ ${name} — configured`);
+    } else {
+      lines.push(`    ✗ ${name} — not configured (run \`rouge setup ${name}\`)`);
+    }
+  }
+
+  // --- Summary ---
+  lines.push('');
+  if (issues.length === 0) {
+    lines.push('  All required dependencies found.');
+  } else if (issues.length === 1) {
+    lines.push(`  1 issue found. ${issues[0]}.`);
+  } else {
+    lines.push(`  ${issues.length} issues found.`);
+    for (const issue of issues) {
+      lines.push(`    - ${issue}`);
+    }
+  }
+  lines.push('');
+
+  console.log(lines.join('\n'));
+
+  if (issues.length > 0) {
+    process.exit(1);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // CLI router
 // ---------------------------------------------------------------------------
 
 const args = process.argv.slice(2);
 const command = args[0];
 
-if (command === 'init') {
+if (command === 'doctor') {
+  cmdDoctor();
+} else if (command === 'init') {
   cmdInit(args[1]);
 } else if (command === 'seed') {
   cmdSeed(args[1]);
@@ -619,6 +746,7 @@ if (command === 'init') {
   The Rouge CLI
 
   Commands:
+    rouge doctor                    Check prerequisites and dependencies
     rouge init <name>               Create a new project directory
     rouge seed <name>               Start interactive seeding via claude -p
     rouge build [name]              Start the Karpathy Loop
