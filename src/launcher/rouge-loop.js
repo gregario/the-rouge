@@ -263,6 +263,20 @@ function advanceState(projectDir) {
         writeJson(stateFile, state);
         next = 'building';
         log(`[${projectName}] Foundation complete — proceeding to feature building`);
+
+        // Contribute any draft integration patterns created during foundation
+        try {
+          const { contributeAllDrafts } = require('./contribute-pattern.js');
+          const { contributed } = contributeAllDrafts(
+            (msg) => log(`[${projectName}] ${msg}`),
+            projectName,
+          );
+          if (contributed.length > 0) {
+            log(`[${projectName}] Contributed ${contributed.length} foundation pattern(s) to catalogue`);
+          }
+        } catch (err) {
+          log(`[${projectName}] Foundation pattern contribution failed: ${(err.message || '').slice(0, 100)}`);
+        }
       } else {
         next = 'foundation-building';
         log(`[${projectName}] Foundation eval FAIL — retrying foundation build`);
@@ -582,6 +596,23 @@ function advanceState(projectDir) {
         log(`[${projectName}] Personal library updated with learnings`);
       } catch (err) {
         log(`[${projectName}] Learning extraction failed: ${(err.message || '').slice(0, 100)}`);
+      }
+
+      // Contribute draft integration patterns back to the catalogue
+      try {
+        const { contributeAllDrafts } = require('./contribute-pattern.js');
+        const { contributed, failed } = contributeAllDrafts(
+          (msg) => log(`[${projectName}] ${msg}`),
+          projectName,
+        );
+        if (contributed.length > 0) {
+          log(`[${projectName}] Contributed ${contributed.length} pattern(s) to catalogue`);
+        }
+        if (failed.length > 0) {
+          log(`[${projectName}] Failed to contribute ${failed.length} pattern(s): ${failed.join(', ')}`);
+        }
+      } catch (err) {
+        log(`[${projectName}] Pattern contribution scan failed: ${(err.message || '').slice(0, 100)}`);
       }
     }
   }

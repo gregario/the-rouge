@@ -317,6 +317,23 @@ console.log('\n[rouge feasibility — no args shows usage]');
   assert(result.stderr.includes('Usage'), 'shows usage');
 }
 
+// ---- rouge contribute ----
+
+console.log('\n[rouge contribute — no args shows usage]');
+{
+  const result = runCLI(['contribute']);
+  assertEqual(result.status, 1, 'exits 1 without path');
+  assert(result.stderr.includes('Usage'), 'shows usage');
+  assert(result.stderr.includes('rouge contribute'), 'mentions rouge contribute');
+}
+
+console.log('\n[rouge contribute — nonexistent file exits 1]');
+{
+  const result = runCLI(['contribute', '/tmp/nonexistent-rouge-test-file.yaml']);
+  assertEqual(result.status, 1, 'exits 1 for missing file');
+  assert(result.stderr.includes('not found') || result.stderr.includes('failed'), 'error mentions file issue');
+}
+
 // ---- rouge help includes slack ----
 
 console.log('\n[rouge — help text includes slack commands]');
@@ -324,6 +341,13 @@ console.log('\n[rouge — help text includes slack commands]');
   const result = runCLI([]);
   assertEqual(result.status, 0, 'exits 0');
   assert(result.stdout.includes('rouge slack'), 'help lists slack');
+}
+
+console.log('\n[rouge — help text includes contribute]');
+{
+  const result = runCLI([]);
+  assertEqual(result.status, 0, 'exits 0');
+  assert(result.stdout.includes('rouge contribute'), 'help lists contribute');
 }
 
 // ---------------------------------------------------------------------------

@@ -19,6 +19,7 @@
  *   rouge secrets expiry [days]      Show expiring secrets
  *   rouge secrets expiry set <s/K> <date>  Set key expiry date
  *   rouge feasibility <description>  Assess feasibility of a proposed change
+ *   rouge contribute <path>           Contribute a draft integration pattern via PR
  */
 
 const readline = require('readline');
@@ -799,6 +800,46 @@ if (command === 'doctor') {
   }
 } else if (command === 'feasibility') {
   cmdFeasibility(args.slice(1));
+} else if (command === 'contribute') {
+  const contributePath = args[1];
+  if (!contributePath) {
+    console.error('Usage: rouge contribute <path-to-draft-yaml>');
+    console.error('');
+    console.error('Contribute a draft integration pattern back to Rouge\'s catalogue via PR.');
+    console.error('');
+    console.error('Example:');
+    console.error('  rouge contribute library/integrations/drafts/mapbox-geocoding.yaml');
+    process.exit(1);
+  }
+  // Delegate to contribute-pattern module
+  const { contribute } = require('./contribute-pattern.js');
+  const dryRun = args.includes('--dry-run');
+  const productIdx = args.indexOf('--product');
+  const product = productIdx >= 0 ? args[productIdx + 1] : undefined;
+  const result = contribute(contributePath, { dryRun, product });
+  if (!result.success) {
+    console.error('\n  Contribution failed:');
+    for (const err of result.errors || []) {
+      console.error(`    - ${err}`);
+    }
+    console.error('');
+    process.exit(1);
+  }
+  if (dryRun) {
+    console.log('\n  Dry run — no changes made:');
+    console.log(`    Action: ${result.action}`);
+    console.log(`    Branch: ${result.branch}`);
+    console.log(`    Destination: ${result.destination}`);
+    console.log(`    Commit: ${result.commitMsg}`);
+    console.log('');
+  } else {
+    console.log(`\n  Contributed: ${contributePath}`);
+    console.log(`    Action: ${result.action}`);
+    console.log(`    Branch: ${result.branch}`);
+    console.log(`    Destination: ${result.destination}`);
+    if (result.pr) console.log(`    PR: ${result.pr}`);
+    console.log('');
+  }
 } else if (command === 'secrets') {
   const subcommand = args[1];
   if (subcommand === 'list') {
@@ -834,6 +875,7 @@ if (command === 'doctor') {
     rouge secrets expiry [days]     Show secrets expiring within N days
     rouge secrets expiry set <s/K> <date>  Set expiry for a secret
     rouge feasibility <description> Assess feasibility of a proposed change
+    rouge contribute <path>         Contribute a draft integration pattern via PR
 
   Integrations: ${Object.keys(INTEGRATION_KEYS).join(', ')}
 `);
