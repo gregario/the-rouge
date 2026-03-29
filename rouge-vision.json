@@ -1,0 +1,92 @@
+{
+  "name": "The Rouge",
+  "one_liner": "Collapses the distance between 'I have an idea' and 'it's live and I'm testing it with real users'",
+  "persona": {
+    "who": "People with more product ideas than capacity to ship them",
+    "context": "Ten ideas and one evening a week. An agency validating before committing. A founder testing if an idea has legs. A product person who thinks in user journeys, not code.",
+    "pain_points": [
+      "One-shot code generation produces demos, not products you can test with real users",
+      "Quality requires iterative evaluation that humans don't have time for",
+      "Complex products need architecture decisions upfront that are hard to get right",
+      "The gap between idea and something real enough to validate is too wide"
+    ]
+  },
+  "problem": "The distance between having a product idea and having something real enough to test with users is too large. Rouge collapses that distance.",
+  "emotional_north_star": "The confidence that what Rouge ships is real enough to put in front of users and learn from",
+  "domain": "software",
+  "domain_boundaries": {
+    "in_scope": ["web apps", "APIs", "MCP servers", "CLI tools", "marketplaces", "dashboards", "SaaS platforms"],
+    "out_of_scope": ["mobile apps", "games", "hardware", "electronics", "music", "video", "books"],
+    "future": ["mobile apps", "games"]
+  },
+  "feature_areas": [
+    {
+      "name": "seeding-swarm",
+      "description": "Eight discipline-specific personas that take a product idea and produce vision.json, seed specs, and design artifacts",
+      "quality_signal": "Does the seed produce enough for the loop to build without ambiguity?"
+    },
+    {
+      "name": "karpathy-loop",
+      "description": "State machine, phase sequencing, launcher, error handling, retry logic",
+      "quality_signal": "Does the loop advance reliably and recover from failures?"
+    },
+    {
+      "name": "evaluation-pipeline",
+      "description": "Five-lens assessment, quality scoring, change spec generation",
+      "quality_signal": "Does it catch real issues without false positives?"
+    },
+    {
+      "name": "composable-decomposition",
+      "description": "Complexity profiles, foundation cycles, dependency ordering, backwards flow, integration escalation",
+      "quality_signal": "Can it handle complex products without wasting cycles on rework?"
+    },
+    {
+      "name": "integration-catalogue",
+      "description": "Tier 1-3 entries, validation script, self-growing mechanism via product builds",
+      "quality_signal": "Are patterns practical, tested, and honest about trade-offs?"
+    },
+    {
+      "name": "library",
+      "description": "Global heuristics, domain-specific taste, learned judgment, calibration data",
+      "quality_signal": "Does the quality bar produce good products and learn from feedback?"
+    },
+    {
+      "name": "cli",
+      "description": "init, seed, build, status, cost, doctor, slack, setup, secrets",
+      "quality_signal": "Can a new developer go from install to first build without friction?"
+    },
+    {
+      "name": "slack-control-plane",
+      "description": "Bot, notifications, slash commands, feedback ingestion, App Home",
+      "quality_signal": "Can you monitor and control Rouge from your phone?"
+    },
+    {
+      "name": "safety",
+      "description": "Hooks, deploy restrictions, secret handling, blocked commands",
+      "quality_signal": "Does Rouge prevent itself from doing damage?"
+    }
+  ],
+  "product_standard": {
+    "output_quality": {
+      "lighthouse_score": 90,
+      "console_errors": 0,
+      "test_coverage": "comprehensive (not just happy paths)",
+      "state_handling": ["empty", "loading", "populated", "error", "overflow"],
+      "deployable": true
+    },
+    "system_quality": {
+      "capability_growth": "More stacks, integrations, and product types over time",
+      "human_intervention_trend": "Decreasing per product built",
+      "evaluation_accuracy": "Catches real issues, avoids false positives",
+      "prompt_consistency": "Changes don't silently degrade other products",
+      "catalogue_practicality": "Every pattern built from real product needs",
+      "honest_limitations": "Feasibility gate prevents half-baked output"
+    }
+  },
+  "decision_model": {
+    "vision_owner": "human",
+    "change_approval": "human (via PR review)",
+    "change_proposal": "human or Rouge (via issues and PRs)",
+    "taste_delegation": "gradient — human defines, Rouge interprets and improves over time"
+  }
+}

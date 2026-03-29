@@ -2,6 +2,10 @@
 
 This is The Rouge, an autonomous product development system.
 
+## North Star
+
+Read `VISION.md` and `rouge-vision.json` before making changes to Rouge. These define what Rouge is, who it's for, what's in scope, and what quality means. Every change should make Rouge better at what it's trying to be.
+
 ## Workflow Overview
 
 This project uses two complementary tools:
