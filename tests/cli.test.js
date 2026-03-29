@@ -257,6 +257,7 @@ console.log('\n[rouge — shows help with all commands]');
   assert(result.stdout.includes('rouge cost'), 'help lists cost');
   assert(result.stdout.includes('rouge setup'), 'help lists setup');
   assert(result.stdout.includes('rouge secrets'), 'help lists secrets');
+  assert(result.stdout.includes('rouge feasibility'), 'help lists feasibility');
 }
 
 // ---- rouge slack ----
@@ -288,6 +289,32 @@ console.log('\n[rouge slack test — without webhook prints helpful error]');
   assertEqual(result.status, 1, 'exits 1 without webhook');
   assert(result.stderr.includes('rouge setup slack'), 'suggests running rouge setup slack');
   cleanupDir(tmpDir);
+}
+
+// ---- rouge feasibility ----
+
+console.log('\n[rouge feasibility — runs assessment]');
+{
+  const result = runCLI(['feasibility', 'improve test coverage']);
+  assertEqual(result.status, 0, 'exits 0');
+  assert(result.stdout.includes('Feasibility'), 'output contains Feasibility');
+  assert(result.stdout.includes('Verdict'), 'output contains Verdict');
+}
+
+console.log('\n[rouge feasibility --type integration — runs with explicit type]');
+{
+  const result = runCLI(['feasibility', '--type', 'integration', 'add something']);
+  assertEqual(result.status, 0, 'exits 0');
+  assert(result.stdout.includes('Feasibility'), 'output contains Feasibility');
+  assert(result.stdout.includes('Verdict'), 'output contains verdict');
+  assert(result.stdout.includes('integration'), 'output contains type');
+}
+
+console.log('\n[rouge feasibility — no args shows usage]');
+{
+  const result = runCLI(['feasibility']);
+  assertEqual(result.status, 1, 'exits 1 without description');
+  assert(result.stderr.includes('Usage'), 'shows usage');
 }
 
 // ---- rouge help includes slack ----

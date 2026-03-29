@@ -18,6 +18,7 @@
  *   rouge secrets validate <target>  Validate keys against API endpoints
  *   rouge secrets expiry [days]      Show expiring secrets
  *   rouge secrets expiry set <s/K> <date>  Set key expiry date
+ *   rouge feasibility <description>  Assess feasibility of a proposed change
  */
 
 const readline = require('readline');
@@ -689,6 +690,75 @@ function cmdDoctor() {
 }
 
 // ---------------------------------------------------------------------------
+// Feasibility assessment
+// ---------------------------------------------------------------------------
+
+function cmdFeasibility(rawArgs) {
+  // Parse --type flag
+  let type = 'other';
+  const descParts = [];
+
+  for (let i = 0; i < rawArgs.length; i++) {
+    if (rawArgs[i] === '--type' && i + 1 < rawArgs.length) {
+      type = rawArgs[i + 1];
+      i++; // skip next
+    } else {
+      descParts.push(rawArgs[i]);
+    }
+  }
+
+  const description = descParts.join(' ').trim();
+
+  if (!description) {
+    console.error('Usage: rouge feasibility <description>');
+    console.error('       rouge feasibility --type <integration|stack|prompt|evaluation|other> <description>');
+    console.error('');
+    console.error('Types: integration, stack, prompt, evaluation, other');
+    process.exit(1);
+  }
+
+  const { assess } = require('./feasibility.js');
+  const result = assess({ title: description, description, type });
+
+  // Human-readable output
+  const lines = [];
+  lines.push('');
+  lines.push('  Feasibility Assessment');
+  lines.push(`  ${'─'.repeat(35)}`);
+  lines.push('');
+  lines.push(`  Proposal: ${description}`);
+  lines.push(`  Type: ${type}`);
+  lines.push('');
+  lines.push('  Checks:');
+
+  for (const check of result.checks) {
+    let icon;
+    if (check.status === 'pass') icon = '✓';
+    else if (check.status === 'fail') icon = '✗';
+    else icon = '!';
+
+    const name = check.name.charAt(0).toUpperCase() + check.name.slice(1);
+    lines.push(`    ${icon} ${name} — ${check.detail}`);
+  }
+
+  lines.push('');
+  const verdictLabel = result.verdict.toUpperCase().replace(/-/g, ' ');
+  lines.push(`  Verdict: ${verdictLabel}`);
+
+  if (result.missing.length > 0) {
+    lines.push('');
+    lines.push(`  Missing: ${result.missing.join(', ')}`);
+  }
+
+  if (result.reasoning) {
+    lines.push(`  Reasoning: ${result.reasoning}`);
+  }
+
+  lines.push('');
+  console.log(lines.join('\n'));
+}
+
+// ---------------------------------------------------------------------------
 // CLI router
 // ---------------------------------------------------------------------------
 
@@ -727,6 +797,8 @@ if (command === 'doctor') {
     console.error('  rouge slack test     Send a test webhook message');
     process.exit(1);
   }
+} else if (command === 'feasibility') {
+  cmdFeasibility(args.slice(1));
 } else if (command === 'secrets') {
   const subcommand = args[1];
   if (subcommand === 'list') {
@@ -761,6 +833,7 @@ if (command === 'doctor') {
     rouge secrets validate <target> Validate keys against API endpoints
     rouge secrets expiry [days]     Show secrets expiring within N days
     rouge secrets expiry set <s/K> <date>  Set expiry for a secret
+    rouge feasibility <description> Assess feasibility of a proposed change
 
   Integrations: ${Object.keys(INTEGRATION_KEYS).join(', ')}
 `);
