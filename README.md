@@ -170,7 +170,7 @@ rouge cost my-product       # See cost estimate
 
 ## Safety
 
-Rouge includes a safety layer that validates every phase before execution. Blocked commands, deploy target restrictions, custom pre-hooks. Only staging and preview deploys allowed by default. Production promotion requires passing the full evaluation pipeline.
+Rouge includes a safety layer that validates every phase before execution. Blocked commands, deploy target restrictions, custom pre-hooks. Only staging and preview deploys allowed by default. Production promotion requires passing the full evaluation pipeline. For common issues, see [troubleshooting](docs/troubleshooting.md).
 
 ## Contributing
 
