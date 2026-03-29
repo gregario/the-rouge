@@ -26,7 +26,19 @@ const path = require('path');
 const fs = require('fs');
 
 const ROUGE_ROOT = path.resolve(__dirname, '../..');
-const PROJECTS_DIR = process.env.ROUGE_PROJECTS_DIR || path.join(ROUGE_ROOT, 'projects');
+
+// Detect if installed globally (npm install -g) vs cloned from source.
+// Global: ROUGE_ROOT is inside node_modules — don't store projects there.
+// Source: ROUGE_ROOT is the repo — projects/ is the natural home.
+function resolveProjectsDir() {
+  if (process.env.ROUGE_PROJECTS_DIR) return process.env.ROUGE_PROJECTS_DIR;
+  const repoProjects = path.join(ROUGE_ROOT, 'projects');
+  if (fs.existsSync(path.join(ROUGE_ROOT, '.git'))) return repoProjects;
+  // Global install — use ~/.rouge/projects/
+  const home = process.env.HOME || process.env.USERPROFILE || '/tmp';
+  return path.join(home, '.rouge', 'projects');
+}
+const PROJECTS_DIR = resolveProjectsDir();
 const {
   storeSecret,
   getSecret,

@@ -10,8 +10,20 @@ const path = require('path');
 const { loadProjectSecrets } = require('./secrets.js');
 
 const ROUGE_ROOT = path.resolve(__dirname, '../..');
-const PROJECTS_DIR = process.env.ROUGE_PROJECTS_DIR || path.join(ROUGE_ROOT, 'projects');
-const LOG_DIR = path.join(ROUGE_ROOT, 'logs');
+
+// Detect global npm install vs cloned from source
+function resolveProjectsDir() {
+  if (process.env.ROUGE_PROJECTS_DIR) return process.env.ROUGE_PROJECTS_DIR;
+  if (fs.existsSync(path.join(ROUGE_ROOT, '.git'))) return path.join(ROUGE_ROOT, 'projects');
+  const home = process.env.HOME || process.env.USERPROFILE || '/tmp';
+  return path.join(home, '.rouge', 'projects');
+}
+const PROJECTS_DIR = resolveProjectsDir();
+const LOG_DIR = process.env.ROUGE_LOG_DIR || (
+  fs.existsSync(path.join(ROUGE_ROOT, '.git'))
+    ? path.join(ROUGE_ROOT, 'logs')
+    : path.join(process.env.HOME || process.env.USERPROFILE || '/tmp', '.rouge', 'logs')
+);
 const LOOP_DELAY = parseInt(process.env.ROUGE_LOOP_DELAY || '30', 10) * 1000;
 const MAX_RETRIES = 3;
 
