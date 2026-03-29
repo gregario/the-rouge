@@ -3,8 +3,12 @@
  * Contribute a draft integration pattern back to Rouge's catalogue.
  *
  * Takes a draft YAML file from library/integrations/drafts/,
- * validates it, creates a feature branch, moves it to the correct
+ * validates it, creates a feature branch, copies it to the correct
  * tier directory, and creates a PR.
+ *
+ * The draft stays on main until the PR is merged. The PR commit
+ * includes both the tier addition AND draft removal, so merging
+ * is atomic: main gets the new entry and loses the draft in one step.
  *
  * Usage:
  *   node contribute-pattern.js <draft-file>
@@ -257,14 +261,20 @@ function contribute(draftPath, opts = {}) {
       }
     }
 
-    // 6. Copy file to destination
+    // 6. Copy file to destination (on the branch)
     fs.mkdirSync(destDir, { recursive: true });
     fs.copyFileSync(resolvedPath, dest);
 
-    // Stage the new/updated file
+    // Also remove the draft on this branch, so merging the PR
+    // atomically adds the tier entry AND cleans up the draft
     gitExec(['add', dest]);
+    try {
+      gitExec(['rm', resolvedPath]);
+    } catch {
+      // Draft may not be tracked by git — that's fine, just stage the add
+    }
 
-    // 7. Commit
+    // 7. Commit (single commit: add tier entry + remove draft)
     gitExec(['commit', '-m', commitMsg]);
 
     // 8. Create PR (if gh is available)
@@ -321,19 +331,9 @@ function contribute(draftPath, opts = {}) {
       console.log(`    gh pr create --title "feat(catalogue): ${verb} ${name} integration pattern"`);
     }
 
-    // 10. Clean up draft file
-    try {
-      fs.unlinkSync(resolvedPath);
-      gitExec(['add', resolvedPath]);
-      gitExec(['commit', '-m', `chore: remove draft ${id} (PR created)`]);
-      if (ghAvailable() && prUrl) {
-        try { gitExec(['push']); } catch {}
-      }
-    } catch {
-      // Draft may not be tracked — that's fine
-    }
-
     // 9. Switch back to original branch
+    // Draft file stays on main until the PR is merged.
+    // When merged, main gets both: tier entry added + draft removed.
     try {
       gitExec(['checkout', originalBranch]);
     } catch {

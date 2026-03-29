@@ -66,11 +66,27 @@ Required files: `manifest.yaml`, `setup.md`, `teardown.md`
 Code patterns within services. Low risk, high value.
 Required files: `manifest.yaml`, `pattern.md`, `test.md`
 
-### Submission Process
+### Submission process (manual)
 1. Fork the repository
 2. Add your contribution under `library/integrations/tier-N/<id>/`
 3. Run `bash src/launcher/validate-contribution.sh library/integrations/tier-N/<id>/`
 4. Open a PR with: what it enables, which stacks it targets, whether it introduces paid dependencies
+
+### How patterns grow automatically
+
+When Rouge builds a product and creates a new integration pattern during the foundation cycle, the pattern is written as a draft to `library/integrations/drafts/`. After the product ships (or after foundation completes), the launcher automatically:
+
+1. Validates the draft against the catalogue standard
+2. Creates a feature branch (`catalogue/<id>`)
+3. Commits the entry to the correct tier directory AND removes the draft (single commit)
+4. Creates a PR via `gh`
+
+The draft stays on main until the PR is merged. This means the draft is visible to the current build loop, and merging the PR atomically adds the tier entry and cleans up the draft.
+
+You can also contribute a draft manually:
+```bash
+rouge contribute library/integrations/drafts/my-pattern.yaml
+```
 
 ### Manifest Format
 Every contribution needs a `manifest.yaml`:

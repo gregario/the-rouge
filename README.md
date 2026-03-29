@@ -71,7 +71,7 @@ Three tiers of patterns that grow as Rouge builds products:
 - **Services** — external services with lifecycle (Supabase, Stripe, Sentry, Counterscale)
 - **Integrations** — code patterns within services (Stripe checkout, Supabase RLS, Sentry error boundary)
 
-Each entry has setup guides, env vars, free tier limits, scale considerations, and working code. The catalogue ships with seed entries and grows as the community builds products and contributes patterns back.
+Each entry has setup guides, env vars, free tier limits, scale considerations, and working code. The catalogue ships with seed entries and grows as Rouge builds products. When a foundation cycle creates a new integration pattern, Rouge automatically drafts a catalogue entry and opens a PR to contribute it back. Every product Rouge builds potentially makes Rouge better at building the next one.
 
 ## The Library
 
