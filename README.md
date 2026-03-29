@@ -34,7 +34,7 @@ rouge status
 
 Inspired by [Karpathy's AutoResearch](https://github.com/karpathy/autoresearch). No long-running process. Each phase starts fresh, reads state from the filesystem, does one thing, saves, and exits. Git is the audit trail. The loop iterates as many times as it needs to. There's no fixed limit. It's done when it's done.
 
-**Seed** — you describe the product. Eight discipline-specific personas run through it (brainstorming, competition, taste, spec, design, legal, marketing). About 10-20 minutes of your time. Then it's autonomous.
+**Seed** — you describe the product. Eight discipline-specific personas run through it (brainstorming, competition, taste, spec, design, legal, marketing). About 10-20 minutes of your time. Then it's autonomous. [See a full seeding example.](docs/seeding-example.md)
 
 **Build** — reads specs, writes code with TDD, deploys to staging.
 
