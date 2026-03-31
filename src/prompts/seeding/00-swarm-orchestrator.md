@@ -77,22 +77,30 @@ This allows the Slack relay to show real-time progress to the user.
 
 4. **When all disciplines have run and no new triggers fire**, present the SEED SUMMARY to the human:
    - Product name and one-liner
-   - Feature area count
+   - Milestone count (with names)
+   - Story count (total across all milestones)
+   - Stories per milestone (verify 3-8 cap per milestone)
+   - Story dependencies (count + any complex chains)
    - Total user journeys
    - Total acceptance criteria (QA-testable)
    - Total PO checks
    - Total screens
    - Legal flags (if any)
-   - Estimated build cycles
+   - Estimated build milestones (not cycles — one milestone ≈ one sprint of stories)
    - Definition of done
 
 5. **On human approval**, write all artifacts to the project directory:
    - `vision.json` — structured vision document
    - `product_standard.json` — inherited global + domain + project overrides
-   - `seed_spec/` — feature areas with specs, acceptance criteria, PO checks
+   - `seed_spec/` — milestones with stories, each story with acceptance criteria, PO checks, dependencies, affected entities/screens
    - `legal/` — T&Cs, privacy policy, cookie policy (if generated)
    - `marketing/` — landing page copy
-   - Set `state.json` to `ready` (NOT `building` — human triggers the loop explicitly)
+   - Set `state.json` to `ready` using the **V2 schema** (see `docs/design/state-schema-v2.md`):
+     - Write `milestones[]` with nested `stories[]` (NOT `feature_areas[]`)
+     - Each story has: `id`, `name`, `status: "pending"`, `depends_on`, `affected_entities`, `affected_screens`
+     - Each milestone has: `name`, `status: "pending"`, `stories[]`
+     - Set `foundation.status` to `"pending"` if complexity profile requires foundation (NEVER `"complete"` — the foundation evaluator must run)
+     - Set `current_state` to `"ready"` (NOT `building` — human triggers the loop explicitly)
 
 6. **On human rejection or revision request**, loop back to the relevant discipline.
 
