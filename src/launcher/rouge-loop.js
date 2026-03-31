@@ -793,6 +793,23 @@ async function runPhase(projectDir) {
   // Snapshot state before phase — enables recovery from corruption
   snapshotState(projectDir, currentState);
 
+  // V2: Assemble focused context views before invoking prompts
+  try {
+    const { assembleStoryContext, assembleMilestoneContext, assembleFixStoryContext } = require('./context-assembly');
+    if (currentState === 'story-building' || currentState === 'story-diagnosis') {
+      assembleStoryContext(projectDir, state);
+      log(`[${projectName}] Assembled story_context.json for ${state.current_story}`);
+    } else if (currentState === 'milestone-check') {
+      assembleMilestoneContext(projectDir, state);
+      log(`[${projectName}] Assembled milestone_context.json for ${state.current_milestone}`);
+    } else if (currentState === 'milestone-fix') {
+      assembleFixStoryContext(projectDir, state);
+      log(`[${projectName}] Assembled fix_story_context.json`);
+    }
+  } catch (err) {
+    log(`[${projectName}] Context assembly failed (non-blocking): ${(err.message || '').slice(0, 200)}`);
+  }
+
   const promptRelPath = STATE_TO_PROMPT[currentState];
   if (!promptRelPath) return { success: true };
 
