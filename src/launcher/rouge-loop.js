@@ -67,23 +67,28 @@ function log(msg) {
 
 // --- State helpers ---
 
+// --- V2 State-to-Prompt mapping (granularity refactor) ---
+// Story-level building + milestone-level evaluation. Clean break from V1.
 const STATE_TO_PROMPT = {
   seeding: 'seeding/00-swarm-orchestrator.md',
-  building: 'loop/01-building.md',
-  'test-integrity': 'loop/02a-test-integrity.md',
-  // New observe-once, judge-through-lenses architecture (2026-03-23)
-  'code-review': 'loop/02c-code-review.md',
-  'product-walk': 'loop/02d-product-walk.md',
-  'evaluation': 'loop/02e-evaluation.md',
-  're-walk': 'loop/02f-re-walk.md',
-  'foundation-building': 'loop/00-foundation-building.md',
-  'foundation-evaluating': 'loop/00-foundation-evaluating.md',
-  'qa-fixing': 'loop/03-qa-fixing.md',
-  analyzing: 'loop/04-analyzing.md',
+
+  // Foundation (enforced — no bypass path)
+  'foundation': 'loop/00-foundation-building.md',
+  'foundation-eval': 'loop/00-foundation-evaluating.md',
+
+  // Story loop
+  'story-building': 'loop/01-building.md',
+  'story-diagnosis': 'loop/03-qa-fixing.md',
+
+  // Milestone loop
+  'milestone-check': 'loop/02-evaluation-orchestrator.md',
+  'milestone-fix': 'loop/03-qa-fixing.md',
+
+  // Progression
+  'analyzing': 'loop/04-analyzing.md',
   'generating-change-spec': 'loop/05-change-spec-generation.md',
-  'vision-checking': 'loop/06-vision-check.md',
-  promoting: 'loop/07-ship-promote.md',
-  'rolling-back': 'loop/07-ship-promote.md',
+  'vision-check': 'loop/06-vision-check.md',
+  'shipping': 'loop/07-ship-promote.md',
   'final-review': 'loop/10-final-review.md',
 };
 
@@ -101,7 +106,7 @@ const PROGRESS_STALE_THRESHOLD = parseInt(process.env.ROUGE_PROGRESS_STALE || '1
 const LOG_STALE_THRESHOLD = parseInt(process.env.ROUGE_LOG_STALE || '10', 10) * 60 * 1000; // 10 min no log growth
 const HARD_CEILING = parseInt(process.env.ROUGE_HARD_CEILING || '60', 10) * 60 * 1000; // 60 min absolute max
 
-const SKIP_STATES = new Set(['seeding', 'ready', 'waiting-for-human', 'complete']);
+const SKIP_STATES = new Set(['seeding', 'ready', 'waiting-for-human', 'escalation', 'complete']);
 
 function readJson(filePath) {
   try {
@@ -231,7 +236,77 @@ function countFiles(dir) {
   }
 }
 
-// --- State machine transitions ---
+// --- V2 State machine transitions (granularity refactor) ---
+// Two-cadence model: story loop (fast, per-story) + milestone loop (slow, batched evaluation).
+// See docs/design/state-schema-v2.md for the full state machine diagram.
+
+/**
+ * Find the next eligible story in a milestone.
+ * Respects dependencies: a story is eligible only if all depends_on are 'done'.
+ * Auto-blocks stories whose dependencies are blocked.
+ */
+function findNextStory(milestone, flatStories) {
+  const doneIds = new Set(flatStories.filter(s => s.status === 'done').map(s => s.id));
+  for (const s of milestone.stories || []) {
+    if (s.status !== 'pending' && s.status !== 'retrying') continue;
+    const deps = s.depends_on || [];
+    // If any dependency is blocked, block this story too
+    const blockedDep = deps.find(d => {
+      const dep = flatStories.find(x => x.id === d);
+      return dep && dep.status === 'blocked';
+    });
+    if (blockedDep) {
+      s.status = 'blocked';
+      s.blocked_by = `dependency:${blockedDep}`;
+      continue;
+    }
+    if (deps.every(d => doneIds.has(d))) return s;
+  }
+  return null;
+}
+
+/**
+ * Find the next eligible milestone (respects milestone-level dependencies).
+ */
+function findNextMilestone(state) {
+  const completed = new Set(
+    (state.milestones || [])
+      .filter(m => m.status === 'complete' || m.status === 'partial')
+      .map(m => m.name)
+  );
+  for (const m of state.milestones || []) {
+    if (m.status !== 'pending') continue;
+    if ((m.depends_on_milestones || []).every(d => completed.has(d))) return m;
+  }
+  return null;
+}
+
+/** Flat list of all stories across all milestones. */
+function flatStories(state) {
+  return (state.milestones || []).flatMap(m => m.stories || []);
+}
+
+/** True if every story in a milestone is done, blocked, or skipped. */
+function isBatchComplete(milestone) {
+  return (milestone.stories || []).every(s =>
+    s.status === 'done' || s.status === 'blocked' || s.status === 'skipped'
+  );
+}
+
+/** Record a fix_memory entry for a story. */
+function recordFixMemory(state, storyId, entry) {
+  if (!state.fix_memory) state.fix_memory = {};
+  if (!state.fix_memory[storyId]) state.fix_memory[storyId] = [];
+  state.fix_memory[storyId].push(entry);
+}
+
+/** Start building a story — update state and return the next state name. */
+function startStory(state, milestone, story) {
+  story.status = 'in-progress';
+  state.current_milestone = milestone.name;
+  state.current_story = story.id;
+  return 'story-building';
+}
 
 function advanceState(projectDir) {
   const projectName = path.basename(projectDir);
@@ -241,384 +316,436 @@ function advanceState(projectDir) {
   if (!state) return;
 
   const current = state.current_state;
+  const flat = flatStories(state);
   let next = null;
 
   switch (current) {
-    case 'foundation-building': {
+
+    // ──────────────────────────────────────────────
+    // Foundation (ENFORCED — always runs evaluator)
+    // ──────────────────────────────────────────────
+
+    case 'foundation': {
       state.foundation = state.foundation || {};
-      state.foundation.status = 'in-progress';
-      state._foundation_context = true;
+      state.foundation.status = 'evaluating';
       writeJson(stateFile, state);
-      next = 'test-integrity';
+      next = 'foundation-eval';
+      log(`[${projectName}] Foundation build done — evaluating (enforced, no bypass)`);
       break;
     }
 
-    case 'foundation-evaluating': {
+    case 'foundation-eval': {
       const ctx = readJson(contextFile);
-      const fVerdict = ctx?.foundation_eval_report?.verdict || 'PASS';
-      if (fVerdict === 'PASS') {
-        state.foundation.status = 'complete';
-        state.foundation.completed_at = new Date().toISOString();
-        delete state._foundation_context;
-        writeJson(stateFile, state);
-        next = 'building';
-        log(`[${projectName}] Foundation complete — proceeding to feature building`);
+      const verdict = ctx?.foundation_eval_report?.verdict || 'PASS';
 
-        // Contribute any draft integration patterns created during foundation
+      if (verdict !== 'PASS') {
+        next = 'foundation';
+        log(`[${projectName}] Foundation eval FAIL — retrying`);
+        break;
+      }
+
+      state.foundation.status = 'complete';
+      state.foundation.completed_at = new Date().toISOString();
+      writeJson(stateFile, state);
+      log(`[${projectName}] Foundation PASS`);
+
+      // Contribute integration patterns
+      try {
+        const { contributeAllDrafts } = require('./contribute-pattern.js');
+        const { contributed } = contributeAllDrafts(
+          (msg) => log(`[${projectName}] ${msg}`),
+          projectName,
+        );
+        if (contributed.length > 0) {
+          log(`[${projectName}] Contributed ${contributed.length} pattern(s)`);
+        }
+      } catch (err) {
+        log(`[${projectName}] Pattern contribution failed: ${(err.message || '').slice(0, 100)}`);
+      }
+
+      // Start first milestone
+      const milestone = findNextMilestone(state);
+      if (!milestone) { next = 'escalation'; break; }
+      milestone.status = 'in-progress';
+      const story = findNextStory(milestone, flat);
+      if (!story) { next = 'escalation'; break; }
+      next = startStory(state, milestone, story);
+      log(`[${projectName}] Starting milestone "${milestone.name}", story "${story.id}"`);
+      break;
+    }
+
+    // ──────────────────────────────────────────────
+    // Story loop (inner, fast)
+    // ──────────────────────────────────────────────
+
+    case 'story-building': {
+      const ctx = readJson(contextFile);
+      const milestone = (state.milestones || []).find(m => m.name === state.current_milestone);
+      if (!milestone) { next = 'escalation'; break; }
+      const story = (milestone.stories || []).find(s => s.id === state.current_story);
+      if (!story) { next = 'escalation'; break; }
+
+      const result = ctx?.story_result || {};
+      const outcome = result.outcome || 'pass';
+
+      if (outcome === 'pass') {
+        story.status = 'done';
+        story.completed_at = new Date().toISOString();
+        story.files_changed = result.files_changed || [];
+        story.env_limitations = result.env_limitations || [];
+        state.consecutive_failures = 0;
+
+        // Deploy to staging after passing story
         try {
-          const { contributeAllDrafts } = require('./contribute-pattern.js');
-          const { contributed } = contributeAllDrafts(
-            (msg) => log(`[${projectName}] ${msg}`),
-            projectName,
-          );
-          if (contributed.length > 0) {
-            log(`[${projectName}] Contributed ${contributed.length} foundation pattern(s) to catalogue`);
-          }
+          const { deploy } = require('./deploy-to-staging');
+          deploy(projectDir);
         } catch (err) {
-          log(`[${projectName}] Foundation pattern contribution failed: ${(err.message || '').slice(0, 100)}`);
+          log(`[${projectName}] Deploy failed: ${(err.message || '').slice(0, 200)}`);
         }
+
+      } else if (outcome === 'blocked') {
+        story.status = 'blocked';
+        story.blocked_by = result.blocked_by || 'unknown';
+        story.attempts = (story.attempts || 0) + 1;
+        state.consecutive_failures = (state.consecutive_failures || 0) + 1;
+
+        recordFixMemory(state, story.id, {
+          attempt: story.attempts,
+          symptom: result.symptom || '',
+          diagnosis: result.diagnosis || '',
+          classification: result.classification || '',
+          fix: result.fix_attempted || '',
+          outcome: 'blocked',
+          files_changed: result.files_changed || [],
+        });
+
+        // Track escalation
+        if (result.escalation) {
+          if (!state.escalations) state.escalations = [];
+          state.escalations.push({
+            id: `esc-${story.id}-${story.attempts}`,
+            tier: result.escalation.tier || 1,
+            classification: result.classification || 'unknown',
+            summary: result.escalation.summary || result.symptom || '',
+            story_id: story.id,
+            status: 'pending',
+            created_at: new Date().toISOString(),
+          });
+        }
+
       } else {
-        next = 'foundation-building';
-        log(`[${projectName}] Foundation eval FAIL — retrying foundation build`);
-      }
-      break;
-    }
+        // fail — will be retried
+        story.status = 'pending';
+        story.attempts = (story.attempts || 0) + 1;
+        state.consecutive_failures = (state.consecutive_failures || 0) + 1;
 
-    case 'building': {
-      // Foundation gate: if foundation needed but not complete, redirect
-      if (state.foundation && state.foundation.status === 'pending') {
-        log(`[${projectName}] Foundation needed — redirecting to foundation-building`);
-        state.current_state = 'foundation-building';
-        writeJson(stateFile, state);
-        next = 'foundation-building';
-        break;
-      }
-
-      const buildDelta = state.last_build_delta || 0;
-
-      // No-op build detection: if build produced no meaningful changes,
-      // this feature area was already built in a prior cycle. Skip the
-      // entire review pipeline — mark area complete and advance.
-      if (buildDelta <= 0 && state.current_feature_area) {
-        log(`[${projectName}] Build produced no changes for "${state.current_feature_area}" — already built, skipping review`);
-        const fa = (state.feature_areas || []).find(f => f.name === state.current_feature_area);
-        if (fa) fa.status = 'complete';
-
-        // Check for more pending areas
-        const pending = (state.feature_areas || []).filter(f => f.status === 'pending');
-        if (pending.length > 0) {
-          const nextArea = pending[0].name;
-          const nextFa = state.feature_areas.find(f => f.name === nextArea);
-          if (nextFa) nextFa.status = 'in-progress';
-          state.current_feature_area = nextArea;
-          state.cycle_number = (state.cycle_number || 0) + 1;
-          state.completed_phases = [];
-          state.last_build_delta = undefined;
-          writeJson(stateFile, state);
-          next = 'building';
-          log(`[${projectName}] Advancing to feature area: ${nextArea}`);
-        } else {
-          next = 'complete';
-          log(`[${projectName}] All feature areas already built — complete!`);
-        }
-        break;
+        recordFixMemory(state, story.id, {
+          attempt: story.attempts,
+          symptom: result.symptom || '',
+          diagnosis: result.diagnosis || '',
+          classification: result.classification || '',
+          fix: result.fix_attempted || '',
+          outcome: 'fail',
+          files_changed: result.files_changed || [],
+        });
       }
 
-      // Normal build with changes — deploy and continue to review
-      try {
-        const { deploy } = require('./deploy-to-staging');
-        deploy(projectDir);
-      } catch (err) {
-        log(`[${projectName}] Deploy failed: ${(err.message || '').slice(0, 200)}`);
-      }
-      state.last_build_delta = undefined; // clean up
       writeJson(stateFile, state);
-      next = 'test-integrity';
-      break;
-    }
 
-    case 'test-integrity': {
-      const ctx = readJson(contextFile);
-      const verdict = ctx?.test_integrity_report?.verdict || 'PASS';
-      if (verdict === 'FAIL') {
-        next = 'test-integrity';
-        log(`[${projectName}] Test integrity FAIL — re-running`);
-      } else {
-        next = state._foundation_context ? 'foundation-evaluating' : 'code-review';
-      }
-      break;
-    }
-
-    case 'code-review':
-      next = 'product-walk';
-      break;
-
-    case 'product-walk': {
-      // Screenshots are now captured by the walk itself, but also capture via launcher for consistency
-      try {
-        const { captureScreenshots } = require('./capture-screenshots');
-        const loopNum = state.cycle_number || 0;
-        const screenshots = captureScreenshots(projectDir, loopNum);
-        if (screenshots.length > 0) {
-          log(`[${projectName}] Screenshots captured for loop ${loopNum}: ${screenshots.length}`);
-          notifyRich('screenshots', { project: projectName, loop: loopNum, count: screenshots.length, screens: screenshots.map(s => s.name) });
-        }
-      } catch (err) {
-        log(`[${projectName}] Screenshot capture failed: ${(err.message || '').slice(0, 100)}`);
-      }
-      next = 'evaluation';
-      break;
-    }
-
-    case 'evaluation': {
-      const ctx = readJson(contextFile);
-      // Check for re-walk requests (max 2 re-walks)
-      const reWalkRequests = ctx?.evaluation_report?.re_walk_requests || [];
-      if (reWalkRequests.length > 0 && !state.skip_re_walk && (state.re_walk_count || 0) < 2) {
-        next = 're-walk';
+      // Circuit breaker: 3+ consecutive failures → early diagnostic
+      if ((state.consecutive_failures || 0) >= 3) {
+        log(`[${projectName}] Circuit breaker: ${state.consecutive_failures} consecutive failures`);
+        next = 'analyzing';
         break;
       }
-      // Reset re-walk tracking
-      state.re_walk_count = 0;
-      state.skip_re_walk = false;
 
-      // Check QA verdict from evaluation report
-      const qaVerdict = ctx?.evaluation_report?.qa?.verdict || 'PASS';
-      if (qaVerdict === 'FAIL') {
-        if ((state.qa_fix_attempts || 0) >= 3) {
-          next = 'waiting-for-human';
-          log(`[${projectName}] Evaluation FAIL 3 times — escalating`);
-        } else {
-          next = 'qa-fixing';
-          state.qa_fix_attempts = (state.qa_fix_attempts || 0) + 1;
-          writeJson(stateFile, state);
+      // Batch complete?
+      if (isBatchComplete(milestone)) {
+        log(`[${projectName}] Milestone "${milestone.name}" batch complete`);
+        next = 'milestone-check';
+        break;
+      }
+
+      // Next story
+      const eligible = findNextStory(milestone, flatStories(state));
+      if (eligible) {
+        next = startStory(state, milestone, eligible);
+        writeJson(stateFile, state);
+        log(`[${projectName}] Next story: ${eligible.id}`);
+      } else {
+        log(`[${projectName}] No eligible stories — milestone check`);
+        next = 'milestone-check';
+      }
+      break;
+    }
+
+    case 'story-diagnosis': {
+      const ctx = readJson(contextFile);
+      const diag = ctx?.diagnosis_result || {};
+
+      if (diag.fixed) {
+        state.consecutive_failures = 0;
+        writeJson(stateFile, state);
+        next = 'story-building';
+        log(`[${projectName}] Diagnosis resolved — resuming`);
+      } else {
+        const story = flat.find(s => s.id === state.current_story);
+        if (story) {
+          story.status = 'blocked';
+          story.blocked_by = diag.classification || 'diagnosis-failed';
         }
+        writeJson(stateFile, state);
+        next = 'escalation';
+        log(`[${projectName}] Diagnosis failed — escalating`);
+      }
+      break;
+    }
+
+    // ──────────────────────────────────────────────
+    // Milestone loop (outer, batched evaluation)
+    // ──────────────────────────────────────────────
+
+    case 'milestone-check': {
+      const ctx = readJson(contextFile);
+      const qaVerdict = ctx?.evaluation_report?.qa?.verdict || 'PASS';
+
+      if (qaVerdict === 'FAIL') {
+        next = 'milestone-fix';
+        log(`[${projectName}] Milestone QA FAIL — fixing`);
       } else {
         next = 'analyzing';
+        log(`[${projectName}] Milestone PASS — analyzing`);
       }
       break;
     }
 
-    case 're-walk': {
-      state.re_walk_count = (state.re_walk_count || 0) + 1;
-      writeJson(stateFile, state);
-      next = 'evaluation';
-      break;
-    }
-
-    case 'qa-fixing': {
-      // Redeploy after fixes
+    case 'milestone-fix': {
       try {
         const { deploy } = require('./deploy-to-staging');
         deploy(projectDir);
       } catch (err) {
         log(`[${projectName}] Redeploy failed: ${(err.message || '').slice(0, 200)}`);
       }
-      next = 'test-integrity';
+      next = 'milestone-check';
       break;
     }
 
+    // ──────────────────────────────────────────────
+    // Progression
+    // ──────────────────────────────────────────────
+
     case 'analyzing': {
       const ctx = readJson(contextFile);
-      // FW.46: Don't generate change specs from synthetic data
-      if (ctx?.evaluation_report?.synthetic) {
-        log(`[${projectName}] Evaluation report is synthetic — skipping change spec generation`);
-        next = 'vision-checking';
-        break;
-      }
-      // Read the analyzing prompt's recommendation (top-level analysis_recommendation)
-      // Falls back to analysis_result.recommendation, then evaluation_report.po.recommended_action
       const action = ctx?.analysis_recommendation?.action
         || ctx?.analysis_result?.recommendation
-        || ctx?.evaluation_report?.po?.recommended_action
         || 'continue';
-      // Foundation insertion: analyzing can trigger foundation mid-flight (Scale 2 pivots)
+
+      // Foundation insertion (Scale 2)
       if (action === 'insert-foundation') {
         state.foundation = state.foundation || {};
         state.foundation.status = 'pending';
         state.foundation.scope = ctx?.analysis_recommendation?.foundation_scope || [];
         writeJson(stateFile, state);
-        next = 'foundation-building';
-        log(`[${projectName}] Analyzing recommends foundation insertion: ${state.foundation.scope.join(', ')}`);
+        next = 'foundation';
+        log(`[${projectName}] Insert foundation: ${state.foundation.scope.join(', ')}`);
         break;
       }
-      if (action === 'continue' || action === 'promote') next = 'vision-checking';
-      else if (action.startsWith('deepen') || action === 'broaden') next = 'generating-change-spec';
-      else if (action === 'rollback') next = 'rolling-back';
-      else if (action.startsWith('notify')) next = 'waiting-for-human';
-      else next = 'vision-checking';
-      break;
-    }
 
-    case 'generating-change-spec':
-      next = 'building';
-      state.cycle_number = (state.cycle_number || 0) + 1;
-      state.qa_fix_attempts = 0;
-      state.completed_phases = []; // new cycle — reset checkpoints
-      writeJson(stateFile, state);
-      break;
+      // Circuit breaker: inject corrective context and resume
+      if (ctx?.analysis_recommendation?.mid_loop_correction) {
+        const correction = ctx.analysis_recommendation.mid_loop_correction;
+        state.milestone_learnings = state.milestone_learnings || [];
+        state.milestone_learnings.push({
+          source: 'circuit-breaker',
+          diagnosis: correction.diagnosis,
+          instruction: correction.corrective_instruction,
+          timestamp: new Date().toISOString(),
+        });
+        state.consecutive_failures = 0;
+        writeJson(stateFile, state);
+        log(`[${projectName}] Circuit breaker: corrective context injected`);
 
-    case 'vision-checking':
-      next = 'promoting';
-      break;
-
-    case 'promoting': {
-      // Mark current feature area as complete
-      if (state.current_feature_area) {
-        const currentFa = (state.feature_areas || []).find(f => f.name === state.current_feature_area);
-        if (currentFa) currentFa.status = 'complete';
-      }
-
-      // Module-aware advancement (large projects)
-      if (Array.isArray(state.modules) && state.modules.length > 0) {
-        // Find current module
-        const currentModule = state.modules.find(m => m.status === 'in-progress');
-        if (currentModule) {
-          // Mark current area complete within module
-          const area = currentModule.feature_areas?.find(fa => fa.name === state.current_feature_area);
-          if (area) area.status = 'complete';
-
-          // Check for more pending areas in current module
-          const pendingInModule = (currentModule.feature_areas || []).filter(fa => fa.status === 'pending');
-          if (pendingInModule.length > 0) {
-            // More areas in this module
-            const nextArea = pendingInModule[0];
-            nextArea.status = 'in-progress';
-            state.current_feature_area = nextArea.name;
-            state.cycle_number = (state.cycle_number || 0) + 1;
-            state.qa_fix_attempts = 0;
-            state.completed_phases = [];
+        const milestone = (state.milestones || []).find(m => m.name === state.current_milestone);
+        if (milestone) {
+          const eligible = findNextStory(milestone, flatStories(state));
+          if (eligible) {
+            next = startStory(state, milestone, eligible);
             writeJson(stateFile, state);
-            next = 'building';
-            log(`[${projectName}] Module "${currentModule.name}": advancing to area "${nextArea.name}"`);
             break;
           }
-
-          // Current module complete
-          currentModule.status = 'complete';
-          log(`[${projectName}] Module "${currentModule.name}" complete`);
         }
-
-        // Find next module (respecting dependencies)
-        const completedModules = new Set(state.modules.filter(m => m.status === 'complete').map(m => m.name));
-        const nextModule = state.modules.find(m => {
-          if (m.status !== 'pending') return false;
-          const deps = m.dependencies || [];
-          return deps.every(d => completedModules.has(d));
-        });
-
-        if (nextModule) {
-          nextModule.status = 'in-progress';
-          const firstArea = (nextModule.feature_areas || [])[0];
-          if (firstArea) {
-            firstArea.status = 'in-progress';
-            state.current_feature_area = firstArea.name;
-          }
-          state.current_module = nextModule.name;
-          state.cycle_number = (state.cycle_number || 0) + 1;
-          state.qa_fix_attempts = 0;
-          state.completed_phases = [];
-          writeJson(stateFile, state);
-          next = 'building';
-          log(`[${projectName}] Advancing to module "${nextModule.name}", area "${firstArea?.name}"`);
-          break;
-        }
-
-        // All modules complete
-        next = 'final-review';
-        log(`[${projectName}] All modules complete — entering final review`);
+        next = 'milestone-check';
         break;
       }
 
-      // Flat feature_areas fallback (small projects — existing behavior)
-      const pending = (state.feature_areas || []).filter(fa => fa.status === 'pending');
-      if (pending.length > 0) {
-        const nextArea = pending[0].name;
-        const fa = state.feature_areas.find(f => f.name === nextArea);
-        if (fa) fa.status = 'in-progress';
-        state.current_feature_area = nextArea;
-        state.cycle_number = (state.cycle_number || 0) + 1;
-        state.qa_fix_attempts = 0;
-        state.completed_phases = [];
-        writeJson(stateFile, state);
-        next = 'building';
-        log(`[${projectName}] Advancing to feature area: ${nextArea}`);
+      // Normal progression
+      if (action === 'continue' || action === 'promote') {
+        // Mark milestone done
+        const milestone = (state.milestones || []).find(m => m.name === state.current_milestone);
+        if (milestone) {
+          milestone.status = (milestone.stories || []).some(s => s.status === 'blocked')
+            ? 'partial' : 'complete';
+        }
+
+        // Next milestone
+        const nextMs = findNextMilestone(state);
+        if (nextMs) {
+          nextMs.status = 'in-progress';
+          state.consecutive_failures = 0;
+          state.milestone_learnings = [];
+          const eligible = findNextStory(nextMs, flatStories(state));
+          if (eligible) {
+            next = startStory(state, nextMs, eligible);
+            writeJson(stateFile, state);
+            log(`[${projectName}] Next milestone: ${nextMs.name}, story: ${eligible.id}`);
+          } else {
+            next = 'milestone-check';
+          }
+        } else {
+          next = 'vision-check';
+          log(`[${projectName}] All milestones done — vision check`);
+        }
+      } else if (action.startsWith('deepen') || action === 'broaden') {
+        next = 'generating-change-spec';
+      } else if (action.startsWith('notify') || action === 'rollback') {
+        next = 'escalation';
       } else {
-        next = 'final-review';
-        log(`[${projectName}] All feature areas complete — entering final review`);
+        next = 'vision-check';
       }
       break;
     }
 
-    case 'rolling-back':
-      next = 'waiting-for-human';
+    case 'generating-change-spec': {
+      // Change specs create fix stories in current milestone — resume story loop
+      const milestone = (state.milestones || []).find(m => m.name === state.current_milestone);
+      if (milestone) {
+        const eligible = findNextStory(milestone, flatStories(state));
+        if (eligible) {
+          next = startStory(state, milestone, eligible);
+          writeJson(stateFile, state);
+        } else {
+          next = 'milestone-check';
+        }
+      } else {
+        next = 'escalation';
+      }
+      break;
+    }
+
+    case 'vision-check': {
+      const ctx = readJson(contextFile);
+      const results = ctx?.vision_check_results || {};
+      if (results.trajectory === 'diverging' || results.pivot_proposal) {
+        next = 'escalation';
+        log(`[${projectName}] Vision drift — escalating`);
+      } else {
+        next = 'shipping';
+        log(`[${projectName}] Vision aligned — shipping`);
+      }
+      break;
+    }
+
+    case 'shipping':
+      next = 'final-review';
       break;
 
     case 'final-review': {
       const ctx = readJson(contextFile);
-      const finalReport = ctx?.final_review_report;
-      if (finalReport?.production_ready || finalReport?.human_approved) {
+      const report = ctx?.final_review_report;
+      if (report?.production_ready || report?.human_approved) {
         next = 'complete';
-        log(`[${projectName}] Final review PASSED — shipping!`);
-      } else if (finalReport?.recommendation === 'major-rework') {
-        next = 'waiting-for-human';
-        log(`[${projectName}] Final review: major rework needed — escalating`);
+        log(`[${projectName}] Final review PASSED — complete!`);
+      } else if (report?.recommendation === 'major-rework') {
+        next = 'escalation';
+        log(`[${projectName}] Major rework — escalating`);
       } else {
         next = 'generating-change-spec';
-        log(`[${projectName}] Final review: needs refinement — ${finalReport?.recommendation || 'refine'}`);
+        log(`[${projectName}] Needs refinement`);
+      }
+      break;
+    }
+
+    // ──────────────────────────────────────────────
+    // Escalation
+    // ──────────────────────────────────────────────
+
+    case 'escalation': {
+      const feedbackFile = path.join(projectDir, 'feedback.json');
+      if (!fs.existsSync(feedbackFile)) break; // stays in escalation
+
+      const feedback = readJson(feedbackFile);
+      if (!feedback?.resolved) break;
+
+      // Resolve pending escalations and unblock stories
+      for (const esc of state.escalations || []) {
+        if (esc.status !== 'pending') continue;
+        esc.status = 'resolved';
+        esc.resolution = feedback.resolution || 'human-resolved';
+        esc.resolved_at = new Date().toISOString();
+        const story = flat.find(s => s.id === esc.story_id);
+        if (story && story.status === 'blocked') story.status = 'retrying';
+      }
+      fs.unlinkSync(feedbackFile);
+      writeJson(stateFile, state);
+
+      // Resume
+      const milestone = (state.milestones || []).find(m => m.name === state.current_milestone);
+      if (milestone) {
+        const eligible = findNextStory(milestone, flatStories(state));
+        if (eligible) {
+          next = startStory(state, milestone, eligible);
+          writeJson(stateFile, state);
+          log(`[${projectName}] Escalation resolved — story: ${eligible.id}`);
+        } else {
+          next = 'milestone-check';
+        }
+      } else {
+        next = 'milestone-check';
       }
       break;
     }
   }
 
   if (next) {
-    log(`[${projectName}] State transition: ${current} → ${next}`);
-
-    // Checkpoint: track completed phases in current cycle
-    if (!state.completed_phases) state.completed_phases = [];
-    if (!state.completed_phases.includes(current)) {
-      state.completed_phases.push(current);
-    }
-
+    log(`[${projectName}] ${current} → ${next}`);
     state.current_state = next;
     state.timestamp = new Date().toISOString();
     writeJson(stateFile, state);
 
-    // FW.2 + FW.3: Rich Block Kit notifications
     notifyRich('transition', { project: projectName, from: current, to: next });
 
-    // Cross-product learning: extract lessons when a project completes
+    // Cross-product learning on completion
     if (next === 'complete') {
       try {
         execFileSync('node', [path.join(__dirname, 'learn-from-project.js'), projectDir], {
           encoding: 'utf8', timeout: 30000, stdio: 'pipe',
         });
-        log(`[${projectName}] Personal library updated with learnings`);
+        log(`[${projectName}] Learnings extracted`);
       } catch (err) {
         log(`[${projectName}] Learning extraction failed: ${(err.message || '').slice(0, 100)}`);
       }
 
-      // Contribute draft integration patterns back to the catalogue
+      // Create prompt improvement proposals from learnings
       try {
-        const { contributeAllDrafts } = require('./contribute-pattern.js');
-        const { contributed, failed } = contributeAllDrafts(
-          (msg) => log(`[${projectName}] ${msg}`),
-          projectName,
-        );
-        if (contributed.length > 0) {
-          log(`[${projectName}] Contributed ${contributed.length} pattern(s) to catalogue`);
+        const ctx = readJson(path.join(projectDir, 'cycle_context.json'));
+        const proposals = ctx?.prompt_improvement_proposals || [];
+        if (proposals.length > 0) {
+          log(`[${projectName}] ${proposals.length} prompt improvement proposal(s) — creating issues`);
+          for (const proposal of proposals) {
+            try {
+              execSync(
+                `gh issue create --title "${proposal.title || 'Prompt improvement'}" --body "${(proposal.description || '').replace(/"/g, '\\"')}" --label self-improvement`,
+                { cwd: ROUGE_ROOT, encoding: 'utf8', timeout: 15000, stdio: 'pipe' }
+              );
+            } catch {}
+          }
         }
-        if (failed.length > 0) {
-          log(`[${projectName}] Failed to contribute ${failed.length} pattern(s): ${failed.join(', ')}`);
-        }
-      } catch (err) {
-        log(`[${projectName}] Pattern contribution scan failed: ${(err.message || '').slice(0, 100)}`);
-      }
+      } catch {}
+
+      notifyRich('complete', { project: projectName });
     }
   }
 }
-
-// --- Phase execution (async with streaming output + reliable timeout) ---
 
 async function runPhase(projectDir) {
   const projectName = path.basename(projectDir);
@@ -629,28 +756,11 @@ async function runPhase(projectDir) {
 
   let currentState = state.current_state;
 
-  // Check for feedback queue or resume from waiting-for-human
-  if (currentState === 'waiting-for-human') {
-    if (!fs.existsSync(path.join(projectDir, 'feedback.json'))) return { success: true };
-
-    log(`[${projectName}] Feedback found, resuming from checkpoint`);
-    const completed = state.completed_phases || [];
-    const pipeline = ['building', 'test-integrity', 'code-review', 'product-walk', 'evaluation', 'analyzing', 'vision-checking', 'promoting', 'final-review'];
-    let resumeState = state.paused_from_state || 'building';
-
-    if (completed.length > 0) {
-      const lastCompleted = completed[completed.length - 1];
-      const lastIdx = pipeline.indexOf(lastCompleted);
-      if (lastIdx >= 0 && lastIdx < pipeline.length - 1) {
-        resumeState = pipeline[lastIdx + 1];
-      }
-    }
-
-    log(`[${projectName}] Checkpoints: [${completed.join(', ')}] → resuming at ${resumeState}`);
-    currentState = resumeState;
-    state.current_state = currentState;
-    delete state.paused_from_state;
-    writeJson(stateFile, state);
+  // V2: escalation state handles feedback via advanceState (checks feedback.json).
+  // If in escalation and feedback exists, advanceState will resolve and transition.
+  if (currentState === 'escalation') {
+    advanceState(projectDir);
+    return { success: true };
   }
 
   if (SKIP_STATES.has(currentState)) return { success: true };
@@ -665,8 +775,8 @@ async function runPhase(projectDir) {
     return { success: true };
   }
 
-  // Infrastructure provisioning before building if not yet provisioned
-  if (currentState === 'building') {
+  // Infrastructure provisioning before first story build if not yet provisioned
+  if (currentState === 'story-building' || currentState === 'foundation') {
     const ctx = readJson(contextFile);
     if (ctx && !ctx.infrastructure?.staging_url) {
       log(`[${projectName}] Infrastructure not provisioned — running provisioning`);
@@ -859,7 +969,8 @@ async function runPhase(projectDir) {
       log(`[${projectName}] Phase ${currentState} completed (files: ${filesBefore} → ${filesAfter}, delta: +${delta})`);
 
       // Store build delta in state so advanceState can detect no-op builds
-      if (currentState === 'building') {
+      // V2: story-building tracks delta per story (used by advanceState for no-op detection)
+      if (currentState === 'story-building') {
         try {
           const s = readJson(stateFile);
           if (s) { s.last_build_delta = delta; writeJson(stateFile, s); }
@@ -1014,23 +1125,30 @@ async function main() {
           const state = readJson(stateFile);
           const ctx = readJson(contextFile);
           if (state) {
-            state.paused_from_state = state.current_state;
-            state.current_state = 'waiting-for-human';
+            state.current_state = 'escalation';
             state.timestamp = new Date().toISOString();
+            if (!state.escalations) state.escalations = [];
+            state.escalations.push({
+              id: `esc-launcher-retry-${Date.now()}`,
+              tier: 1,
+              classification: 'launcher-retry-exhausted',
+              summary: `Phase failed ${MAX_RETRIES} times`,
+              story_id: state.current_story || null,
+              status: 'pending',
+              created_at: new Date().toISOString(),
+            });
             writeJson(stateFile, state);
           }
-          // Rich escalation with cycle context for efficient human triage
           notifyRich('escalation', {
             project: projectName,
-            phase: state?.paused_from_state || 'unknown',
+            phase: state?.current_state || 'unknown',
             reason: `Failed ${MAX_RETRIES} times`,
             context: {
-              cycle: state?.cycle_number,
-              featureArea: state?.current_feature_area,
+              milestone: state?.current_milestone,
+              story: state?.current_story,
               healthScore: ctx?.evaluation_report?.health_score,
               confidence: ctx?.evaluation_report?.po?.confidence,
-              lastProgress: ctx?.evaluator_observations?.slice(-1)?.[0],
-              completedPhases: state?.completed_phases,
+              consecutiveFailures: state?.consecutive_failures,
             },
           });
         }
