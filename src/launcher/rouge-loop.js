@@ -348,6 +348,9 @@ function advanceState(projectDir) {
 
       state.foundation.status = 'complete';
       state.foundation.completed_at = new Date().toISOString();
+      // Also mark the foundation milestone as complete so findNextMilestone skips it
+      const foundationMilestone = (state.milestones || []).find(m => m.name === 'foundation');
+      if (foundationMilestone) foundationMilestone.status = 'complete';
       writeJson(stateFile, state);
       log(`[${projectName}] Foundation PASS`);
 
