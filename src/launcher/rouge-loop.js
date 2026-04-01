@@ -869,14 +869,29 @@ async function runPhase(projectDir) {
       });
     }
 
-    // --- Progress-based watchdog ---
-    // Tracks both log growth and meaningful progress events.
-    // Kills only when the agent is truly stuck, not just thinking.
-    const HEARTBEAT_INTERVAL = 30000; // check every 30s (was 60s)
+    // --- Progress-based watchdog (FIX #57: detects file activity, not just stdout) ---
+    // Three progress signals, ANY counts as alive:
+    //   1. Log file growth (stdout captured to phase log)
+    //   2. Progress events in log content
+    //   3. File system activity in project dir (tool calls write files even when stdout is silent)
+    // Kills only when ALL three are stale AND hard ceiling exceeded.
+    const HEARTBEAT_INTERVAL = 30000; // check every 30s
     let lastLogSize = 0;
     let lastLogGrowthAt = Date.now();
     let lastProgressEventAt = Date.now();
+    let lastFileActivityAt = Date.now();
     const phaseStartedAt = Date.now();
+
+    /** Check if any file in the project was modified recently. */
+    function checkFileActivity() {
+      try {
+        const result = execSync(
+          `find "${projectDir}" -maxdepth 3 -newer "${phaseLog}" -not -path "*/node_modules/*" -not -path "*/.git/objects/*" -not -path "*/.next/*" -type f 2>/dev/null | head -1`,
+          { encoding: 'utf8', timeout: 5000 }
+        ).trim();
+        return result.length > 0;
+      } catch { return false; }
+    }
 
     const heartbeat = setInterval(() => {
       try {
@@ -884,6 +899,7 @@ async function runPhase(projectDir) {
         const now = Date.now();
         const elapsed = now - phaseStartedAt;
 
+        // Signal 1: Log file growth
         if (currentSize > lastLogSize) {
           lastLogGrowthAt = now;
 
@@ -908,8 +924,16 @@ async function runPhase(projectDir) {
           lastLogSize = currentSize;
         }
 
+        // Signal 3: File system activity (FIX #57)
+        if (checkFileActivity()) {
+          lastFileActivityAt = now;
+          // Touch the phase log so the -newer check resets
+          try { fs.utimesSync(phaseLog, new Date(), new Date()); } catch {}
+        }
+
         const logStaleDuration = now - lastLogGrowthAt;
         const progressStaleDuration = now - lastProgressEventAt;
+        const fileStaleDuration = now - lastFileActivityAt;
 
         // Decision logic: should we kill this phase?
         let shouldKill = false;
@@ -920,15 +944,18 @@ async function runPhase(projectDir) {
           shouldKill = true;
           killReason = `hard ceiling (${HARD_CEILING / 60000}min)`;
         }
-        // No log growth AND no progress events — agent is stuck
-        else if (logStaleDuration >= LOG_STALE_THRESHOLD && progressStaleDuration >= PROGRESS_STALE_THRESHOLD) {
+        // ALL signals stale — agent is truly stuck (not just writing files silently)
+        else if (logStaleDuration >= LOG_STALE_THRESHOLD && progressStaleDuration >= PROGRESS_STALE_THRESHOLD && fileStaleDuration >= PROGRESS_STALE_THRESHOLD) {
           shouldKill = true;
-          killReason = `no output for ${Math.floor(logStaleDuration / 60000)}min and no progress for ${Math.floor(progressStaleDuration / 60000)}min`;
+          killReason = `no output for ${Math.floor(logStaleDuration / 60000)}min, no progress for ${Math.floor(progressStaleDuration / 60000)}min, no file activity for ${Math.floor(fileStaleDuration / 60000)}min`;
         }
 
         // Log stale status periodically (every 3 min of staleness)
-        if (logStaleDuration >= 180000 && logStaleDuration % 60000 < HEARTBEAT_INTERVAL) {
-          log(`[${projectName}] Phase ${currentState} — no output for ${Math.floor(logStaleDuration / 1000)}s (progress last seen ${Math.floor(progressStaleDuration / 1000)}s ago)`);
+        const allStale = logStaleDuration >= 180000 && fileStaleDuration >= 180000;
+        if (allStale && logStaleDuration % 60000 < HEARTBEAT_INTERVAL) {
+          log(`[${projectName}] Phase ${currentState} — no output for ${Math.floor(logStaleDuration / 1000)}s, no file activity for ${Math.floor(fileStaleDuration / 1000)}s`);
+        } else if (logStaleDuration >= 180000 && fileStaleDuration < 60000 && logStaleDuration % 120000 < HEARTBEAT_INTERVAL) {
+          log(`[${projectName}] Phase ${currentState} — stdout silent but files active (last file change ${Math.floor(fileStaleDuration / 1000)}s ago)`);
         }
 
         if (shouldKill) {
