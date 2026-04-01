@@ -58,10 +58,12 @@ function loadSecretsForProject(projectDir, projectName) {
 
 // --- Logging ---
 
+const HAS_TTY = process.stdout.isTTY;
+
 function log(msg) {
   const ts = new Date().toISOString().replace('T', 'T').slice(0, 19) + 'Z';
   const line = `[${ts}] ${msg}`;
-  console.log(line);
+  if (HAS_TTY) { try { console.log(line); } catch {} }
   fs.appendFileSync(path.join(LOG_DIR, 'rouge.log'), line + '\n');
 }
 
@@ -1201,6 +1203,8 @@ process.on('unhandledRejection', (err) => {
   if (err?.stack) log(err.stack);
 });
 process.on('uncaughtException', (err) => {
+  // Ignore EPIPE — stdout broken when backgrounded without tty
+  if (err?.code === 'EPIPE') return;
   log(`Uncaught exception: ${err?.message || err}`);
   if (err?.stack) log(err.stack);
 });
