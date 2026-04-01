@@ -223,9 +223,11 @@ To `cycle_context.json`:
 
 ## State Transition
 
+**IMPORTANT:** The evaluation orchestrator NEVER routes to `shipping` or `final-review`. Those only happen after ALL milestones are complete, which is decided by the analyzing phase, not the evaluator.
+
 Based on the evaluation outcome, write the appropriate next state to `state.json`:
 
-- **All gates PASS + PO PRODUCTION_READY** → `state: "shipping"`
+- **All gates PASS** → `state: "analyzing"` — the analyzing phase decides whether to promote this milestone and advance to the next one, or ship if all milestones are done
 - **Test Integrity or QA FAIL** → `state: "milestone-fix"`, include `fix_tasks` array extracted from failure reports
 - **PO NEEDS_IMPROVEMENT** → `state: "analyzing"`, include `quality_gaps` from PO report (these become new specs)
 - **PO NOT_READY + notify-human** → `state: "escalation"`, set `escalation_needed: true`
