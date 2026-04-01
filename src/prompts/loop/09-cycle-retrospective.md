@@ -321,11 +321,44 @@ The launcher reads `trend_snapshot` to make macro decisions:
 
 ---
 
+### Step 8 — Prompt Improvement Proposals (Level 3 Learning Bridge)
+
+Review all process insights from Step 7.5. For each insight that implies a change to Rouge's own prompts, catalogue, or evaluation criteria, write a proposal. These are NOT product changes — they are changes to THE ROUGE ITSELF.
+
+**When to write a proposal:**
+- A process insight identifies a recurring problem that a prompt change would prevent ("builders keep choosing mock fallbacks" → building prompt should verify write-path persistence)
+- A heuristic consistently fails across products → the heuristic or the evaluation criteria need updating
+- A prompt gap caused the same type of failure on multiple products → the prompt needs a new instruction
+
+**When NOT to write a proposal:**
+- The insight is product-specific ("fleet-manager needs PostGIS") — that's a catalogue entry, not a prompt change
+- The insight is about a one-time issue that won't recur
+- The insight is already addressed by an existing prompt instruction that wasn't followed
+
+**Format:**
+
+```json
+{
+  "prompt_improvement_proposals": [
+    {
+      "title": "string — concise description of the change",
+      "description": "string — what should change, why, and which prompt/file is affected",
+      "evidence": "string — which process insights or recurring patterns justify this",
+      "affected_file": "string — e.g., 'src/prompts/loop/01-building.md'",
+      "priority": "high | medium | low"
+    }
+  ]
+}
+```
+
+The launcher reads these on project completion and creates GitHub issues tagged `self-improvement`. The self-improve.js loop picks them up and creates PRs.
+
 ## What You Write
 
 To `cycle_context.json`:
 - `retro_metrics` — the aggregate metrics object from Step 7
 - `trend_snapshot` — the cross-cycle trend analysis from Step 7.5
+- `prompt_improvement_proposals` — Level 3 learning proposals from Step 8 (may be empty)
 - Append to `previous_cycles` — a summary of this cycle for future reference
 
 To `journey.json`:
