@@ -122,7 +122,7 @@ Before extracting tasks, determine HOW to decompose this product. The profile is
 After profile detection, derive the strategy:
 
 1. Count entities across all feature areas. Count relationships. Count integrations from `vision.json.infrastructure.services`.
-2. Build dependency graph from `feature_areas[].dependencies`.
+2. Build dependency graph from `milestones[].stories[].depends_on`.
 3. Calculate graph density: `edges / (nodes * (nodes - 1) / 2)`
 4. Identify cross-cutting concerns (features that span multiple areas).
 5. Determine which capabilities activate:

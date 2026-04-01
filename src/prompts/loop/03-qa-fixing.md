@@ -146,7 +146,7 @@ This prevents the same bug from returning in future cycles when other changes to
 Commit the fix as a single atomic commit:
 
 ```
-fix(rouge/loop-{N}): {criterion-id} — {short description}
+fix(rouge/milestone-{milestone}): {criterion-id} — {short description}
 
 QA failure: {one-line summary of what was broken}
 Root cause: {one-line summary of why}

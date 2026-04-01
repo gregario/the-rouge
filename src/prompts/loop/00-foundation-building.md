@@ -199,10 +199,10 @@ Instead:
 ```bash
 git checkout <production-branch>
 git pull origin <production-branch>
-git checkout -b rouge/loop-foundation
+git checkout -b rouge/foundation
 ```
 
-Read `state.json` for the production branch name. The branch name must be `rouge/loop-foundation` — this distinguishes it from feature cycle branches (`rouge/loop-{N}-{feature-area}`).
+Read `state.json` for the production branch name. The branch name must be `rouge/foundation` — this distinguishes it from feature cycle branches (`rouge/story-{milestone}-{story}`).
 
 If the branch already exists (crash recovery, re-invocation), check it out rather than creating it. Each phase is idempotent.
 
@@ -499,6 +499,6 @@ This phase absorbs patterns from established methodologies but applies them auto
 | **Integration approach** | Use existing scaffolds | Research, evaluate, and BUILD the scaffolds |
 | **Hard blocking** | Log and continue | Log AND prevent silent degradation |
 | **Output marker** | `implemented[]` | `implemented[]` + `foundation_completion` manifest |
-| **Branch naming** | `rouge/loop-{N}-{feature-area}` | `rouge/loop-foundation` |
+| **Branch naming** | `rouge/story-{milestone}-{story}` | `rouge/foundation` |
 | **Evaluated by** | `02-evaluation-orchestrator.md` | Foundation-specific evaluation criteria |
 | **Mindset** | "Build this feature well" | "Build the floor that every feature stands on" |

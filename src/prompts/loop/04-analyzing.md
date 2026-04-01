@@ -222,7 +222,7 @@ Based on the PO Review verdict, confidence score, trend analysis, root cause cla
 
 **Output:** `recommendation: "promote"`
 
-The product is ready. Promote staging to production. If there are remaining feature areas, mark the current one complete and advance. If all feature areas are done, trigger vision-checking.
+The product is ready. Promote staging to production. If there are remaining feature areas, mark the current one complete and advance. If all feature areas are done, trigger vision-check.
 
 #### DEEPEN — Concentrated quality gaps in a known area
 
@@ -472,9 +472,9 @@ You do NOT modify `state.json` directly. The launcher reads your `recommendation
 
 - `promote` -> `promoting` (merge PR, promote to production)
 - `deepen:<area>` or `broaden` -> `generating-change-spec` (produce new specs for next cycle)
-- `insert-foundation` -> `foundation-building` (insert a foundation cycle to build missing infrastructure)
-- `notify-human` -> `waiting-for-human` (pause and send Slack notification)
-- `rollback` -> `rolling-back` (close PR, revert staging)
+- `insert-foundation` -> `foundation` (insert a foundation cycle to build missing infrastructure)
+- `notify-human` -> `escalation` (pause and send Slack notification)
+- `rollback` -> `escalation` (close PR, revert staging)
 
 ---
 

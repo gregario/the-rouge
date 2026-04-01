@@ -275,7 +275,7 @@ If any check fails, revise the spec before writing it.
 3. Git commit all new spec files:
 
 ```
-spec(rouge/loop-{N}): change specs for {count} quality gaps
+spec(rouge/milestone-{milestone}): change specs for {count} quality gaps
 
 Addresses gaps: {list of gap IDs}
 Root causes: {summary of root cause distribution}
