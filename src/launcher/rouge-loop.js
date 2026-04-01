@@ -368,6 +368,37 @@ function advanceState(projectDir) {
         log(`[${projectName}] Pattern contribution failed: ${(err.message || '').slice(0, 100)}`);
       }
 
+      // Provision cloud dev infrastructure ONCE before stories start
+      log(`[${projectName}] Provisioning dev infrastructure...`);
+      try {
+        execFileSync('node', [path.join(__dirname, 'provision-infrastructure.js'), projectDir], {
+          encoding: 'utf8', timeout: 300000, stdio: 'inherit',
+        });
+        // Verify we got a staging URL
+        const updatedCtx = readJson(contextFile);
+        if (updatedCtx?.infrastructure?.staging_url) {
+          log(`[${projectName}] Staging URL: ${updatedCtx.infrastructure.staging_url}`);
+        } else {
+          log(`[${projectName}] WARNING: No staging URL after provisioning — milestone checks will use local dev server`);
+        }
+      } catch (err) {
+        log(`[${projectName}] Provisioning failed: ${(err.message || '').slice(0, 200)}`);
+        log(`[${projectName}] Escalating — can't build without infrastructure`);
+        next = 'escalation';
+        if (!state.escalations) state.escalations = [];
+        state.escalations.push({
+          id: 'esc-provisioning-failed',
+          tier: 1,
+          classification: 'infrastructure-gap',
+          summary: 'Cloud infrastructure provisioning failed. Check CLOUDFLARE_API_TOKEN, SUPABASE_ACCESS_TOKEN env vars.',
+          story_id: null,
+          status: 'pending',
+          created_at: new Date().toISOString(),
+        });
+        writeJson(stateFile, state);
+        break;
+      }
+
       // Start first milestone
       const milestone = findNextMilestone(state);
       if (!milestone) { next = 'escalation'; break; }
@@ -399,14 +430,7 @@ function advanceState(projectDir) {
         story.files_changed = result.files_changed || [];
         story.env_limitations = result.env_limitations || [];
         state.consecutive_failures = 0;
-
-        // Deploy to staging after passing story
-        try {
-          const { deploy } = require('./deploy-to-staging');
-          deploy(projectDir);
-        } catch (err) {
-          log(`[${projectName}] Deploy failed: ${(err.message || '').slice(0, 200)}`);
-        }
+        // No deploy here — deploy happens once before milestone-check
 
       } else if (outcome === 'blocked') {
         story.status = 'blocked';
@@ -464,9 +488,16 @@ function advanceState(projectDir) {
         break;
       }
 
-      // Batch complete?
+      // Batch complete? Deploy to staging before milestone evaluation.
       if (isBatchComplete(milestone)) {
-        log(`[${projectName}] Milestone "${milestone.name}" batch complete`);
+        log(`[${projectName}] Milestone "${milestone.name}" batch complete — deploying to staging`);
+        try {
+          const { deploy } = require('./deploy-to-staging');
+          deploy(projectDir);
+          log(`[${projectName}] Staging deploy complete`);
+        } catch (err) {
+          log(`[${projectName}] Staging deploy failed: ${(err.message || '').slice(0, 200)} — milestone-check will use local dev server`);
+        }
         next = 'milestone-check';
         break;
       }
@@ -525,12 +556,7 @@ function advanceState(projectDir) {
     }
 
     case 'milestone-fix': {
-      try {
-        const { deploy } = require('./deploy-to-staging');
-        deploy(projectDir);
-      } catch (err) {
-        log(`[${projectName}] Redeploy failed: ${(err.message || '').slice(0, 200)}`);
-      }
+      // After fixes, go back to milestone-check which will redeploy before evaluating
       next = 'milestone-check';
       break;
     }
@@ -780,20 +806,9 @@ async function runPhase(projectDir) {
     return { success: true };
   }
 
-  // Infrastructure provisioning before first story build if not yet provisioned
-  if (currentState === 'story-building' || currentState === 'foundation') {
-    const ctx = readJson(contextFile);
-    if (ctx && !ctx.infrastructure?.staging_url) {
-      log(`[${projectName}] Infrastructure not provisioned — running provisioning`);
-      try {
-        execFileSync('node', [path.join(__dirname, 'provision-infrastructure.js'), projectDir], {
-          encoding: 'utf8', timeout: 300000, stdio: 'inherit',
-        });
-      } catch (err) {
-        log(`[${projectName}] Provisioning failed: ${(err.message || '').slice(0, 200)}`);
-      }
-    }
-  }
+  // Infrastructure provisioning is handled in advanceState after foundation-eval.
+  // Deploy to staging is handled in advanceState before milestone-check.
+  // No provisioning or deployment in runPhase.
 
   // Snapshot state before phase — enables recovery from corruption
   snapshotState(projectDir, currentState);
