@@ -194,9 +194,17 @@ function notifyRich(type, args) {
 function isRateLimited(text) {
   if (!text) return false;
   const lower = text.toLowerCase();
-  return lower.includes('rate limit') || lower.includes('too many requests') ||
-         lower.includes('429') || lower.includes('hit your limit') ||
-         lower.includes('resets ');
+  // Only match Claude CLI rate limit messages, not application code discussing rate limiting.
+  // Claude CLI outputs specific phrases like "You've hit your limit" or "Rate limit exceeded. Resets at 5pm"
+  // Avoid false positives from code that implements rate limiters or discusses rate limiting.
+  const cliPatterns = [
+    /you'?ve hit your (?:rate )?limit/,
+    /rate limit exceeded/,
+    /too many requests.*try again/,
+    /\b429\b.*(?:retry|wait|limit)/,
+    /usage.*(?:limit|quota).*(?:reset|exceed)/,
+  ];
+  return cliPatterns.some(p => p.test(lower));
 }
 
 /**
