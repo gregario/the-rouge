@@ -286,6 +286,48 @@ This action means the original decomposition missed shared infrastructure that m
 
 **If restructure scope >= 50%:** Do NOT recommend `insert-foundation`. Instead recommend `notify-human` with a clear explanation that the decomposition needs major restructuring and the human should decide whether to proceed or pivot.
 
+#### PARTIAL-SHIP — Some stories done, others blocked
+
+**Conditions (ALL must be true):**
+- Milestone has stories with `status: done` AND stories with `status: blocked`
+- The done stories form a coherent, shippable unit
+- Blocked stories have escalations that require human/structural resolution
+- Continuing to retry blocked stories would not help
+
+**Output:** `recommendation: "promote"` with `partial: true`
+
+Include: which stories shipped, which are deferred, why the deferred stories can't be resolved autonomously.
+
+The launcher marks the milestone as `partial` (not `complete`) and advances to the next milestone. Blocked stories carry forward — they can be unblocked when their escalations are resolved.
+
+#### MID-LOOP DIAGNOSTIC — Circuit breaker triggered (3+ consecutive story failures)
+
+**When this fires:** The launcher detected 3+ consecutive story failures and invoked analyzing with story-level failure data instead of milestone evaluation data. You are in **diagnostic mode**, not normal post-milestone analysis.
+
+**What you read differently:** Instead of `evaluation_report`, read `story_failures` from `cycle_context.json` — an array of the failing stories with their fix_memory, classification, and symptoms.
+
+**What you produce:** A `mid_loop_correction` in `analysis_recommendation`:
+
+```json
+{
+  "analysis_recommendation": {
+    "action": "inject-context | insert-foundation | notify-human",
+    "mid_loop_correction": {
+      "diagnosis": "<what systemic issue is causing repeated failures>",
+      "corrective_instruction": "<specific directive for subsequent stories — what to do differently>",
+      "affected_pattern": "<what the stories have in common — same entity, same infrastructure, same code path>"
+    }
+  }
+}
+```
+
+If the failures share a root cause (same infrastructure issue, same mock fallback, same missing pattern):
+- `inject-context` — the corrective instruction will be added to subsequent story_context.json as `milestone_learnings`
+- `insert-foundation` — if the root cause is missing infrastructure
+- `notify-human` — if the root cause requires human judgment
+
+If the failures don't share a root cause (unrelated bugs), recommend `inject-context` with a general instruction to slow down and diagnose more carefully. Three unrelated failures may indicate the story decomposition was wrong.
+
 ### Step 4: Cross-Cycle Pattern Detection
 
 After classifying individual gaps and making your recommendation, look for patterns across cycles:

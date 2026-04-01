@@ -298,9 +298,19 @@ Design mode required: {count} of {total} specs
 
 ## State Transition
 
-You do NOT modify `state.json` directly. The launcher reads `change_specs_pending` from `cycle_context.json` and transitions the project to `building` for the next cycle, where the builder picks up the change specs and implements them through the full pipeline.
+You do NOT modify `state.json` directly. The launcher reads `change_specs_pending` from `cycle_context.json` and transitions the project to `story-building`, where fix stories are added to the current milestone and the builder picks them up one at a time.
 
-The flow is: `generating-change-spec` -> (launcher) -> `building` (new cycle with change specs as active_spec)
+The flow is: `generating-change-spec` -> (launcher) -> `story-building` (fix stories added to current milestone)
+
+### V2: Story-Scoped Output
+
+In V2, change specs produce **fix stories** that enter the story loop, not monolithic change specs that trigger a full build cycle. Each fix story has:
+- A story ID (e.g., `fix-sidebar-collapse`)
+- 2-6 acceptance criteria (what "fixed" looks like)
+- Scope boundary (which files to touch, which to leave alone)
+- Root cause context (why it broke, what was tried, what not to repeat)
+
+The launcher adds fix stories to `state.json.milestones[current].stories[]` with `status: "pending"`. The story builder processes them like any other story.
 
 ---
 

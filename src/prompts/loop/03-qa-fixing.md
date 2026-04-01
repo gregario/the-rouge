@@ -31,24 +31,23 @@ Ask yourself before every change: "If I reverted every other commit in this phas
 
 ## What You Read
 
-From `cycle_context.json`, extract:
+**Primary:** `fix_story_context.json` (assembled by launcher — consolidated view of what needs fixing). If it does not exist, fall back to reading from `cycle_context.json` directly.
 
-1. **`evaluation_report.qa`** — The QA section of the evaluation report. Focus on:
-   - `evaluation_report.qa.criteria_results` where `status` is `fail` or `partial`
-   - `evaluation_report.qa.functional_correctness` for console errors, dead elements, broken links
-   - `evaluation_report.qa.verdict` (must be `FAIL` — you should not be invoked on a PASS)
-2. **`active_spec`** — The spec that defines correct behavior. This is your source of truth for what "fixed" means.
-3. **`factory_decisions`** — What the building phase chose and why. Helps you understand the implementation context without re-investigating the full codebase.
-4. **`factory_questions`** — Ambiguities the builder encountered. If a bug aligns with a flagged ambiguity, the root cause may be a spec interpretation issue rather than a code bug.
-5. **`retry_counts`** — Previous fix attempts for each issue. Check this BEFORE starting any fix.
-6. **`deployment_url`** — The staging URL where the broken build is deployed.
-7. **`infrastructure`** — Staging environment details for redeployment.
+From `fix_story_context.json`:
+1. **`regressions`** — Array of fix tasks from evaluation: id, description, evidence, severity, suggested_fix. These are your work items.
+2. **`root_cause_analysis`** — Root cause classifications from the analyzing phase. Read these BEFORE forming your own hypotheses — the analyzing phase already classified each regression.
+3. **`retry_history`** — Consolidated per-criterion: all previous attempts with what_tried and result. Check this BEFORE starting any fix. Do NOT repeat approaches that already failed.
+4. **`do_not_repeat`** — Approaches explicitly flagged as ineffective by the analyzing phase. Hard constraint — do not try these.
+5. **`relevant_decisions`** — Factory decisions filtered to the affected files. Understand what the builder chose and why.
+6. **`affected_files`** — Files implicated in the regressions. Your scope boundary.
+7. **`active_spec`** — Source of truth for correct behavior.
+8. **`deployment_url`** — Staging URL for verification after fixes.
 
-**Not loaded (T1 tier):** Vision document, Library heuristics, journey.json, prior cycle history beyond factory_decisions. You are a debugger — you fix what QA flagged using the spec as your source of truth. You do not need product vision or design heuristics to fix a broken button.
+**Not loaded (T1 tier):** Vision document, Library heuristics, journey.json. You are a debugger with a consolidated brief.
 
 From `state.json`, extract:
-- `cycle_number` — For commit messages and logging
-- `current_feature_area` — Scope boundary for your fixes
+- `current_milestone` — For commit messages and logging
+- `current_story` — Scope boundary for your fixes
 
 ---
 
