@@ -26,9 +26,32 @@ From `cycle_context.json`:
 
 *"Did the devs deliver what was asked?"*
 
-**Criteria verification:** For each criterion in `active_spec`, find matching observations in `product_walk.screens[].interactive_elements` and `product_walk.journeys`. Verdict per criterion: `pass` / `fail` / `partial` with evidence referencing specific screen route and element.
+**Criteria verification:** For each criterion in `active_spec`, find matching observations in `product_walk.screens[].interactive_elements` and `product_walk.journeys`. Verdict per criterion: `pass` / `fail` / `partial` / `env_limited` with evidence referencing specific screen route and element.
 
-Emit: `QA lens: <passed>/<total> criteria pass`
+**Environment limitations:** Some criteria cannot be verified due to the test environment (e.g., WebGL unavailable in headless browser, hardware-dependent features, third-party service dependencies). When the product walk notes an environment limitation, OR when the criterion requires visual rendering that headless Chrome cannot provide (WebGL, canvas, GPU-accelerated CSS):
+
+1. Verify that the **code implementing the criterion exists and is structurally correct** — read the source code, check that the component/function exists, check that tests cover the logic
+2. Verify that the **fallback behavior is graceful** (no crashes, blank screens have explanatory UI)
+3. If both checks pass, verdict is `env_limited` — NOT `fail`
+4. `env_limited` criteria count as **passed** for criteria pass rate calculation
+5. Log the limitation clearly: what criterion, what environment constraint, what code evidence suggests it works
+
+Do NOT use `env_limited` as an escape hatch for real failures. It applies ONLY when:
+- The test environment inherently cannot verify the criterion (WebGL in headless, native hardware features)
+- The code path exists and is structurally correct (verified by reading source + tests)
+- The limitation is environmental, not a product bug
+
+**Common env_limited scenarios for web products:**
+- MapLibre/Mapbox/Leaflet map rendering (requires WebGL)
+- Canvas-based visualisations
+- WebSocket/SSE real-time updates (can verify code structure, not live behaviour)
+- GPS/geolocation features
+- Camera/media capture
+- Web Audio API
+
+**Infrastructure limitations:** If `milestone_context.milestone.stories` or `story_context.story` has `env_limitations` entries, the story builder already classified these during building. Respect those classifications — they were made with full code context.
+
+Emit: `QA lens: <passed>/<total> criteria pass (<env_limited> env-limited)`
 
 **Functional correctness:** Aggregate from walk data across all screens:
 - `console_errors` — total count from `product_walk.screens[].console_errors`
@@ -36,7 +59,7 @@ Emit: `QA lens: <passed>/<total> criteria pass`
 - `broken_links` — navigation elements leading to error pages or 404s
 - `pages_checked` — total screens walked
 
-**Output fields:** `criteria_results[]`, `functional_correctness`, `criteria_pass_rate`
+**Output fields:** `criteria_results[]` (each with verdict: `pass`/`fail`/`partial`/`env_limited`), `functional_correctness`, `criteria_pass_rate`, `env_limited_count`
 
 ### Lens 2: Design (UI/UX Quality)
 
@@ -128,9 +151,13 @@ Emit: `Health: <score>/100`
 
 ## QA Verdict Rules
 
+**Criteria pass rate calculation:** `(pass + env_limited) / total`. Criteria with `env_limited` verdict count as passed — they represent working code that can't be visually verified in the test environment.
+
 For `evaluation_report.qa.verdict`:
-- **PASS:** zero CRITICAL findings AND criteria pass rate >= 90% AND health >= 70 AND security PASS AND a11y PASS
-- **FAIL:** any CRITICAL finding OR criteria < 90% OR health < 70 OR security FAIL OR a11y FAIL
+- **PASS:** zero CRITICAL findings AND criteria pass rate >= 90% (counting `env_limited` as passed) AND health >= 70 AND security PASS AND a11y PASS
+- **FAIL:** any CRITICAL finding OR criteria pass rate < 90% OR health < 70 OR security FAIL OR a11y FAIL
+
+Note: `env_limited` criteria should be flagged in the report so humans can verify them manually. But they do NOT block QA verdict.
 
 ## Fix Tasks
 
