@@ -856,9 +856,13 @@ async function runPhase(projectDir) {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 
-    // Stream stdout to log file in real-time (FIX-2: partial output always saved)
+    // Stream stdout to log file in real-time
+    // NOTE: .pipe() does not capture claude -p output (stream encoding issue).
+    // Using .on('data') instead, which reliably captures stdout.
     if (child.stdout) {
-      child.stdout.pipe(logStream);
+      child.stdout.on('data', (chunk) => {
+        logStream.write(chunk);
+      });
     }
 
     // Capture stderr for rate limit detection
