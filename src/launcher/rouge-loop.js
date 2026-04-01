@@ -647,14 +647,46 @@ function advanceState(projectDir) {
     }
 
     case 'generating-change-spec': {
-      // Change specs create fix stories in current milestone — resume story loop
+      // Read fix stories from cycle_context and add them to state.json
+      const ctx = readJson(contextFile);
+      const pending = ctx?.change_specs_pending || [];
       const milestone = (state.milestones || []).find(m => m.name === state.current_milestone);
+
+      if (milestone && pending.length > 0) {
+        let added = 0;
+        for (const spec of pending) {
+          const storyId = spec.spec_path
+            ? spec.spec_path.replace(/.*\//, '').replace(/\..*/, '')
+            : `fix-${Date.now()}-${added}`;
+          // Don't add duplicates
+          if ((milestone.stories || []).some(s => s.id === storyId)) continue;
+          milestone.stories.push({
+            id: storyId,
+            name: spec.approach_summary || `Fix: ${spec.gap_ids?.join(', ') || storyId}`,
+            status: 'pending',
+            attempts: 0,
+            depends_on: [],
+            affected_entities: [],
+            affected_screens: spec.affected_screens || [],
+            acceptance_criteria: [],
+          });
+          added++;
+        }
+        if (added > 0) {
+          log(`[${projectName}] Added ${added} fix stories to milestone "${milestone.name}"`);
+          writeJson(stateFile, state);
+        }
+      }
+
+      // Now find next story (including newly added fix stories)
       if (milestone) {
         const eligible = findNextStory(milestone, flatStories(state));
         if (eligible) {
           next = startStory(state, milestone, eligible);
           writeJson(stateFile, state);
+          log(`[${projectName}] Starting fix story: ${eligible.id}`);
         } else {
+          log(`[${projectName}] No fix stories to build — re-evaluating milestone`);
           next = 'milestone-check';
         }
       } else {
