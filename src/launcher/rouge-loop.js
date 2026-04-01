@@ -853,6 +853,18 @@ async function runPhase(projectDir) {
   // Snapshot state before phase — enables recovery from corruption
   snapshotState(projectDir, currentState);
 
+  // Sync _cycle_number and milestone/story metadata to cycle_context.json
+  // (replaces V1's syncCycleMetadata — prompts read these fields)
+  try {
+    const ctx = readJson(contextFile);
+    if (ctx) {
+      ctx._cycle_number = state.cycle_number || 1;
+      ctx._current_milestone = state.current_milestone || null;
+      ctx._current_story = state.current_story || null;
+      writeJson(contextFile, ctx);
+    }
+  } catch {}
+
   // V2: Assemble focused context views before invoking prompts
   try {
     const { assembleStoryContext, assembleMilestoneContext, assembleFixStoryContext } = require('./context-assembly');

@@ -79,15 +79,15 @@ If `cycle_context.json` does not exist or is malformed, this is a fatal error. L
 
 ---
 
-## Step 2: Create the Loop Branch
+## Step 2: Create the Story Branch
 
 ```bash
 git checkout <production-branch>
 git pull origin <production-branch>
-git checkout -b rouge/loop-<cycle_number>-<feature_area>
+git checkout -b rouge/story-<milestone>-<story_id>
 ```
 
-Read `state.json` for `cycle_number` and `current_feature_area`. The branch name must match the pattern `rouge/loop-{N}-{feature-area}` exactly — the launcher and other phases depend on this convention.
+Read `state.json` for `current_milestone` and `current_story`. The branch name must match the pattern `rouge/story-{milestone}-{story-id}` (e.g., `rouge/story-map-core-map-render`).
 
 If the branch already exists (crash recovery, re-invocation), check it out rather than creating it. Each phase is idempotent.
 
@@ -143,7 +143,7 @@ After profile detection, derive the strategy:
 ### Foundation Gate
 
 If `foundation-cycle` capability is activated AND `state.foundation.status !== 'complete'`:
-- Write `state.current_state = "foundation-building"` to `state.json`
+- Write `state.current_state = "foundation"` to `state.json`
 - Write `foundation_spec` to `cycle_context.json` with scope and acceptance criteria derived from the analysis
 - EXIT. The launcher will dispatch the foundation building phase.
 
@@ -194,7 +194,7 @@ When `dependency-ordering` capability is active:
 When `integration-escalation` capability is active:
 - For each feature area about to be built, check: does it need an integration that's missing from the catalogue?
 - If YES: write to `factory_questions` with specifics. Do NOT substitute.
-- If the integration is in `decomposition_strategy.integration_blockers`: HARD BLOCK, write to `factory_questions`, transition to `waiting-for-human`
+- If the integration is in `decomposition_strategy.integration_blockers`: HARD BLOCK, write to `factory_questions`, transition to `escalation`
 
 ---
 

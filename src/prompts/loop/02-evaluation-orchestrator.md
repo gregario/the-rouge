@@ -234,6 +234,6 @@ Based on the evaluation outcome, write the appropriate next state to `state.json
 
 - **Never skip Sub-Phase 0.** Test integrity is the foundation. Without it, QA Gate results are meaningless.
 - **Never run PO Review after QA failure.** Reviewing quality on broken software wastes a cycle.
-- **Never route PO quality gaps to qa-fixing.** Quality gaps are not bugs. They need re-specification, not patching.
+- **Never route PO quality gaps to milestone-fix.** Quality gaps are not bugs. They need re-specification, not patching.
 - **Never route QA bugs to analyzing.** Bugs don't need new specs. They need fixes.
 - **Never mark a gate as passed if the sub-phase didn't explicitly produce a PASS verdict.** Absence of failure is not success.

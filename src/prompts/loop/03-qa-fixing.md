@@ -195,7 +195,7 @@ Update `cycle_context.json` with:
 ```json
 {
   "qa_fix_results": {
-    "phase": "qa-fixing",
+    "phase": "milestone-fix",
     "cycle": "<cycle number>",
     "timestamp": "<ISO 8601>",
     "criteria_fixed": [
@@ -242,7 +242,7 @@ Update `retry_counts` for every criterion you attempted:
         "...previous entries...",
         {
           "cycle": "<cycle number>",
-          "phase": "qa-fixing",
+          "phase": "milestone-fix",
           "what_tried": "<description of the fix>",
           "result": "fixed | still_failing | regressed_other"
         }
@@ -269,7 +269,7 @@ Update `retry_counts` for every criterion you attempted:
 
 You do NOT modify `state.json` directly. The launcher transitions the project back to `test-integrity` after this phase completes, which triggers the test integrity gate, then the QA gate re-runs with the fixed code.
 
-The flow is: `qa-fixing` -> (launcher) -> `test-integrity` -> `qa-gate` -> PASS or back to `qa-fixing`
+The flow is: `milestone-fix` -> (launcher) -> `test-integrity` -> `qa-gate` -> PASS or back to `milestone-fix`
 
 ---
 
@@ -279,7 +279,7 @@ The flow is: `qa-fixing` -> (launcher) -> `test-integrity` -> `qa-gate` -> PASS 
 If every failed criterion has already been attempted 3 times:
 - Write `escalation_needed: true` with the full list
 - Do NOT redeploy (nothing changed)
-- Exit immediately — the launcher will transition to `waiting-for-human`
+- Exit immediately — the launcher will transition to `escalation`
 
 ### Fix for criterion A breaks criterion B
 - Revert the fix for A
@@ -289,7 +289,7 @@ If every failed criterion has already been attempted 3 times:
 
 ### QA report contains zero failures
 This should never happen — you should not be invoked when QA passes. If it does:
-- Log an `evaluator_observation`: "qa-fixing invoked with zero failures — possible state machine error"
+- Log an `evaluator_observation`: "milestone-fix invoked with zero failures — possible state machine error"
 - Exit without changes
 
 ### Spec ambiguity is the root cause

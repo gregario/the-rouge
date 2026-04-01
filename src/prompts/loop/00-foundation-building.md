@@ -188,7 +188,7 @@ Instead:
    ```
 2. Add the integration to `skipped[]` with `blocker_type: "integration"` and `unblocked_by` describing what the human needs to do (configure API key, sign up for service, etc.)
 3. Continue building everything else that isn't blocked by this integration
-4. The launcher will transition to `waiting-for-human` if blocking questions exist
+4. The launcher will transition to `escalation` if blocking questions exist
 
 **Silent degradation is the enemy of autonomous product development.** A blocked foundation with an honest report is infinitely better than a "complete" foundation built on hollow substitutes. The human can unblock a known problem in minutes. Discovering that the map integration is actually a styled `<div>` takes a full cycle of QA to find and another cycle to fix.
 
