@@ -61,11 +61,11 @@ Determine the cycle type from `state.json` and `cycle_context.json`:
 |------------|---------|-----------------|
 | **initial-build** | First cycle for a feature area | **Full** — all sub-phases |
 | **feature-build** | Building phase added new features | **Full** — all sub-phases |
-| **qa-fix** | Previous state was `qa-fixing`, only bug fixes applied | **Gate** — test integrity + QA gate only |
+| **qa-fix** | Previous state was `milestone-fix`, only bug fixes applied | **Gate** — test integrity + QA gate only |
 | **re-evaluation** | PO Review requested re-check after analyzing phase generated new specs | **Full** — all sub-phases |
 
 **How to detect cycle type:**
-1. Read `state.json.previous_state`. If it was `qa-fixing`, this is a `qa-fix` cycle.
+1. Read `state.json.previous_state`. If it was `milestone-fix`, this is a `qa-fix` cycle.
 2. Read `cycle_context.json.implemented`. If all tasks are classified as `fix` (not `feat`), confirm `qa-fix`.
 3. If `state.json.previous_state` was `analyzing` and the current cycle implements change specs, this is a `re-evaluation`.
 4. Otherwise, check `cycle_context.json.implemented` for new feature tasks → `feature-build` or `initial-build`.
@@ -114,7 +114,7 @@ Execute three sub-phases in strict order. Each sub-phase is a separate prompt fi
 - Read the resulting `test_integrity_report` from `cycle_context.json`
 - Update dashboard: `src/review-readiness.sh pass test_integrity` or `src/review-readiness.sh fail test_integrity`
 
-**On FAIL:** Route to `qa-fixing` state. Test integrity failures are blocking — QA Gate and PO Review cannot proceed without passing tests.
+**On FAIL:** Route to `milestone-fix` state. Test integrity failures are blocking — QA Gate and PO Review cannot proceed without passing tests.
 
 **On PASS:** Proceed to Sub-Phase 1.
 
@@ -139,7 +139,7 @@ Scope-based sub-check activation:
 - Read the resulting `evaluation_report.qa` from `cycle_context.json`
 - Update dashboard gates: `qa_gate`, `ai_code_audit`, `security_review`, `a11y_review`, `design_review`
 
-**On FAIL:** Route to `qa-fixing` state. QA failures are bugs — they go back to the builder as fix tasks, not as new specs.
+**On FAIL:** Route to `milestone-fix` state. QA failures are bugs — they go back to the builder as fix tasks, not as new specs.
 
 **On PASS:** Proceed to Sub-Phase 2.
 
@@ -204,11 +204,11 @@ Log the final dashboard state to `evaluator_observations`:
 
 | Source | Failure Type | Routes To | Rationale |
 |--------|-------------|-----------|-----------|
-| Test Integrity | Missing/stale/orphaned tests | `qa-fixing` | Tests are infrastructure — fix them like bugs |
-| QA Gate | Functional bugs, console errors, broken links | `qa-fixing` | Bugs go back to builder |
-| QA Gate | Security critical findings | `qa-fixing` | Security holes are bugs |
-| QA Gate | Code quality degradation | `qa-fixing` | Quality regressions are bugs |
-| QA Gate | a11y failures (WCAG A/AA) | `qa-fixing` | Accessibility violations are bugs |
+| Test Integrity | Missing/stale/orphaned tests | `milestone-fix` | Tests are infrastructure — fix them like bugs |
+| QA Gate | Functional bugs, console errors, broken links | `milestone-fix` | Bugs go back to builder |
+| QA Gate | Security critical findings | `milestone-fix` | Security holes are bugs |
+| QA Gate | Code quality degradation | `milestone-fix` | Quality regressions are bugs |
+| QA Gate | a11y failures (WCAG A/AA) | `milestone-fix` | Accessibility violations are bugs |
 | PO Review | Quality gaps (design, interaction, content) | `analyzing` | Quality improvements are new specs |
 | PO Review | NOT_READY + rollback | `analyzing` | Needs re-architecture, not just fixes |
 | PO Review | NOT_READY + notify-human | `escalation` | Beyond autonomous resolution |
@@ -226,7 +226,7 @@ To `cycle_context.json`:
 Based on the evaluation outcome, write the appropriate next state to `state.json`:
 
 - **All gates PASS + PO PRODUCTION_READY** → `state: "shipping"`
-- **Test Integrity or QA FAIL** → `state: "qa-fixing"`, include `fix_tasks` array extracted from failure reports
+- **Test Integrity or QA FAIL** → `state: "milestone-fix"`, include `fix_tasks` array extracted from failure reports
 - **PO NEEDS_IMPROVEMENT** → `state: "analyzing"`, include `quality_gaps` from PO report (these become new specs)
 - **PO NOT_READY + notify-human** → `state: "escalation"`, set `escalation_needed: true`
 
