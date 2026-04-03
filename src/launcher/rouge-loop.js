@@ -9,6 +9,17 @@ const fs = require('fs');
 const path = require('path');
 const { loadProjectSecrets } = require('./secrets.js');
 
+// Load .env from Rouge root (for ROUGE_SLACK_WEBHOOK, etc.)
+{
+  const rootEnv = path.join(path.resolve(__dirname, '../..'), '.env');
+  if (fs.existsSync(rootEnv)) {
+    for (const line of fs.readFileSync(rootEnv, 'utf8').split('\n')) {
+      const m = line.match(/^([A-Z_][A-Z0-9_]*)=(.+)$/);
+      if (m && !process.env[m[1]]) process.env[m[1]] = m[2].trim();
+    }
+  }
+}
+
 const ROUGE_ROOT = path.resolve(__dirname, '../..');
 
 // Detect global npm install vs cloned from source
