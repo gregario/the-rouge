@@ -74,6 +74,8 @@ From `cycle_context.json`, extract:
 
 12. **`qa_fix_results`** — Results from the most recent QA-fixing phase (if it ran). Shows what was fixed, what was escalated, what was skipped.
 
+13. **`evaluation_report.po.improvement_items`** — Non-blocking improvement observations from the PO lens. Each tagged with `scope` (this-milestone, global, future-milestone). These are product completeness items that would be lost on promotion if not captured. See Step 2.7 for routing logic.
+
 ---
 
 ## What You Do
@@ -208,6 +210,70 @@ When recommending insert-foundation:
 ```
 Write to `analysis_recommendation` in `cycle_context.json`.
 
+### Step 2.7: Improvement Item Routing
+
+Process `evaluation_report.po.improvement_items[]` by scope. These are non-blocking product completeness observations — not quality gaps that drag down confidence. They represent things a real product should have but that the spec didn't explicitly call out.
+
+#### `this-milestone` items
+
+These are improvements within the current milestone's scope. For each:
+
+1. **Validate the grounding** — does the referenced criterion or vision statement actually support this improvement? If not, drop it with a logged `phase_decision` explaining why.
+2. **Generate a `change_spec_brief`** (same format as quality gap briefs in Step 5) with:
+   - `gap_id`: the improvement item's `id`
+   - `root_cause`: `missing_context` (the spec didn't explicitly call it out) or `implementation_bug` (it should have been obvious from context)
+   - `priority`: `medium` or `low` (these are non-blocking by definition)
+   - `approach_hint`: what the fix looks like
+3. Add these briefs to `change_spec_briefs[]` alongside any quality gap briefs.
+
+#### `global` items
+
+These are cross-cutting concerns no single milestone owns. For each:
+
+1. **Validate the grounding** (same check as above — drop ungrounded items).
+2. **Append to `global_improvements.json`** in the project root. Create the file if it doesn't exist. Read the existing file first to avoid duplicate IDs.
+
+File format:
+```json
+[
+  {
+    "id": "global-001",
+    "milestone_spotted": "<current milestone name from state.current_milestone>",
+    "cycle": "<cycle number>",
+    "description": "<from improvement item>",
+    "evidence": "<from improvement item>",
+    "category": "navigation|a11y|polish|consistency",
+    "grounding": "<from improvement item>"
+  }
+]
+```
+
+Use incrementing IDs: `global-001`, `global-002`, etc. Check the existing file for the highest ID and continue from there.
+
+#### `future-milestone` items
+
+Drop these. They belong to a later scope and will be discovered when that milestone runs. Log them in `phase_decisions` as "dropped: future-milestone scope" so the decision is traceable.
+
+#### Recommendation override
+
+If validated `this-milestone` improvement items exist AND the recommendation from Step 3 would otherwise be `promote`:
+- Override to `deepen:improvements`
+- Set `recommendation_reasoning` to explain that confidence is high enough to promote but non-blocking improvements should be addressed first
+- The `deepen:improvements` action routes to `generating-change-spec` via the existing launcher transition (`action.startsWith('deepen')`)
+
+#### Convergence guardrail
+
+When recommending `deepen:improvements`, check for convergence failure:
+
+1. Read `previous_cycles` for prior `deepen:improvements` recommendations within this milestone.
+2. If the SAME improvement items (by description similarity, not just ID) have appeared in **2+ consecutive** `deepen:improvements` cycles AND confidence delta is within +/-0.02:
+   - The loop is not converging. These improvements are either unfixable by the builder or subjective.
+   - Override to `promote` — accept the remaining items.
+   - Move the persistent items to `global_improvements.json` as `global` scope (final-review gets another chance to catch them).
+   - Log a `phase_decision`: "Convergence guardrail triggered: improvements [list] persisted across N deepen:improvements cycles with no confidence change. Promoting to avoid infinite polish loop. Items moved to global_improvements.json for final-review."
+
+This guardrail prevents the "Taylor series" problem — each fix cycle introducing new observations that prevent promotion forever.
+
 ### Step 3: Recommendation Logic
 
 Based on the PO Review verdict, confidence score, trend analysis, root cause classifications, and decomposition health check, determine the recommended action. This is decision logic, not heuristic guessing. Follow the rules exactly.
@@ -223,6 +289,7 @@ Based on the PO Review verdict, confidence score, trend analysis, root cause cla
 - `confidence_adjusted` >= 0.9 (or raw `confidence` >= 0.9 if adjusted not available)
 - No critical quality gaps
 - Confidence trend is not regressing
+- No validated `this-milestone` improvement items remain (from Step 2.7). If improvement items exist with `this-milestone` scope, route to `deepen:improvements` first. Exception: convergence guardrail triggered (Step 2.7).
 
 **Output:** `recommendation: "promote"`
 
@@ -449,7 +516,15 @@ Update `cycle_context.json` with both `analysis_result` (full analysis) and `ana
         "attempts_exhausted": "boolean",
         "human_question": "string — the specific question for the human"
       }
-    ]
+    ],
+
+    "improvement_routing": {
+      "this_milestone_count": 0,
+      "global_persisted_count": 0,
+      "future_dropped_count": 0,
+      "convergence_guardrail_triggered": false,
+      "deepen_improvements_cycle_count": 0
+    }
   }
 }
 ```
