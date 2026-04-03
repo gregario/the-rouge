@@ -171,7 +171,7 @@ Write `dual_voice_po_review` to `cycle_context.json` before dispatching.
 - Read the resulting `evaluation_report.po` from `cycle_context.json`
 - Update dashboard: `src/review-readiness.sh pass po_review <confidence>` or `src/review-readiness.sh fail po_review`
 
-**On PRODUCTION_READY:** All evaluation complete. Route to shipping.
+**On PRODUCTION_READY:** All evaluation complete. Route to `analyzing` — the analyzing phase decides whether to promote this milestone and advance, or ship if all milestones are done.
 
 **On NEEDS_IMPROVEMENT:** Route to `analyzing` state. PO Review quality gaps are NOT bugs — they are new specs. The analyzing phase will convert them into spec changes for the next build cycle. This is the critical routing distinction: QA failures are bugs (fix them), PO failures are quality gaps (spec them).
 
