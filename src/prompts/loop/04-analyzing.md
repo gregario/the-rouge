@@ -219,7 +219,7 @@ Process `evaluation_report.po.improvement_items[]` by scope. These are non-block
 These are improvements within the current milestone's scope. For each:
 
 1. **Validate the grounding** — does the referenced criterion or vision statement actually support this improvement? If not, drop it with a logged `phase_decision` explaining why.
-2. **Generate a `change_spec_brief`** (same format as quality gap briefs in Step 5) with:
+2. **Generate a `change_spec_brief`** (subset of the change spec brief format from Step 5 — fill in additional fields like `affected_screens` and `what_good_looks_like` where you can) with at minimum:
    - `gap_id`: the improvement item's `id`
    - `root_cause`: `missing_context` (the spec didn't explicitly call it out) or `implementation_bug` (it should have been obvious from context)
    - `priority`: `medium` or `low` (these are non-blocking by definition)
