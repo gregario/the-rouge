@@ -138,7 +138,27 @@ Emit: `PO: confidence <raw_score> (adjusted: <adjusted_score>)`
 - `rollback` — critical regression from previous cycle
 - `notify-human` — ambiguity or judgment call that requires human input
 
-**Output fields:** `journey_quality[]`, `screen_quality[]`, `heuristic_results` (total, passed, pass_rate_pct), `verdict` (PRODUCTION_READY / NEEDS_IMPROVEMENT / NOT_READY), `confidence` (raw), `confidence_adjusted` (env_limited excluded), `env_limited_impact` (what was excluded and why), `recommended_action`
+**Output fields:** `journey_quality[]`, `screen_quality[]`, `heuristic_results` (total, passed, pass_rate_pct), `verdict` (PRODUCTION_READY / NEEDS_IMPROVEMENT / NOT_READY), `confidence` (raw), `confidence_adjusted` (env_limited excluded), `env_limited_impact` (what was excluded and why), `recommended_action`, `improvement_items[]`
+
+**Improvement items:** During the PO lens, you will notice things that are not blocking (confidence >= 0.9 is still possible) but that a real product should fix before shipping: a missing logout button, user identity not shown, inconsistent mobile layout, missing navigation breadcrumbs, etc. These are not quality gaps that drag down confidence — they are product completeness observations.
+
+For each such observation, emit an `improvement_item` with:
+- `id`: `imp-<short-slug>` (e.g., `imp-no-logout`, `imp-missing-breadcrumbs`)
+- `description`: What is missing or wrong
+- `evidence`: Screen route and element or screenshot reference
+- `scope`: One of:
+  - `this-milestone` — relevant to what we're shipping in the current milestone (e.g., a logout button during a dashboard milestone that includes auth)
+  - `global` — cross-cutting concern no single milestone owns (e.g., no home navigation from any inner page, inconsistent footer across all pages)
+  - `future-milestone` — belongs to a later milestone's scope (e.g., vehicle detail page layout spotted during a dashboard milestone, when vehicle details is a future milestone)
+- `severity`: `low | medium` (if it were high/critical, it would be a quality gap dragging down confidence, not an improvement item)
+- `grounding`: Which acceptance criterion, vision statement, or usability heuristic makes this a real requirement — not an invented one. If you cannot ground it, do not emit it.
+
+**Scope rules:**
+- `this-milestone`: Only if the improvement is within the current milestone's acceptance criteria or directly implied by them. A dashboard milestone that ships auth should have a logout button.
+- `global`: Only for patterns that span multiple milestones. Navigation consistency, footer presence, responsive behavior patterns.
+- `future-milestone`: When you observe something that belongs to a milestone not yet started. These will be handled when that milestone runs.
+
+**Grounding rule:** Every improvement item MUST reference a specific acceptance criterion, vision statement, or usability heuristic. "It would be nice if..." is not grounded. "Vision states the dashboard should feel complete and professional; a missing logout forces users to clear cookies" IS grounded. This prevents scope creep and the "designed by committee" problem — only real, grounded improvements make it through.
 
 ## Health Score
 
@@ -224,7 +244,24 @@ To `cycle_context.json`, write a single `evaluation_report` key containing all t
       "heuristic_results": {},
       "verdict": "PRODUCTION_READY|NEEDS_IMPROVEMENT|NOT_READY",
       "confidence": 0.91,
-      "recommended_action": "continue"
+      "confidence_adjusted": 0.94,
+      "env_limited_impact": {
+        "excluded_criteria": ["map-renders-correctly"],
+        "excluded_journeys": ["explore-map"],
+        "excluded_screens": ["/map"],
+        "rationale": "WebGL unavailable in headless — map components verified via code review"
+      },
+      "recommended_action": "continue",
+      "improvement_items": [
+        {
+          "id": "imp-no-logout",
+          "description": "No logout button visible on any screen",
+          "evidence": "Screen /dashboard — no logout in header or sidebar",
+          "scope": "this-milestone",
+          "severity": "medium",
+          "grounding": "AC-dashboard-auth-3: authenticated sessions; logout is implied"
+        }
+      ]
     },
     "health_score": 82,
     "re_walk_requests": []
