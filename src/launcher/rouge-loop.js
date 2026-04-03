@@ -958,7 +958,10 @@ async function runPhase(projectDir) {
   }
 
   const promptRelPath = STATE_TO_PROMPT[currentState];
-  if (!promptRelPath) return { success: true };
+  if (!promptRelPath) {
+    log(`[${projectName}] Unknown state "${currentState}" — no prompt mapping. Halting phase.`);
+    return { success: false };
+  }
 
   const promptFile = path.join(ROUGE_ROOT, 'src/prompts', promptRelPath);
   if (!fs.existsSync(promptFile)) {
