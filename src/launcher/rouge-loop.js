@@ -976,6 +976,7 @@ async function runPhase(projectDir) {
   // Async spawn with streaming output + progress-based watchdog
   return new Promise((resolve) => {
     const logStream = fs.createWriteStream(phaseLog, { flags: 'a' });
+    const logSizeAtStart = fs.existsSync(phaseLog) ? fs.statSync(phaseLog).size : 0;
     let stderrChunks = [];
     let killed = false;
 
@@ -1134,24 +1135,35 @@ async function runPhase(projectDir) {
         return;
       }
 
-      // Rate limit detection — check stderr AND last 2KB of phase log (stdout)
-      // Claude CLI outputs "You've hit your limit" to stdout, not stderr
-      let rateLimitSource = null;
-      if (isRateLimited(stderr)) {
-        rateLimitSource = 'stderr';
+      // Exit code check FIRST — if process succeeded, don't second-guess it
+      if (code === 0) {
+        // Phase completed successfully. Even if a rate limit message appeared
+        // mid-phase (Claude retried internally), the work is done.
+        // Fall through to the success path below.
       } else {
-        try {
-          const tail = fs.readFileSync(phaseLog, 'utf8').slice(-2000);
-          if (isRateLimited(tail)) rateLimitSource = 'stdout';
-        } catch {}
-      }
-      if (rateLimitSource) {
-        log(`[${projectName}] Rate limited (detected in ${rateLimitSource})`);
-        resolve({ success: false, rateLimited: true });
-        return;
-      }
+        // Non-zero exit — check if it was a rate limit
+        // Only read content written DURING this run (not stale content from previous runs)
+        let rateLimitSource = null;
+        if (isRateLimited(stderr)) {
+          rateLimitSource = 'stderr';
+        } else {
+          try {
+            const buf = Buffer.alloc(4000);
+            const fd = fs.openSync(phaseLog, 'r');
+            const totalSize = fs.fstatSync(fd).size;
+            const readFrom = Math.max(logSizeAtStart, totalSize - 4000);
+            const bytesRead = fs.readSync(fd, buf, 0, 4000, readFrom);
+            fs.closeSync(fd);
+            const newContent = buf.slice(0, bytesRead).toString('utf8');
+            if (isRateLimited(newContent)) rateLimitSource = 'stdout';
+          } catch {}
+        }
+        if (rateLimitSource) {
+          log(`[${projectName}] Rate limited (detected in ${rateLimitSource})`);
+          resolve({ success: false, rateLimited: true });
+          return;
+        }
 
-      if (code !== 0) {
         const errorLine = stderr.split('\n').filter(l => l.trim()).pop() || `exit code ${code}`;
         log(`[${projectName}] Phase ${currentState} failed: ${errorLine.slice(0, 200)}`);
         resolve({ success: false });
