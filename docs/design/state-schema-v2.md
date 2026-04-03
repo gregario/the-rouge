@@ -167,3 +167,61 @@ Transitions:
 The V2 schema is NOT backwards-compatible with V1 state.json files. Existing projects (fleet-manager, countdowntimer, fruit-and-veg) retain their V1 state files. V2 schema applies only to projects seeded after the refactor.
 
 Migration path for existing projects: re-seed with V2 spec discipline, or manually decompose feature_areas into milestones/stories.
+
+---
+
+## Improvement Backlog
+
+### Per-Milestone Improvements (In-Loop)
+
+The evaluation phase (02e) emits `improvement_items[]` in the PO lens output. These are non-blocking product completeness observations (missing logout button, user identity not shown, etc.) that would be lost on promotion if not captured.
+
+The analyzing phase (04) routes them by scope:
+- `this-milestone` → generates `change_spec_briefs`, recommends `deepen:improvements` instead of `promote`
+- `global` → appends to `global_improvements.json` (persistent file at project root)
+- `future-milestone` → dropped (handled when that milestone runs)
+
+No launcher changes needed: `deepen:improvements` matches the existing `action.startsWith('deepen')` transition to `generating-change-spec`.
+
+**Convergence guardrail:** If the same improvements persist across 2+ consecutive `deepen:improvements` cycles with no confidence change (delta within +/-0.02), the analyzing phase promotes anyway and moves remaining items to `global_improvements.json`. This prevents infinite polish loops.
+
+### New Fields in evaluation_report.po
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `confidence_adjusted` | number (0.0-1.0) | Confidence with env_limited features excluded. Used by analyzing for all threshold decisions. |
+| `env_limited_impact` | object | What was excluded and why: `excluded_criteria[]`, `excluded_journeys[]`, `excluded_screens[]`, `rationale`. |
+| `improvement_items` | array | Non-blocking improvement observations. Each with `id`, `description`, `evidence`, `scope` (this-milestone/global/future-milestone), `severity` (low/medium), `grounding`. |
+
+### New Fields in analysis_result
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `improvement_routing` | object | Counts: `this_milestone_count`, `global_persisted_count`, `future_dropped_count`, `convergence_guardrail_triggered`, `deepen_improvements_cycle_count`. |
+
+### New Fields in final_review_report
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `global_improvements_observed` | array | Global improvement items observed during walkthrough. Each with `id`, `still_present` (boolean), `customer_impact` (string). |
+| `global_improvements_resolved` | array of strings | IDs of global improvements that appear to have been fixed by later milestones. |
+
+### global_improvements.json
+
+Persistent file at the project root. Created by the analyzing phase when `global`-scoped improvement items are identified. Read by vision-check (06) and final-review (10).
+
+```json
+[
+  {
+    "id": "global-001",
+    "milestone_spotted": "string — milestone name when spotted",
+    "cycle": 3,
+    "description": "string — what is missing or wrong",
+    "evidence": "string — screen route and element reference",
+    "category": "navigation | a11y | polish | consistency",
+    "grounding": "string — which criterion or vision statement makes this a real requirement"
+  }
+]
+```
+
+Append-only during the loop. Final-review reports which items are `still_present` vs resolved.
