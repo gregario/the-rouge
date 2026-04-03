@@ -776,13 +776,32 @@ function advanceState(projectDir) {
       const report = ctx?.final_review_report;
       if (report?.production_ready || report?.human_approved) {
         next = 'complete';
+        state.final_review_attempts = 0;
         log(`[${projectName}] Final review PASSED — complete!`);
       } else if (report?.recommendation === 'major-rework') {
         next = 'escalation';
         log(`[${projectName}] Major rework — escalating`);
       } else {
-        next = 'generating-change-spec';
-        log(`[${projectName}] Needs refinement`);
+        // Refinement loop — but with a circuit breaker
+        state.final_review_attempts = (state.final_review_attempts || 0) + 1;
+        if (state.final_review_attempts >= 3) {
+          log(`[${projectName}] Final review: 3 refinement attempts exhausted — escalating to human`);
+          if (!state.escalations) state.escalations = [];
+          state.escalations.push({
+            id: `esc-final-review-exhausted`,
+            tier: 3,
+            classification: 'taste-judgment',
+            summary: `Final review requested refinement ${state.final_review_attempts} times. Product may need human taste judgment to decide what's shippable vs. what's polish.`,
+            story_id: null,
+            status: 'pending',
+            created_at: new Date().toISOString(),
+          });
+          writeJson(stateFile, state);
+          next = 'escalation';
+        } else {
+          log(`[${projectName}] Needs refinement (attempt ${state.final_review_attempts}/3)`);
+          next = 'generating-change-spec';
+        }
       }
       break;
     }
