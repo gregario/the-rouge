@@ -32,6 +32,7 @@ From `state.json`:
 
 From the project root:
 - `journey.json` — full history of cycle outcomes, decisions, learnings
+- `global_improvements.json` — accumulated cross-cutting improvement observations from milestone evaluations. Each entry was spotted during a milestone evaluation but scoped as `global` (no single milestone owns it). These are navigation gaps, consistency issues, a11y patterns, and polish items that span the product. File may not exist if no global improvements have been identified yet.
 
 ---
 
@@ -83,6 +84,13 @@ Produce a structured alignment assessment:
   }
 }
 ```
+
+**Global improvements check:** If `global_improvements.json` exists, read it. For each global improvement item:
+- Does it represent a gap in the product's identity consistency? (e.g., no home navigation suggests the product doesn't feel like a cohesive application)
+- Does it affect the core promise delivery? (e.g., missing a11y patterns may exclude the target persona)
+- Does it impact persona fit? (e.g., inconsistent responsive behavior affects mobile-first personas)
+
+Include relevant global improvements as evidence in your alignment assessment under the appropriate dimension (`core_promise_delivery`, `persona_fit`, or `identity_consistency`). Do NOT try to fix global improvements — surface them as alignment evidence. The final-review phase will address them.
 
 ### Step 4 — Autonomous Scope Expansion
 
