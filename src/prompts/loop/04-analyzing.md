@@ -30,7 +30,9 @@ From `cycle_context.json`, extract:
 
 1. **`evaluation_report.po`** — The PO lens from the Evaluation phase. Your primary input. Focus on:
    - `verdict`: PRODUCTION_READY, NEEDS_IMPROVEMENT, or NOT_READY
-   - `confidence`: 0.0-1.0 weighted score
+   - `confidence`: 0.0-1.0 raw weighted score (includes env_limited penalty)
+   - `confidence_adjusted`: 0.0-1.0 with env_limited features excluded — **USE THIS for threshold decisions** (promote/deepen/notify-human). The raw confidence drags down for things the loop can't fix (WebGL in headless, etc.).
+   - `env_limited_impact`: what was excluded from the adjusted score and why
    - `recommended_action`: the Evaluation phase's suggestion (you validate or override this)
    - `journey_quality[]`: per-journey, per-step quality assessments
    - `screen_quality[]`: per-screen quality assessments
@@ -212,11 +214,13 @@ Based on the PO Review verdict, confidence score, trend analysis, root cause cla
 
 **Priority rule:** `insert-foundation` takes PRIORITY over `continue` — if the decomposition health check found structural issues, fixing them now is cheaper than discovering them in every subsequent feature cycle.
 
+**IMPORTANT: Use `confidence_adjusted` (not raw `confidence`) for ALL threshold checks below.** The adjusted score excludes env_limited features (WebGL maps, hardware-dependent features) that the loop cannot fix. If only raw `confidence` is available, use it — but note that env_limited features may drag it below thresholds artificially.
+
 #### PROMOTE — Ready for production
 
 **Conditions (ALL must be true):**
 - PO Review verdict is `PRODUCTION_READY`
-- Confidence >= 0.9
+- `confidence_adjusted` >= 0.9 (or raw `confidence` >= 0.9 if adjusted not available)
 - No critical quality gaps
 - Confidence trend is not regressing
 
@@ -227,7 +231,7 @@ The product is ready. Promote staging to production. If there are remaining feat
 #### DEEPEN — Concentrated quality gaps in a known area
 
 **Conditions (ALL must be true):**
-- Confidence >= 0.7 and < 0.9
+- `confidence_adjusted` >= 0.7 and < 0.9
 - Quality gaps are concentrated in 1-2 specific areas (screens, journeys, or interaction patterns)
 - The gaps are addressable without adding new capabilities
 - Confidence trend is not regressing for 2+ cycles
@@ -239,7 +243,7 @@ Include: which gaps to address, root cause classification for each, and what "fi
 #### BROADEN — Missing capabilities needed
 
 **Conditions:**
-- Confidence >= 0.7 and < 0.9
+- `confidence_adjusted` >= 0.7 and < 0.9
 - Quality gaps indicate missing capabilities not covered by the current spec (e.g., PO Review discovered the product needs a map component, or an onboarding flow, or an export function)
 - The missing capability is implied by the vision document even if not explicitly in the current spec
 
@@ -250,7 +254,7 @@ Include: what capability is missing, why it's needed (evidence from the PO Revie
 #### NOTIFY-HUMAN — Needs human judgment
 
 **Conditions (ANY triggers this):**
-- Confidence < 0.7
+- `confidence_adjusted` < 0.7 (environment limitations already excluded — if adjusted confidence is still low, there are real quality problems)
 - PO Review verdict is `NOT_READY` with critical gaps
 - 3+ quality gaps classified as `spec_ambiguity` (the spec itself needs human clarification)
 - An escalated issue from QA-fixing that could not be resolved after 3 attempts

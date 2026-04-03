@@ -112,12 +112,24 @@ Emit: `Design: <score>/100`
 
 **Heuristic evaluation:** Apply Nielsen's 10 usability heuristics against walk observations. Add any `library_heuristics` from cycle_context. Each heuristic: pass/fail with evidence.
 
-**Confidence:** 0.0-1.0 computed from:
+**Confidence (raw):** 0.0-1.0 computed from:
 - QA criteria pass rate (weight: 30%)
 - Design overall score (weight: 20%)
 - Heuristic pass rate (weight: 20%)
 - Journey quality average (weight: 15%)
 - Trend vs previous cycles (weight: 15%)
+
+**Confidence (adjusted):** The same calculation but with `env_limited` features excluded from the inputs:
+- QA criteria pass rate: exclude `env_limited` criteria (they already count as passed in QA, apply the same here)
+- Journey quality: exclude journey steps that depend on env_limited features (e.g., "view live map" when WebGL is unavailable). Score only the journeys/steps that CAN be evaluated.
+- Screen quality: exclude screens whose primary purpose is an env_limited feature (e.g., the map screen when WebGL is unavailable). Score screens that render real content.
+- Design and heuristic scores: apply as normal (these evaluate what IS visible, not what's missing)
+
+The adjusted confidence is what the analyzing phase uses for threshold decisions (>= 0.7 for deepen, >= 0.9 for promote). The raw confidence is preserved for human reference.
+
+**Why both:** The evaluation should see everything and record everything honestly — including that the map shows an error boundary. But the score that drives autonomous decisions shouldn't be dragged down by environment limitations that can't be fixed by the loop. The observation is valuable. The penalty isn't.
+
+Emit: `PO: confidence <raw_score> (adjusted: <adjusted_score>)`
 
 **Recommended action:**
 - `continue` — ship-ready, no blockers
@@ -126,9 +138,7 @@ Emit: `Design: <score>/100`
 - `rollback` — critical regression from previous cycle
 - `notify-human` — ambiguity or judgment call that requires human input
 
-Emit: `PO: confidence <score>`
-
-**Output fields:** `journey_quality[]`, `screen_quality[]`, `heuristic_results` (total, passed, pass_rate_pct), `verdict` (PRODUCTION_READY / NEEDS_IMPROVEMENT / NOT_READY), `confidence`, `recommended_action`
+**Output fields:** `journey_quality[]`, `screen_quality[]`, `heuristic_results` (total, passed, pass_rate_pct), `verdict` (PRODUCTION_READY / NEEDS_IMPROVEMENT / NOT_READY), `confidence` (raw), `confidence_adjusted` (env_limited excluded), `env_limited_impact` (what was excluded and why), `recommended_action`
 
 ## Health Score
 
