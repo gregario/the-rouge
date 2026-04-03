@@ -302,9 +302,11 @@ The launcher marks the milestone as `partial` (not `complete`) and advances to t
 
 #### MID-LOOP DIAGNOSTIC — Circuit breaker triggered (3+ consecutive story failures)
 
+**How to detect:** Check `cycle_context.json` for `_circuit_breaker === true`. If present, you are in diagnostic mode. If absent, you are in normal post-milestone analysis mode. Always check this FIRST before reading evaluation data.
+
 **When this fires:** The launcher detected 3+ consecutive story failures and invoked analyzing with story-level failure data instead of milestone evaluation data. You are in **diagnostic mode**, not normal post-milestone analysis.
 
-**What you read differently:** Instead of `evaluation_report`, read `story_failures` from `cycle_context.json` — an array of the failing stories with their fix_memory, classification, and symptoms.
+**What you read differently:** Instead of `evaluation_report`, read `story_failures` from `cycle_context.json` — an array of the failing stories with their fix_memory (what was tried), classification, blocked_by, and attempt counts. The `_circuit_breaker` flag confirms you're in this mode.
 
 **What you produce:** A `mid_loop_correction` in `analysis_recommendation`:
 

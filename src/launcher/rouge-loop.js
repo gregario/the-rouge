@@ -492,13 +492,53 @@ function advanceState(projectDir) {
       // Circuit breaker: 3+ consecutive failures → early diagnostic
       if ((state.consecutive_failures || 0) >= 3) {
         log(`[${projectName}] Circuit breaker: ${state.consecutive_failures} consecutive failures`);
+
+        // Write story failures to cycle_context so analyzing has data to diagnose
+        const cbCtx = readJson(contextFile);
+        if (cbCtx) {
+          const recentStories = (milestone.stories || [])
+            .filter(s => s.status === 'blocked' || s.status === 'pending')
+            .slice(-3);
+          cbCtx._circuit_breaker = true;
+          cbCtx.story_failures = recentStories.map(s => ({
+            id: s.id,
+            name: s.name,
+            status: s.status,
+            attempts: s.attempts || 0,
+            blocked_by: s.blocked_by || null,
+            fix_memory: (state.fix_memory || {})[s.id] || [],
+          }));
+          writeJson(contextFile, cbCtx);
+        }
+
         next = 'analyzing';
         break;
       }
 
-      // Batch complete? Deploy to staging before milestone evaluation.
+      // Batch complete? Check if any stories actually passed.
       if (isBatchComplete(milestone)) {
-        log(`[${projectName}] Milestone "${milestone.name}" batch complete — deploying to staging`);
+        const doneCount = (milestone.stories || []).filter(s => s.status === 'done').length;
+        const blockedCount = (milestone.stories || []).filter(s => s.status === 'blocked').length;
+
+        // All blocked, none done — nothing to evaluate, escalate
+        if (doneCount === 0 && blockedCount > 0) {
+          log(`[${projectName}] Milestone "${milestone.name}": all ${blockedCount} stories blocked, zero done — escalating`);
+          if (!state.escalations) state.escalations = [];
+          state.escalations.push({
+            id: `esc-milestone-all-blocked-${milestone.name}`,
+            tier: 2,
+            classification: 'infrastructure-gap',
+            summary: `All ${blockedCount} stories in milestone "${milestone.name}" are blocked. No progress possible without resolving blockers.`,
+            story_id: null,
+            status: 'pending',
+            created_at: new Date().toISOString(),
+          });
+          writeJson(stateFile, state);
+          next = 'escalation';
+          break;
+        }
+
+        log(`[${projectName}] Milestone "${milestone.name}" batch complete (${doneCount} done, ${blockedCount} blocked) — deploying to staging`);
         try {
           const { deploy } = require('./deploy-to-staging');
           deploy(projectDir);
@@ -747,15 +787,20 @@ function advanceState(projectDir) {
       const feedback = readJson(feedbackFile);
       if (!feedback?.resolved) break;
 
-      // Resolve pending escalations and unblock stories
+      // Resolve escalations — either a specific one (feedback.escalation_id) or all pending
+      const targetId = feedback.escalation_id || null;
+      let resolvedCount = 0;
       for (const esc of state.escalations || []) {
         if (esc.status !== 'pending') continue;
+        if (targetId && esc.id !== targetId) continue; // skip if not the targeted escalation
         esc.status = 'resolved';
         esc.resolution = feedback.resolution || 'human-resolved';
         esc.resolved_at = new Date().toISOString();
         const story = flat.find(s => s.id === esc.story_id);
         if (story && story.status === 'blocked') story.status = 'retrying';
+        resolvedCount++;
       }
+      log(`[${projectName}] Resolved ${resolvedCount} escalation(s)${targetId ? ` (target: ${targetId})` : ' (all pending)'}`);
       fs.unlinkSync(feedbackFile);
       writeJson(stateFile, state);
 
