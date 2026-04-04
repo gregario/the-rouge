@@ -3,6 +3,7 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { markdownToSlack } = require('./format');
+const blockKit = require('./block-kit');
 
 const app = new App({
   token: process.env.SLACK_BOT_TOKEN,
@@ -59,6 +60,29 @@ function writeJson(filePath, data) {
   fs.renameSync(tmp, filePath);
 }
 
+// Returns a short summary string for the status list view.
+// Uses task_ledger.json if available; falls back to cycle number.
+function getProjectStatusSummary(name, state) {
+  try {
+    const ledgerPath = path.join(PROJECTS_DIR, name, 'task_ledger.json');
+    if (fs.existsSync(ledgerPath)) {
+      const ledger = JSON.parse(fs.readFileSync(ledgerPath, 'utf8'));
+      const milestones = ledger.milestones || [];
+      if (milestones.length > 0) {
+        // Count milestones and stories
+        const promotedMs = state?.promoted_milestones || [];
+        const currentMs = milestones.find(ms => !promotedMs.includes(ms.name));
+        if (!currentMs) return `(${milestones.length}/${milestones.length} milestones)`;
+        const msIdx = milestones.indexOf(currentMs) + 1;
+        const stories = currentMs.stories || [];
+        const doneStories = stories.filter(s => s.status === 'done').length;
+        return `(milestone ${msIdx}/${milestones.length}, story ${doneStories}/${stories.length})`;
+      }
+    }
+  } catch {}
+  return `(cycle ${state?.cycle_number || 0})`;
+}
+
 function formatProjectDetail(name) {
   const state = readState(name);
   if (!state) return `Project \`${name}\` not found.`;
@@ -79,15 +103,24 @@ function formatProjectDetail(name) {
   }
   lines.push(`*Cycle:* ${state.cycle_number || 0}`);
 
-  // Feature areas
-  const featureAreas = state.feature_areas || ctx?.vision?.feature_areas || [];
-  if (featureAreas.length > 0) {
-    lines.push('');
-    lines.push('*Feature Areas:*');
-    for (const fa of featureAreas) {
-      const statusEmoji = fa.status === 'complete' ? '✅' : fa.status === 'in-progress' ? '🔨' : '⬜';
-      lines.push(`  ${statusEmoji} ${fa.name} — \`${fa.status || 'pending'}\``);
-    }
+  // Milestones (from task_ledger.json)
+  const ledgerPath = path.join(projectDir, 'task_ledger.json');
+  if (fs.existsSync(ledgerPath)) {
+    try {
+      const ledger = JSON.parse(fs.readFileSync(ledgerPath, 'utf8'));
+      if (ledger.milestones && ledger.milestones.length > 0) {
+        lines.push('');
+        lines.push('*Milestones:*');
+        for (const ms of ledger.milestones) {
+          const stories = ms.stories || [];
+          const done = stories.filter(s => s.status === 'done').length;
+          const total = stories.length;
+          const promoted = (state.promoted_milestones || []).includes(ms.name);
+          const icon = promoted ? '🔒' : done === total ? '✅' : done > 0 ? '🔨' : '⬜';
+          lines.push(`  ${icon} ${ms.name} — ${done}/${total} stories${promoted ? ' (promoted)' : ''}`);
+        }
+      }
+    } catch {}
   }
 
   // Foundation status
@@ -120,6 +153,21 @@ function formatProjectDetail(name) {
   if (state.timestamp) {
     lines.push('');
     lines.push(`*Last action:* ${state.timestamp}`);
+  }
+
+  // Cost info from checkpoints
+  const checkpointsPath = path.join(projectDir, 'checkpoints.jsonl');
+  if (fs.existsSync(checkpointsPath)) {
+    try {
+      const content = fs.readFileSync(checkpointsPath, 'utf8').trim();
+      const cpLines = content.split('\n').filter(Boolean);
+      if (cpLines.length > 0) {
+        const lastCp = JSON.parse(cpLines[cpLines.length - 1]);
+        if (lastCp.costs?.cumulative_cost_usd) {
+          lines.push(`*Cost:* $${lastCp.costs.cumulative_cost_usd.toFixed(2)}`);
+        }
+      }
+    } catch {}
   }
 
   return lines.join('\n');
@@ -352,20 +400,8 @@ const STATE_EMOJI = {
 };
 
 function showHelp(say) {
-  return say([
-    '*Rouge Commands:*',
-    '\u2022 `status` \u2014 Show all projects | `status <project>` \u2014 Detailed view',
-    '\u2022 `new <name>` \u2014 Create a new project and start seeding',
-    '\u2022 `seed <name>` \u2014 Resume a paused seeding session',
-    '\u2022 `start <project>` \u2014 Start a ready project',
-    '\u2022 `pause <project>` \u2014 Pause an active project',
-    '\u2022 `resume <project>` \u2014 Resume a paused project',
-    '\u2022 `ship <project>` \u2014 Approve a product in final-review for production',
-    '\u2022 `feedback <project> <text>` \u2014 Send feedback during final-review',
-    '\u2022 `<project> <feedback>` \u2014 Send feedback to a waiting project',
-    '',
-    '_During an active seeding session, just talk naturally \u2014 messages are relayed to Claude._',
-  ].join('\n'));
+  const { blocks } = blockKit.helpMessage();
+  return say({ blocks });
 }
 
 // --- FW.14: App Home dashboard ---
@@ -619,7 +655,7 @@ app.event('app_mention', async ({ event, say }) => {
             } else if (state?.current_state === 'seeding' && seedState?.status === 'paused') {
               extra = ' _(seeding paused)_';
             }
-            return `${emoji} *${name}*: \`${state?.current_state || 'unknown'}\` (cycle ${state?.cycle_number || 0})${extra}`;
+            return `${emoji} *${name}*: \`${state?.current_state || 'unknown'}\` ${getProjectStatusSummary(name, state)}${extra}`;
           });
           await say(lines.join('\n'));
           return;
@@ -1086,7 +1122,7 @@ app.event('message', async ({ event, say }) => {
     writeSeedingState(seedProject, seedState);
 
     // FW.6: Parse discipline progress markers
-    const DM_DISCIPLINES = ['brainstorming', 'competition', 'taste', 'spec', 'design', 'legal-privacy', 'marketing'];
+    const DM_DISCIPLINES = ['brainstorming', 'competition', 'taste', 'spec', 'design', 'infrastructure', 'legal-privacy', 'marketing'];
     const dmCompletedDisciplines = [];
     const dmProgressMatches = response.matchAll(/\[DISCIPLINE_COMPLETE:\s*(\S+)\]/g);
     for (const match of dmProgressMatches) {
@@ -1139,19 +1175,10 @@ app.command('/rouge', async ({ command, ack, respond }) => {
   try {
     switch (cmd) {
       case 'help': {
+        const { blocks: helpBlocks } = blockKit.helpMessage();
         await respond({
           response_type: 'ephemeral',
-          text: [
-            '*Rouge Commands:*',
-            '\u2022 `/rouge status` \u2014 Show all projects | `/rouge status <project>` \u2014 Detailed view',
-            '\u2022 `/rouge new <name>` \u2014 Create a new project and start seeding',
-            '\u2022 `/rouge seed <name>` \u2014 Resume a paused seeding session',
-            '\u2022 `/rouge start <project>` \u2014 Start a ready project',
-            '\u2022 `/rouge pause <project>` \u2014 Pause an active project',
-            '\u2022 `/rouge resume <project>` \u2014 Resume a paused project',
-            '\u2022 `/rouge ship <project>` \u2014 Approve a product in final-review for production',
-            '\u2022 `/rouge feedback <project> <text>` \u2014 Send feedback during final-review',
-          ].join('\n'),
+          blocks: helpBlocks,
         });
         break;
       }

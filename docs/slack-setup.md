@@ -128,3 +128,74 @@ This sends a test message to your webhook channel. If you see it appear in Slack
 
 - The App-Level Token must have the `connections:write` scope. Go to **Basic Information** > **App-Level Tokens**, check the token's scopes, and regenerate if needed.
 - If you have multiple instances of the bot running, only one Socket Mode connection is allowed per token. Stop other instances first.
+
+---
+
+## How to Use Rouge via Slack
+
+### Three ways to interact
+
+**@Rouge in a channel** — mention the bot for seeding conversations and commands. Messages are visible to everyone in the channel. During an active seeding session, just talk naturally — messages relay to Claude.
+
+**/rouge slash command** — same commands, but only you see the response. Use this for quick status checks that don't need to clutter the channel.
+
+**Direct Message** — DM the bot for private seeding conversations. Same behaviour as @Rouge mentions, but in a private 1:1 chat.
+
+All three modes support the same commands. The difference is visibility.
+
+### Commands
+
+| Command | What it does |
+|---------|-------------|
+| `status` | All projects at a glance — milestones, stories, cost |
+| `status <project>` | Detailed view: milestone progress, staging URL, cost |
+| `new <name>` | Create a project and start an interactive seeding session |
+| `seed <name>` | Resume a paused seeding session |
+| `start <project>` | Start the autonomous build loop |
+| `pause <project>` | Pause an active build |
+| `resume <project>` | Resume after providing feedback |
+| `ship <project>` | Approve a product in final-review for production deploy |
+| `feedback <project> <text>` | Send guidance to a stuck project |
+
+### What notifications mean
+
+| Icon | Phase | Action needed? |
+|------|-------|---------------|
+| 🏗️ | Building foundation | No — schema, auth, deploy pipeline being set up |
+| 🔨 | Building a story | No — writing code with TDD |
+| 📋 | Evaluating milestone | No — browser QA and code review running |
+| 🧠 | Analysing | No — deciding whether to promote, fix, or escalate |
+| 🚀 | Shipping | No — deploying to production |
+| ⏸️ | **Escalation** | **Yes — read the message and provide feedback** |
+| ✅ | Complete | No — celebrate |
+| 📸 | Screenshot | No — a milestone just passed evaluation. The screenshot shows what was built |
+| 🟡 | Cost alert (50%) | Awareness — half the budget used |
+| 🔴 | Cost alert (80%) | Awareness — most of the budget used, will escalate at 100% |
+| 🚫 | Deploy failed | Awareness — staging deploy failed, project will escalate |
+
+### When Rouge escalates
+
+Rouge escalates when it hits something it can't resolve autonomously. The escalation message will tell you:
+
+1. **What happened** — which phase was running and what went wrong
+2. **Why it escalated** — the specific reason (3 failures, budget cap, vision drift, etc.)
+3. **Context** — milestone, story, health score, confidence, cost so far
+4. **What to do** — how to provide feedback and resume
+
+**To respond:**
+1. Read the escalation message
+2. Either reply in the Slack thread with your guidance, or create a `feedback.json` file in the project directory:
+   ```json
+   {
+     "resolved": true,
+     "resolution": "Skip the map integration for now, use a simple list view instead"
+   }
+   ```
+3. Click the **Resume** button in the Slack message, or run `resume <project>`
+
+### Tips
+
+- **Check status from your phone.** The whole point is that you walk away. Use `/rouge status` for a quick check.
+- **Set a budget cap.** Add `"budget_cap_usd": 50` to `rouge.config.json` so Rouge alerts you before costs get high.
+- **Seeding is conversational.** During `new` or `seed`, just talk naturally. Rouge relays your messages to Claude and sends back the response.
+- **Screenshots are automatic.** After every milestone evaluation that passes, Rouge captures the key screens and sends them to Slack as images.
