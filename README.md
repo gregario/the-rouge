@@ -36,9 +36,9 @@ Inspired by [Karpathy's AutoResearch](https://github.com/karpathy/autoresearch).
 
 **Seed** — you describe the product. Eight discipline-specific personas run through it (brainstorming, competition, taste, spec, design, legal, marketing). About 10-20 minutes of your time. Then it's autonomous. [See a full seeding example.](docs/seeding-example.md)
 
-**Build** — reads specs, writes code with TDD, deploys to staging.
+**Build** — reads specs, writes code with TDD, deploys to staging. All work happens on a single branch with milestone tags per shipped feature area — no branch-per-story sprawl. State is tracked via a dual ledger: `task_ledger.json` for task tracking and `checkpoints.jsonl` for immutable cycle history.
 
-**Evaluate** — five-lens assessment: test integrity, code review, browser QA, product evaluation, design review. One browser session, three evaluation lenses reading the same observation data.
+**Evaluate** — five-lens assessment: test integrity, code review, browser QA, product evaluation, design review. One browser session, three evaluation lenses reading the same observation data. All evaluation prompts write output to `cycle_context.json` only — they never mutate the task ledger or project state directly. A strict I/O contract keeps evaluation data readable by the analyse phase without side-effects.
 
 **Analyse** — reads all reports, classifies root causes, decides: fix, advance to the next feature, restructure the architecture, or ship.
 
@@ -56,6 +56,7 @@ Rouge derives a **complexity profile** from your spec. Measurements, not categor
 | Dependency ordering | DAG-resolved build order for feature areas |
 | Integration escalation | Hard blocks on missing patterns instead of silently degrading |
 | Foundation evaluation | Structural review (schema completeness), not user journeys |
+| Infrastructure discipline | Explicit eighth discipline: CI/CD, environment configuration, secrets management, observability setup treated as first-class deliverables, not afterthoughts |
 
 A timer app activates nothing. A Fleet management SaaS activates everything. Same system, different measurements.
 
@@ -86,6 +87,8 @@ Taste encoded as testable signals: "page load under 2 seconds," "core tasks in 3
 ## Economics
 
 Rouge runs on your Claude Code subscription. Each phase consumes session time (roughly 10-20 minutes of model time). A simple product takes a few hours. A complex product might take a day or more across sessions.
+
+Rouge uses per-phase model selection: Opus for reasoning-heavy phases (analyse, architecture, backwards flow), Sonnet for mechanical phases (formatting, catalogue entry drafting, status updates). In practice this delivers a 40-50% cost reduction versus running everything on Opus.
 
 If you run via API keys, token costs apply:
 
@@ -170,7 +173,17 @@ rouge cost my-product       # See cost estimate
 
 ## Safety
 
-Rouge includes a safety layer that validates every phase before execution. Blocked commands, deploy target restrictions, custom pre-hooks. Only staging and preview deploys allowed by default. Production promotion requires passing the full evaluation pipeline. For common issues, see [troubleshooting](docs/troubleshooting.md).
+Rouge includes a safety layer that validates every phase before execution:
+
+- **Blocked commands** — shell commands that could cause irreversible damage are blocked at the prompt level
+- **Deploy blocking** — only staging and preview deploys allowed by default. Production promotion requires passing the full evaluation pipeline and explicit milestone lock
+- **Cost caps** — per-session and per-project token budgets enforced; the loop pauses and pings Slack when limits are hit
+- **Spin detection** — repeated identical failures across cycles trigger escalation rather than infinite retry
+- **Milestone lock** — features are locked after shipping; the loop cannot regress or re-open closed milestones without explicit override
+- **Audit trail** — every phase writes a signed entry to `checkpoints.jsonl`; the full history is git-committed and tamper-evident
+- **Custom pre-hooks** — `rouge.config.json` supports project-level safety hooks
+
+For common issues, see [troubleshooting](docs/troubleshooting.md).
 
 ## Contributing
 
@@ -197,6 +210,11 @@ Autonomous production upkeep. SBOM scanning, bug triage, dependency updates, per
 ### Rouge Embed
 
 Bring an existing codebase into the loop. Three phases: understanding (reverse-engineer into specs), standardisation (decouple, clean up, remove mystery hooks), handoff (now Maintain and Grow can operate on it).
+
+### V3 capabilities
+
+- **Self-improvement** — after each completed product, Rouge reviews its own prompts and catalogue entries against what worked and what didn't. Improvement suggestions are drafted as PRs, not applied silently.
+- **Linked project dependencies** — a project registry allows Rouge to understand that Product B depends on a shared service built by Product A. The dependency resolver ensures changes to a shared service are evaluated for downstream impact before shipping.
 
 Early access to [sponsors](https://github.com/sponsors/gregario) as they're built.
 
