@@ -1,4 +1,6 @@
 {
+  "control_plane": "frontend",
+  "control_plane_lock": true,
   "safety": {
     "blocked_commands": [],
     "allowed_deploy_targets": ["staging", "preview"],
