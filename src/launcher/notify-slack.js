@@ -61,6 +61,16 @@ switch (type) {
       ],
     });
     break;
+  case 'milestone-screenshots': {
+    const { uploadScreenshot } = require('../slack/upload-screenshot');
+    const channel = process.env.ROUGE_SLACK_CHANNEL;
+    if (args.screenshots && args.screenshots.length > 0 && channel) {
+      const best = args.screenshots[0];
+      const msg = `📸 *${args.project}* — Milestone "${args.milestone || 'unknown'}" evaluation passed. Here's what it looks like:`;
+      uploadScreenshot(best, channel, msg).catch(() => {});
+    }
+    break;
+  }
   default:
     // Plain text fallback
     send({ text: args.text || type });

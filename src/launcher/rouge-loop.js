@@ -703,6 +703,11 @@ async function advanceState(projectDir) {
             log(`[${projectName}] Captured ${screenshots.length} milestone screenshots`);
             state._last_screenshots = screenshots.map(s => s.file);
             writeJson(stateFile, state);
+            notifyRich('milestone-screenshots', {
+              project: projectName,
+              milestone: state.current_milestone,
+              screenshots: screenshots.map(s => s.file),
+            });
           }
         } catch (err) {
           log(`[${projectName}] Screenshot capture failed (non-blocking): ${(err.message || '').slice(0, 200)}`);
