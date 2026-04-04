@@ -93,7 +93,9 @@ function deploy(projectDir) {
   try {
     if (target === 'vercel') {
       // Vercel: deploy via CLI (project must be linked via .vercel/project.json)
-      const output = run('npx vercel deploy --yes', {
+      // Use --prod because Vercel Hobby plan preview URLs return 401 (auth required).
+      // Production deploys are publicly accessible for health checks.
+      const output = run('npx vercel deploy --yes --prod', {
         cwd: projectDir,
         env: { ...process.env },
         timeout: 180000,
