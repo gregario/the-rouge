@@ -1110,9 +1110,39 @@ async function runPhase(projectDir) {
           state.current_story = nextPending.id;
           writeJson(stateFile, state);
         } else {
-          // All stories done. Let Claude run — it reports PASS quickly, then the
-          // state machine triggers deploy + milestone-check. Don't skip this path.
-          log(`[${projectName}] All stories in "${milestone.name}" are done — proceeding to deploy flow`);
+          // All stories done. Deploy to staging then advance to milestone-check.
+          // Do NOT run story-building phase — it wastes credits and triggers spin detection.
+          log(`[${projectName}] All stories in "${milestone.name}" are done — deploying to staging`);
+          try {
+            const { deploy } = require('./deploy-to-staging');
+            const deployResult = await deployWithRetry(() => deploy(projectDir), { maxRetries: 3, retryDelayMs: 30000 });
+            if (shouldBlockMilestoneCheck(deployResult)) {
+              log(`[${projectName}] Deploy failed after retries — escalating`);
+              if (!state.escalations) state.escalations = [];
+              state.escalations.push({
+                id: `esc-deploy-failed-${Date.now()}`,
+                tier: 1,
+                classification: 'deploy-failure',
+                summary: deployResult?.reason || 'Staging deploy failed',
+                story_id: null,
+                status: 'pending',
+                created_at: new Date().toISOString(),
+              });
+              state.current_state = 'escalation';
+              writeJson(stateFile, state);
+            } else {
+              log(`[${projectName}] Staging deploy complete: ${deployResult.url}`);
+              state.current_state = 'milestone-check';
+              state.current_story = null;
+              writeJson(stateFile, state);
+            }
+          } catch (err) {
+            log(`[${projectName}] Deploy error: ${(err.message || '').slice(0, 200)}`);
+            state.current_state = 'milestone-check';
+            state.current_story = null;
+            writeJson(stateFile, state);
+          }
+          return { success: true };
         }
       }
     }
