@@ -8,7 +8,9 @@
 
 ## Overview
 
-V3 replaces the monolithic `state.json` with purpose-specific files. Each file has a single writer and defined readers. This eliminates read/write races, makes cost tracking first-class, and gives the launcher a complete audit trail via append-only JSONL.
+V3 introduces purpose-specific files alongside `state.json`. The launcher uses `state.json` as the primary state store for transitions (pragmatic — rewriting all transition logic is high-risk), while `checkpoints.jsonl` provides an append-only audit trail, crash recovery, and safety mechanism data (milestone lock, spin detection, story dedup). Prompts read from `cycle_context.json` only — they never touch `state.json`.
+
+**Transition plan:** state.json remains the launcher's working state. Checkpoints supplement it with V3 safety data. A future phase may complete the migration to checkpoints-only, but the hybrid model is stable and the safety mechanisms work independently of which file stores the transition state.
 
 | File | Writer | Readers |
 |------|--------|---------|

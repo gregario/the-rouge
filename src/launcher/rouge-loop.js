@@ -350,6 +350,11 @@ async function advanceState(projectDir) {
   let next = null;
 
   // V3: Write checkpoint before state transition
+  // Include story_results (derived from flat stories) for dedup detection
+  const storyResults = flat
+    .filter(s => s.status === 'done' || s.status === 'blocked')
+    .map(s => ({ name: s.name || s.id, outcome: s.status === 'done' ? 'pass' : 'blocked' }));
+
   writeCheckpoint(checkpointsFile, {
     phase: current,
     state: {
@@ -358,6 +363,7 @@ async function advanceState(projectDir) {
       promoted_milestones: state.promoted_milestones || [],
       consecutive_failures: state.consecutive_failures || 0,
       stories_executed: state.stories_executed || [],
+      story_results: storyResults,
     },
     costs: state.costs || {},
   });
@@ -1357,7 +1363,7 @@ async function runPhase(projectDir) {
       try {
         const logSize = fs.statSync(phaseLog).size;
         const estimatedTokens = Math.max(logSize * 2, 10000); // rough estimate
-        trackPhaseCost(state, estimatedTokens, MODEL);
+        trackPhaseCost(state, estimatedTokens, model);
         writeJson(stateFile, state);
         log(`[${projectName}] Cost: ~${state.costs.phase_cost_usd.toFixed(2)} USD this phase, ~${state.costs.cumulative_cost_usd.toFixed(2)} USD cumulative`);
       } catch {}

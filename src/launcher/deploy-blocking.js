@@ -13,7 +13,7 @@ async function deployWithRetry(deployFn, opts = {}) {
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const url = deployFn();
+      const url = await Promise.resolve(deployFn());
       if (url) {
         return { url, blocked: false, attempts: attempt };
       }

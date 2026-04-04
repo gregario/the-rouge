@@ -25,6 +25,11 @@ function buildPreamble({ phaseName, phaseDescription, modelName, requiredOutputK
     );
   } else {
     preamble = preamble.replace('{{task_ledger_write_note}}', '');
+    // Add task_ledger to NEVER write list for non-change-spec phases
+    preamble = preamble.replace(
+      '- checkpoints.jsonl (launcher-only)',
+      '- task_ledger.json (read-only — only generating-change-spec may write)\n- checkpoints.jsonl (launcher-only)'
+    );
   }
 
   // Required output keys

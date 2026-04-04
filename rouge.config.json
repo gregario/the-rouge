@@ -14,7 +14,7 @@
   "self_improvement": {
     "enabled": true,
     "allowlist": ["src/prompts/loop/*.md", "src/prompts/seeding/*.md", "docs/design/*.md"],
-    "blocklist": ["src/launcher/*.js", ".claude/settings.json", "rouge.config.json"],
+    "blocklist": ["src/launcher/*.js", ".claude/settings.json", "rouge.config.json", "rouge-safety-check.sh"],
     "test_budget_usd": 5
   },
   "linked_projects": {
