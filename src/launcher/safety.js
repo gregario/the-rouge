@@ -18,18 +18,22 @@ function promoteMilestone(state, milestoneName) {
 // --- Spin Detection ---
 
 function detectZeroDeltaSpin(storiesExecuted, threshold = 3) {
-  const zeroDeltaCount = storiesExecuted.filter(s => s.delta === 0).length;
+  // Only check the last N stories (sliding window), not all-time accumulation.
+  // This prevents false positives after manual state resets.
+  const recent = storiesExecuted.slice(-threshold * 2);
+  const zeroDeltaCount = recent.filter(s => s.delta === 0).length;
   return zeroDeltaCount >= threshold;
 }
 
 function detectDuplicateStories(storiesExecuted) {
-  const seen = new Set();
+  // Only check for consecutive duplicates (same story re-run in a row),
+  // not any-time duplicates. A story can legitimately appear in
+  // stories_executed across milestone boundaries or after resets.
   const duplicates = new Set();
-  for (const story of storiesExecuted) {
-    if (seen.has(story.name)) {
-      duplicates.add(story.name);
+  for (let i = 1; i < storiesExecuted.length; i++) {
+    if (storiesExecuted[i].name === storiesExecuted[i - 1].name) {
+      duplicates.add(storiesExecuted[i].name);
     }
-    seen.add(story.name);
   }
   return [...duplicates];
 }
