@@ -520,7 +520,8 @@ app.action(/^start_/, async ({ action, ack, respond }) => {
   const projectName = action.value;
   const state = readState(projectName);
   if (state && state.current_state === 'ready') {
-    state.current_state = 'building';
+    // Determine initial build state: foundation if not done, otherwise story-building
+        state.current_state = (state.foundation && state.foundation.status === 'complete') ? 'story-building' : 'foundation';
     writeState(projectName, state);
     await respond({ text: `🚀 Started \`${projectName}\`.` });
   }
@@ -564,7 +565,7 @@ app.action(/^resume_/, async ({ action, ack, respond }) => {
   const projectName = action.value;
   const state = readState(projectName);
   if (state && state.current_state === 'waiting-for-human') {
-    const resumeTo = state.paused_from_state || 'building';
+    const resumeTo = state.paused_from_state || 'story-building';
     state.current_state = resumeTo;
     delete state.paused_from_state;
     writeState(projectName, state);
@@ -672,7 +673,8 @@ app.event('app_mention', async ({ event, say }) => {
           if (!fs.existsSync(path.join(projectDir2, 'cycle_context.json'))) {
             try { generateCycleContext(projectName); } catch {}
           }
-          state.current_state = 'building';
+          // Determine initial build state: foundation if not done, otherwise story-building
+        state.current_state = (state.foundation && state.foundation.status === 'complete') ? 'story-building' : 'foundation';
           writeState(projectName, state);
           const seedState2 = getSeedingState(projectName);
           if (seedState2) { seedState2.status = 'complete'; writeSeedingState(projectName, seedState2); }
@@ -713,7 +715,7 @@ app.event('app_mention', async ({ event, say }) => {
             await say(`\`${projectName}\` is not paused (current: \`${state.current_state}\`).`);
             return;
           }
-          const resumeTo = state.paused_from_state || 'building';
+          const resumeTo = state.paused_from_state || 'story-building';
           state.current_state = resumeTo;
           delete state.paused_from_state;
           writeState(projectName, state);
@@ -1289,7 +1291,8 @@ app.command('/rouge', async ({ command, ack, respond }) => {
           }
         }
 
-        state.current_state = 'building';
+        // Determine initial build state: foundation if not done, otherwise story-building
+        state.current_state = (state.foundation && state.foundation.status === 'complete') ? 'story-building' : 'foundation';
         writeState(projectName, state);
 
         // Mark seeding as complete
@@ -1335,7 +1338,7 @@ app.command('/rouge', async ({ command, ack, respond }) => {
           await respond({ response_type: 'ephemeral', text: `\`${projectName}\` is not paused.` });
           return;
         }
-        const resumeTo = state.paused_from_state || 'building';
+        const resumeTo = state.paused_from_state || 'story-building';
         state.current_state = resumeTo;
         delete state.paused_from_state;
         if (resumeTo === 'seeding') {
