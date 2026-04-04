@@ -68,31 +68,54 @@ function rollback(projectDir, versionId, reason) {
   }
 }
 
+function detectDeployTarget(projectDir) {
+  const vision = readJson(path.join(projectDir, 'vision.json'));
+  if (vision?.infrastructure?.deployment_target) return vision.infrastructure.deployment_target;
+  if (fs.existsSync(path.join(projectDir, 'wrangler.toml'))) return 'cloudflare';
+  if (fs.existsSync(path.join(projectDir, 'vercel.json'))) return 'vercel';
+  if (fs.existsSync(path.join(projectDir, '.vercel'))) return 'vercel';
+  return 'cloudflare';
+}
+
 function deploy(projectDir) {
   const projectName = path.basename(projectDir);
   const ctxFile = path.join(projectDir, 'cycle_context.json');
+  const target = detectDeployTarget(projectDir);
 
-  log(`Deploying ${projectName} to staging`);
+  log(`Deploying ${projectName} to staging (target: ${target})`);
 
-  // Capture current deployment version for rollback
-  const previousVersion = getDeploymentVersion(projectDir);
+  const previousVersion = target === 'cloudflare' ? getDeploymentVersion(projectDir) : null;
   if (previousVersion) {
     log(`Previous deployment: ${previousVersion}`);
   }
 
-  // Cloudflare: build + deploy
   let stagingUrl = null;
   try {
-    run('npm run build', { cwd: projectDir });
-    run('npx @opennextjs/cloudflare build', { cwd: projectDir });
-    const output = run('npx wrangler deploy --env staging', { cwd: projectDir });
-    const urlMatch = output.match(/https:\/\/[^\s]+\.workers\.dev/);
-    if (urlMatch) {
-      stagingUrl = urlMatch[0];
-      log(`Deployed to ${stagingUrl}`);
+    if (target === 'vercel') {
+      // Vercel: deploy via CLI (project must be linked via .vercel/project.json)
+      const output = run('npx vercel deploy --yes', {
+        cwd: projectDir,
+        env: { ...process.env },
+        timeout: 180000,
+      });
+      const urlMatch = output.match(/https:\/\/[^\s]+\.vercel\.app/);
+      if (urlMatch) {
+        stagingUrl = urlMatch[0];
+        log(`Deployed to ${stagingUrl}`);
+      }
+    } else {
+      // Cloudflare: build + deploy
+      run('npm run build', { cwd: projectDir });
+      run('npx @opennextjs/cloudflare build', { cwd: projectDir });
+      const output = run('npx wrangler deploy --env staging', { cwd: projectDir });
+      const urlMatch = output.match(/https:\/\/[^\s]+\.workers\.dev/);
+      if (urlMatch) {
+        stagingUrl = urlMatch[0];
+        log(`Deployed to ${stagingUrl}`);
+      }
     }
   } catch (err) {
-    log(`Cloudflare deploy failed: ${(err.message || '').slice(0, 200)}`);
+    log(`${target} deploy failed: ${(err.message || '').slice(0, 200)}`);
     return null;
   }
 
