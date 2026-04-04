@@ -12,6 +12,7 @@ const { writeCheckpoint, readLatestCheckpoint, readAllCheckpoints } = require('.
 const { checkMilestoneLock, promoteMilestone, shouldEscalateForSpin, getCompletedStoryNames, isStoryDuplicate } = require('./safety.js');
 const { trackPhaseCost, checkBudgetCap } = require('./cost-tracker.js');
 const { deployWithRetry, shouldBlockMilestoneCheck } = require('./deploy-blocking.js');
+const { migrateV2StateToV3 } = require('./state-migration.js');
 // V3: model-selection.js will be added in Phase C (task C2)
 
 // Load .env from Rouge root (for ROUGE_SLACK_WEBHOOK, etc.)
@@ -998,6 +999,12 @@ async function advanceState(projectDir) {
 
 async function runPhase(projectDir) {
   const projectName = path.basename(projectDir);
+  // V3: One-time migration from V2 state.json to dual ledger
+  const migrationResult = migrateV2StateToV3(projectDir);
+  if (migrationResult.migrated) {
+    log(`[${projectName}] V2 → V3 state migration complete`);
+  }
+
   const stateFile = path.join(projectDir, 'state.json');
   const contextFile = path.join(projectDir, 'cycle_context.json');
   const state = readJson(stateFile);
