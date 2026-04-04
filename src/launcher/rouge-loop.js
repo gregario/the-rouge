@@ -1388,6 +1388,19 @@ async function runPhase(projectDir) {
         trackPhaseCost(state, estimatedTokens, model);
         writeJson(stateFile, state);
         log(`[${projectName}] Cost: ~${state.costs.phase_cost_usd.toFixed(2)} USD this phase, ~${state.costs.cumulative_cost_usd.toFixed(2)} USD cumulative`);
+
+        // V3: Cost milestone notifications
+        if (config.budget_cap_usd) {
+          const pct = Math.round((state.costs.cumulative_cost_usd / config.budget_cap_usd) * 100);
+          if (pct >= 80 && !state._cost_alert_80) {
+            state._cost_alert_80 = true;
+            notifyRich('cost-alert', { project: projectName, currentUsd: state.costs.cumulative_cost_usd, budgetUsd: config.budget_cap_usd, percentage: 80 });
+          } else if (pct >= 50 && !state._cost_alert_50) {
+            state._cost_alert_50 = true;
+            notifyRich('cost-alert', { project: projectName, currentUsd: state.costs.cumulative_cost_usd, budgetUsd: config.budget_cap_usd, percentage: 50 });
+          }
+          writeJson(stateFile, state);
+        }
       } catch {}
 
       // Store build delta in state so advanceState can detect no-op builds

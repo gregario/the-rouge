@@ -420,6 +420,24 @@ function helpMessage() {
   };
 }
 
+function costAlert(projectName, currentUsd, budgetUsd, percentage) {
+  const icon = percentage >= 80 ? '🔴' : '🟡';
+  return {
+    blocks: [
+      {
+        type: 'section',
+        text: { type: 'mrkdwn', text: `${icon} *${projectName}* — ${percentage}% of budget used ($${currentUsd.toFixed(2)} / $${budgetUsd})` },
+      },
+      {
+        type: 'context',
+        elements: [{ type: 'mrkdwn', text: percentage >= 80
+          ? 'The project will escalate if the budget cap is reached.'
+          : 'Informational alert. The build continues.' }],
+      },
+    ],
+  };
+}
+
 function deployFailure(projectName, attempts, reason) {
   return {
     blocks: [
@@ -439,4 +457,4 @@ function deployFailure(projectName, attempts, reason) {
   };
 }
 
-module.exports = { sparkline, confidenceTrend, phaseTransition, phaseComplete, qaResult, escalation, morningBriefing, rollbackAlert, seedingComplete, poReviewScorecard, helpMessage, deployFailure };
+module.exports = { sparkline, confidenceTrend, phaseTransition, phaseComplete, qaResult, escalation, morningBriefing, rollbackAlert, seedingComplete, poReviewScorecard, helpMessage, deployFailure, costAlert };
