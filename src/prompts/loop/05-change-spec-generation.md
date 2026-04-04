@@ -298,7 +298,9 @@ Design mode required: {count} of {total} specs
 
 ## State Transition
 
-You do NOT modify `state.json` directly. The launcher reads `change_specs_pending` from `cycle_context.json` and transitions the project to `story-building`, where fix stories are added to the current milestone and the builder picks them up one at a time.
+> **V3 Phase Contract:** Injected by launcher at runtime. See _preamble.md for the I/O contract.
+
+The launcher reads `change_specs_pending` from `cycle_context.json` and transitions the project to `story-building`, where fix stories are added to the current milestone and the builder picks them up one at a time.
 
 The flow is: `generating-change-spec` -> (launcher) -> `story-building` (fix stories added to current milestone)
 
@@ -310,7 +312,9 @@ In V2, change specs produce **fix stories** that enter the story loop, not monol
 - Scope boundary (which files to touch, which to leave alone)
 - Root cause context (why it broke, what was tried, what not to repeat)
 
-The launcher adds fix stories to `state.json.milestones[current].stories[]` with `status: "pending"`. The story builder processes them like any other story.
+The launcher adds fix stories to `cycle_context.json` (field: `milestones[current].stories[]`) with `status: "pending"`. The story builder processes them like any other story.
+
+> **task_ledger.json:** This is the ONE loop phase permitted to write fix stories to `task_ledger.json`. When adding fix stories, APPEND to the existing `stories[]` array — do NOT overwrite. No other loop phase may write to `task_ledger.json`.
 
 ---
 
