@@ -34,7 +34,7 @@ rouge status
 
 Inspired by [Karpathy's AutoResearch](https://github.com/karpathy/autoresearch). No long-running process. Each phase starts fresh, reads state from the filesystem, does one thing, saves, and exits. Git is the audit trail. The loop iterates as many times as it needs to. There's no fixed limit. It's done when it's done.
 
-**Seed** — you describe the product. Eight discipline-specific personas run through it (brainstorming, competition, taste, spec, design, legal, marketing). About 10-20 minutes of your time. Then it's autonomous. [See a full seeding example.](docs/seeding-example.md)
+**Seed** — you describe the product. Eight discipline-specific personas run through it (brainstorming, competition, taste, spec, infrastructure, design, legal, marketing). About 10-20 minutes of your time. Then it's autonomous. [See a full seeding example.](docs/seeding-example.md)
 
 **Build** — reads specs, writes code with TDD, deploys to staging. All work happens on a single branch with milestone tags per shipped feature area — no branch-per-story sprawl. State is tracked via a dual ledger: `task_ledger.json` for task tracking and `checkpoints.jsonl` for immutable cycle history.
 
@@ -43,6 +43,10 @@ Inspired by [Karpathy's AutoResearch](https://github.com/karpathy/autoresearch).
 **Analyse** — reads all reports, classifies root causes, decides: fix, advance to the next feature, restructure the architecture, or ship.
 
 The loop runs until all feature areas meet the quality bar. Then it promotes to production and pings you on Slack.
+
+**Self-improvement** — after each completed product, Rouge reviews its own prompts against what worked and what didn't. Improvement proposals become GitHub issues, run in an isolated git worktree with an allowlist/blocklist, and land as PRs for human review. The running loop never modifies itself.
+
+**Linked projects** — products can depend on each other. A fleet manager that needs a maps API triggers the maps project to be built first. The project registry tracks what's shipped and what each project provides. Circular dependencies are detected at seed time.
 
 ## Composable decomposition
 
@@ -56,7 +60,7 @@ Rouge derives a **complexity profile** from your spec. Measurements, not categor
 | Dependency ordering | DAG-resolved build order for feature areas |
 | Integration escalation | Hard blocks on missing patterns instead of silently degrading |
 | Foundation evaluation | Structural review (schema completeness), not user journeys |
-| Infrastructure discipline | Explicit eighth discipline: CI/CD, environment configuration, secrets management, observability setup treated as first-class deliverables, not afterthoughts |
+| Infrastructure discipline | Eighth seeding discipline: resolves database vs deploy target compatibility, auth strategy, data source viability, and known-bad technology combinations at spec time — before the loop starts building. Outputs `infrastructure_manifest.json` that the foundation phase executes without re-deciding |
 
 A timer app activates nothing. A Fleet management SaaS activates everything. Same system, different measurements.
 
@@ -90,20 +94,20 @@ Rouge runs on your Claude Code subscription. Each phase consumes session time (r
 
 Rouge uses per-phase model selection: Opus for reasoning-heavy phases (analyse, architecture, backwards flow), Sonnet for mechanical phases (formatting, catalogue entry drafting, status updates). In practice this delivers a 40-50% cost reduction versus running everything on Opus.
 
-If you run via API keys, token costs apply:
+If you run via API keys, token costs apply. These are rough estimates — actual costs depend on product complexity, evaluation cycles, and how many fix stories the loop generates:
 
-| Product size | API cost | Session time |
+| Product size | Estimated API cost | Estimated time |
 |-------------|----------|-------------|
 | Small (1-3 features) | $5-20 | 2-4 hours |
 | Medium SaaS (5-10 features) | $50-150 | 1-3 days |
-| Large SaaS (10+ features) | $150-400 | 3-7 days |
+| Large SaaS (10+ features) | $150+ | 3+ days |
 
-Infrastructure (Cloudflare free tier, Supabase free tier) adds nothing for small projects. Run `rouge cost <project>` for estimates.
+Set a budget cap in `rouge.config.json` (`budget_cap_usd`) to prevent runaway costs. The loop escalates when the cap is hit. Infrastructure (Cloudflare free tier, Supabase free tier) adds nothing for small projects. Run `rouge cost <project>` for a live estimate.
 
 ## Built with
 
 - **[AI Factory](https://github.com/gregario/AI-Factory)** by Greg Jackson — the factory that built Rouge
-- **[GStack](https://github.com/garrytan/gstack)** by Garry Tan — browser automation and QA patterns that inspired Rouge's evaluation system
+- **[GStack](https://github.com/garrytan/gstack)** by Garry Tan — 23+ opinionated tools that model a full engineering team (CEO, designer, eng manager, QA, security). Rouge uses GStack's browser automation for milestone evaluation and QA
 - **[Superpowers](https://github.com/claude-plugins-official/superpowers)** by Jesse Vincent — engineering discipline skills
 - **[OpenSpec](https://github.com/openspecio/openspec)** — product specification and task management
 - **[Excalidraw](https://excalidraw.com)** — hand-drawn diagrams
@@ -131,7 +135,7 @@ cd the-rouge && npm install
   Requires a [Claude subscription](https://claude.ai/code) (Pro or Max). Verify: `claude --version`
 - **Node.js 18+** — launcher, Slack bot, scripts
 - **Git** — every phase commits
-- **[GStack browse](https://github.com/garrytan/gstack)** — required for web product evaluation (macOS only; Playwright fallback on the roadmap). Follow the [GStack install guide](https://github.com/garrytan/gstack#installation). Verify: `rouge doctor`
+- **[GStack](https://github.com/garrytan/gstack)** — required for web product evaluation (browser QA, product walk, design review). Install: `git clone --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup`. Verify: `rouge doctor`
 - **[Slack App](docs/slack-setup.md)** — notifications and control plane (start, pause, monitor from your phone)
 
 Optional:
@@ -166,7 +170,7 @@ See [docs/slack-setup.md](docs/slack-setup.md) for the full guide.
 ```bash
 rouge init my-product
 rouge seed my-product       # Interactive seeding (~10-20 min)
-rouge build my-product      # Start the Karpathy Loop
+rouge build my-product      # Start the autonomous loop
 rouge status                # Check progress
 rouge cost my-product       # See cost estimate
 ```
@@ -215,12 +219,7 @@ Autonomous production upkeep. SBOM scanning, bug triage, dependency updates, per
 
 Bring an existing codebase into the loop. Three phases: understanding (reverse-engineer into specs), standardisation (decouple, clean up, remove mystery hooks), handoff (now Maintain and Grow can operate on it).
 
-### V3 capabilities
-
-- **Self-improvement** — after each completed product, Rouge reviews its own prompts and catalogue entries against what worked and what didn't. Improvement suggestions are drafted as PRs, not applied silently.
-- **Linked project dependencies** — a project registry allows Rouge to understand that Product B depends on a shared service built by Product A. The dependency resolver ensures changes to a shared service are evaluated for downstream impact before shipping.
-
-Early access to [sponsors](https://github.com/sponsors/gregario) as they're built.
+Early access to new products as they're built for [sponsors](https://github.com/sponsors/gregario).
 
 ## License
 
