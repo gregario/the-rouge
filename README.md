@@ -29,7 +29,7 @@ rouge status
 ## How it works
 
 <p align="center">
-  <img src="docs/diagrams/karpathy-loop.png" alt="The Karpathy Loop: Seed → Foundation → Build/Evaluate → Ship, with backwards restructure flow" width="480">
+  <img src="docs/diagrams/rouge-v3-process-map-gen2.png" alt="V3 Process Map: Rouge Spec (8 disciplines) → Foundation → Story Building Loop (with safety layer) → Ship + Self-Improvement" width="720">
 </p>
 
 Inspired by [Karpathy's AutoResearch](https://github.com/karpathy/autoresearch). No long-running process. Each phase starts fresh, reads state from the filesystem, does one thing, saves, and exits. Git is the audit trail. The loop iterates as many times as it needs to. There's no fixed limit. It's done when it's done.
