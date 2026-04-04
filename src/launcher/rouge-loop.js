@@ -1092,33 +1092,6 @@ async function runPhase(projectDir) {
     return { success: false, budgetExceeded: true };
   }
 
-  // Pre-dispatch: skip already-done stories to avoid wasting Claude invocations
-  if (currentState === 'story-building' && state.current_milestone && state.current_story) {
-    const milestone = (state.milestones || []).find(m => m.name === state.current_milestone);
-    if (milestone) {
-      const currentStory = (milestone.stories || []).find(s => s.id === state.current_story);
-      if (currentStory && currentStory.status === 'done') {
-        const allFlat = (state.milestones || []).flatMap(m => m.stories || []);
-        const doneIds = new Set(allFlat.filter(s => s.status === 'done').map(s => s.id));
-        const nextPending = (milestone.stories || []).find(s =>
-          (s.status === 'pending' || s.status === 'retrying') &&
-          (s.depends_on || []).every(d => doneIds.has(d))
-        );
-        if (nextPending) {
-          log(`[${projectName}] Story "${state.current_story}" already done — advancing to "${nextPending.id}"`);
-          state.current_story = nextPending.id;
-          writeJson(stateFile, state);
-        } else {
-          log(`[${projectName}] All stories in "${milestone.name}" are done — advancing to milestone-check`);
-          state.current_state = 'milestone-check';
-          state.current_story = null;
-          writeJson(stateFile, state);
-          return { success: true };
-        }
-      }
-    }
-  }
-
   // Snapshot state before phase — enables recovery from corruption
   snapshotState(projectDir, currentState);
 
