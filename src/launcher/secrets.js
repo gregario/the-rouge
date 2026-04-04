@@ -236,6 +236,7 @@ const INTEGRATION_KEYS = {
   sentry: ['SENTRY_AUTH_TOKEN', 'SENTRY_DSN'],
   slack: ['ROUGE_SLACK_WEBHOOK', 'SLACK_BOT_TOKEN', 'SLACK_APP_TOKEN'],
   cloudflare: ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID'],
+  vercel: ['VERCEL_TOKEN'],
 };
 
 // ---------------------------------------------------------------------------
@@ -338,11 +339,15 @@ function discoverIntegrations(projectDir) {
           if (normalized.includes('sentry')) integrations.add('sentry');
           if (normalized.includes('slack')) integrations.add('slack');
           if (normalized.includes('cloudflare')) integrations.add('cloudflare');
+          if (normalized.includes('vercel')) integrations.add('vercel');
         }
       }
-      // Also check deploy/hosting section for cloudflare
+      // Also check deploy/hosting section
       if (vision.deploy?.platform === 'cloudflare' || vision.hosting?.platform === 'cloudflare') {
         integrations.add('cloudflare');
+      }
+      if (vision.deploy?.platform === 'vercel' || vision.hosting?.platform === 'vercel') {
+        integrations.add('vercel');
       }
     } catch { /* corrupted vision.json — skip */ }
   }
@@ -377,6 +382,8 @@ const VALIDATION_COMMANDS = {
   CLOUDFLARE_API_TOKEN: (val) =>
     `curl -sf -o /dev/null -H ${esc('Authorization: Bearer ' + val)} https://api.cloudflare.com/client/v4/user/tokens/verify`,
   CLOUDFLARE_ACCOUNT_ID: () => null, // Account ID isn't a secret — format check only
+  VERCEL_TOKEN: (val) =>
+    `curl -sf -o /dev/null -H ${esc('Authorization: Bearer ' + val)} https://api.vercel.com/v2/user`,
   ROUGE_SLACK_WEBHOOK: (val) =>
     // Webhook URLs should start with https://hooks.slack.com
     val.startsWith('https://hooks.slack.com/') ? null : 'false',
