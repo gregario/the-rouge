@@ -3,5 +3,22 @@
     "blocked_commands": [],
     "allowed_deploy_targets": ["staging", "preview"],
     "custom_pre_hooks": []
+  },
+  "budget_cap_usd": 50,
+  "spin_detection": {
+    "zero_delta_threshold": 3,
+    "time_stall_minutes": 30,
+    "dedup_enabled": true
+  },
+  "model_overrides": {},
+  "self_improvement": {
+    "enabled": true,
+    "allowlist": ["src/prompts/loop/*.md", "src/prompts/seeding/*.md", "docs/design/*.md"],
+    "blocklist": ["src/launcher/*.js", ".claude/settings.json", "rouge.config.json"],
+    "test_budget_usd": 5
+  },
+  "linked_projects": {
+    "max_depth": 3,
+    "registry_path": "~/.rouge/registry.json"
   }
 }
