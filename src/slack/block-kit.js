@@ -116,40 +116,68 @@ function qaResult(projectName, verdict, healthScore, criteriaPass, criteriaTotal
 }
 
 function escalation(projectName, phase, reason, context) {
+  const phaseExplanations = {
+    'story-building': 'Rouge was building a story and got stuck',
+    'story-diagnosis': 'Rouge was diagnosing a failing story and couldn\'t resolve it',
+    'milestone-check': 'Rouge evaluated a milestone and found issues it couldn\'t fix',
+    'milestone-fix': 'Rouge tried to fix quality gaps but couldn\'t resolve them',
+    'foundation': 'Foundation setup hit a blocker',
+    'foundation-eval': 'Foundation evaluation found issues that need your judgment',
+    'final-review': 'The final review flagged issues that need your judgment',
+    'vision-check': 'Vision alignment check found a divergence that needs your call',
+    'shipping': 'The shipping process hit a blocker',
+    'analyzing': 'Analysis found issues that need your input',
+    'generating-change-spec': 'Rouge couldn\'t generate a fix story automatically',
+  };
+
   const blocks = [
+    {
+      type: 'header',
+      text: { type: 'plain_text', text: `⏸️ ${projectName} needs your input` },
+    },
     {
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `⚠️ *${projectName}* needs human input`,
+        text: `*What happened:*\n${phaseExplanations[phase] || `Phase \`${phase}\` hit an issue`}`,
       },
     },
     {
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `Phase \`${phase}\` escalated: ${reason}`,
+        text: `*Why it escalated:*\n${reason}`,
       },
     },
   ];
 
-  // Add cycle context summary if available
+  // Add context fields if available
   if (context) {
-    const lines = [];
-    if (context.cycle != null) lines.push(`Cycle: ${context.cycle}`);
-    if (context.featureArea) lines.push(`Feature area: ${context.featureArea}`);
-    if (context.healthScore != null) lines.push(`QA health: ${context.healthScore}/100`);
-    if (context.confidence != null) lines.push(`Confidence: ${(context.confidence * 100).toFixed(0)}%`);
-    if (context.lastProgress) lines.push(`Last progress: ${context.lastProgress}`);
-    if (context.completedPhases?.length) lines.push(`Completed: ${context.completedPhases.join(' → ')}`);
+    const fields = [];
+    if (context.milestone) fields.push({ type: 'mrkdwn', text: `*Milestone*\n${context.milestone}` });
+    if (context.story) fields.push({ type: 'mrkdwn', text: `*Story*\n${context.story}` });
+    if (context.healthScore != null) fields.push({ type: 'mrkdwn', text: `*Health Score*\n${context.healthScore}/100` });
+    if (context.confidence != null) fields.push({ type: 'mrkdwn', text: `*Confidence*\n${(context.confidence * 100).toFixed(0)}%` });
+    if (context.consecutiveFailures != null) fields.push({ type: 'mrkdwn', text: `*Consecutive Failures*\n${context.consecutiveFailures}` });
+    if (context.costSoFar != null) fields.push({ type: 'mrkdwn', text: `*Cost So Far*\n$${context.costSoFar.toFixed(2)}` });
 
-    if (lines.length > 0) {
+    if (fields.length > 0) {
       blocks.push({
-        type: 'context',
-        elements: [{ type: 'mrkdwn', text: lines.join(' | ') }],
+        type: 'section',
+        fields,
       });
     }
   }
+
+  blocks.push({ type: 'divider' });
+
+  blocks.push({
+    type: 'section',
+    text: {
+      type: 'mrkdwn',
+      text: '*What to do:*\nDrop a `feedback.json` in the project directory, or reply in this thread with instructions. Then hit Resume.',
+    },
+  });
 
   blocks.push({
     type: 'actions',
