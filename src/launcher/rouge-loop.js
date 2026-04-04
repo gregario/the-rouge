@@ -15,7 +15,7 @@ const { deployWithRetry, shouldBlockMilestoneCheck } = require('./deploy-blockin
 const { migrateV2StateToV3 } = require('./state-migration.js');
 const { injectPreamble } = require('./preamble-injector.js');
 const { getMilestoneTagName } = require('./branch-strategy.js');
-// V3: model-selection.js will be added in Phase C (task C2)
+const { getModelForPhase } = require('./model-selection.js');
 
 // Load .env from Rouge root (for ROUGE_SLACK_WEBHOOK, etc.)
 {
@@ -1108,7 +1108,8 @@ async function runPhase(projectDir) {
     return { success: false };
   }
 
-  const model = MODEL;
+  // V3: Per-phase model selection (Opus for reasoning, Sonnet for mechanical)
+  const model = process.env.ROUGE_MODEL || getModelForPhase(currentState, config.model_overrides || {});
   const phaseLog = path.join(LOG_DIR, `${projectName}-${currentState}.log`);
 
   log(`[${projectName}] Running phase: ${currentState} (model: ${model}, ceiling: ${HARD_CEILING / 60000}min, stale: ${PROGRESS_STALE_THRESHOLD / 60000}min)`);
