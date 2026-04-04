@@ -30,7 +30,9 @@ From `cycle_context.json`, extract:
 
 1. **`evaluation_report.po`** — The PO lens from the Evaluation phase. Your primary input. Focus on:
    - `verdict`: PRODUCTION_READY, NEEDS_IMPROVEMENT, or NOT_READY
-   - `confidence`: 0.0-1.0 weighted score
+   - `confidence`: 0.0-1.0 raw weighted score (includes env_limited penalty)
+   - `confidence_adjusted`: 0.0-1.0 with env_limited features excluded — **USE THIS for threshold decisions** (promote/deepen/notify-human). The raw confidence drags down for things the loop can't fix (WebGL in headless, etc.).
+   - `env_limited_impact`: what was excluded from the adjusted score and why
    - `recommended_action`: the Evaluation phase's suggestion (you validate or override this)
    - `journey_quality[]`: per-journey, per-step quality assessments
    - `screen_quality[]`: per-screen quality assessments
@@ -53,11 +55,11 @@ From `cycle_context.json`, extract:
 
 4. **`evaluation_report.health_score`** — Overall health score (0-100) from the Evaluation phase.
 
-5. **`factory_decisions`** — What the builder chose during implementation. Critical for root cause analysis: if the builder logged a decision that produced a quality gap, the root cause is the decision, not a random bug.
+5. **`factory_decisions`** — What the builder chose during implementation. Critical for root cause analysis: if the builder logged a decision that produced a quality gap, the root cause is the decision, not a random bug. When adding new entries, APPEND to existing entries, do NOT overwrite.
 
 6. **`factory_questions`** — Ambiguities the builder encountered. If a quality gap aligns with a flagged question, the root cause is almost certainly missing context or spec ambiguity.
 
-7. **`confidence_history`** (from `state.json`) — The trend line. You need this for regression and plateau detection.
+7. **`confidence_history`** — The trend line, injected into `cycle_context.json` by the launcher. You need this for regression and plateau detection.
 
 8. **`previous_cycles`** — Summaries of all prior cycles. You need this to detect:
    - Recurring gaps (same type of gap appearing across cycles)
@@ -72,6 +74,8 @@ From `cycle_context.json`, extract:
 
 12. **`qa_fix_results`** — Results from the most recent QA-fixing phase (if it ran). Shows what was fixed, what was escalated, what was skipped.
 
+13. **`evaluation_report.po.improvement_items`** — Non-blocking improvement observations from the PO lens. Each tagged with `scope` (this-milestone, global, future-milestone). These are product completeness items that would be lost on promotion if not captured. See Step 2.7 for routing logic.
+
 ---
 
 ## What You Do
@@ -80,7 +84,7 @@ From `cycle_context.json`, extract:
 
 Before analyzing individual gaps, assess the trajectory:
 
-1. Read `confidence_history` from `state.json`
+1. Read `confidence_history` from `cycle_context.json`
 2. Compute:
    - **Current delta**: `current_confidence - previous_confidence`
    - **Trend direction**: improving (delta > +0.02), stable (within +/-0.02), regressing (delta < -0.02)
@@ -206,28 +210,95 @@ When recommending insert-foundation:
 ```
 Write to `analysis_recommendation` in `cycle_context.json`.
 
+### Step 2.7: Improvement Item Routing
+
+Process `evaluation_report.po.improvement_items[]` by scope. These are non-blocking product completeness observations — not quality gaps that drag down confidence. They represent things a real product should have but that the spec didn't explicitly call out.
+
+#### `this-milestone` items
+
+These are improvements within the current milestone's scope. For each:
+
+1. **Validate the grounding** — does the referenced criterion or vision statement actually support this improvement? If not, drop it with a logged `phase_decision` explaining why.
+2. **Generate a `change_spec_brief`** (subset of the change spec brief format from Step 5 — fill in additional fields like `affected_screens` and `what_good_looks_like` where you can) with at minimum:
+   - `gap_id`: the improvement item's `id`
+   - `root_cause`: `missing_context` (the spec didn't explicitly call it out) or `implementation_bug` (it should have been obvious from context)
+   - `priority`: `medium` or `low` (these are non-blocking by definition)
+   - `approach_hint`: what the fix looks like
+3. Add these briefs to `change_spec_briefs[]` alongside any quality gap briefs.
+
+#### `global` items
+
+These are cross-cutting concerns no single milestone owns. For each:
+
+1. **Validate the grounding** (same check as above — drop ungrounded items).
+2. **Append to `global_improvements.json`** in the project root. Create the file if it doesn't exist. Read the existing file first to avoid duplicate IDs.
+
+File format:
+```json
+[
+  {
+    "id": "global-001",
+    "milestone_spotted": "<current milestone name from state.current_milestone>",
+    "cycle": "<cycle number>",
+    "description": "<from improvement item>",
+    "evidence": "<from improvement item>",
+    "category": "navigation|a11y|polish|consistency",
+    "grounding": "<from improvement item>"
+  }
+]
+```
+
+Use incrementing IDs: `global-001`, `global-002`, etc. Check the existing file for the highest ID and continue from there.
+
+#### `future-milestone` items
+
+Drop these. They belong to a later scope and will be discovered when that milestone runs. Log them in `phase_decisions` as "dropped: future-milestone scope" so the decision is traceable.
+
+#### Recommendation override
+
+If validated `this-milestone` improvement items exist AND the recommendation from Step 3 would otherwise be `promote`:
+- Override to `deepen:improvements`
+- Set `recommendation_reasoning` to explain that confidence is high enough to promote but non-blocking improvements should be addressed first
+- The `deepen:improvements` action routes to `generating-change-spec` via the existing launcher transition (`action.startsWith('deepen')`)
+
+#### Convergence guardrail
+
+When recommending `deepen:improvements`, check for convergence failure:
+
+1. Read `previous_cycles` for prior `deepen:improvements` recommendations within this milestone.
+2. If the SAME improvement items (by description similarity, not just ID) have appeared in **2+ consecutive** `deepen:improvements` cycles AND confidence delta is within +/-0.02:
+   - The loop is not converging. These improvements are either unfixable by the builder or subjective.
+   - Override to `promote` — accept the remaining items.
+   - Move the persistent items to `global_improvements.json` as `global` scope (final-review gets another chance to catch them).
+   - Log a `phase_decision`: "Convergence guardrail triggered: improvements [list] persisted across N deepen:improvements cycles with no confidence change. Promoting to avoid infinite polish loop. Items moved to global_improvements.json for final-review."
+
+This guardrail prevents the "Taylor series" problem — each fix cycle introducing new observations that prevent promotion forever.
+
 ### Step 3: Recommendation Logic
 
 Based on the PO Review verdict, confidence score, trend analysis, root cause classifications, and decomposition health check, determine the recommended action. This is decision logic, not heuristic guessing. Follow the rules exactly.
 
 **Priority rule:** `insert-foundation` takes PRIORITY over `continue` — if the decomposition health check found structural issues, fixing them now is cheaper than discovering them in every subsequent feature cycle.
 
+**IMPORTANT: Use `confidence_adjusted` (not raw `confidence`) for ALL threshold checks below.** The adjusted score excludes env_limited features (WebGL maps, hardware-dependent features) that the loop cannot fix. If only raw `confidence` is available, use it — but note that env_limited features may drag it below thresholds artificially.
+
 #### PROMOTE — Ready for production
 
 **Conditions (ALL must be true):**
 - PO Review verdict is `PRODUCTION_READY`
-- Confidence >= 0.9
+- `confidence_adjusted` >= 0.9 (or raw `confidence` >= 0.9 if adjusted not available)
 - No critical quality gaps
 - Confidence trend is not regressing
+- No validated `this-milestone` improvement items remain (from Step 2.7). If improvement items exist with `this-milestone` scope, route to `deepen:improvements` first. Exception: convergence guardrail triggered (Step 2.7).
 
 **Output:** `recommendation: "promote"`
 
-The product is ready. Promote staging to production. If there are remaining feature areas, mark the current one complete and advance. If all feature areas are done, trigger vision-checking.
+The product is ready. Promote staging to production. If there are remaining feature areas, mark the current one complete and advance. If all feature areas are done, trigger vision-check.
 
 #### DEEPEN — Concentrated quality gaps in a known area
 
 **Conditions (ALL must be true):**
-- Confidence >= 0.7 and < 0.9
+- `confidence_adjusted` >= 0.7 and < 0.9
 - Quality gaps are concentrated in 1-2 specific areas (screens, journeys, or interaction patterns)
 - The gaps are addressable without adding new capabilities
 - Confidence trend is not regressing for 2+ cycles
@@ -239,7 +310,7 @@ Include: which gaps to address, root cause classification for each, and what "fi
 #### BROADEN — Missing capabilities needed
 
 **Conditions:**
-- Confidence >= 0.7 and < 0.9
+- `confidence_adjusted` >= 0.7 and < 0.9
 - Quality gaps indicate missing capabilities not covered by the current spec (e.g., PO Review discovered the product needs a map component, or an onboarding flow, or an export function)
 - The missing capability is implied by the vision document even if not explicitly in the current spec
 
@@ -250,7 +321,7 @@ Include: what capability is missing, why it's needed (evidence from the PO Revie
 #### NOTIFY-HUMAN — Needs human judgment
 
 **Conditions (ANY triggers this):**
-- Confidence < 0.7
+- `confidence_adjusted` < 0.7 (environment limitations already excluded — if adjusted confidence is still low, there are real quality problems)
 - PO Review verdict is `NOT_READY` with critical gaps
 - 3+ quality gaps classified as `spec_ambiguity` (the spec itself needs human clarification)
 - An escalated issue from QA-fixing that could not be resolved after 3 attempts
@@ -285,6 +356,50 @@ Include: `foundation_scope` (list of specific infrastructure to build), `rationa
 This action means the original decomposition missed shared infrastructure that multiple features need. Rather than patching each feature individually, insert a foundation cycle to build the infrastructure properly.
 
 **If restructure scope >= 50%:** Do NOT recommend `insert-foundation`. Instead recommend `notify-human` with a clear explanation that the decomposition needs major restructuring and the human should decide whether to proceed or pivot.
+
+#### PARTIAL-SHIP — Some stories done, others blocked
+
+**Conditions (ALL must be true):**
+- Milestone has stories with `status: done` AND stories with `status: blocked`
+- The done stories form a coherent, shippable unit
+- Blocked stories have escalations that require human/structural resolution
+- Continuing to retry blocked stories would not help
+
+**Output:** `recommendation: "promote"` with `partial: true`
+
+Include: which stories shipped, which are deferred, why the deferred stories can't be resolved autonomously.
+
+The launcher marks the milestone as `partial` (not `complete`) and advances to the next milestone. Blocked stories carry forward — they can be unblocked when their escalations are resolved.
+
+#### MID-LOOP DIAGNOSTIC — Circuit breaker triggered (3+ consecutive story failures)
+
+**How to detect:** Check `cycle_context.json` for `_circuit_breaker === true`. If present, you are in diagnostic mode. If absent, you are in normal post-milestone analysis mode. Always check this FIRST before reading evaluation data.
+
+**When this fires:** The launcher detected 3+ consecutive story failures and invoked analyzing with story-level failure data instead of milestone evaluation data. You are in **diagnostic mode**, not normal post-milestone analysis.
+
+**What you read differently:** Instead of `evaluation_report`, read `story_failures` from `cycle_context.json` — an array of the failing stories with their fix_memory (what was tried), classification, blocked_by, and attempt counts. The `_circuit_breaker` flag confirms you're in this mode.
+
+**What you produce:** A `mid_loop_correction` in `analysis_recommendation`:
+
+```json
+{
+  "analysis_recommendation": {
+    "action": "inject-context | insert-foundation | notify-human",
+    "mid_loop_correction": {
+      "diagnosis": "<what systemic issue is causing repeated failures>",
+      "corrective_instruction": "<specific directive for subsequent stories — what to do differently>",
+      "affected_pattern": "<what the stories have in common — same entity, same infrastructure, same code path>"
+    }
+  }
+}
+```
+
+If the failures share a root cause (same infrastructure issue, same mock fallback, same missing pattern):
+- `inject-context` — the corrective instruction will be added to subsequent story_context.json as `milestone_learnings`
+- `insert-foundation` — if the root cause is missing infrastructure
+- `notify-human` — if the root cause requires human judgment
+
+If the failures don't share a root cause (unrelated bugs), recommend `inject-context` with a general instruction to slow down and diagnose more carefully. Three unrelated failures may indicate the story decomposition was wrong.
 
 ### Step 4: Cross-Cycle Pattern Detection
 
@@ -401,12 +516,20 @@ Update `cycle_context.json` with both `analysis_result` (full analysis) and `ana
         "attempts_exhausted": "boolean",
         "human_question": "string — the specific question for the human"
       }
-    ]
+    ],
+
+    "improvement_routing": {
+      "this_milestone_count": 0,
+      "global_persisted_count": 0,
+      "future_dropped_count": 0,
+      "convergence_guardrail_triggered": false,
+      "deepen_improvements_cycle_count": 0
+    }
   }
 }
 ```
 
-Append your key decisions to `phase_decisions` in `cycle_context.json`:
+Append your key decisions to `phase_decisions` in `cycle_context.json`. **APPEND to existing entries, do NOT overwrite:**
 - Why you chose this recommendation over alternatives
 - Any root cause classifications where your confidence was below 0.7
 - Any patterns you flagged that may affect future cycles
@@ -426,13 +549,15 @@ Append your key decisions to `phase_decisions` in `cycle_context.json`:
 
 ## State Transition
 
-You do NOT modify `state.json` directly. The launcher reads your `recommendation` from `cycle_context.json` and transitions to the appropriate next state:
+> **V3 Phase Contract:** Injected by launcher at runtime. See _preamble.md for the I/O contract.
+
+The launcher reads your `recommendation` from `cycle_context.json` and transitions to the appropriate next state:
 
 - `promote` -> `promoting` (merge PR, promote to production)
 - `deepen:<area>` or `broaden` -> `generating-change-spec` (produce new specs for next cycle)
-- `insert-foundation` -> `foundation-building` (insert a foundation cycle to build missing infrastructure)
-- `notify-human` -> `waiting-for-human` (pause and send Slack notification)
-- `rollback` -> `rolling-back` (close PR, revert staging)
+- `insert-foundation` -> `foundation` (insert a foundation cycle to build missing infrastructure)
+- `notify-human` -> `escalation` (pause and send Slack notification)
+- `rollback` -> `escalation` (close PR, revert staging)
 
 ---
 

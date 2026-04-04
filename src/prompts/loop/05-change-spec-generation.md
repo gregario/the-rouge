@@ -275,7 +275,7 @@ If any check fails, revise the spec before writing it.
 3. Git commit all new spec files:
 
 ```
-spec(rouge/loop-{N}): change specs for {count} quality gaps
+spec(rouge/milestone-{milestone}): change specs for {count} quality gaps
 
 Addresses gaps: {list of gap IDs}
 Root causes: {summary of root cause distribution}
@@ -298,9 +298,23 @@ Design mode required: {count} of {total} specs
 
 ## State Transition
 
-You do NOT modify `state.json` directly. The launcher reads `change_specs_pending` from `cycle_context.json` and transitions the project to `building` for the next cycle, where the builder picks up the change specs and implements them through the full pipeline.
+> **V3 Phase Contract:** Injected by launcher at runtime. See _preamble.md for the I/O contract.
 
-The flow is: `generating-change-spec` -> (launcher) -> `building` (new cycle with change specs as active_spec)
+The launcher reads `change_specs_pending` from `cycle_context.json` and transitions the project to `story-building`, where fix stories are added to the current milestone and the builder picks them up one at a time.
+
+The flow is: `generating-change-spec` -> (launcher) -> `story-building` (fix stories added to current milestone)
+
+### V2: Story-Scoped Output
+
+In V2, change specs produce **fix stories** that enter the story loop, not monolithic change specs that trigger a full build cycle. Each fix story has:
+- A story ID (e.g., `fix-sidebar-collapse`)
+- 2-6 acceptance criteria (what "fixed" looks like)
+- Scope boundary (which files to touch, which to leave alone)
+- Root cause context (why it broke, what was tried, what not to repeat)
+
+The launcher adds fix stories to `cycle_context.json` (field: `milestones[current].stories[]`) with `status: "pending"`. The story builder processes them like any other story.
+
+> **task_ledger.json:** This is the ONE loop phase permitted to write fix stories to `task_ledger.json`. When adding fix stories, APPEND to the existing `stories[]` array — do NOT overwrite. No other loop phase may write to `task_ledger.json`.
 
 ---
 

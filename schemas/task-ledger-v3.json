@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "V3 Task Ledger",
+  "description": "Seeding output. Read-only during loop, except generating-change-spec adds fix stories.",
+  "type": "object",
+  "required": ["milestones"],
+  "properties": {
+    "milestones": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "stories"],
+        "properties": {
+          "name": { "type": "string" },
+          "depends_on_milestones": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "stories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id", "name", "status"],
+              "properties": {
+                "id": { "type": "string" },
+                "name": { "type": "string" },
+                "status": {
+                  "enum": ["pending", "in-progress", "done", "blocked", "skipped", "retrying"]
+                },
+                "depends_on": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                },
+                "acceptance_criteria": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

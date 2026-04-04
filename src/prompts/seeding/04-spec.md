@@ -261,9 +261,106 @@ Before declaring a feature area's spec complete, run this checklist. If any item
 - [ ] The 3-click rule is satisfied or explicitly justified for every journey
 - [ ] The spec can be understood by someone who has never seen the brainstorm or competition docs
 
+## Story Decomposition
+
+After producing all seven sections for every feature area, decompose each feature area into independently buildable, independently testable **stories** grouped into **milestones**. This is how the autonomous loop will work — one story per build invocation, one milestone per evaluation pass.
+
+### What a story is
+
+A story is the smallest unit of work that:
+- Can be built and tested in one invocation (~5-20 minutes)
+- Has clear acceptance criteria (subset of the FA's ACs)
+- Produces a testable outcome (passing tests, visible change, or documented env limitation)
+- Can be committed independently without breaking other stories
+
+A story is NOT:
+- An entire feature area (too large — that's a milestone)
+- A single acceptance criterion (too small — stories group related ACs)
+- A task like "set up routing" (too infrastructure — that's foundation work)
+
+### How to decompose
+
+For each feature area:
+
+1. **Group acceptance criteria by user journey or screen.** ACs that belong to the same journey step or screen become one story.
+2. **Check independence.** Can this story be built without other stories in the same milestone completing first? If yes: independent. If no: declare the dependency in `depends_on`.
+3. **Check testability.** Can this story's ACs be verified by TDD (unit/integration tests) within the story invocation? Visual verification (browser walk) happens at milestone level.
+4. **Size check.** A story should have 2-6 acceptance criteria. If more: split. If fewer: merge with a related story.
+
+### Story format
+
+```json
+{
+  "id": "string — kebab-case slug (e.g., 'add-vehicle-form')",
+  "name": "string — human-readable (e.g., 'Add Vehicle Form & Persistence')",
+  "feature_area": "string — parent FA ID (e.g., 'FA2')",
+  "acceptance_criteria": ["AC-FA2-1", "AC-FA2-2", "AC-FA2-3"],
+  "user_journeys": ["FA2-J1"],
+  "depends_on": ["string — story IDs this depends on, or empty"],
+  "affected_entities": ["Vehicle"],
+  "affected_screens": ["S4-vehicle-list", "S5-vehicle-detail"],
+  "notes": "string — anything the builder should know that isn't in the ACs"
+}
+```
+
+### Milestone grouping
+
+Group stories into milestones. A milestone is a batch that gets evaluated together (browser walk, code review, three-lens evaluation).
+
+**Rules:**
+- **Logical coherence:** Stories in a milestone affect the same screens, API routes, or data entities.
+- **Size cap:** 3-8 stories per milestone. If a logical group has more than 8, split it. If fewer than 2, merge with an adjacent group.
+- **Dependency ordering:** If Milestone B depends on Milestone A's output, A must complete first. Declare this in the milestone ordering.
+
+**Milestone format:**
+```json
+{
+  "name": "string — descriptive name (e.g., 'map-core', 'vehicle-registry')",
+  "feature_areas": ["FA1"],
+  "stories": ["S1-map-render", "S2-realtime-updates", "S3-marker-styling", ...],
+  "depends_on_milestones": ["string — milestone names that must complete first, or empty"]
+}
+```
+
+### Decomposition quality self-check
+
+- [ ] Every acceptance criterion is assigned to exactly one story
+- [ ] Every story has 2-6 acceptance criteria
+- [ ] Every milestone has 3-8 stories
+- [ ] Story dependencies form a DAG (no circular dependencies)
+- [ ] Milestone dependencies form a DAG
+- [ ] No story depends on a story in a LATER milestone (dependencies flow forward)
+- [ ] Foundation work (schema, auth, shared UI) is NOT in stories — it's in the foundation phase
+- [ ] Each story's `affected_entities` and `affected_screens` are populated (the builder uses these for code discovery)
+
+### Present decomposition to human
+
+After decomposition, present:
+```
+DECOMPOSITION for <product-name>:
+
+Milestone 1: <name> (<N> stories)
+  Dependencies: none
+  Stories:
+    S1: <name> [ACs: N] [depends: none]
+    S2: <name> [ACs: N] [depends: S1]
+    ...
+
+Milestone 2: <name> (<N> stories)
+  Dependencies: Milestone 1
+  Stories:
+    ...
+
+Total: <N> milestones, <M> stories, <P> acceptance criteria
+Average stories per milestone: <X>
+Longest dependency chain: <N> stories
+```
+
+The human may adjust milestone grouping or story boundaries. Update accordingly.
+
 ## Cross-Feature Consistency Check
 
-After speccing all feature areas, run a cross-feature pass:
+After speccing all feature areas and decomposing into stories, run a cross-feature pass:
 
 - **Shared entities:** If two feature areas reference the same data entity, their model sketches must be consistent. Resolve conflicts now, not during build.
 - **Navigation consistency:** Do journeys that cross feature areas maintain consistent navigation patterns? Back button behavior, breadcrumb depth, sidebar state.
@@ -277,13 +374,25 @@ When your discipline completes, return to the orchestrator with:
 
 ```
 SPEC COMPLETE for: <product-name>
+
 Feature areas: <count>
   - <area-1>: <AC count> acceptance criteria, <journey count> journeys, <edge case count> edge cases
   - <area-2>: ...
-Total acceptance criteria: <sum>
-Total user journeys: <sum>
-Total edge cases: <sum>
+
+Decomposition:
+  Milestones: <count>
+  Stories: <total count>
+  Stories per milestone: <min>-<max> (avg <avg>)
+  Story dependencies: <count> (longest chain: <N>)
+  Milestone dependencies: <count>
+
+Totals:
+  Acceptance criteria: <sum>
+  User journeys: <sum>
+  Edge cases: <sum>
+
 Infrastructure: database=<yes/no>, auth=<yes/no>, storage=<yes/no>
+Complexity profile: <profile>
 
 Confidence: <HIGH | MEDIUM — explain what's uncertain>
 Loop-back triggers: <list any issues that need other disciplines to revisit>
