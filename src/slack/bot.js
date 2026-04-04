@@ -369,15 +369,6 @@ function invokeClaudeSeeding(projectDir, prompt, sessionId) {
   }
 }
 
-function sendSeedingResponse(say, result, seedProject) {
-  const response = markdownToSlack(result.result || result.message || (typeof result === 'string' ? result : JSON.stringify(result)));
-
-  // Detect seeding completion
-  const isComplete = response.includes('SEEDING_COMPLETE') ||
-                   (response.includes('approved') && response.includes('ready'));
-
-  return { response, isComplete };
-}
 
 const STATE_EMOJI = {
   building: '\u{1F528}',
@@ -1149,15 +1140,28 @@ app.event('message', async ({ event, say }) => {
     if (result.session_id) seedState.session_id = result.session_id;
 
     const response = markdownToSlack(result.result || result.message || JSON.stringify(result));
-    const isComplete = response.includes('SEEDING_COMPLETE') ||
-                     (response.includes('approved') && response.includes('ready'));
+
+    // Only accept explicit SEEDING_COMPLETE marker from the orchestrator.
+    // Previously also matched (approved + ready) which caused false positives
+    // when discipline responses casually contained both words.
+    const isComplete = response.includes('SEEDING_COMPLETE');
 
     if (isComplete) {
+      // Generate cycle_context.json from seed artifacts
       const stats = generateCycleContext(seedProject);
-      const state = readState(seedProject);
-      state.current_state = 'ready';
-      writeState(seedProject, state);
-      seedState.status = 'complete';
+
+      // Safety: don't mark as ready if no spec files were generated
+      if (stats.specFiles === 0) {
+        console.log(`[${seedProject}] SEEDING_COMPLETE received via DM but no spec files found — not marking as ready`);
+        try {
+          await say(`⚠️ Seeding said complete but no spec files were generated. The seeding session may need to continue — try prompting it to run the SPEC discipline.`);
+        } catch (e) { console.error('Failed to post spec warning:', e.message); }
+      } else {
+        const state = readState(seedProject);
+        state.current_state = 'ready';
+        writeState(seedProject, state);
+        seedState.status = 'complete';
+      }
     }
 
     writeSeedingState(seedProject, seedState);
