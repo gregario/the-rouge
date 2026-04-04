@@ -22,12 +22,31 @@ function confidenceTrend(history) {
 }
 
 function phaseTransition(projectName, fromState, toState, details, confidenceHistory) {
-  const emoji = {
-    'test-integrity': '🧪', 'qa-gate': '🔍', 'qa-fixing': '🔧',
-    'po-review-journeys': '👀', 'po-review-screens': '👀', 'po-review-heuristics': '👀',
-    'analyzing': '🧠', 'vision-checking': '🔭', 'promoting': '🚀',
-    'building': '🔨', 'complete': '✅', 'waiting-for-human': '⏸️',
+  const descriptions = {
+    'foundation': 'Building foundation — schema, auth, deploy pipeline',
+    'foundation-eval': 'Evaluating foundation completeness',
+    'story-building': 'Building a story',
+    'story-diagnosis': 'Diagnosing a failing story',
+    'milestone-check': 'Evaluating milestone — test integrity, code review, browser QA',
+    'milestone-fix': 'Fixing quality gaps found during evaluation',
+    'analyzing': 'Analysing evaluation results',
+    'generating-change-spec': 'Generating fix stories',
+    'vision-check': 'Checking alignment with original vision',
+    'shipping': 'Shipping — version bump, changelog, PR, deploy',
+    'final-review': 'Final customer walkthrough',
+    'escalation': 'Needs your input',
+    'complete': 'Done!',
   };
+
+  const emojis = {
+    'foundation': '🏗️', 'foundation-eval': '🔍', 'story-building': '🔨',
+    'story-diagnosis': '🩺', 'milestone-check': '📋', 'milestone-fix': '🔧',
+    'analyzing': '🧠', 'generating-change-spec': '📝', 'vision-check': '🔭',
+    'shipping': '🚀', 'final-review': '👀', 'escalation': '⏸️', 'complete': '✅',
+  };
+
+  const icon = emojis[toState] || '❓';
+  const desc = descriptions[toState] || toState;
 
   return {
     blocks: [
@@ -35,7 +54,7 @@ function phaseTransition(projectName, fromState, toState, details, confidenceHis
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `${emoji[toState] || '❓'} *${projectName}*: \`${fromState}\` → \`${toState}\``,
+          text: `${icon} *${projectName}* — ${desc}`,
         },
       },
       ...(confidenceHistory && confidenceHistory.length > 0 ? [{
