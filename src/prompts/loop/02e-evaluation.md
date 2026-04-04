@@ -236,7 +236,17 @@ To `cycle_context.json`, write a single `evaluation_report` key containing all t
       },
       "code_quality_warning": false,
       "ai_code_audit": {"...from code_review_report.ai_code_audit..."},
-      "security_review": {"...from code_review_report.security_review..."}
+      "security_review": {"...from code_review_report.security_review..."},
+      "fix_tasks": [
+        {
+          "id": "fix-<lens>-<short-description>",
+          "source": "qa | design | po",
+          "description": "What needs fixing",
+          "evidence": "Screen and element where the issue was observed",
+          "severity": "CRITICAL | HIGH | MEDIUM | LOW",
+          "suggested_fix": "Concrete fix suggestion"
+        }
+      ]
     },
     "design": {
       "design_review": {},

@@ -127,7 +127,7 @@ const PROGRESS_STALE_THRESHOLD = parseInt(process.env.ROUGE_PROGRESS_STALE || '1
 const LOG_STALE_THRESHOLD = parseInt(process.env.ROUGE_LOG_STALE || '10', 10) * 60 * 1000; // 10 min no log growth
 const HARD_CEILING = parseInt(process.env.ROUGE_HARD_CEILING || '60', 10) * 60 * 1000; // 60 min absolute max
 
-const SKIP_STATES = new Set(['seeding', 'ready', 'waiting-for-human', 'escalation', 'complete']);
+const SKIP_STATES = new Set(['seeding', 'ready', 'waiting-for-human', 'escalation', 'complete', 'paused']);
 
 function readJson(filePath) {
   try {
@@ -1232,7 +1232,7 @@ async function runPhase(projectDir) {
     //   3. File system activity in project dir (tool calls write files even when stdout is silent)
     // Kills only when ALL three are stale AND hard ceiling exceeded.
     const HEARTBEAT_INTERVAL = 30000; // check every 30s
-    let lastLogSize = 0;
+    let lastLogSize = logSizeAtStart;
     let lastLogGrowthAt = Date.now();
     let lastProgressEventAt = Date.now();
     let lastFileActivityAt = Date.now();
@@ -1422,12 +1422,18 @@ async function runPhase(projectDir) {
       } catch {}
 
       // FIX-6: Restore state.json if the phase overwrote it
+      // But respect external state changes (e.g. Slack pause) — only restore if
+      // the phase itself changed the state, not if an external actor did
       const stateAfterPhase = readJson(stateFile);
       if (stateAfterPhase && stateAfterPhase.current_state !== currentState) {
-        log(`[${projectName}] Phase wrote state.json (${stateAfterPhase.current_state}) — restoring to ${currentState}`);
-        const restored = JSON.parse(stateBeforePhase);
-        restored.current_state = currentState; // keep the state the launcher set
-        writeJson(stateFile, restored);
+        if (SKIP_STATES.has(stateAfterPhase.current_state)) {
+          log(`[${projectName}] External state change detected: ${currentState} → ${stateAfterPhase.current_state} — respecting`);
+        } else {
+          log(`[${projectName}] Phase wrote state.json (${stateAfterPhase.current_state}) — restoring to ${currentState}`);
+          const restored = JSON.parse(stateBeforePhase);
+          restored.current_state = currentState; // keep the state the launcher set
+          writeJson(stateFile, restored);
+        }
       }
 
       // Advance state machine
