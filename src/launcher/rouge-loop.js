@@ -13,6 +13,7 @@ const { checkMilestoneLock, promoteMilestone, shouldEscalateForSpin, getComplete
 const { trackPhaseCost, checkBudgetCap } = require('./cost-tracker.js');
 const { deployWithRetry, shouldBlockMilestoneCheck } = require('./deploy-blocking.js');
 const { migrateV2StateToV3 } = require('./state-migration.js');
+const { injectPreamble } = require('./preamble-injector.js');
 // V3: model-selection.js will be added in Phase C (task C2)
 
 // Load .env from Rouge root (for ROUGE_SLACK_WEBHOOK, etc.)
@@ -1114,8 +1115,43 @@ async function runPhase(projectDir) {
     let stderrChunks = [];
     let killed = false;
 
-    // Build the prompt instruction — add scope for PO review sub-phases
-    let promptInstruction = `Read the phase prompt at ${promptFile} and execute it. The project directory is ${projectDir}. Read cycle_context.json and state.json for context.`;
+    // V3: Inject shared preamble with I/O contract
+    const PHASE_DESCRIPTIONS = {
+      'foundation': 'Build the project foundation — schema, auth, deploy pipeline, seed data',
+      'foundation-eval': 'Evaluate foundation completeness across 6 dimensions',
+      'story-building': 'Build the current story using TDD',
+      'story-diagnosis': 'Diagnose and fix a failing story',
+      'milestone-check': 'Evaluate milestone quality — test integrity, code review, product walk, PO review',
+      'milestone-fix': 'Fix regressions found during milestone evaluation',
+      'analyzing': 'Analyse evaluation results and recommend next action',
+      'generating-change-spec': 'Generate fix stories from analysis recommendations',
+      'vision-check': 'Check product alignment with original vision',
+      'shipping': 'Ship the product — version bump, changelog, PR, deploy',
+      'final-review': 'Final customer walkthrough before marking complete',
+    };
+    const PHASE_REQUIRED_KEYS = {
+      'foundation': ['deployment_url', 'implemented', 'skipped', 'divergences', 'factory_decisions', 'factory_questions', 'foundation_completion'],
+      'foundation-eval': ['foundation_eval_report'],
+      'story-building': ['story_result', 'implemented', 'skipped', 'divergences', 'factory_decisions', 'factory_questions'],
+      'story-diagnosis': ['qa_fix_results'],
+      'milestone-check': ['diff_scope', 'evaluation_tier', 'evaluation_report'],
+      'milestone-fix': ['qa_fix_results'],
+      'analyzing': ['analysis_recommendation', 'analysis_result'],
+      'generating-change-spec': ['change_specs_pending'],
+      'vision-check': ['vision_check_results'],
+      'shipping': ['ship_result'],
+      'final-review': ['final_review_report'],
+    };
+    const preambleText = injectPreamble({
+      projectDir,
+      phaseName: currentState,
+      phaseDescription: PHASE_DESCRIPTIONS[currentState] || currentState,
+      modelName: model,
+      requiredOutputKeys: PHASE_REQUIRED_KEYS[currentState] || [],
+    });
+
+    // Build the prompt instruction with V3 preamble
+    let promptInstruction = `${preambleText}\n\n---\n\nRead the phase prompt at ${promptFile} and execute it. The project directory is ${projectDir}. Read cycle_context.json for context.`;
 
     // FIX-6: Save state.json before phase — restore if phase overwrites it
     const stateBeforePhase = JSON.stringify(readJson(stateFile));
