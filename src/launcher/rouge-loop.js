@@ -644,10 +644,10 @@ async function advanceState(projectDir) {
         break;
       }
 
-      // Next story (V3: skip duplicates using state.json, not checkpoints)
+      // Next story (V3: skip duplicates)
       let eligible = findNextStory(milestone, flatStories(state));
       if (eligible) {
-        const completedNames = flatStories(state).filter(s => s.status === 'done').map(s => s.name || s.id);
+        const completedNames = getCompletedStoryNames(readAllCheckpoints(checkpointsFile));
         while (eligible && isStoryDuplicate(eligible.name || eligible.id, completedNames)) {
           log(`[${projectName}] Skipping duplicate story: ${eligible.name || eligible.id}`);
           eligible.status = 'done';
