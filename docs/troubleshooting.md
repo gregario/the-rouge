@@ -29,10 +29,10 @@ Yes. You lose notifications and the control plane (start, pause, feedback from y
 ## Build loop
 
 **A phase times out.**
-State is saved to disk after every phase. Nothing is lost. Run `rouge build <project>` to resume from where it left off.
+State is checkpointed after every phase. Nothing is lost. Run `rouge build <project>` to resume from the last checkpoint.
 
 **Evaluation keeps failing on the same gap.**
-After 3 retries on the same gap, Rouge transitions to `waiting-for-human` and pings you on Slack. Check the message for what it tried and what's failing. Give feedback via `/rouge feedback <project> "your guidance"` and it resumes. See also [common situations](your-first-product.md#common-situations).
+After 3 consecutive failures, the circuit breaker fires. The analysing phase runs a diagnostic first. If it still can't resolve the issue, Rouge escalates to Slack with context, what it tried, and options. Create a `feedback.json` in the project directory with your guidance, and it resumes. See also [common situations](your-first-product.md#common-situations).
 
 **Rate limited.**
 Rouge has built-in backoff with reset time parsing. It usually resolves itself within a few minutes. If it persists across multiple cycles, wait for your rate limit window to reset and run `rouge build` again.
@@ -41,7 +41,7 @@ Rouge has built-in backoff with reset time parsing. It usually resolves itself w
 Same as any interruption. State is on disk. Resume tomorrow with `rouge build <project>`. No progress is lost.
 
 **Build produces no changes (no-op).**
-Rouge detected nothing to do for this feature area. It advances to the next area automatically. This is normal -- not every cycle produces code.
+Rouge detected nothing to do for this story. Spin detection tracks zero-delta stories — if 3+ stories produce no code changes, the loop escalates rather than spinning. Occasional no-ops are normal; repeated ones indicate a problem.
 
 **Foundation cycle won't pass.**
 Run `rouge status <project>` and read the evaluation report. The most common cause is a missing integration setup. Run `rouge setup <service>` for whatever's missing, then resume.
@@ -51,10 +51,10 @@ Run `rouge status <project>` and read the evaluation report. The most common cau
 ## Intervention
 
 **I want to change direction mid-build.**
-Give feedback via `/rouge feedback <project> "your feedback"`. Rouge incorporates it on the next cycle. For big direction changes, stop the loop, edit `vision.json` directly in the project directory, and restart with `rouge build`.
+Create a `feedback.json` in the project directory with your guidance. Rouge reads it on the next escalation resolution. For big direction changes, stop the loop, edit `vision.json` directly, and restart with `rouge build`.
 
-**I want to skip a feature area.**
-Edit the project's `state.json` and set the feature area status to `complete`. Rouge will skip it on the next cycle.
+**I want to skip a story.**
+Mark the story as `done` in `task_ledger.json`. The story deduplication system will skip it on the next cycle.
 
 **Rouge deployed something broken.**
 Staging only, by default. Safety hooks prevent production deploys without the full evaluation pipeline passing. If staging is broken, the next build cycle will detect and fix it. You can also give explicit feedback to speed up the fix.
