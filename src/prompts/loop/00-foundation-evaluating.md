@@ -4,9 +4,9 @@
 
 ## Phase Contract
 
-**Reads:** `cycle_context.json` (foundation_spec, implemented, skipped, vision, decomposition_strategy)
-**Writes:** `foundation_eval_report` to `cycle_context.json`
-**Context Tier:** T3 — Full (must cross-reference foundation against complete vision)
+> **V3 Phase Contract:** Injected by launcher at runtime. See _preamble.md for the I/O contract.
+
+> **Routing note:** This phase handles foundation evaluation ONLY. The evaluation orchestrator (`02-evaluation-orchestrator.md`) does NOT evaluate foundation. Routing between foundation-eval and feature-eval is handled entirely by the launcher — this prompt never needs to know which evaluator is "next".
 
 ## What You Evaluate
 

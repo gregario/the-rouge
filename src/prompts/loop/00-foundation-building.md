@@ -22,12 +22,7 @@ Do not enumerate these as a checklist. Internalize them. Let them shape how you 
 
 ## Phase Contract
 
-**Reads:** `cycle_context.json` (foundation_spec, decomposition_strategy, vision)
-**Writes:** `cycle_context.json` (deployment_url, implemented, skipped, divergences, factory_decisions, factory_questions, foundation_completion)
-**Git:** Creates branch, makes bisectable commits. Does NOT create a PR.
-**Deploys:** Staging ONLY. Never production.
-**Decides:** Nothing about what phase runs next. Build, report, exit.
-**Context Tier:** T3 — Full. Foundation must serve ALL feature areas. You need the complete vision, full decomposition strategy, and all Library heuristics to design infrastructure that won't need rework when vertical features arrive.
+> **V3 Phase Contract:** Injected by launcher at runtime. See _preamble.md for the I/O contract.
 
 ---
 
@@ -194,17 +189,16 @@ Instead:
 
 ---
 
-## Step 4: Create the Loop Branch
+## Step 4: Verify the Working Branch
+
+V3 uses a single branch throughout the loop. The launcher has already checked out the correct branch before invoking this prompt. Do NOT create a new branch.
 
 ```bash
-git checkout <production-branch>
-git pull origin <production-branch>
-git checkout -b rouge/foundation
+git status
+git log --oneline -5
 ```
 
-Read `state.json` for the production branch name. The branch name must be `rouge/foundation` — this distinguishes it from feature cycle branches (`rouge/story-{milestone}-{story}`).
-
-If the branch already exists (crash recovery, re-invocation), check it out rather than creating it. Each phase is idempotent.
+Confirm you are on the expected branch. If git status shows unexpected staged changes from a previous partial run, review them before continuing. Each phase is idempotent — if foundation work was partially committed, continue from where it left off.
 
 ---
 
@@ -272,7 +266,7 @@ If the project needs a database (check `foundation_spec` for database requiremen
 1. **Read `cycle_context.json.supabase`** for the project reference.
 2. **If no project exists yet:**
    - Check active project count: `supabase projects list --output json`
-   - If at the 2-slot free tier limit: identify the least-recently-active project (check `state.json` timestamps across all projects), pause it: `supabase projects pause --project-ref <ref>`
+   - If at the 2-slot free tier limit: identify the least-recently-active project (check `cycle_context.json` for project activity timestamps), pause it: `supabase projects pause --project-ref <ref>`
    - Create or unpause the needed project.
    - Log the slot swap to `cycle_context.json`.
 3. **Run migrations:** `supabase db push` to apply schema.
@@ -419,7 +413,7 @@ After committing all work and writing back to `cycle_context.json`:
 2. Verify the staging deployment is accessible (if deployed).
 3. Verify `cycle_context.json` is valid JSON and contains all required fields.
 4. Verify `foundation_completion` accurately reflects what was built and what's missing.
-5. Do NOT update `state.json`. The launcher manages state transitions.
+5. Do NOT write any state management file outside of `cycle_context.json`. The launcher manages state transitions.
 6. Do NOT create a PR. That happens in a later phase.
 7. Do NOT decide what happens next. Your job is to build the foundation and report. The Runner decides the next state.
 8. Exit.
@@ -499,6 +493,6 @@ This phase absorbs patterns from established methodologies but applies them auto
 | **Integration approach** | Use existing scaffolds | Research, evaluate, and BUILD the scaffolds |
 | **Hard blocking** | Log and continue | Log AND prevent silent degradation |
 | **Output marker** | `implemented[]` | `implemented[]` + `foundation_completion` manifest |
-| **Branch naming** | `rouge/story-{milestone}-{story}` | `rouge/foundation` |
+| **Branch naming** | Single branch, launcher-managed | Single branch, launcher-managed |
 | **Evaluated by** | `02-evaluation-orchestrator.md` | Foundation-specific evaluation criteria |
 | **Mindset** | "Build this feature well" | "Build the floor that every feature stands on" |
