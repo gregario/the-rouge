@@ -2,6 +2,8 @@
 
 Include the autonomous-mode partial from `.claude/skills/partials/autonomous-mode.md`
 
+> **V3 Phase Contract:** Injected by launcher at runtime. See _preamble.md for the I/O contract.
+
 ---
 
 ## Phase Identity
@@ -137,6 +139,8 @@ Emit: `PO: confidence <raw_score> (adjusted: <adjusted_score>)`
 - `broaden` — scope expansion needed, product feels thin
 - `rollback` — critical regression from previous cycle
 - `notify-human` — ambiguity or judgment call that requires human input
+
+> **Verdict vs confidence:** The PO verdict (PRODUCTION_READY / NEEDS_IMPROVEMENT / NOT_READY) is the AUTHORITATIVE signal for routing. The confidence score (0.0-1.0) is used by the analyzing phase for trend analysis only. When in doubt, the categorical verdict wins.
 
 **Output fields:** `journey_quality[]`, `screen_quality[]`, `heuristic_results` (total, passed, pass_rate_pct), `verdict` (PRODUCTION_READY / NEEDS_IMPROVEMENT / NOT_READY), `confidence` (raw), `confidence_adjusted` (env_limited excluded), `env_limited_impact` (what was excluded and why), `recommended_action`, `improvement_items[]`
 
