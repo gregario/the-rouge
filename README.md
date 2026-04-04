@@ -173,15 +173,19 @@ rouge cost my-product       # See cost estimate
 
 ## Safety
 
-Rouge includes a safety layer that validates every phase before execution:
+**Safety is deterministic JavaScript, not LLM judgment.** Every safety mechanism is enforced in the launcher — pure code that cannot be hallucinated away, argued with, or forgotten by a prompt. The LLM builds; the launcher constrains.
 
-- **Blocked commands** — shell commands that could cause irreversible damage are blocked at the prompt level
-- **Deploy blocking** — only staging and preview deploys allowed by default. Production promotion requires passing the full evaluation pipeline and explicit milestone lock
-- **Cost caps** — per-session and per-project token budgets enforced; the loop pauses and pings Slack when limits are hit
-- **Spin detection** — repeated identical failures across cycles trigger escalation rather than infinite retry
-- **Milestone lock** — features are locked after shipping; the loop cannot regress or re-open closed milestones without explicit override
-- **Audit trail** — every phase writes a signed entry to `checkpoints.jsonl`; the full history is git-committed and tamper-evident
-- **Custom pre-hooks** — `rouge.config.json` supports project-level safety hooks
+- **Blocked commands** — `rouge-safety-check.sh` runs as a PreToolUse hook on every Bash and Write call. Blocks `rm -rf /`, `git push --force` to main, production deploys, Stripe live keys, destructive database operations, and writes to safety-critical files
+- **Deploy blocking** — only staging and preview deploys allowed by default. Deploy must succeed (with 3 retries) before milestone evaluation runs. Failed deploy → escalation, not stale evaluation
+- **Cost caps** — per-phase token tracking with cumulative USD budget. The loop escalates when the cap is hit — it does not silently continue
+- **Spin detection** — 3+ zero-delta stories, duplicate story names, or 30 minutes without meaningful progress → escalation. This is what prevented the V2 overnight 12-hour spin
+- **Milestone lock** — promoted milestones are locked in the checkpoint stream. The loop cannot regress to re-build a shipped milestone, even after a crash and restart
+- **Story deduplication** — stories completed in earlier milestones are skipped, not re-executed
+- **Audit trail** — every tool call logged to `tools.jsonl`; every state transition checkpointed to `checkpoints.jsonl`. Both append-only
+- **Self-improvement isolation** — Rouge can propose prompt improvements, but changes run in a git worktree with an allowlist/blocklist. The running loop never modifies its own launcher, config, or safety hooks
+
+> [!CAUTION]
+> Rouge runs with `--dangerously-skip-permissions` (Claude Code's YOLO mode). The safety hooks above cover known-dangerous patterns, but they are not comprehensive filesystem protection. Rouge can read, write, and execute arbitrary commands within the project directory. Run it on a machine you're comfortable giving that level of access to, and keep your work committed. Git is your undo button.
 
 For common issues, see [troubleshooting](docs/troubleshooting.md).
 
