@@ -61,7 +61,25 @@ function shouldEscalateForSpin(state, config = {}) {
   return null;
 }
 
+// --- Story Deduplication ---
+
+function getCompletedStoryNames(checkpoints) {
+  const names = new Set();
+  for (const cp of checkpoints) {
+    const results = cp.state?.story_results || [];
+    for (const r of results) {
+      if (r.outcome === 'pass') names.add(r.name);
+    }
+  }
+  return [...names];
+}
+
+function isStoryDuplicate(storyName, completedNames) {
+  return completedNames.includes(storyName);
+}
+
 module.exports = {
   checkMilestoneLock, promoteMilestone,
   detectZeroDeltaSpin, detectDuplicateStories, detectTimeStall, shouldEscalateForSpin,
+  getCompletedStoryNames, isStoryDuplicate,
 };
