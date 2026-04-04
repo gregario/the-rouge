@@ -695,6 +695,18 @@ async function advanceState(projectDir) {
         next = 'milestone-fix';
         log(`[${projectName}] Milestone QA FAIL — fixing`);
       } else {
+        // V3: Capture screenshots after milestone evaluation passes
+        try {
+          const { captureScreenshots } = require('./capture-screenshots');
+          const screenshots = captureScreenshots(projectDir, state.cycle_number || 0);
+          if (screenshots.length > 0) {
+            log(`[${projectName}] Captured ${screenshots.length} milestone screenshots`);
+            state._last_screenshots = screenshots.map(s => s.file);
+            writeJson(stateFile, state);
+          }
+        } catch (err) {
+          log(`[${projectName}] Screenshot capture failed (non-blocking): ${(err.message || '').slice(0, 200)}`);
+        }
         next = 'analyzing';
         log(`[${projectName}] Milestone PASS — analyzing`);
       }
