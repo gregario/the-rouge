@@ -968,17 +968,32 @@ app.event('app_mention', async ({ event, say }) => {
 
       const response = markdownToSlack(result.result || result.message || (typeof result === 'string' ? result : JSON.stringify(result)));
 
-      const isComplete = response.includes('SEEDING_COMPLETE') ||
-                       (response.includes('approved') && response.includes('ready'));
+      // Only accept explicit SEEDING_COMPLETE marker from the orchestrator.
+      // Previously also matched (approved + ready) which caused false positives
+      // when discipline responses casually contained both words.
+      const isComplete = response.includes('SEEDING_COMPLETE');
 
       if (isComplete) {
         // Generate cycle_context.json from seed artifacts
         const stats = generateCycleContext(seedProject);
 
-        const state = readState(seedProject);
-        state.current_state = 'ready';
-        writeState(seedProject, state);
-        seedState.status = 'complete';
+        // Safety: don't mark as ready if no spec files were generated
+        if (stats.specFiles === 0) {
+          console.log(`[${seedProject}] SEEDING_COMPLETE received but no spec files found — not marking as ready`);
+          // Post warning to thread so user knows something went wrong
+          try {
+            await app.client.chat.postMessage({
+              channel: seedState.channel_id,
+              thread_ts: seedState.thread_ts,
+              text: `⚠️ Seeding said complete but no spec files were generated. The seeding session may need to continue — try prompting it to run the SPEC discipline.`,
+            });
+          } catch (e) { console.error('Failed to post spec warning:', e.message); }
+        } else {
+          const state = readState(seedProject);
+          state.current_state = 'ready';
+          writeState(seedProject, state);
+          seedState.status = 'complete';
+        }
       }
 
       writeSeedingState(seedProject, seedState);
