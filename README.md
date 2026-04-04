@@ -57,12 +57,12 @@ Rouge derives a **complexity profile** from your spec. Measurements, not categor
 | Capability | What it does |
 |-----------|-------------|
 | Foundation cycle | Horizontal infrastructure pass (schema, auth, integrations) before any features |
-| Dependency ordering | DAG-resolved build order for feature areas |
+| Dependency ordering | DAG-resolved build order for milestones and stories. Linked project dependencies resolved at seed time — if Product B needs Product A, Rouge builds A first |
 | Integration escalation | Hard blocks on missing patterns instead of silently degrading |
 | Foundation evaluation | Structural review (schema completeness), not user journeys |
 | Infrastructure discipline | Eighth seeding discipline: resolves database vs deploy target compatibility, auth strategy, data source viability, and known-bad technology combinations at spec time — before the loop starts building. Outputs `infrastructure_manifest.json` that the foundation phase executes without re-deciding |
 
-A timer app activates nothing. A Fleet management SaaS activates everything. Same system, different measurements.
+A timer app produces a trivial infrastructure manifest and a single milestone. A fleet management SaaS activates everything: foundation cycles, multi-milestone dependency ordering, integration escalation, linked project resolution. Same system, different measurements.
 
 **The capability avoidance problem.** Without this, the builder optimises for what it CAN build, not what the product NEEDS. No maps pattern? It substitutes a table of coordinates. Every test passes. The product is useless. Rouge's fix: hard blocking. If maps are needed and the pattern doesn't exist, Rouge blocks and pings you on Slack. It either builds the pattern autonomously (researches the API, evaluates scale trade-offs, creates a wrapper) or escalates. When it does build that pattern, it gets added to the catalogue. The next product that needs maps doesn't start from scratch.
 
