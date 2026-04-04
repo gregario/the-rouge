@@ -107,7 +107,7 @@ Set a budget cap in `rouge.config.json` (`budget_cap_usd`) to prevent runaway co
 ## Built with
 
 - **[AI Factory](https://github.com/gregario/AI-Factory)** by Greg Jackson — the factory that built Rouge
-- **[GStack](https://github.com/garrytan/gstack)** by Garry Tan — 23+ opinionated tools that model a full engineering team (CEO, designer, eng manager, QA, security). Rouge uses GStack's browser automation for milestone evaluation and QA
+- **[GStack](https://github.com/garrytan/gstack)** by Garry Tan — Rouge uses GStack's headless browser for milestone evaluation, product walks, and QA
 - **[Superpowers](https://github.com/claude-plugins-official/superpowers)** by Jesse Vincent — engineering discipline skills
 - **[OpenSpec](https://github.com/openspecio/openspec)** — product specification and task management
 - **[Excalidraw](https://excalidraw.com)** — hand-drawn diagrams
