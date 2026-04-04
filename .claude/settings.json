@@ -3,17 +3,32 @@
     "PreToolUse": [
       {
         "matcher": "Bash",
-        "command": "./src/launcher/rouge-safety-check.sh pre-bash \"$TOOL_INPUT\""
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./src/launcher/rouge-safety-check.sh pre-bash \"$TOOL_INPUT\""
+          }
+        ]
       },
       {
         "matcher": "Write",
-        "command": "./src/launcher/rouge-safety-check.sh pre-write \"$TOOL_INPUT\""
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./src/launcher/rouge-safety-check.sh pre-write \"$TOOL_INPUT\""
+          }
+        ]
       }
     ],
     "PostToolUse": [
       {
         "matcher": "Bash",
-        "command": "./src/launcher/rouge-safety-check.sh post-bash \"$TOOL_OUTPUT\""
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./src/launcher/rouge-safety-check.sh post-bash \"$TOOL_OUTPUT\""
+          }
+        ]
       }
     ]
   }

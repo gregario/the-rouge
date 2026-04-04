@@ -886,23 +886,49 @@ app.event('app_mention', async ({ event, say }) => {
 
     // Seeding relay: check for active OR paused sessions in this channel
     // Auto-resume paused sessions when user talks (no need for /rouge seed)
+    // Thread-aware: if user is in a thread, match by thread_ts first
+    const eventThread = event.thread_ts || event.ts;
     const activeSeedings = listProjects().filter(name => {
       const ss = getSeedingState(name);
       if (!ss || ss.channel_id !== event.channel) return false;
-      if (ss.status === 'active') return true;
-      // Auto-resume paused sessions when user @mentions in the same channel/thread
+      if (ss.status !== 'active' && ss.status !== 'paused') return false;
+      // Auto-close zombie sessions: seeding state says active but project moved past seeding
+      const projState = readState(name);
+      if (projState && projState.current_state !== 'seeding') {
+        ss.status = 'complete';
+        writeSeedingState(name, ss);
+        console.log(`[${name}] Auto-closed zombie seeding session (project is ${projState.current_state})`);
+        return false;
+      }
+      return true;
+    });
+
+    // Prefer thread-exact match, then fall back to channel match with only one active session
+    let seedProject = null;
+    const threadMatch = activeSeedings.find(name => {
+      const ss = getSeedingState(name);
+      return ss.thread_ts && ss.thread_ts === event.thread_ts;
+    });
+    if (threadMatch) {
+      seedProject = threadMatch;
+    } else if (!event.thread_ts && activeSeedings.length === 1) {
+      // Top-level message in channel with exactly one active session — route there
+      seedProject = activeSeedings[0];
+    }
+    // If multiple active sessions in the same channel and no thread match, don't guess
+
+    // Auto-resume paused sessions
+    if (seedProject) {
+      const ss = getSeedingState(seedProject);
       if (ss.status === 'paused') {
         ss.status = 'active';
         ss.last_activity = new Date().toISOString();
-        writeSeedingState(name, ss);
-        console.log(`[${name}] Auto-resumed seeding (user talked)`);
-        return true;
+        writeSeedingState(seedProject, ss);
+        console.log(`[${seedProject}] Auto-resumed seeding (user talked in thread)`);
       }
-      return false;
-    });
+    }
 
-    if (activeSeedings.length > 0) {
-      const seedProject = activeSeedings[0];
+    if (seedProject) {
       const seedState = getSeedingState(seedProject);
       const projectDir = path.join(PROJECTS_DIR, seedProject);
 
