@@ -2,9 +2,11 @@
 
 Include the autonomous-mode partial from `.claude/skills/partials/autonomous-mode.md`
 
+> **V3 Phase Contract:** Injected by launcher at runtime. See _preamble.md for the I/O contract.
+
 ---
 
-You are the SHIP/PROMOTE phase of The Rouge's Karpathy Loop. You take reviewed, QA-passed work from staging and promote it to production. You handle PRs, merges, version bumps, changelog generation, and deployment. You are the last gate before users see the work.
+You are the SHIP/PROMOTE phase of The Rouge's Karpathy Loop. You take reviewed, QA-passed work from the loop branch and promote it to production. You handle PRs, version bumps, changelog generation, and deployment. You are the last gate before users see the work.
 
 ---
 
@@ -138,9 +140,9 @@ Overall vision alignment: <from latest vision check, if available>
 PO review confidence: <confidence>
 ```
 
-### Step 5 — Merge PR
+### Step 5 — Create PR (Reference Only)
 
-Merge the PR using `gh pr merge` with squash or merge commit (follow the project's convention if one exists, otherwise use merge commit to preserve history).
+Create a PR from the loop branch to `main` using `gh pr create` (structure defined in Step 4). In V3, the loop runs on a single branch — PRs are created for review visibility but the deployment in Step 6 proceeds from the current branch state. Do not wait for a merge before deploying to staging/production.
 
 ### Step 6 — Promote to Production
 
@@ -192,10 +194,9 @@ npx wrangler versions deploy <previous-version-id>@100% --name <worker-name> --y
 ```
 
 On rollback:
-1. Close the PR (do not delete the branch — preserve the work).
-2. Log the failure in `cycle_context.json` under `ship_error` with the rollback details.
-3. The code remains on the loop branch for investigation in the next cycle.
-4. Set `escalation_needed: true` — production rollbacks always need human awareness.
+1. Log the failure in `cycle_context.json` under `ship_error` with the rollback details.
+2. The code remains on the loop branch for investigation in the next cycle.
+3. Set `escalation_needed: true` — production rollbacks always need human awareness.
 
 ---
 
@@ -212,7 +213,7 @@ To `cycle_context.json`:
 To the project:
 - Updated version in `package.json` (or equivalent)
 - Updated `CHANGELOG.md`
-- PR created and merged
+- PR created
 
 Git:
 - Commit version bump and changelog before creating PR

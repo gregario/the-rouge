@@ -22,30 +22,40 @@ Do not enumerate these as a checklist. Internalize them. Let them shape how you 
 
 ## Phase Contract
 
-**Reads:** `cycle_context.json`
-**Writes:** `cycle_context.json` (deployment_url, implemented, skipped, divergences, factory_decisions, factory_questions)
-**Git:** Creates branch, makes bisectable commits. Does NOT create a PR.
-**Deploys:** Staging ONLY. Never production.
-**Decides:** Nothing about what phase runs next. Build, report, exit.
-**Context Tier:** T2 — Standard. Loads active spec, applicable Library heuristics, current + prior cycle decisions. Does NOT load full vision document (summary from cycle_context is sufficient) or cross-domain Library heuristics. On cycle 1, escalate to T3 for full vision context.
+> **V3 Phase Contract:** Injected by launcher at runtime. See _preamble.md for the I/O contract.
+
+**Context Tier:** T2 — Standard, pre-filtered. The launcher assembled `story_context.json` with only context relevant to this story: story spec, foundation brief, related story results, filtered decisions, milestone learnings.
 **Benefits from (optional):**
-- `library-lookup` — check Library for patterns relevant to current feature area
+- `library-lookup` — check Library for patterns relevant to current story
 - `catalogue-check` — verify integration patterns exist before building
 
 ---
 
-## Step 1: Read the Full Shared Context
+## Step 1: Read the Story Context
 
-Read `cycle_context.json` in the project root. This is your entire world. Do not summarize it, do not skim it, do not skip sections. Read it all.
+Read `story_context.json` in the project root. This is your focused brief — the launcher assembled it with only what's relevant to your story. If `story_context.json` does not exist, fall back to reading `cycle_context.json`.
 
-**Context Tier T2 loading:** Focus your reading on:
-- `active_spec` — your build contract (read in full)
-- `library_heuristics` — only heuristics tagged with the project's domain (e.g., `domain: web`). Skip cross-domain heuristics.
-- `factory_decisions` — current cycle and previous cycle only
+**What story_context.json contains:**
+- `story.spec` — your build contract for THIS story (acceptance criteria, user journeys)
+- `story.fix_memory` — what was tried in previous attempts on this story (if retrying). Do NOT repeat failed approaches.
+- `story.attempt_number` — which attempt this is
+- `foundation` — architecture map (key files per domain), schemas, integrations, deployment config
+- `related_stories` — results from other stories in this milestone that share code/infrastructure
+- `milestone_learnings` — corrective instructions from the circuit breaker (if previous stories failed). READ AND FOLLOW THESE.
+- `vision_summary` — one-line product context (T2 tier — not the full vision)
+- `product_standard` — quality bar
+- `library_heuristics` — domain-relevant heuristics only
+- `relevant_decisions` — factory decisions filtered to this story's domain/files
+- `relevant_questions` — factory questions filtered similarly
+- `relevant_divergences` — divergences filtered similarly
+
+**Also read from `cycle_context.json`** (for fields not in story_context):
+- `active_spec` — full spec if you need context beyond this story
 - `evaluation_deltas` — the quality trend
 - `previous_evaluations` — QA and PO reports from the last cycle only
 - `skipped` and `divergences` — from the last cycle only
 - `vision` — read as a summary reference (product purpose and target user), not line-by-line internalization
+- `factory_decisions` — prior decisions APPEND-only; never overwrite existing entries
 
 On cycle 1 (no prior evaluations exist), escalate to T3: read everything including full vision and all Library heuristics regardless of domain.
 
@@ -55,7 +65,7 @@ Extract and internalize:
 - **`active_spec`** — The spec you are building against. This is your contract. Deviate only when the spec is ambiguous or contradictory, and log every deviation.
 - **`product_standard`** — The quality bar. Global standards, domain standards, project overrides. This defines "done."
 - **`previous_evaluations`** — QA and PO Review reports from prior cycles. These are the quality gaps you must address. If the same gap was flagged twice, it is now critical. If you were the one who introduced it, fix it first.
-- **`factory_decisions`** from prior cycles — What was tried before, what worked, what was rejected. Do not repeat failed approaches. Do not ignore decisions that worked.
+- **`factory_decisions`** from prior cycles — What was tried before, what worked, what was rejected. Do not repeat failed approaches. Do not ignore decisions that worked. When writing new factory_decisions, ALWAYS APPEND — never overwrite existing entries.
 - **`factory_questions`** from prior cycles — Ambiguities that were flagged. Check if they were resolved. If they were resolved, follow the resolution. If they were not, resolve them yourself and log your resolution.
 - **`evaluation_deltas`** — The trend. Is quality improving, stable, or regressing? If regressing, understand why before writing a line of code.
 - **`skipped`** from prior cycles — Tasks that were blocked or deferred. Check if the blockers are now resolved.
@@ -66,17 +76,16 @@ If `cycle_context.json` does not exist or is malformed, this is a fatal error. L
 
 ---
 
-## Step 2: Create the Loop Branch
+## Step 2: Confirm Working Branch
+
+V3 uses a single long-lived branch. Do NOT create a new branch. Commits go to the current branch as-is.
 
 ```bash
-git checkout <production-branch>
-git pull origin <production-branch>
-git checkout -b rouge/loop-<cycle_number>-<feature_area>
+git status
+git log --oneline -5
 ```
 
-Read `state.json` for `cycle_number` and `current_feature_area`. The branch name must match the pattern `rouge/loop-{N}-{feature-area}` exactly — the launcher and other phases depend on this convention.
-
-If the branch already exists (crash recovery, re-invocation), check it out rather than creating it. Each phase is idempotent.
+Confirm you are on the correct branch (as specified in the launcher preamble). If the working tree is dirty with unexpected changes, log a `factory_question` and proceed — do not attempt branch operations beyond what is explicitly described here.
 
 ---
 
@@ -109,32 +118,30 @@ Before extracting tasks, determine HOW to decompose this product. The profile is
 After profile detection, derive the strategy:
 
 1. Count entities across all feature areas. Count relationships. Count integrations from `vision.json.infrastructure.services`.
-2. Build dependency graph from `feature_areas[].dependencies`.
+2. Build dependency graph from `milestones[].stories[].depends_on`.
 3. Calculate graph density: `edges / (nodes * (nodes - 1) / 2)`
 4. Identify cross-cutting concerns (features that span multiple areas).
 5. Determine which capabilities activate:
 
 | Capability | Activates When |
 |-----------|---------------|
-| `foundation-cycle` | `needs_unified_schema` (entities shared by 2+ areas) OR `services.length > 0` |
+| `foundation-needed` | `needs_unified_schema` (entities shared by 2+ areas) OR `services.length > 0` — **signals a recommendation only; does NOT trigger a phase exit** |
 | `dependency-ordering` | graph density > 0.2 |
 | `parallel-building` | independent clusters > 1 (deferred — log only) |
 | `integration-pass` | cross-cutting concerns > 0 |
 | `integration-escalation` | any service in vision NOT in integration catalogue |
-| `foundation-evaluation` | foundation-cycle activated |
 
 6. Write `decomposition_strategy` to `cycle_context.json`.
-7. Write `detected_profile` to `state.json`.
-8. Log detection reasoning to `factory_decisions`.
+7. Log detection reasoning to `factory_decisions` (APPEND — do not overwrite).
 
-### Foundation Gate
+### Foundation Note
 
-If `foundation-cycle` capability is activated AND `state.foundation.status !== 'complete'`:
-- Write `state.current_state = "foundation-building"` to `state.json`
-- Write `foundation_spec` to `cycle_context.json` with scope and acceptance criteria derived from the analysis
-- EXIT. The launcher will dispatch the foundation building phase.
+If `foundation-needed` capability is detected AND no foundation story has been completed (check `cycle_context.json` for prior foundation story results):
+- Write a `factory_question` recommending that a foundation story be inserted into the milestone plan, with the specific scope and rationale.
+- **Do NOT exit.** Do NOT write to any state file. Continue to task extraction.
+- The Analyzer phase is responsible for recommending foundation insertion. The Builder only notes the gap and proceeds.
 
-Do NOT proceed to task extraction. Foundation must complete first.
+Building just builds. Only analyzing recommends insert-foundation.
 
 ---
 
@@ -181,7 +188,7 @@ When `dependency-ordering` capability is active:
 When `integration-escalation` capability is active:
 - For each feature area about to be built, check: does it need an integration that's missing from the catalogue?
 - If YES: write to `factory_questions` with specifics. Do NOT substitute.
-- If the integration is in `decomposition_strategy.integration_blockers`: HARD BLOCK, write to `factory_questions`, transition to `waiting-for-human`
+- If the integration is in `decomposition_strategy.integration_blockers`: HARD BLOCK, write to `factory_questions`, transition to `escalation`
 
 ---
 
@@ -291,6 +298,30 @@ If a fix would exceed these bounds, log it to `factory_questions` with severity 
 
 Do not log blast radius fixes as separate `implemented` tasks. They are part of the refactor step, committed alongside the task that surfaced them.
 
+### Tier 0 Self-Diagnosis — When TDD Fails Persistently
+
+If a test fails and you cannot make it pass after 3 focused attempts within this invocation, STOP fixing and switch to diagnostic mode. Do not retry the same approach. Diagnose.
+
+**Step 1: Classify the failure.** Every persistent failure belongs to exactly one category:
+
+| Classification | Signal | Response |
+|---------------|--------|----------|
+| `implementation-bug` | Spec is clear, context is available, code is just wrong | Trace the code path end-to-end. Find the root cause. Fix it. |
+| `design-problem` | The spec or user journey is wrong or contradictory | Log as `factory_question` with `impact_if_wrong: high`. Implement best interpretation. Note the divergence. |
+| `infrastructure-gap` | Required infrastructure (DB, API, integration) doesn't exist or doesn't work | Mark story as BLOCKED. Write escalation with `tier: 2`, `classification: infrastructure-gap`. |
+| `environment-limitation` | Test environment can't verify this (WebGL in headless, hardware dependency) | Write unit/integration tests for what CAN be tested. Note env_limitation in story result. Story can still PASS with documented limitations. |
+| `prompt-limitation` | Your instructions don't apply to this domain/stack | Log as `factory_question`. Skip the inapplicable step with justification. Continue building. |
+
+**Step 2: Act on the classification.** Do NOT jump from observation to fix. The classification determines the response — not every failure needs a code change.
+
+**Step 3: Record in story result.** Write the classification, diagnosis, and what you tried to `story_result` in `cycle_context.json`. This feeds fix_memory for future attempts.
+
+**When to escalate vs. continue:**
+- If the classification is `implementation-bug`: you should fix it. Try a fundamentally different approach, not the same one again.
+- If the classification is `environment-limitation`: document it and continue. The story passes with the limitation noted.
+- If the classification is `infrastructure-gap` or `design-problem`: the story is BLOCKED. Write the escalation and exit. Other stories will continue.
+- Check `story.fix_memory` before attempting any fix — if a previous attempt tried the same approach and it didn't work, try something different.
+
 ---
 
 ## Step 5: Subagent-Driven Development
@@ -381,7 +412,7 @@ If the project needs a database (check `cycle_context.json` for `supabase.projec
 1. **Read `cycle_context.json.supabase`** for the project reference.
 2. **If no project exists yet:**
    - Check active project count: `supabase projects list --output json`
-   - If at the 2-slot free tier limit: identify the least-recently-active project (check `state.json` timestamps across all projects), pause it: `supabase projects pause --project-ref <ref>`
+   - If at the 2-slot free tier limit: identify the least-recently-active project (check `cycle_context.json` timestamps across all projects), pause it: `supabase projects pause --project-ref <ref>`
    - Create or unpause the needed project.
    - Log the slot swap to `cycle_context.json`.
 3. **Run migrations:** `supabase db push` to apply any new or modified migrations.
@@ -391,11 +422,40 @@ If Supabase operations fail, log the error and continue. A missing database is a
 
 ---
 
-## Step 8: Write Back to cycle_context.json
+## Step 8: Write Back Results
 
-After all work is complete (or as complete as it can be given blockers), write back to `cycle_context.json`. This is how the next phase knows what happened.
+After all work is complete (or as complete as it can be given blockers), write results to `cycle_context.json`. The launcher reads `story_result` to advance the state machine.
 
-### Required Fields
+### Story Result (REQUIRED — the launcher reads this)
+
+```json
+{
+  "story_result": {
+    "story_id": "<from story_context.story.id>",
+    "outcome": "pass | fail | blocked",
+    "files_changed": ["src/components/VehicleForm.tsx", "src/api/vehicles.ts"],
+    "tests_added": 8,
+    "tests_passing": 8,
+    "env_limitations": ["<description of any environment limitations encountered>"],
+    "symptom": "<if fail/blocked: what went wrong>",
+    "diagnosis": "<if fail/blocked: root cause identified>",
+    "classification": "<if fail/blocked: implementation-bug | design-problem | infrastructure-gap | environment-limitation | prompt-limitation>",
+    "fix_attempted": "<if fail: what was tried>",
+    "blocked_by": "<if blocked: what blocks this story>",
+    "escalation": {
+      "tier": "<0-3>",
+      "summary": "<what needs to happen to unblock>"
+    }
+  }
+}
+```
+
+**Outcome rules:**
+- `pass` — all acceptance criteria for this story have passing tests. Env limitations documented but don't block.
+- `fail` — some acceptance criteria couldn't be met despite 3 attempts. Classification and diagnosis provided.
+- `blocked` — a structural issue prevents this story from completing. Escalation provided.
+
+### Additional Fields (append to existing cycle_context.json)
 
 ```json
 {
@@ -403,20 +463,20 @@ After all work is complete (or as complete as it can be given blockers), write b
 
   "implemented": [
     {
-      "task": "<task identifier>",
+      "task": "<story_id>",
       "acceptance_criteria": ["AC-area-1", "AC-area-2"],
-      "files_changed": ["src/components/TripHistory.tsx", "src/api/trips.ts"],
-      "tests_added": 12,
-      "tests_passing": 12
+      "files_changed": ["src/components/VehicleForm.tsx", "src/api/vehicles.ts"],
+      "tests_added": 8,
+      "tests_passing": 8
     }
   ],
 
   "skipped": [
     {
-      "task": "<task identifier>",
-      "reason": "<specific reason — dependency missing, spec contradiction, infrastructure blocker>",
+      "task": "<task within this story that was skipped>",
+      "reason": "<specific reason>",
       "blocker_type": "dependency|spec_contradiction|infrastructure|complexity",
-      "unblocked_by": "<what would need to happen for this to be unblocked>"
+      "unblocked_by": "<what would need to happen>"
     }
   ],
 
@@ -424,7 +484,7 @@ After all work is complete (or as complete as it can be given blockers), write b
     {
       "spec_says": "<what the spec specifies>",
       "actually_did": "<what was actually implemented>",
-      "rationale": "<why the divergence was necessary — ambiguity, technical constraint, discovered requirement>",
+      "rationale": "<why the divergence was necessary>",
       "affects_acceptance_criteria": ["AC-area-N"],
       "reversible": true
     }
@@ -440,6 +500,9 @@ After all work is complete (or as complete as it can be given blockers), write b
       "affects": ["<files, components, or features affected>"]
     }
   ],
+  // ⚠️ APPEND ONLY: factory_decisions must be appended to the existing array in cycle_context.json.
+  // Do NOT overwrite or replace previous entries from prior phases or cycles.
+  // Read the existing array first, then push new entries onto it.
 
   "factory_questions": [
     {
@@ -455,7 +518,7 @@ After all work is complete (or as complete as it can be given blockers), write b
 
 ### Writing Rules
 
-- **Append, do not replace.** Prior cycle data in `cycle_context.json` must be preserved. Add your data to the existing structure. If `factory_decisions` already has entries from prior cycles, add yours — do not overwrite.
+- **Append, do not replace.** Prior cycle data in `cycle_context.json` must be preserved. Add your data to the existing structure. If `factory_decisions` already has entries from prior cycles or phases, APPEND yours — do not overwrite, do not replace. Read the existing array, push new entries onto it, write the merged result.
 - **Be specific.** "Implemented the trip history page" is useless. "Implemented TripHistory component with list view, detail drawer, pagination (10 per page), and empty state. Handles 5 error scenarios from spec. 12 tests added, all passing." is useful.
 - **Log everything you decided.** If you chose between two approaches, log both and why you chose one. The Evaluator will read this. If it finds a problem with your choice, your rationale helps it determine root cause (bad decision vs. bad options).
 - **Log everything you skipped.** A skipped task with no explanation is invisible to the next phase. It will be flagged as "not implemented" rather than "intentionally deferred."
@@ -579,10 +642,11 @@ This phase absorbs patterns from established methodologies but applies them auto
 
 ## Work Unit Guidelines
 
-Each feature area should be buildable in one session (10-20 min). If you find yourself needing more time:
-- The feature area is too large — flag this in `factory_questions`
-- Split it: create sub-areas and note the split in `divergences`
+You are building ONE STORY per invocation, not a feature area. The story has 2-6 acceptance criteria. Build them all with TDD. If the story is too large to complete in one session (~20 min):
+- Flag in `factory_questions`: "Story X has N acceptance criteria — consider splitting"
+- Complete as many ACs as you can, report partial progress in `story_result`
 
-If the feature area is trivially small (< 5 min):
-- Combine it with the next area if they share screens
-- Note the combination in `factory_decisions`
+If the story is trivially small (< 5 min, 1-2 simple ACs):
+- Build it and exit. Short stories are fine — the launcher picks the next one.
+
+**Depth within a story:** You CAN discover complexity and go deeper — add hover states, handle edge cases, implement error recovery. This is craftsmanship. You CANNOT add new stories or features not in your story spec. That's scope creep. The line is: does this make the current story's acceptance criteria pass properly? Yes = do it. No = log it as a `factory_question`.

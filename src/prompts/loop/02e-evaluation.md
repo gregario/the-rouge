@@ -2,6 +2,8 @@
 
 Include the autonomous-mode partial from `.claude/skills/partials/autonomous-mode.md`
 
+> **V3 Phase Contract:** Injected by launcher at runtime. See _preamble.md for the I/O contract.
+
 ---
 
 ## Phase Identity
@@ -26,9 +28,32 @@ From `cycle_context.json`:
 
 *"Did the devs deliver what was asked?"*
 
-**Criteria verification:** For each criterion in `active_spec`, find matching observations in `product_walk.screens[].interactive_elements` and `product_walk.journeys`. Verdict per criterion: `pass` / `fail` / `partial` with evidence referencing specific screen route and element.
+**Criteria verification:** For each criterion in `active_spec`, find matching observations in `product_walk.screens[].interactive_elements` and `product_walk.journeys`. Verdict per criterion: `pass` / `fail` / `partial` / `env_limited` with evidence referencing specific screen route and element.
 
-Emit: `QA lens: <passed>/<total> criteria pass`
+**Environment limitations:** Some criteria cannot be verified due to the test environment (e.g., WebGL unavailable in headless browser, hardware-dependent features, third-party service dependencies). When the product walk notes an environment limitation, OR when the criterion requires visual rendering that headless Chrome cannot provide (WebGL, canvas, GPU-accelerated CSS):
+
+1. Verify that the **code implementing the criterion exists and is structurally correct** — read the source code, check that the component/function exists, check that tests cover the logic
+2. Verify that the **fallback behavior is graceful** (no crashes, blank screens have explanatory UI)
+3. If both checks pass, verdict is `env_limited` — NOT `fail`
+4. `env_limited` criteria count as **passed** for criteria pass rate calculation
+5. Log the limitation clearly: what criterion, what environment constraint, what code evidence suggests it works
+
+Do NOT use `env_limited` as an escape hatch for real failures. It applies ONLY when:
+- The test environment inherently cannot verify the criterion (WebGL in headless, native hardware features)
+- The code path exists and is structurally correct (verified by reading source + tests)
+- The limitation is environmental, not a product bug
+
+**Common env_limited scenarios for web products:**
+- MapLibre/Mapbox/Leaflet map rendering (requires WebGL)
+- Canvas-based visualisations
+- WebSocket/SSE real-time updates (can verify code structure, not live behaviour)
+- GPS/geolocation features
+- Camera/media capture
+- Web Audio API
+
+**Infrastructure limitations:** If `milestone_context.milestone.stories` or `story_context.story` has `env_limitations` entries, the story builder already classified these during building. Respect those classifications — they were made with full code context.
+
+Emit: `QA lens: <passed>/<total> criteria pass (<env_limited> env-limited)`
 
 **Functional correctness:** Aggregate from walk data across all screens:
 - `console_errors` — total count from `product_walk.screens[].console_errors`
@@ -36,7 +61,7 @@ Emit: `QA lens: <passed>/<total> criteria pass`
 - `broken_links` — navigation elements leading to error pages or 404s
 - `pages_checked` — total screens walked
 
-**Output fields:** `criteria_results[]`, `functional_correctness`, `criteria_pass_rate`
+**Output fields:** `criteria_results[]` (each with verdict: `pass`/`fail`/`partial`/`env_limited`), `functional_correctness`, `criteria_pass_rate`, `env_limited_count`
 
 ### Lens 2: Design (UI/UX Quality)
 
@@ -89,12 +114,24 @@ Emit: `Design: <score>/100`
 
 **Heuristic evaluation:** Apply Nielsen's 10 usability heuristics against walk observations. Add any `library_heuristics` from cycle_context. Each heuristic: pass/fail with evidence.
 
-**Confidence:** 0.0-1.0 computed from:
+**Confidence (raw):** 0.0-1.0 computed from:
 - QA criteria pass rate (weight: 30%)
 - Design overall score (weight: 20%)
 - Heuristic pass rate (weight: 20%)
 - Journey quality average (weight: 15%)
 - Trend vs previous cycles (weight: 15%)
+
+**Confidence (adjusted):** The same calculation but with `env_limited` features excluded from the inputs:
+- QA criteria pass rate: exclude `env_limited` criteria (they already count as passed in QA, apply the same here)
+- Journey quality: exclude journey steps that depend on env_limited features (e.g., "view live map" when WebGL is unavailable). Score only the journeys/steps that CAN be evaluated.
+- Screen quality: exclude screens whose primary purpose is an env_limited feature (e.g., the map screen when WebGL is unavailable). Score screens that render real content.
+- Design and heuristic scores: apply as normal (these evaluate what IS visible, not what's missing)
+
+The adjusted confidence is what the analyzing phase uses for threshold decisions (>= 0.7 for deepen, >= 0.9 for promote). The raw confidence is preserved for human reference.
+
+**Why both:** The evaluation should see everything and record everything honestly — including that the map shows an error boundary. But the score that drives autonomous decisions shouldn't be dragged down by environment limitations that can't be fixed by the loop. The observation is valuable. The penalty isn't.
+
+Emit: `PO: confidence <raw_score> (adjusted: <adjusted_score>)`
 
 **Recommended action:**
 - `continue` — ship-ready, no blockers
@@ -103,9 +140,29 @@ Emit: `Design: <score>/100`
 - `rollback` — critical regression from previous cycle
 - `notify-human` — ambiguity or judgment call that requires human input
 
-Emit: `PO: confidence <score>`
+> **Verdict vs confidence:** The PO verdict (PRODUCTION_READY / NEEDS_IMPROVEMENT / NOT_READY) is the AUTHORITATIVE signal for routing. The confidence score (0.0-1.0) is used by the analyzing phase for trend analysis only. When in doubt, the categorical verdict wins.
 
-**Output fields:** `journey_quality[]`, `screen_quality[]`, `heuristic_results` (total, passed, pass_rate_pct), `verdict` (PRODUCTION_READY / NEEDS_IMPROVEMENT / NOT_READY), `confidence`, `recommended_action`
+**Output fields:** `journey_quality[]`, `screen_quality[]`, `heuristic_results` (total, passed, pass_rate_pct), `verdict` (PRODUCTION_READY / NEEDS_IMPROVEMENT / NOT_READY), `confidence` (raw), `confidence_adjusted` (env_limited excluded), `env_limited_impact` (what was excluded and why), `recommended_action`, `improvement_items[]`
+
+**Improvement items:** During the PO lens, you will notice things that are not blocking (confidence >= 0.9 is still possible) but that a real product should fix before shipping: a missing logout button, user identity not shown, inconsistent mobile layout, missing navigation breadcrumbs, etc. These are not quality gaps that drag down confidence — they are product completeness observations.
+
+For each such observation, emit an `improvement_item` with:
+- `id`: `imp-<short-slug>` (e.g., `imp-no-logout`, `imp-missing-breadcrumbs`)
+- `description`: What is missing or wrong
+- `evidence`: Screen route and element or screenshot reference
+- `scope`: One of:
+  - `this-milestone` — relevant to what we're shipping in the current milestone (e.g., a logout button during a dashboard milestone that includes auth)
+  - `global` — cross-cutting concern no single milestone owns (e.g., no home navigation from any inner page, inconsistent footer across all pages)
+  - `future-milestone` — belongs to a later milestone's scope (e.g., vehicle detail page layout spotted during a dashboard milestone, when vehicle details is a future milestone)
+- `severity`: `low | medium` (if it were high/critical, it would be a quality gap dragging down confidence, not an improvement item)
+- `grounding`: Which acceptance criterion, vision statement, or usability heuristic makes this a real requirement — not an invented one. If you cannot ground it, do not emit it.
+
+**Scope rules:**
+- `this-milestone`: Only if the improvement is within the current milestone's acceptance criteria or directly implied by them. A dashboard milestone that ships auth should have a logout button.
+- `global`: Only for patterns that span multiple milestones. Navigation consistency, footer presence, responsive behavior patterns.
+- `future-milestone`: When you observe something that belongs to a milestone not yet started. These will be handled when that milestone runs.
+
+**Grounding rule:** Every improvement item MUST reference a specific acceptance criterion, vision statement, or usability heuristic. "It would be nice if..." is not grounded. "Vision states the dashboard should feel complete and professional; a missing logout forces users to clear cookies" IS grounded. This prevents scope creep and the "designed by committee" problem — only real, grounded improvements make it through.
 
 ## Health Score
 
@@ -128,9 +185,13 @@ Emit: `Health: <score>/100`
 
 ## QA Verdict Rules
 
+**Criteria pass rate calculation:** `(pass + env_limited) / total`. Criteria with `env_limited` verdict count as passed — they represent working code that can't be visually verified in the test environment.
+
 For `evaluation_report.qa.verdict`:
-- **PASS:** zero CRITICAL findings AND criteria pass rate >= 90% AND health >= 70 AND security PASS AND a11y PASS
-- **FAIL:** any CRITICAL finding OR criteria < 90% OR health < 70 OR security FAIL OR a11y FAIL
+- **PASS:** zero CRITICAL findings AND criteria pass rate >= 90% (counting `env_limited` as passed) AND health >= 70 AND security PASS AND a11y PASS
+- **FAIL:** any CRITICAL finding OR criteria pass rate < 90% OR health < 70 OR security FAIL OR a11y FAIL
+
+Note: `env_limited` criteria should be flagged in the report so humans can verify them manually. But they do NOT block QA verdict.
 
 ## Fix Tasks
 
@@ -187,7 +248,24 @@ To `cycle_context.json`, write a single `evaluation_report` key containing all t
       "heuristic_results": {},
       "verdict": "PRODUCTION_READY|NEEDS_IMPROVEMENT|NOT_READY",
       "confidence": 0.91,
-      "recommended_action": "continue"
+      "confidence_adjusted": 0.94,
+      "env_limited_impact": {
+        "excluded_criteria": ["map-renders-correctly"],
+        "excluded_journeys": ["explore-map"],
+        "excluded_screens": ["/map"],
+        "rationale": "WebGL unavailable in headless — map components verified via code review"
+      },
+      "recommended_action": "continue",
+      "improvement_items": [
+        {
+          "id": "imp-no-logout",
+          "description": "No logout button visible on any screen",
+          "evidence": "Screen /dashboard — no logout in header or sidebar",
+          "scope": "this-milestone",
+          "severity": "medium",
+          "grounding": "AC-dashboard-auth-3: authenticated sessions; logout is implied"
+        }
+      ]
     },
     "health_score": 82,
     "re_walk_requests": []

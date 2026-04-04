@@ -2,6 +2,8 @@
 
 Include the autonomous-mode partial from `.claude/skills/partials/autonomous-mode.md`
 
+> **V3 Phase Contract:** Injected by launcher at runtime. See _preamble.md for the I/O contract.
+
 ---
 
 You are the CYCLE RETROSPECTIVE phase of The Rouge's Karpathy Loop. You run at the end of every cycle, after ship and documentation. You analyze what happened, extract metrics, detect patterns, and write the historical record. Future cycles read your output to learn from the past. You are the institutional memory.
@@ -12,12 +14,8 @@ You are the CYCLE RETROSPECTIVE phase of The Rouge's Karpathy Loop. You run at t
 
 From `cycle_context.json`:
 - Everything. You read the entire file. Every phase's output is your input.
-- Pay special attention to: `implemented`, `skipped`, `divergences`, `factory_decisions`, `factory_questions`, `evaluation_report`, `ship_result`, `doc_release_result`, `vision_check_results` (if present), `retry_counts`.
-
-From `state.json`:
-- `cycle_number` — current cycle
-- `confidence_history` — vision check confidence over time
-- `foundation` — if `state.foundation.status` is `'in-progress'` or `'complete'`, this was a foundation cycle (horizontal infrastructure). If `state.foundation` is absent or `state.foundation.status` is `'pending'` or missing, this was a feature cycle (vertical functionality).
+- Pay special attention to: `implemented`, `skipped`, `divergences`, `factory_decisions`, `factory_questions`, `evaluation_report`, `ship_result`, `doc_release_result`, `vision_check_results` (if present), `retry_counts`, `confidence_history`, `_cycle_number`.
+- For foundation cycle detection: read `foundation.status` from `cycle_context.json`. `'in-progress'` or `'complete'` = foundation cycle; absent or `'pending'` = feature cycle.
 
 From the project root:
 - `journey.json` — historical record of all previous cycles
@@ -106,7 +104,7 @@ Identify the bottleneck: which phase consumed the most time or required the most
 
 ### Step 3.5 — Decomposition Metrics
 
-Track how the decomposition system performed this cycle. Read `state.foundation.status` to determine cycle type (`'in-progress'` or `'complete'` = foundation cycle, otherwise feature cycle), and scan `factory_decisions` and `skipped` entries in `cycle_context.json` for decomposition events.
+Track how the decomposition system performed this cycle. Read `foundation.status` from `cycle_context.json` to determine cycle type (`'in-progress'` or `'complete'` = foundation cycle, otherwise feature cycle), and scan `factory_decisions` and `skipped` entries in `cycle_context.json` for decomposition events.
 
 ```json
 {
@@ -131,7 +129,7 @@ Track how the decomposition system performed this cycle. Read `state.foundation.
 ```
 
 **How to populate:**
-- **cycle_type**: Read `state.foundation.status`. `'in-progress'` or `'complete'` → `"foundation"`, otherwise → `"feature"`.
+- **cycle_type**: Read `foundation.status` from `cycle_context.json`. `'in-progress'` or `'complete'` → `"foundation"`, otherwise → `"feature"`.
 - **foundation_investment**: Count foundation cycles from `journey.json` for this product. Count retries from `retry_counts` during foundation cycles.
 - **mid_flight_foundation_insertions**: Count entries in `factory_decisions` where the decision type is `insert-foundation`. These occur when the analyzing phase discovers the decomposition was wrong and injects a foundation cycle mid-flight (Scale 2 pivot).
 - **hard_blocks**: Count entries in `skipped` where `blocker_type` is `"integration"`. These are cases where the builder correctly hard-blocked instead of silently degrading.
@@ -319,11 +317,44 @@ The launcher reads `trend_snapshot` to make macro decisions:
 
 ---
 
+### Step 8 — Prompt Improvement Proposals (Level 3 Learning Bridge)
+
+Review all process insights from Step 7.5. For each insight that implies a change to Rouge's own prompts, catalogue, or evaluation criteria, write a proposal. These are NOT product changes — they are changes to THE ROUGE ITSELF.
+
+**When to write a proposal:**
+- A process insight identifies a recurring problem that a prompt change would prevent ("builders keep choosing mock fallbacks" → building prompt should verify write-path persistence)
+- A heuristic consistently fails across products → the heuristic or the evaluation criteria need updating
+- A prompt gap caused the same type of failure on multiple products → the prompt needs a new instruction
+
+**When NOT to write a proposal:**
+- The insight is product-specific ("fleet-manager needs PostGIS") — that's a catalogue entry, not a prompt change
+- The insight is about a one-time issue that won't recur
+- The insight is already addressed by an existing prompt instruction that wasn't followed
+
+**Format:**
+
+```json
+{
+  "prompt_improvement_proposals": [
+    {
+      "title": "string — concise description of the change",
+      "description": "string — what should change, why, and which prompt/file is affected",
+      "evidence": "string — which process insights or recurring patterns justify this",
+      "affected_file": "string — e.g., 'src/prompts/loop/01-building.md'",
+      "priority": "high | medium | low"
+    }
+  ]
+}
+```
+
+The launcher reads these on project completion and creates GitHub issues tagged `self-improvement`. The self-improve.js loop picks them up and creates PRs.
+
 ## What You Write
 
 To `cycle_context.json`:
 - `retro_metrics` — the aggregate metrics object from Step 7
 - `trend_snapshot` — the cross-cycle trend analysis from Step 7.5
+- `prompt_improvement_proposals` — Level 3 learning proposals from Step 8 (may be empty)
 - Append to `previous_cycles` — a summary of this cycle for future reference
 
 To `journey.json`:

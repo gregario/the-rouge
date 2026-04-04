@@ -2,6 +2,8 @@
 
 Include the autonomous-mode partial from `.claude/skills/partials/autonomous-mode.md`
 
+> **V3 Phase Contract:** Injected by launcher at runtime. See _preamble.md for the I/O contract.
+
 ---
 
 ## Phase Identity
@@ -21,6 +23,7 @@ From `cycle_context.json`:
 
 From the project directory:
 - `feedback.json` — human feedback file, if it exists. This is the Product Owner's voice. Read it carefully.
+- `global_improvements.json` — accumulated global improvement observations from milestone evaluations, if it exists. These are cross-cutting issues spotted during the loop that no single milestone owned: navigation gaps, consistency issues, a11y patterns, responsive behavior. Read these BEFORE your walkthrough so you know what to look for, but do NOT treat them as a checklist. You are still a customer, not an auditor.
 
 ## Environment
 
@@ -58,6 +61,8 @@ Note everything:
 - **Moments of delight** — things that feel genuinely good (smooth animations, clever defaults, thoughtful empty states)
 - **Moments of confusion** — times you did not know what to do next
 
+**Global improvements awareness:** If `global_improvements.json` exists, you have a list of known cross-cutting issues accumulated during the loop. As you use the product, notice whether these issues are present. Some may have been fixed by later milestones without being explicitly tracked. Some may still be there. Report what you actually observe — do not copy-paste from the file. If a global improvement is still present and affects your experience, mention it in your findings. If it appears to have been fixed, note that too.
+
 Take screenshots throughout. Not systematically — when something catches your eye, good or bad. **All screenshots must be clean** — no element annotations, no red bounding boxes. If annotations are visible, run `$B snapshot --reset` before screenshotting.
 
 ```bash
@@ -94,7 +99,15 @@ To `cycle_context.json`, write `final_review_report`:
     "overall_impression": "A focused, polished timer app that does one thing well. The core flow is frictionless. A few rough edges around settings and first-load, but nothing that would stop a real user.",
     "recommendation": "ship",
     "human_feedback_incorporated": true,
-    "human_feedback_summary": "Owner flagged the first-load blank state (confirmed — rough_edges #1) and praised the timer animation (confirmed — delight_moments #1)."
+    "human_feedback_summary": "Owner flagged the first-load blank state (confirmed — rough_edges #1) and praised the timer animation (confirmed — delight_moments #1).",
+    "global_improvements_observed": [
+      {
+        "id": "global-001",
+        "still_present": true,
+        "customer_impact": "Couldn't find way back to homepage from vehicle detail page"
+      }
+    ],
+    "global_improvements_resolved": ["global-003"]
   }
 }
 ```

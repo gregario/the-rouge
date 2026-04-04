@@ -102,13 +102,23 @@ Read `cycle_context.json.retry_counts` (object keyed by issue ID). Before retryi
 }
 ```
 
+### V2 Context Views
+
+In V2, the launcher assembles focused context views before each invocation. Prompts read these instead of the full cycle_context.json:
+
+- **`story_context.json`** — for story-building. Contains: story spec, fix memory, foundation brief, related stories, milestone learnings, filtered decisions. Read this FIRST.
+- **`milestone_context.json`** — for milestone-check. Contains: all story results, diff scope, deployment, full T3 context.
+- **`fix_story_context.json`** — for milestone-fix. Contains: regression evidence, root cause, retry history, do-not-repeat.
+
+Prompts still WRITE to `cycle_context.json` (it's the long-term accumulator). But they READ from the focused view that matches their state.
+
 ### cycle_context.json Schema
 
-The complete schema. Every phase reads the full file. Fields are grouped by who writes them.
+The complete schema. Every phase reads the full file (or the relevant focused view). Fields are grouped by who writes them.
 
 ```json
 {
-  "_schema_version": "1.0",
+  "_schema_version": "2.0",
   "_project_name": "string",
   "_cycle_number": "integer",
 
@@ -133,6 +143,21 @@ The complete schema. Every phase reads the full file. Fields are grouped by who 
     "tests": "boolean",
     "docs": "boolean",
     "config": "boolean"
+  },
+
+  "story_result": {
+    "story_id": "string — which story was built",
+    "outcome": "pass | fail | blocked",
+    "files_changed": "array of file paths",
+    "tests_added": "integer",
+    "tests_passing": "integer",
+    "env_limitations": "array of strings describing environment limitations",
+    "symptom": "string — if fail/blocked, what went wrong",
+    "diagnosis": "string — if fail/blocked, root cause",
+    "classification": "implementation-bug | design-problem | infrastructure-gap | environment-limitation | prompt-limitation",
+    "fix_attempted": "string — if fail, what was tried",
+    "blocked_by": "string — if blocked, what blocks this",
+    "escalation": { "tier": "0-3", "summary": "string" }
   },
 
   "test_integrity_report": {

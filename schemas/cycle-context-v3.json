@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "V3 Cycle Context — Per-Phase Output Contract",
+  "description": "Defines required and forbidden output keys per phase. Prompts write to cycle_context.json ONLY.",
+  "phase_contracts": {
+    "foundation": {
+      "required_output_keys": [
+        "deployment_url",
+        "implemented",
+        "skipped",
+        "divergences",
+        "factory_decisions",
+        "factory_questions",
+        "foundation_completion"
+      ],
+      "forbidden_output_keys": [
+        "story_result",
+        "evaluation_report",
+        "analysis_recommendation"
+      ]
+    },
+    "foundation-eval": {
+      "required_output_keys": [
+        "foundation_eval_report"
+      ],
+      "forbidden_output_keys": [
+        "story_result",
+        "evaluation_report",
+        "ship_result"
+      ]
+    },
+    "story-building": {
+      "required_output_keys": [
+        "story_result",
+        "implemented",
+        "skipped",
+        "divergences",
+        "factory_decisions",
+        "factory_questions"
+      ],
+      "forbidden_output_keys": [
+        "foundation_eval_report",
+        "evaluation_report",
+        "analysis_recommendation",
+        "ship_result"
+      ]
+    },
+    "milestone-check": {
+      "required_output_keys": [
+        "diff_scope",
+        "evaluation_tier",
+        "evaluation_report"
+      ],
+      "forbidden_output_keys": [
+        "story_result",
+        "foundation_eval_report",
+        "ship_result"
+      ]
+    },
+    "milestone-fix": {
+      "required_output_keys": [
+        "qa_fix_results"
+      ],
+      "forbidden_output_keys": [
+        "story_result",
+        "evaluation_report",
+        "ship_result"
+      ]
+    },
+    "analyzing": {
+      "required_output_keys": [
+        "analysis_recommendation",
+        "analysis_result"
+      ],
+      "forbidden_output_keys": [
+        "story_result",
+        "foundation_eval_report",
+        "ship_result"
+      ]
+    },
+    "generating-change-spec": {
+      "required_output_keys": [
+        "change_specs_pending"
+      ],
+      "forbidden_output_keys": [
+        "story_result",
+        "evaluation_report",
+        "ship_result"
+      ]
+    },
+    "vision-check": {
+      "required_output_keys": [
+        "vision_check_results"
+      ],
+      "forbidden_output_keys": [
+        "story_result",
+        "foundation_eval_report",
+        "evaluation_report"
+      ]
+    },
+    "shipping": {
+      "required_output_keys": [
+        "ship_result"
+      ],
+      "forbidden_output_keys": [
+        "story_result",
+        "evaluation_report",
+        "analysis_recommendation"
+      ]
+    },
+    "final-review": {
+      "required_output_keys": [
+        "final_review_report"
+      ],
+      "forbidden_output_keys": [
+        "story_result",
+        "ship_result",
+        "evaluation_report"
+      ]
+    },
+    "story-diagnosis": {
+      "required_output_keys": [
+        "qa_fix_results"
+      ],
+      "forbidden_output_keys": [
+        "evaluation_report",
+        "ship_result"
+      ]
+    }
+  }
+}
