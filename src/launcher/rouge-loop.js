@@ -8,6 +8,11 @@ const { execFileSync, execSync, spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { loadProjectSecrets } = require('./secrets.js');
+const { writeCheckpoint, readLatestCheckpoint, readAllCheckpoints } = require('./checkpoint.js');
+const { checkMilestoneLock, promoteMilestone, shouldEscalateForSpin, getCompletedStoryNames, isStoryDuplicate } = require('./safety.js');
+const { trackPhaseCost, checkBudgetCap } = require('./cost-tracker.js');
+const { deployWithRetry, shouldBlockMilestoneCheck } = require('./deploy-blocking.js');
+// V3: model-selection.js will be added in Phase C (task C2)
 
 // Load .env from Rouge root (for ROUGE_SLACK_WEBHOOK, etc.)
 {
@@ -329,16 +334,30 @@ function startStory(state, milestone, story) {
   return 'story-building';
 }
 
-function advanceState(projectDir) {
+async function advanceState(projectDir) {
   const projectName = path.basename(projectDir);
   const stateFile = path.join(projectDir, 'state.json');
   const contextFile = path.join(projectDir, 'cycle_context.json');
+  const checkpointsFile = path.join(projectDir, 'checkpoints.jsonl');
   const state = readJson(stateFile);
   if (!state) return;
 
   const current = state.current_state;
   const flat = flatStories(state);
   let next = null;
+
+  // V3: Write checkpoint before state transition
+  writeCheckpoint(checkpointsFile, {
+    phase: current,
+    state: {
+      current_milestone: state.current_milestone,
+      current_story: state.current_story,
+      promoted_milestones: state.promoted_milestones || [],
+      consecutive_failures: state.consecutive_failures || 0,
+      stories_executed: state.stories_executed || [],
+    },
+    costs: state.costs || {},
+  });
 
   switch (current) {
 
@@ -449,6 +468,18 @@ function advanceState(projectDir) {
         story.files_changed = result.files_changed || [];
         story.env_limitations = result.env_limitations || [];
         state.consecutive_failures = 0;
+
+        // V3: Track story execution for spin detection
+        if (!state.stories_executed) state.stories_executed = [];
+        state.stories_executed.push({
+          name: story.name || story.id,
+          delta: state.last_build_delta || 0,
+          duration_ms: 0,
+        });
+        if (state.last_build_delta > 0) {
+          state.last_meaningful_progress_at = Date.now();
+        }
+
         // No deploy here — deploy happens once before milestone-check
 
       } else if (outcome === 'blocked') {
@@ -500,6 +531,31 @@ function advanceState(projectDir) {
 
       writeJson(stateFile, state);
 
+      // V3: Spin detection — escalate if loop is spinning without progress
+      const spinReason = shouldEscalateForSpin({
+        stories_executed: state.stories_executed || [],
+        last_meaningful_progress_at: state.last_meaningful_progress_at || Date.now(),
+      }, {
+        zero_delta_threshold: 3,
+        time_stall_minutes: 30,
+      });
+      if (spinReason) {
+        log(`[${projectName}] Spin detected: ${spinReason}`);
+        if (!state.escalations) state.escalations = [];
+        state.escalations.push({
+          id: `esc-spin-${Date.now()}`,
+          tier: 2,
+          classification: 'spin-detection',
+          summary: spinReason,
+          story_id: state.current_story || null,
+          status: 'pending',
+          created_at: new Date().toISOString(),
+        });
+        writeJson(stateFile, state);
+        next = 'escalation';
+        break;
+      }
+
       // Circuit breaker: 3+ consecutive failures → early diagnostic
       if ((state.consecutive_failures || 0) >= 3) {
         log(`[${projectName}] Circuit breaker: ${state.consecutive_failures} consecutive failures`);
@@ -550,19 +606,41 @@ function advanceState(projectDir) {
         }
 
         log(`[${projectName}] Milestone "${milestone.name}" batch complete (${doneCount} done, ${blockedCount} blocked) — deploying to staging`);
-        try {
-          const { deploy } = require('./deploy-to-staging');
-          deploy(projectDir);
-          log(`[${projectName}] Staging deploy complete`);
-        } catch (err) {
-          log(`[${projectName}] Staging deploy failed: ${(err.message || '').slice(0, 200)} — milestone-check will use local dev server`);
+        // V3: Deploy with retry + blocking
+        const { deploy } = require('./deploy-to-staging');
+        const deployResult = await deployWithRetry(() => deploy(projectDir), { maxRetries: 3, retryDelayMs: 30000 });
+        if (shouldBlockMilestoneCheck(deployResult)) {
+          log(`[${projectName}] Deploy failed after retries — blocking milestone-check`);
+          if (!state.escalations) state.escalations = [];
+          state.escalations.push({
+            id: `esc-deploy-failed-${Date.now()}`,
+            tier: 1,
+            classification: 'deploy-failure',
+            summary: deployResult?.reason || 'Staging deploy failed',
+            story_id: null,
+            status: 'pending',
+            created_at: new Date().toISOString(),
+          });
+          writeJson(stateFile, state);
+          next = 'escalation';
+        } else {
+          log(`[${projectName}] Staging deploy complete: ${deployResult.url}`);
+          next = 'milestone-check';
         }
-        next = 'milestone-check';
         break;
       }
 
-      // Next story
-      const eligible = findNextStory(milestone, flatStories(state));
+      // Next story (V3: skip duplicates)
+      let eligible = findNextStory(milestone, flatStories(state));
+      if (eligible) {
+        const completedNames = getCompletedStoryNames(readAllCheckpoints(checkpointsFile));
+        while (eligible && isStoryDuplicate(eligible.name || eligible.id, completedNames)) {
+          log(`[${projectName}] Skipping duplicate story: ${eligible.name || eligible.id}`);
+          eligible.status = 'done';
+          eligible.completed_at = new Date().toISOString();
+          eligible = findNextStory(milestone, flatStories(state));
+        }
+      }
       if (eligible) {
         next = startStory(state, milestone, eligible);
         writeJson(stateFile, state);
@@ -670,12 +748,37 @@ function advanceState(projectDir) {
 
       // Normal progression
       if (action === 'continue' || action === 'promote') {
+        // V3: Milestone lock — prevent regression to already-promoted milestones
+        const latestCp = readLatestCheckpoint(checkpointsFile);
+        if (latestCp && checkMilestoneLock(latestCp, state.current_milestone)) {
+          log(`[${projectName}] Milestone "${state.current_milestone}" already promoted — skipping to next`);
+          const nextMs = findNextMilestone(state);
+          if (nextMs) {
+            nextMs.status = 'in-progress';
+            const eligible = findNextStory(nextMs, flatStories(state));
+            if (eligible) {
+              next = startStory(state, nextMs, eligible);
+              writeJson(stateFile, state);
+              log(`[${projectName}] Skipped to milestone: ${nextMs.name}`);
+            } else {
+              next = 'milestone-check';
+            }
+          } else {
+            next = 'vision-check';
+          }
+          break;
+        }
+
         // Mark milestone done
         const milestone = (state.milestones || []).find(m => m.name === state.current_milestone);
         if (milestone) {
           milestone.status = (milestone.stories || []).some(s => s.status === 'blocked')
             ? 'partial' : 'complete';
         }
+
+        // V3: Lock promoted milestone
+        promoteMilestone(state, state.current_milestone);
+        log(`[${projectName}] Milestone "${state.current_milestone}" promoted and locked`);
 
         // Next milestone
         const nextMs = findNextMilestone(state);
@@ -905,7 +1008,7 @@ async function runPhase(projectDir) {
   // V2: escalation state handles feedback via advanceState (checks feedback.json).
   // If in escalation and feedback exists, advanceState will resolve and transition.
   if (currentState === 'escalation') {
-    advanceState(projectDir);
+    await advanceState(projectDir);
     return { success: true };
   }
 
@@ -917,13 +1020,34 @@ async function runPhase(projectDir) {
     log(`[${projectName}] Normalizing state: ${currentState} → advancing from ${baseState}`);
     state.current_state = baseState;
     writeJson(stateFile, state);
-    advanceState(projectDir);
+    await advanceState(projectDir);
     return { success: true };
   }
 
   // Infrastructure provisioning is handled in advanceState after foundation-eval.
   // Deploy to staging is handled in advanceState before milestone-check.
   // No provisioning or deployment in runPhase.
+
+  // V3: Budget cap check before starting phase
+  const checkpointsFile = path.join(projectDir, 'checkpoints.jsonl');
+  const configFile = path.join(ROUGE_ROOT, 'rouge.config.json');
+  const config = readJson(configFile) || {};
+  if (config.budget_cap_usd && checkBudgetCap(state, config.budget_cap_usd)) {
+    log(`[${projectName}] Budget cap reached ($${state.costs?.cumulative_cost_usd?.toFixed(2)} / $${config.budget_cap_usd}) — escalating`);
+    state.current_state = 'escalation';
+    if (!state.escalations) state.escalations = [];
+    state.escalations.push({
+      id: `esc-budget-cap-${Date.now()}`,
+      tier: 2,
+      classification: 'budget-exceeded',
+      summary: `Budget cap reached: $${state.costs?.cumulative_cost_usd?.toFixed(2)} / $${config.budget_cap_usd}`,
+      story_id: null,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+    });
+    writeJson(stateFile, state);
+    return { success: false, budgetExceeded: true };
+  }
 
   // Snapshot state before phase — enables recovery from corruption
   snapshotState(projectDir, currentState);
@@ -1125,7 +1249,7 @@ async function runPhase(projectDir) {
       }
     }, HEARTBEAT_INTERVAL);
 
-    child.on('close', (code) => {
+    child.on('close', async (code) => {
       try { clearInterval(heartbeat); } catch {}
       try { logStream.end(); } catch {}
 
@@ -1178,6 +1302,15 @@ async function runPhase(projectDir) {
       const delta = filesAfter - filesBefore;
       log(`[${projectName}] Phase ${currentState} completed (files: ${filesBefore} → ${filesAfter}, delta: +${delta})`);
 
+      // V3: Track phase cost (estimate from log file size as token proxy)
+      try {
+        const logSize = fs.statSync(phaseLog).size;
+        const estimatedTokens = Math.max(logSize * 2, 10000); // rough estimate
+        trackPhaseCost(state, estimatedTokens, MODEL);
+        writeJson(stateFile, state);
+        log(`[${projectName}] Cost: ~${state.costs.phase_cost_usd.toFixed(2)} USD this phase, ~${state.costs.cumulative_cost_usd.toFixed(2)} USD cumulative`);
+      } catch {}
+
       // Store build delta in state so advanceState can detect no-op builds
       // V2: story-building tracks delta per story (used by advanceState for no-op detection)
       if (currentState === 'story-building') {
@@ -1207,7 +1340,7 @@ async function runPhase(projectDir) {
 
       // Advance state machine
       try {
-        advanceState(projectDir);
+        await advanceState(projectDir);
       } catch (err) {
         log(`[${projectName}] advanceState error: ${(err.message || '').slice(0, 200)}`);
       }
