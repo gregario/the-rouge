@@ -479,12 +479,17 @@ async function advanceState(projectDir) {
         state.consecutive_failures = 0;
 
         // V3: Track story execution for spin detection
+        // Don't append if the last entry is the same story (re-run of already-done story)
         if (!state.stories_executed) state.stories_executed = [];
-        state.stories_executed.push({
-          name: story.name || story.id,
-          delta: state.last_build_delta || 0,
-          duration_ms: 0,
-        });
+        const storyLabel = story.name || story.id;
+        const lastExecuted = state.stories_executed[state.stories_executed.length - 1];
+        if (!lastExecuted || lastExecuted.name !== storyLabel) {
+          state.stories_executed.push({
+            name: storyLabel,
+            delta: state.last_build_delta || 0,
+            duration_ms: 0,
+          });
+        }
         if (state.last_build_delta > 0) {
           state.last_meaningful_progress_at = Date.now();
         }
