@@ -420,4 +420,23 @@ function helpMessage() {
   };
 }
 
-module.exports = { sparkline, confidenceTrend, phaseTransition, phaseComplete, qaResult, escalation, morningBriefing, rollbackAlert, seedingComplete, poReviewScorecard, helpMessage };
+function deployFailure(projectName, attempts, reason) {
+  return {
+    blocks: [
+      {
+        type: 'section',
+        text: { type: 'mrkdwn', text: `🚫 *${projectName}* — Staging deploy failed after ${attempts} attempts` },
+      },
+      {
+        type: 'section',
+        text: { type: 'mrkdwn', text: `*Reason:* ${reason || 'Unknown error'}` },
+      },
+      {
+        type: 'context',
+        elements: [{ type: 'mrkdwn', text: 'Milestone evaluation is blocked until deploy succeeds. The project will escalate.' }],
+      },
+    ],
+  };
+}
+
+module.exports = { sparkline, confidenceTrend, phaseTransition, phaseComplete, qaResult, escalation, morningBriefing, rollbackAlert, seedingComplete, poReviewScorecard, helpMessage, deployFailure };

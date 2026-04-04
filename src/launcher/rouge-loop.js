@@ -620,6 +620,11 @@ async function advanceState(projectDir) {
         const deployResult = await deployWithRetry(() => deploy(projectDir), { maxRetries: 3, retryDelayMs: 30000 });
         if (shouldBlockMilestoneCheck(deployResult)) {
           log(`[${projectName}] Deploy failed after retries — blocking milestone-check`);
+          notifyRich('deploy-failure', {
+            project: projectName,
+            attempts: deployResult?.attempts || 3,
+            reason: deployResult?.reason || 'Staging deploy failed',
+          });
           if (!state.escalations) state.escalations = [];
           state.escalations.push({
             id: `esc-deploy-failed-${Date.now()}`,

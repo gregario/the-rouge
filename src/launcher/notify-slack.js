@@ -61,6 +61,9 @@ switch (type) {
       ],
     });
     break;
+  case 'deploy-failure':
+    send(blockKit.deployFailure(args.project, args.attempts, args.reason));
+    break;
   case 'milestone-screenshots': {
     const { uploadScreenshot } = require('../slack/upload-screenshot');
     const channel = process.env.ROUGE_SLACK_CHANNEL;
