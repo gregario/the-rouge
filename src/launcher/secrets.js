@@ -331,16 +331,14 @@ function discoverIntegrations(projectDir) {
     try {
       const vision = JSON.parse(fs.readFileSync(visionPath, 'utf8'));
       if (vision.infrastructure) {
-        // infrastructure keys map to integration names
-        for (const key of Object.keys(vision.infrastructure)) {
-          const normalized = key.toLowerCase().replace(/[-_]/g, '');
-          if (normalized.includes('stripe')) integrations.add('stripe');
-          if (normalized.includes('supabase')) integrations.add('supabase');
-          if (normalized.includes('sentry')) integrations.add('sentry');
-          if (normalized.includes('slack')) integrations.add('slack');
-          if (normalized.includes('cloudflare')) integrations.add('cloudflare');
-          if (normalized.includes('vercel')) integrations.add('vercel');
-        }
+        // Check both keys AND values for integration names
+        const searchText = JSON.stringify(vision.infrastructure).toLowerCase();
+        if (searchText.includes('stripe')) integrations.add('stripe');
+        if (searchText.includes('supabase')) integrations.add('supabase');
+        if (searchText.includes('sentry')) integrations.add('sentry');
+        if (searchText.includes('slack')) integrations.add('slack');
+        if (searchText.includes('cloudflare')) integrations.add('cloudflare');
+        if (searchText.includes('vercel')) integrations.add('vercel');
       }
       // Also check deploy/hosting section
       if (vision.deploy?.platform === 'cloudflare' || vision.hosting?.platform === 'cloudflare') {
