@@ -14,6 +14,7 @@ const { trackPhaseCost, checkBudgetCap } = require('./cost-tracker.js');
 const { deployWithRetry, shouldBlockMilestoneCheck } = require('./deploy-blocking.js');
 const { migrateV2StateToV3 } = require('./state-migration.js');
 const { injectPreamble } = require('./preamble-injector.js');
+const { getMilestoneTagName } = require('./branch-strategy.js');
 // V3: model-selection.js will be added in Phase C (task C2)
 
 // Load .env from Rouge root (for ROUGE_SLACK_WEBHOOK, etc.)
@@ -778,9 +779,15 @@ async function advanceState(projectDir) {
             ? 'partial' : 'complete';
         }
 
-        // V3: Lock promoted milestone
+        // V3: Lock promoted milestone + tag
         promoteMilestone(state, state.current_milestone);
-        log(`[${projectName}] Milestone "${state.current_milestone}" promoted and locked`);
+        try {
+          const tagName = getMilestoneTagName(state.current_milestone);
+          execSync(`git tag "${tagName}"`, { cwd: projectDir, encoding: 'utf8', timeout: 10000 });
+          log(`[${projectName}] Milestone "${state.current_milestone}" promoted, locked, tagged ${tagName}`);
+        } catch (err) {
+          log(`[${projectName}] Milestone "${state.current_milestone}" promoted and locked (tag failed: ${(err.message || '').slice(0, 100)})`);
+        }
 
         // Next milestone
         const nextMs = findNextMilestone(state);
