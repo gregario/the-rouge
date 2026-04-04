@@ -42,6 +42,8 @@ Always work on a feature branch. Never commit directly to main.
 git checkout -b feature/your-change
 ```
 
+For product build work (not Rouge development), the loop uses a **single-branch strategy**: all work for a given product happens on one branch (e.g. `build/my-product`). Each shipped feature area is tagged with a milestone tag (e.g. `milestone/my-product/auth-v1`) rather than creating a separate branch per story. This keeps history linear and makes milestone-lock enforcement straightforward.
+
 Follow open source best practices: small commits, tests, descriptive PR.
 
 ### 6. Test
@@ -99,11 +101,27 @@ docs/           — guides, design docs, diagrams
 - `src/launcher/deploy-to-staging.js` — staging deployment
 - `src/launcher/rouge-safety-check.sh` — safety hook enforcement
 
+**V3 modules:**
+- `src/launcher/checkpoint.js` — writes signed entries to `checkpoints.jsonl`; reads checkpoint history
+- `src/launcher/safety.js` — spin detection, cost cap enforcement, milestone lock, deploy blocking logic
+- `src/launcher/task-ledger.js` — reads and writes `task_ledger.json`; single source of truth for task state
+- `src/launcher/preamble-injector.js` — assembles per-phase preamble from cycle context and task ledger
+- `src/launcher/cost-tracker.js` — tracks token usage per phase and per project; enforces caps
+- `src/launcher/deploy-blocking.js` — prevents production deploys until milestone lock and evaluation pass
+- `src/launcher/model-selection.js` — selects Opus vs Sonnet per phase based on reasoning requirements
+- `src/launcher/learnings.js` — captures post-product learnings and drafts self-improvement PRs
+- `src/launcher/audit-trail.js` — signs and verifies `checkpoints.jsonl` entries
+- `src/launcher/branch-strategy.js` — enforces single-branch strategy and manages milestone tags
+- `src/launcher/state-migration.js` — migrates legacy `state.json` to dual-ledger format
+- `src/launcher/self-improve-safety.js` — gates self-improvement suggestions: drafts PRs, never auto-applies
+- `src/launcher/project-registry.js` — tracks registered projects and their inter-dependencies
+- `src/launcher/dependency-resolver.js` — evaluates downstream impact when a shared service changes
+
 ## Conventions
 
 - All phase prompts are self-contained markdown files in `src/prompts/`.
 - Prompts NEVER invoke external slash commands — they call CLI tools directly.
-- State lives on disk (`state.json`, `cycle_context.json`) — no long-running process.
+- State lives on disk — no long-running process. Dual ledger: `task_ledger.json` (task tracking, mutable) + `checkpoints.jsonl` (immutable cycle history, append-only). `cycle_context.json` is the I/O bus between phases — prompts write here only.
 - Git is the audit trail — every phase commits.
 - The Library (`library/`) is machine-readable context, not documentation.
 - Integration catalogue entries follow the `manifest.yaml` standard (see `CONTRIBUTING.md`).
@@ -116,3 +134,5 @@ docs/           — guides, design docs, diagrams
 - Don't modify phase prompts without understanding the cascade effect (a small wording change can affect every product build).
 - Don't add integration patterns without running them through the feasibility gate.
 - Don't hardcode API keys or personal paths.
+- Don't write to `task_ledger.json` from phase prompts — only `generating-change-spec` is permitted to modify the task ledger. All other prompts write to `cycle_context.json` only.
+- Don't modify safety mechanism logic from prompts — `safety.js`, `deploy-blocking.js`, `self-improve-safety.js`, and `audit-trail.js` are launcher-layer modules. Changes require code review and a PR, not a prompt edit.

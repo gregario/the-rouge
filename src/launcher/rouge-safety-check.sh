@@ -206,6 +206,21 @@ pre_write() {
     block "pre-write" "$summary" "Blocked: write to telemetry-consent (user sets this manually)"
   fi
 
+  # --- V3: Block writes to safety-critical files ---
+  local safety_blocklist=(
+    "src/launcher/rouge-loop.js"
+    "src/launcher/safety.js"
+    "src/launcher/checkpoint.js"
+    "src/launcher/rouge-safety-check.sh"
+    ".claude/settings.json"
+    "rouge.config.json"
+  )
+  for blocked_file in "${safety_blocklist[@]}"; do
+    if [[ "$resolved_path" == *"$blocked_file" ]]; then
+      block "pre-write" "$summary" "Blocked: write to safety-critical file ($blocked_file)"
+    fi
+  done
+
   allow "pre-write" "$summary"
 }
 

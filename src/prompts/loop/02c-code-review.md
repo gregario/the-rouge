@@ -2,6 +2,8 @@
 
 Include the autonomous-mode partial from `.claude/skills/partials/autonomous-mode.md`
 
+> **V3 Phase Contract:** Injected by launcher at runtime. See _preamble.md for the I/O contract.
+
 ---
 
 ## Phase Identity

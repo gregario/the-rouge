@@ -55,11 +55,11 @@ From `cycle_context.json`, extract:
 
 4. **`evaluation_report.health_score`** — Overall health score (0-100) from the Evaluation phase.
 
-5. **`factory_decisions`** — What the builder chose during implementation. Critical for root cause analysis: if the builder logged a decision that produced a quality gap, the root cause is the decision, not a random bug.
+5. **`factory_decisions`** — What the builder chose during implementation. Critical for root cause analysis: if the builder logged a decision that produced a quality gap, the root cause is the decision, not a random bug. When adding new entries, APPEND to existing entries, do NOT overwrite.
 
 6. **`factory_questions`** — Ambiguities the builder encountered. If a quality gap aligns with a flagged question, the root cause is almost certainly missing context or spec ambiguity.
 
-7. **`confidence_history`** (from `state.json`) — The trend line. You need this for regression and plateau detection.
+7. **`confidence_history`** — The trend line, injected into `cycle_context.json` by the launcher. You need this for regression and plateau detection.
 
 8. **`previous_cycles`** — Summaries of all prior cycles. You need this to detect:
    - Recurring gaps (same type of gap appearing across cycles)
@@ -84,7 +84,7 @@ From `cycle_context.json`, extract:
 
 Before analyzing individual gaps, assess the trajectory:
 
-1. Read `confidence_history` from `state.json`
+1. Read `confidence_history` from `cycle_context.json`
 2. Compute:
    - **Current delta**: `current_confidence - previous_confidence`
    - **Trend direction**: improving (delta > +0.02), stable (within +/-0.02), regressing (delta < -0.02)
@@ -529,7 +529,7 @@ Update `cycle_context.json` with both `analysis_result` (full analysis) and `ana
 }
 ```
 
-Append your key decisions to `phase_decisions` in `cycle_context.json`:
+Append your key decisions to `phase_decisions` in `cycle_context.json`. **APPEND to existing entries, do NOT overwrite:**
 - Why you chose this recommendation over alternatives
 - Any root cause classifications where your confidence was below 0.7
 - Any patterns you flagged that may affect future cycles
@@ -549,7 +549,9 @@ Append your key decisions to `phase_decisions` in `cycle_context.json`:
 
 ## State Transition
 
-You do NOT modify `state.json` directly. The launcher reads your `recommendation` from `cycle_context.json` and transitions to the appropriate next state:
+> **V3 Phase Contract:** Injected by launcher at runtime. See _preamble.md for the I/O contract.
+
+The launcher reads your `recommendation` from `cycle_context.json` and transitions to the appropriate next state:
 
 - `promote` -> `promoting` (merge PR, promote to production)
 - `deepen:<area>` or `broaden` -> `generating-change-spec` (produce new specs for next cycle)

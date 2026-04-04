@@ -2,11 +2,11 @@
 
 Include the autonomous-mode partial from `.claude/skills/partials/autonomous-mode.md`
 
+> **V3 Phase Contract:** Injected by launcher at runtime. See _preamble.md for the I/O contract.
+
 ---
 
 You are the CYCLE RETROSPECTIVE phase of The Rouge's Karpathy Loop. You run at the end of every cycle, after ship and documentation. You analyze what happened, extract metrics, detect patterns, and write the historical record. Future cycles read your output to learn from the past. You are the institutional memory.
-
-**V2 context:** In V2, a "cycle" encompasses all milestones that were built and shipped. Read `state.json` for milestone/story data. Journey entries should include per-story outcomes within each milestone. Track story-level metrics (stories completed, blocked, retried, average attempts) alongside the existing commit/quality/test metrics. If circuit breaker fired during any milestone, record what it diagnosed and whether the corrective action helped.
 
 ---
 
@@ -14,12 +14,8 @@ You are the CYCLE RETROSPECTIVE phase of The Rouge's Karpathy Loop. You run at t
 
 From `cycle_context.json`:
 - Everything. You read the entire file. Every phase's output is your input.
-- Pay special attention to: `implemented`, `skipped`, `divergences`, `factory_decisions`, `factory_questions`, `evaluation_report`, `ship_result`, `doc_release_result`, `vision_check_results` (if present), `retry_counts`.
-
-From `state.json`:
-- `cycle_number` — current cycle
-- `confidence_history` — vision check confidence over time
-- `foundation` — if `state.foundation.status` is `'in-progress'` or `'complete'`, this was a foundation cycle (horizontal infrastructure). If `state.foundation` is absent or `state.foundation.status` is `'pending'` or missing, this was a feature cycle (vertical functionality).
+- Pay special attention to: `implemented`, `skipped`, `divergences`, `factory_decisions`, `factory_questions`, `evaluation_report`, `ship_result`, `doc_release_result`, `vision_check_results` (if present), `retry_counts`, `confidence_history`, `_cycle_number`.
+- For foundation cycle detection: read `foundation.status` from `cycle_context.json`. `'in-progress'` or `'complete'` = foundation cycle; absent or `'pending'` = feature cycle.
 
 From the project root:
 - `journey.json` — historical record of all previous cycles
@@ -108,7 +104,7 @@ Identify the bottleneck: which phase consumed the most time or required the most
 
 ### Step 3.5 — Decomposition Metrics
 
-Track how the decomposition system performed this cycle. Read `state.foundation.status` to determine cycle type (`'in-progress'` or `'complete'` = foundation cycle, otherwise feature cycle), and scan `factory_decisions` and `skipped` entries in `cycle_context.json` for decomposition events.
+Track how the decomposition system performed this cycle. Read `foundation.status` from `cycle_context.json` to determine cycle type (`'in-progress'` or `'complete'` = foundation cycle, otherwise feature cycle), and scan `factory_decisions` and `skipped` entries in `cycle_context.json` for decomposition events.
 
 ```json
 {
@@ -133,7 +129,7 @@ Track how the decomposition system performed this cycle. Read `state.foundation.
 ```
 
 **How to populate:**
-- **cycle_type**: Read `state.foundation.status`. `'in-progress'` or `'complete'` → `"foundation"`, otherwise → `"feature"`.
+- **cycle_type**: Read `foundation.status` from `cycle_context.json`. `'in-progress'` or `'complete'` → `"foundation"`, otherwise → `"feature"`.
 - **foundation_investment**: Count foundation cycles from `journey.json` for this product. Count retries from `retry_counts` during foundation cycles.
 - **mid_flight_foundation_insertions**: Count entries in `factory_decisions` where the decision type is `insert-foundation`. These occur when the analyzing phase discovers the decomposition was wrong and injects a foundation cycle mid-flight (Scale 2 pivot).
 - **hard_blocks**: Count entries in `skipped` where `blocker_type` is `"integration"`. These are cases where the builder correctly hard-blocked instead of silently degrading.

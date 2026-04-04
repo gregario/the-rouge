@@ -2,6 +2,8 @@
 
 Include the autonomous-mode partial from `.claude/skills/partials/autonomous-mode.md`
 
+> **V3 Phase Contract:** Injected by launcher at runtime. See _preamble.md for the I/O contract.
+
 ---
 
 ## Phase Identity
@@ -45,7 +47,7 @@ From `fix_story_context.json`:
 
 **Not loaded (T1 tier):** Vision document, Library heuristics, journey.json. You are a debugger with a consolidated brief.
 
-From `state.json`, extract:
+From `cycle_context.json`, extract:
 - `current_milestone` — For commit messages and logging
 - `current_story` — Scope boundary for your fixes
 
@@ -261,13 +263,13 @@ Update `retry_counts` for every criterion you attempted:
 - **No spec changes.** If you believe the spec is wrong, log it as a `factory_question` with `impact_if_wrong: high`. The analyzing phase decides whether to update the spec.
 - **No design changes.** If the fix requires changing the visual design (not just fixing a bug), log it as a quality gap for PO Review.
 - **No deployment to production.** Staging only. Always.
-- **No deciding what happens next.** You write results, the launcher reads `state.json`, and the next phase (test-integrity) runs automatically.
+- **No deciding what happens next.** You write results to `cycle_context.json`, and the launcher transitions to the next phase (test-integrity) automatically.
 
 ---
 
 ## State Transition
 
-You do NOT modify `state.json` directly. The launcher transitions the project back to `test-integrity` after this phase completes, which triggers the test integrity gate, then the QA gate re-runs with the fixed code.
+You do NOT modify phase state directly. The launcher transitions the project back to `test-integrity` after this phase completes, which triggers the test integrity gate, then the QA gate re-runs with the fixed code.
 
 The flow is: `milestone-fix` -> (launcher) -> `test-integrity` -> `qa-gate` -> PASS or back to `milestone-fix`
 

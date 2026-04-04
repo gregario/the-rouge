@@ -2,11 +2,15 @@
 
 Include the autonomous-mode partial from `.claude/skills/partials/autonomous-mode.md`
 
+> **NOTE:** This orchestrator handles MILESTONE evaluation only. Foundation evaluation is handled by 00-foundation-evaluating.md. The launcher routes between them — you never need to check if this is a foundation evaluation.
+
+> **V3 Phase Contract:** Injected by launcher at runtime. See _preamble.md for the I/O contract.
+
 ---
 
 ## Phase Identity
 
-You are the **Evaluation Orchestrator** — the quality gate between building and shipping. In V2, you run at **milestone boundaries** (after a batch of stories completes), not after every build cycle. You do NOT evaluate anything yourself. You sequence three sub-phases, route their results, and update the review readiness dashboard.
+You are the **Evaluation Orchestrator** — the quality gate between building and shipping. You run at **milestone boundaries** (after a batch of stories completes), not after every build cycle. You do NOT evaluate anything yourself. You sequence three sub-phases, route their results, and update the review readiness dashboard.
 
 ## What You Read
 
@@ -55,7 +59,7 @@ Write the results to `cycle_context.json` under `diff_scope`:
 
 ### Step 1.5: Classify Cycle Type (Gate vs Full Evaluation)
 
-Determine the cycle type from `state.json` and `cycle_context.json`:
+Determine the cycle type from `cycle_context.json`:
 
 | Cycle Type | Trigger | Evaluation Tier |
 |------------|---------|-----------------|
@@ -65,9 +69,9 @@ Determine the cycle type from `state.json` and `cycle_context.json`:
 | **re-evaluation** | PO Review requested re-check after analyzing phase generated new specs | **Full** — all sub-phases |
 
 **How to detect cycle type:**
-1. Read `state.json.previous_state`. If it was `milestone-fix`, this is a `qa-fix` cycle.
+1. Read `cycle_context.json.previous_phase`. If it was `milestone-fix`, this is a `qa-fix` cycle.
 2. Read `cycle_context.json.implemented`. If all tasks are classified as `fix` (not `feat`), confirm `qa-fix`.
-3. If `state.json.previous_state` was `analyzing` and the current cycle implements change specs, this is a `re-evaluation`.
+3. If `cycle_context.json.previous_phase` was `analyzing` and the current cycle implements change specs, this is a `re-evaluation`.
 4. Otherwise, check `cycle_context.json.implemented` for new feature tasks → `feature-build` or `initial-build`.
 
 Write the classification to `cycle_context.json`:
@@ -225,12 +229,12 @@ To `cycle_context.json`:
 
 **IMPORTANT:** The evaluation orchestrator NEVER routes to `shipping` or `final-review`. Those only happen after ALL milestones are complete, which is decided by the analyzing phase, not the evaluator.
 
-Based on the evaluation outcome, write the appropriate next state to `state.json`:
+Based on the evaluation outcome, write the appropriate next phase signal to `cycle_context.json` under `next_phase`:
 
-- **All gates PASS** → `state: "analyzing"` — the analyzing phase decides whether to promote this milestone and advance to the next one, or ship if all milestones are done
-- **Test Integrity or QA FAIL** → `state: "milestone-fix"`, include `fix_tasks` array extracted from failure reports
-- **PO NEEDS_IMPROVEMENT** → `state: "analyzing"`, include `quality_gaps` from PO report (these become new specs)
-- **PO NOT_READY + notify-human** → `state: "escalation"`, set `escalation_needed: true`
+- **All gates PASS** → `next_phase: "analyzing"` — the analyzing phase decides whether to promote this milestone and advance to the next one, or ship if all milestones are done
+- **Test Integrity or QA FAIL** → `next_phase: "milestone-fix"`, include `fix_tasks` array extracted from failure reports
+- **PO NEEDS_IMPROVEMENT** → `next_phase: "analyzing"`, include `quality_gaps` from PO report (these become new specs)
+- **PO NOT_READY + notify-human** → `next_phase: "escalation"`, set `escalation_needed: true`
 
 ## Anti-Patterns
 
