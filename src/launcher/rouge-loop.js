@@ -485,9 +485,8 @@ async function advanceState(projectDir) {
           delta: state.last_build_delta || 0,
           duration_ms: 0,
         });
-        if (state.last_build_delta > 0) {
-          state.last_meaningful_progress_at = Date.now();
-        }
+        // A story passing IS progress, even with 0 delta (already built).
+        state.last_meaningful_progress_at = Date.now();
 
         // No deploy here — deploy happens once before milestone-check
 
