@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "V3 Checkpoint Entry",
+  "description": "One line in checkpoints.jsonl. Written by launcher ONLY.",
+  "type": "object",
+  "required": ["id", "phase", "timestamp", "state", "costs"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^cp-"
+    },
+    "phase": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "state": {
+      "type": "object",
+      "properties": {
+        "current_milestone": { "type": ["string", "null"] },
+        "current_story": { "type": ["string", "null"] },
+        "promoted_milestones": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "consecutive_failures": { "type": "integer" },
+        "stories_executed": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "delta": { "type": "integer" },
+              "duration_ms": { "type": "integer" }
+            }
+          }
+        },
+        "story_results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "outcome": { "enum": ["pass", "fail", "blocked"] }
+            }
+          }
+        }
+      }
+    },
+    "costs": {
+      "type": "object",
+      "properties": {
+        "phase_tokens": { "type": "integer" },
+        "phase_cost_usd": { "type": "number" },
+        "cumulative_tokens": { "type": "integer" },
+        "cumulative_cost_usd": { "type": "number" }
+      }
+    }
+  }
+}
