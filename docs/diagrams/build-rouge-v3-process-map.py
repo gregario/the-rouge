@@ -1,7 +1,7 @@
 """Build the V3 Process Map diagram for The Rouge.
 
 Four distinct horizontal panels stacked vertically:
-  Panel 1: ROUGE SPEC (green) — Human Idea → Seeding Swarm (8 Disciplines) with artifact annotation
+  Panel 1: ROUGE SPEC (green) — Human Idea → 8 disciplines shown individually with mandatory sequence
   Panel 2: FOUNDATION (blue) — Foundation Build ↔ Foundation Eval (with infrastructure_manifest annotation)
   Panel 3: STORY BUILDING LOOP (blue/amber) — Story Building → Deploy → Milestone Eval → QA → Analyzing
              + SAFETY LAYER annotation + promote annotation with git tag
@@ -254,43 +254,110 @@ def build():
     py = 40   # panel y cursor
 
     # =====================================================================
-    # PANEL 1: ROUGE SPEC
+    # PANEL 1: ROUGE SPEC — all 8 disciplines shown individually
     # =====================================================================
-    p1_w = 720
-    p1_h = 184
+    p1_w = 1400  # wide to match Panel 3
+    p1_h = 360   # tall enough for 2 rows of disciplines
     shapes.append(make_panel("p1", OX, py, p1_w, p1_h))
-    shapes.append(make_label_text("p1_title", OX + 16, py + 10, "ROUGE SPEC", TITLE_FONT))
+    shapes.append(make_label_text("p1_title", OX + 16, py + 10, "ROUGE SPEC (Seeding Swarm)", TITLE_FONT))
 
-    # Human Idea
-    ny = py + 64
+    # Discipline box size — slightly smaller than standard
+    DISC_W = 144
+    DISC_H = 56
+    DISC_GAP = 24
+
+    # --- Row 1: Human Idea → Brainstorming → Competition → Taste → Spec ---
+    r1y = py + 56
     nx = OX + PANEL_PAD + 16
-    els, p = make_rect("human_idea", nx, ny, SMALL_W, SMALL_H, "success", "Human Idea")
+
+    els, p = make_rect("human_idea", nx, r1y, SMALL_W, SMALL_H, "success", "Human Idea")
     shapes.extend(els); pos["human_idea"] = p
 
-    # Seeding Swarm (hero) — V3: "8 Disciplines"
-    nx += SMALL_W + 80
-    els, p = make_rect("seeding", nx, ny - (HERO_H - SMALL_H) // 2, HERO_W, HERO_H,
-                        "success", "Seeding Swarm\n8 Disciplines")
-    shapes.extend(els); pos["seeding"] = p
-    for el in shapes:
-        if el.get("id") == "r_seeding": el["strokeWidth"] = 3
+    nx += SMALL_W + 48
+    els, p = make_rect("d_brain", nx, r1y - 4, DISC_W, DISC_H, "success", "01\nBrainstorming")
+    shapes.extend(els); pos["d_brain"] = p
 
-    # V3 annotation: task_ledger.json / infrastructure_manifest.json / vision.json
-    # No state.json reference
-    ann_x = pos["seeding"]["x"] + pos["seeding"]["w"] - 48
-    ann_y = pos["seeding"]["y"] + pos["seeding"]["h"] - 12
-    shapes.extend(make_annotation("seed_art", ann_x, ann_y, 200, 56,
-                                   "task_ledger.json\ninfrastructure_manifest.json\nvision.json"))
+    nx += DISC_W + DISC_GAP
+    els, p = make_rect("d_comp", nx, r1y - 4, DISC_W, DISC_H, "success", "02\nCompetition")
+    shapes.extend(els); pos["d_comp"] = p
 
-    # Arrows
-    sx, sy = rt("human_idea"); ex = pos["seeding"]["x"]
-    arrows.extend(make_arrow("p1_idea_seed", sx, sy, [[0, 0], [ex - sx, 0]]))
+    nx += DISC_W + DISC_GAP
+    els, p = make_rect("d_taste", nx, r1y - 4, DISC_W, DISC_H, "warning", "03\nTaste")
+    shapes.extend(els); pos["d_taste"] = p
+
+    nx += DISC_W + DISC_GAP
+    els, p = make_rect("d_spec", nx, r1y - 4, DISC_W, DISC_H, "process", "04\nSpec")
+    shapes.extend(els); pos["d_spec"] = p
+
+    nx += DISC_W + DISC_GAP
+    els, p = make_rect("d_infra", nx, r1y - 4, DISC_W, DISC_H, "process", "05\nInfrastructure")
+    shapes.extend(els); pos["d_infra"] = p
+
+    # --- Row 2: Design, Legal, Marketing (below, offset) ---
+    r2y = r1y + DISC_H + 48
+    nx2 = pos["d_infra"]["x"] + DISC_W + DISC_GAP
+
+    els, p = make_rect("d_design", nx2, r1y - 4, DISC_W, DISC_H, "process", "06\nDesign")
+    shapes.extend(els); pos["d_design"] = p
+
+    # Legal + Marketing below row 1, after Competition
+    lm_x = pos["d_comp"]["x"]
+    els, p = make_rect("d_legal", lm_x, r2y, DISC_W, DISC_H, "success", "07\nLegal/Privacy")
+    shapes.extend(els); pos["d_legal"] = p
+
+    els, p = make_rect("d_mktg", lm_x + DISC_W + DISC_GAP, r2y, DISC_W, DISC_H, "success", "08\nMarketing")
+    shapes.extend(els); pos["d_mktg"] = p
+
+    # --- Mandatory sequence arrows (row 1) ---
+    sx, sy = rt("human_idea"); ex = pos["d_brain"]["x"]
+    arrows.extend(make_arrow("p1_idea_brain", sx, sy, [[0, 0], [ex - sx, 0]]))
+
+    sx, sy = rt("d_brain"); ex = pos["d_comp"]["x"]
+    arrows.extend(make_arrow("p1_brain_comp", sx, sy, [[0, 0], [ex - sx, 0]]))
+
+    # Brain → Taste (mandatory: brainstorming before taste)
+    sx, sy = rt("d_comp"); ex = pos["d_taste"]["x"]
+    arrows.extend(make_arrow("p1_comp_taste", sx, sy, [[0, 0], [ex - sx, 0]]))
+
+    # Taste → Spec (mandatory: taste before spec)
+    sx, sy = rt("d_taste"); ex = pos["d_spec"]["x"]
+    arrows.extend(make_arrow("p1_taste_spec", sx, sy, [[0, 0], [ex - sx, 0]]))
+
+    # Spec → Infrastructure (mandatory: spec before infra)
+    sx, sy = rt("d_spec"); ex = pos["d_infra"]["x"]
+    arrows.extend(make_arrow("p1_spec_infra", sx, sy, [[0, 0], [ex - sx, 0]]))
+
+    # Infrastructure → Design (mandatory: infra before design)
+    sx, sy = rt("d_infra"); ex = pos["d_design"]["x"]
+    arrows.extend(make_arrow("p1_infra_design", sx, sy, [[0, 0], [ex - sx, 0]]))
+
+    # Competition/Marketing: arrows from Brainstorming bottom to indicate "any time after"
+    sx, sy = bot("d_brain")
+    ex, ey = top_("d_legal")
+    arrows.extend(make_arrow("p1_brain_legal", sx, sy,
+        [[0, 0], [0, (ey - sy) * 0.5], [ex - sx, (ey - sy) * 0.5], [ex - sx, ey - sy]],
+        None, "#868e96", "dashed"))
+
+    sx2 = pos["d_brain"]["cx"] + 24
+    ex2, ey2 = top_("d_mktg")
+    arrows.extend(make_arrow("p1_brain_mktg", sx2, sy,
+        [[0, 0], [0, (ey2 - sy) * 0.4], [ex2 - sx2, (ey2 - sy) * 0.4], [ex2 - sx2, ey2 - sy]],
+        None, "#868e96", "dashed"))
+
+    # --- Output artifacts annotation (bottom-right of panel) ---
+    ann_x = OX + p1_w - 240
+    ann_y = r2y + 4
+    shapes.extend(make_annotation("seed_art", ann_x, ann_y, 216, 56,
+                                   "Outputs:\ntask_ledger.json\ninfrastructure_manifest.json\nvision.json"))
+
+    # Store "seeding" position as the Design box for the interlinking arrow to Panel 2
+    pos["seeding"] = pos["d_design"]
 
     # =====================================================================
     # PANEL 2: FOUNDATION (simplified)
     # =====================================================================
     py += p1_h + PANEL_GAP
-    p2_w = p1_w  # same width as Rouge Spec panel
+    p2_w = 720  # foundation panel is narrower — only 2 boxes
     p2_h = 184
     shapes.append(make_panel("p2", OX, py, p2_w, p2_h))
     shapes.append(make_label_text("p2_title", OX + 16, py + 10, "FOUNDATION", TITLE_FONT))
@@ -667,6 +734,6 @@ def build():
 
 if __name__ == "__main__":
     scene = build()
-    out = Path(__file__).parent / "rouge-v3-process-map.excalidraw"
+    out = Path(__file__).parent / "rouge-v3-process-map-gen2.excalidraw"
     out.write_text(json.dumps(scene, indent=2))
     print(f"Generated: {out}")
