@@ -95,16 +95,17 @@ function deploy(projectDir) {
       // Vercel: deploy via CLI (project must be linked via .vercel/project.json)
       // Use --prod because Vercel Hobby plan preview URLs return 401 (auth required).
       // Production deploys are publicly accessible for health checks.
-      const output = run('npx vercel deploy --yes --prod', {
+      run('npx vercel deploy --yes --prod', {
         cwd: projectDir,
         env: { ...process.env },
         timeout: 180000,
       });
-      const urlMatch = output.match(/https:\/\/[^\s]+\.vercel\.app/);
-      if (urlMatch) {
-        stagingUrl = urlMatch[0];
-        log(`Deployed to ${stagingUrl}`);
-      }
+      // Use the stable project URL for health checks, not the deployment-specific URL.
+      // Vercel Hobby plan returns 401 on deployment-specific URLs even with --prod.
+      const projectJson = readJson(path.join(projectDir, '.vercel', 'project.json'));
+      const projectName = projectJson?.projectName || path.basename(projectDir);
+      stagingUrl = `https://${projectName}.vercel.app`;
+      log(`Deployed to ${stagingUrl}`);
     } else {
       // Cloudflare: build + deploy
       run('npm run build', { cwd: projectDir });
