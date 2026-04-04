@@ -191,9 +191,16 @@ function generateCycleContext(projectName) {
   const projectDir = path.join(PROJECTS_DIR, projectName);
   const specDir = path.join(projectDir, 'seed_spec');
 
-  // Read feature areas from spec files
+  // Read feature areas from spec files (V2: spec-*.md) or state.json milestones (V3)
   const featureAreas = [];
-  if (fs.existsSync(specDir)) {
+  const seedState = readState(projectName);
+  if (seedState && seedState.milestones && seedState.milestones.length > 0) {
+    // V3: milestones are in state.json, written by the seeding swarm
+    for (const m of seedState.milestones) {
+      featureAreas.push({ name: m.name, status: m.status || 'pending' });
+    }
+  } else if (fs.existsSync(specDir)) {
+    // V2 fallback: read spec-*.md files
     const specFiles = fs.readdirSync(specDir).filter(f => f.startsWith('spec-') && f.endsWith('.md')).sort();
     for (const file of specFiles) {
       const name = file.replace(/^spec-\d+-/, '').replace('.md', '');
@@ -1265,7 +1272,7 @@ app.command('/rouge', async ({ command, ack, respond }) => {
         // Check that seeding actually produced artifacts before allowing start
         const projectDir = path.join(PROJECTS_DIR, projectName);
         const specDir = path.join(projectDir, 'seed_spec');
-        const hasSpecs = fs.existsSync(specDir) && fs.readdirSync(specDir).some(f => f.endsWith('.md'));
+        const hasSpecs = fs.existsSync(specDir) && fs.readdirSync(specDir).length > 0;
         if (!hasSpecs) {
           await respond({ response_type: 'ephemeral', text: `\`${projectName}\` has no specs yet. Finish the seeding conversation first.` });
           return;
