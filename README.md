@@ -24,7 +24,7 @@ rouge build my-product
 rouge status
 ```
 
-> **Experimental.** Rouge invokes Claude Code autonomously, deploys to real infrastructure, and makes real git commits. It could rack up your token usage, deploy broken code to staging, or commit something embarrassing. It will not, to our knowledge, sell your grandmother. Use at your own risk.
+> **Experimental.** Rouge invokes Claude Code autonomously, in YOLO mode, deploys to real infrastructure, and makes real git commits, has full write access to your whole computer. It could rack up your token usage, deploy broken code to staging, or commit something embarrassing and even though there are hooks in place could delete your file system. It will not, to our knowledge, sell your grandmother. Use at your own risk.
 
 ## How it works
 
