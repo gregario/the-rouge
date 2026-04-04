@@ -60,6 +60,29 @@ function writeJson(filePath, data) {
   fs.renameSync(tmp, filePath);
 }
 
+// Returns a short summary string for the status list view.
+// Uses task_ledger.json if available; falls back to cycle number.
+function getProjectStatusSummary(name, state) {
+  try {
+    const ledgerPath = path.join(PROJECTS_DIR, name, 'task_ledger.json');
+    if (fs.existsSync(ledgerPath)) {
+      const ledger = JSON.parse(fs.readFileSync(ledgerPath, 'utf8'));
+      const milestones = ledger.milestones || [];
+      if (milestones.length > 0) {
+        // Count milestones and stories
+        const promotedMs = state?.promoted_milestones || [];
+        const currentMs = milestones.find(ms => !promotedMs.includes(ms.name));
+        if (!currentMs) return `(${milestones.length}/${milestones.length} milestones)`;
+        const msIdx = milestones.indexOf(currentMs) + 1;
+        const stories = currentMs.stories || [];
+        const doneStories = stories.filter(s => s.status === 'done').length;
+        return `(milestone ${msIdx}/${milestones.length}, story ${doneStories}/${stories.length})`;
+      }
+    }
+  } catch {}
+  return `(cycle ${state?.cycle_number || 0})`;
+}
+
 function formatProjectDetail(name) {
   const state = readState(name);
   if (!state) return `Project \`${name}\` not found.`;
@@ -80,15 +103,24 @@ function formatProjectDetail(name) {
   }
   lines.push(`*Cycle:* ${state.cycle_number || 0}`);
 
-  // Feature areas
-  const featureAreas = state.feature_areas || ctx?.vision?.feature_areas || [];
-  if (featureAreas.length > 0) {
-    lines.push('');
-    lines.push('*Feature Areas:*');
-    for (const fa of featureAreas) {
-      const statusEmoji = fa.status === 'complete' ? '✅' : fa.status === 'in-progress' ? '🔨' : '⬜';
-      lines.push(`  ${statusEmoji} ${fa.name} — \`${fa.status || 'pending'}\``);
-    }
+  // Milestones (from task_ledger.json)
+  const ledgerPath = path.join(projectDir, 'task_ledger.json');
+  if (fs.existsSync(ledgerPath)) {
+    try {
+      const ledger = JSON.parse(fs.readFileSync(ledgerPath, 'utf8'));
+      if (ledger.milestones && ledger.milestones.length > 0) {
+        lines.push('');
+        lines.push('*Milestones:*');
+        for (const ms of ledger.milestones) {
+          const stories = ms.stories || [];
+          const done = stories.filter(s => s.status === 'done').length;
+          const total = stories.length;
+          const promoted = (state.promoted_milestones || []).includes(ms.name);
+          const icon = promoted ? '🔒' : done === total ? '✅' : done > 0 ? '🔨' : '⬜';
+          lines.push(`  ${icon} ${ms.name} — ${done}/${total} stories${promoted ? ' (promoted)' : ''}`);
+        }
+      }
+    } catch {}
   }
 
   // Foundation status
@@ -121,6 +153,21 @@ function formatProjectDetail(name) {
   if (state.timestamp) {
     lines.push('');
     lines.push(`*Last action:* ${state.timestamp}`);
+  }
+
+  // Cost info from checkpoints
+  const checkpointsPath = path.join(projectDir, 'checkpoints.jsonl');
+  if (fs.existsSync(checkpointsPath)) {
+    try {
+      const content = fs.readFileSync(checkpointsPath, 'utf8').trim();
+      const cpLines = content.split('\n').filter(Boolean);
+      if (cpLines.length > 0) {
+        const lastCp = JSON.parse(cpLines[cpLines.length - 1]);
+        if (lastCp.costs?.cumulative_cost_usd) {
+          lines.push(`*Cost:* $${lastCp.costs.cumulative_cost_usd.toFixed(2)}`);
+        }
+      }
+    } catch {}
   }
 
   return lines.join('\n');
@@ -608,7 +655,7 @@ app.event('app_mention', async ({ event, say }) => {
             } else if (state?.current_state === 'seeding' && seedState?.status === 'paused') {
               extra = ' _(seeding paused)_';
             }
-            return `${emoji} *${name}*: \`${state?.current_state || 'unknown'}\` (cycle ${state?.cycle_number || 0})${extra}`;
+            return `${emoji} *${name}*: \`${state?.current_state || 'unknown'}\` ${getProjectStatusSummary(name, state)}${extra}`;
           });
           await say(lines.join('\n'));
           return;
