@@ -22,12 +22,8 @@ Do not enumerate these as a checklist. Internalize them. Let them shape how you 
 
 ## Phase Contract
 
-**Reads:** `story_context.json` (assembled by launcher — focused view for this story) + `state.json`
-**Also reads (fallback):** `cycle_context.json` if `story_context.json` does not exist
-**Writes:** `cycle_context.json` (story_result, factory_decisions, factory_questions) + updates to `state.json` fix_memory
-**Git:** Creates branch (or continues existing), makes bisectable commits. Does NOT create a PR.
-**Deploys:** Staging ONLY. Never production.
-**Decides:** Nothing about what phase runs next. Build, report, exit.
+> **V3 Phase Contract:** Injected by launcher at runtime. See _preamble.md for the I/O contract.
+
 **Context Tier:** T2 — Standard, pre-filtered. The launcher assembled `story_context.json` with only context relevant to this story: story spec, foundation brief, related story results, filtered decisions, milestone learnings.
 **Benefits from (optional):**
 - `library-lookup` — check Library for patterns relevant to current story
@@ -37,7 +33,7 @@ Do not enumerate these as a checklist. Internalize them. Let them shape how you 
 
 ## Step 1: Read the Story Context
 
-Read `story_context.json` in the project root. This is your focused brief — the launcher assembled it with only what's relevant to your story. If `story_context.json` does not exist, fall back to reading `cycle_context.json` (V1 compatibility path — should not happen in V2).
+Read `story_context.json` in the project root. This is your focused brief — the launcher assembled it with only what's relevant to your story. If `story_context.json` does not exist, fall back to reading `cycle_context.json`.
 
 **What story_context.json contains:**
 - `story.spec` — your build contract for THIS story (acceptance criteria, user journeys)
@@ -59,6 +55,7 @@ Read `story_context.json` in the project root. This is your focused brief — th
 - `previous_evaluations` — QA and PO reports from the last cycle only
 - `skipped` and `divergences` — from the last cycle only
 - `vision` — read as a summary reference (product purpose and target user), not line-by-line internalization
+- `factory_decisions` — prior decisions APPEND-only; never overwrite existing entries
 
 On cycle 1 (no prior evaluations exist), escalate to T3: read everything including full vision and all Library heuristics regardless of domain.
 
@@ -68,7 +65,7 @@ Extract and internalize:
 - **`active_spec`** — The spec you are building against. This is your contract. Deviate only when the spec is ambiguous or contradictory, and log every deviation.
 - **`product_standard`** — The quality bar. Global standards, domain standards, project overrides. This defines "done."
 - **`previous_evaluations`** — QA and PO Review reports from prior cycles. These are the quality gaps you must address. If the same gap was flagged twice, it is now critical. If you were the one who introduced it, fix it first.
-- **`factory_decisions`** from prior cycles — What was tried before, what worked, what was rejected. Do not repeat failed approaches. Do not ignore decisions that worked.
+- **`factory_decisions`** from prior cycles — What was tried before, what worked, what was rejected. Do not repeat failed approaches. Do not ignore decisions that worked. When writing new factory_decisions, ALWAYS APPEND — never overwrite existing entries.
 - **`factory_questions`** from prior cycles — Ambiguities that were flagged. Check if they were resolved. If they were resolved, follow the resolution. If they were not, resolve them yourself and log your resolution.
 - **`evaluation_deltas`** — The trend. Is quality improving, stable, or regressing? If regressing, understand why before writing a line of code.
 - **`skipped`** from prior cycles — Tasks that were blocked or deferred. Check if the blockers are now resolved.
@@ -79,17 +76,16 @@ If `cycle_context.json` does not exist or is malformed, this is a fatal error. L
 
 ---
 
-## Step 2: Create the Story Branch
+## Step 2: Confirm Working Branch
+
+V3 uses a single long-lived branch. Do NOT create a new branch. Commits go to the current branch as-is.
 
 ```bash
-git checkout <production-branch>
-git pull origin <production-branch>
-git checkout -b rouge/story-<milestone>-<story_id>
+git status
+git log --oneline -5
 ```
 
-Read `state.json` for `current_milestone` and `current_story`. The branch name must match the pattern `rouge/story-{milestone}-{story-id}` (e.g., `rouge/story-map-core-map-render`).
-
-If the branch already exists (crash recovery, re-invocation), check it out rather than creating it. Each phase is idempotent.
+Confirm you are on the correct branch (as specified in the launcher preamble). If the working tree is dirty with unexpected changes, log a `factory_question` and proceed — do not attempt branch operations beyond what is explicitly described here.
 
 ---
 
@@ -129,25 +125,23 @@ After profile detection, derive the strategy:
 
 | Capability | Activates When |
 |-----------|---------------|
-| `foundation-cycle` | `needs_unified_schema` (entities shared by 2+ areas) OR `services.length > 0` |
+| `foundation-needed` | `needs_unified_schema` (entities shared by 2+ areas) OR `services.length > 0` — **signals a recommendation only; does NOT trigger a phase exit** |
 | `dependency-ordering` | graph density > 0.2 |
 | `parallel-building` | independent clusters > 1 (deferred — log only) |
 | `integration-pass` | cross-cutting concerns > 0 |
 | `integration-escalation` | any service in vision NOT in integration catalogue |
-| `foundation-evaluation` | foundation-cycle activated |
 
 6. Write `decomposition_strategy` to `cycle_context.json`.
-7. Write `detected_profile` to `state.json`.
-8. Log detection reasoning to `factory_decisions`.
+7. Log detection reasoning to `factory_decisions` (APPEND — do not overwrite).
 
-### Foundation Gate
+### Foundation Note
 
-If `foundation-cycle` capability is activated AND `state.foundation.status !== 'complete'`:
-- Write `state.current_state = "foundation"` to `state.json`
-- Write `foundation_spec` to `cycle_context.json` with scope and acceptance criteria derived from the analysis
-- EXIT. The launcher will dispatch the foundation building phase.
+If `foundation-needed` capability is detected AND no foundation story has been completed (check `cycle_context.json` for prior foundation story results):
+- Write a `factory_question` recommending that a foundation story be inserted into the milestone plan, with the specific scope and rationale.
+- **Do NOT exit.** Do NOT write to any state file. Continue to task extraction.
+- The Analyzer phase is responsible for recommending foundation insertion. The Builder only notes the gap and proceeds.
 
-Do NOT proceed to task extraction. Foundation must complete first.
+Building just builds. Only analyzing recommends insert-foundation.
 
 ---
 
@@ -418,7 +412,7 @@ If the project needs a database (check `cycle_context.json` for `supabase.projec
 1. **Read `cycle_context.json.supabase`** for the project reference.
 2. **If no project exists yet:**
    - Check active project count: `supabase projects list --output json`
-   - If at the 2-slot free tier limit: identify the least-recently-active project (check `state.json` timestamps across all projects), pause it: `supabase projects pause --project-ref <ref>`
+   - If at the 2-slot free tier limit: identify the least-recently-active project (check `cycle_context.json` timestamps across all projects), pause it: `supabase projects pause --project-ref <ref>`
    - Create or unpause the needed project.
    - Log the slot swap to `cycle_context.json`.
 3. **Run migrations:** `supabase db push` to apply any new or modified migrations.
@@ -506,6 +500,9 @@ After all work is complete (or as complete as it can be given blockers), write r
       "affects": ["<files, components, or features affected>"]
     }
   ],
+  // ⚠️ APPEND ONLY: factory_decisions must be appended to the existing array in cycle_context.json.
+  // Do NOT overwrite or replace previous entries from prior phases or cycles.
+  // Read the existing array first, then push new entries onto it.
 
   "factory_questions": [
     {
@@ -521,7 +518,7 @@ After all work is complete (or as complete as it can be given blockers), write r
 
 ### Writing Rules
 
-- **Append, do not replace.** Prior cycle data in `cycle_context.json` must be preserved. Add your data to the existing structure. If `factory_decisions` already has entries from prior cycles, add yours — do not overwrite.
+- **Append, do not replace.** Prior cycle data in `cycle_context.json` must be preserved. Add your data to the existing structure. If `factory_decisions` already has entries from prior cycles or phases, APPEND yours — do not overwrite, do not replace. Read the existing array, push new entries onto it, write the merged result.
 - **Be specific.** "Implemented the trip history page" is useless. "Implemented TripHistory component with list view, detail drawer, pagination (10 per page), and empty state. Handles 5 error scenarios from spec. 12 tests added, all passing." is useful.
 - **Log everything you decided.** If you chose between two approaches, log both and why you chose one. The Evaluator will read this. If it finds a problem with your choice, your rationale helps it determine root cause (bad decision vs. bad options).
 - **Log everything you skipped.** A skipped task with no explanation is invisible to the next phase. It will be flagged as "not implemented" rather than "intentionally deferred."
