@@ -386,4 +386,38 @@ function poReviewScorecard(projectName, report) {
   return { blocks };
 }
 
-module.exports = { sparkline, confidenceTrend, phaseTransition, phaseComplete, qaResult, escalation, morningBriefing, rollbackAlert, seedingComplete, poReviewScorecard };
+function helpMessage() {
+  return {
+    blocks: [
+      {
+        type: 'header',
+        text: { type: 'plain_text', text: 'Rouge — How to Use' },
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: '*Three ways to interact:*\n• *@Rouge in a channel* — public commands, status updates, notifications\n• */rouge (slash command)* — private ephemeral responses, only you see them\n• *DM Rouge* — seeding sessions only; talk naturally to build out a new project brief',
+        },
+      },
+      { type: 'divider' },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: '*Commands:*\n• `status` — List all projects with current phase\n• `status <project>` — Detailed view: cycle, milestones, confidence\n• `new <name>` — Create a new project and start a seeding session\n• `seed <name>` — Resume a paused seeding session\n• `start <project>` — Start building a seeded (ready) project\n• `pause <project>` — Pause an active project\n• `resume <project>` — Resume a paused project\n• `ship <project>` — Approve a project in final-review for production\n• `feedback <project> <text>` — Send feedback to a project waiting for input',
+        },
+      },
+      { type: 'divider' },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: '*What notifications mean:*\n🔨 *Building* — Rouge is writing code for a story\n📋 *Evaluating* — Milestone check: tests, code review, browser QA\n🧠 *Analysing* — Deciding next action based on evaluation results\n🚀 *Shipping* — Bumping version, writing changelog, opening PR\n⏸️ *Escalation* — Rouge is stuck and needs your input\n✅ *Complete* — Project shipped and production-ready\n\n*When Rouge escalates:* Read the reason in the notification, then either drop a `feedback.json` in the project directory or reply in thread with instructions. Hit *Resume* when ready.',
+        },
+      },
+    ],
+  };
+}
+
+module.exports = { sparkline, confidenceTrend, phaseTransition, phaseComplete, qaResult, escalation, morningBriefing, rollbackAlert, seedingComplete, poReviewScorecard, helpMessage };

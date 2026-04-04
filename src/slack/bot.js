@@ -3,6 +3,7 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { markdownToSlack } = require('./format');
+const blockKit = require('./block-kit');
 
 const app = new App({
   token: process.env.SLACK_BOT_TOKEN,
@@ -352,20 +353,8 @@ const STATE_EMOJI = {
 };
 
 function showHelp(say) {
-  return say([
-    '*Rouge Commands:*',
-    '\u2022 `status` \u2014 Show all projects | `status <project>` \u2014 Detailed view',
-    '\u2022 `new <name>` \u2014 Create a new project and start seeding',
-    '\u2022 `seed <name>` \u2014 Resume a paused seeding session',
-    '\u2022 `start <project>` \u2014 Start a ready project',
-    '\u2022 `pause <project>` \u2014 Pause an active project',
-    '\u2022 `resume <project>` \u2014 Resume a paused project',
-    '\u2022 `ship <project>` \u2014 Approve a product in final-review for production',
-    '\u2022 `feedback <project> <text>` \u2014 Send feedback during final-review',
-    '\u2022 `<project> <feedback>` \u2014 Send feedback to a waiting project',
-    '',
-    '_During an active seeding session, just talk naturally \u2014 messages are relayed to Claude._',
-  ].join('\n'));
+  const { blocks } = blockKit.helpMessage();
+  return say({ blocks });
 }
 
 // --- FW.14: App Home dashboard ---
@@ -1086,7 +1075,7 @@ app.event('message', async ({ event, say }) => {
     writeSeedingState(seedProject, seedState);
 
     // FW.6: Parse discipline progress markers
-    const DM_DISCIPLINES = ['brainstorming', 'competition', 'taste', 'spec', 'design', 'legal-privacy', 'marketing'];
+    const DM_DISCIPLINES = ['brainstorming', 'competition', 'taste', 'spec', 'design', 'infrastructure', 'legal-privacy', 'marketing'];
     const dmCompletedDisciplines = [];
     const dmProgressMatches = response.matchAll(/\[DISCIPLINE_COMPLETE:\s*(\S+)\]/g);
     for (const match of dmProgressMatches) {
@@ -1139,19 +1128,10 @@ app.command('/rouge', async ({ command, ack, respond }) => {
   try {
     switch (cmd) {
       case 'help': {
+        const { blocks: helpBlocks } = blockKit.helpMessage();
         await respond({
           response_type: 'ephemeral',
-          text: [
-            '*Rouge Commands:*',
-            '\u2022 `/rouge status` \u2014 Show all projects | `/rouge status <project>` \u2014 Detailed view',
-            '\u2022 `/rouge new <name>` \u2014 Create a new project and start seeding',
-            '\u2022 `/rouge seed <name>` \u2014 Resume a paused seeding session',
-            '\u2022 `/rouge start <project>` \u2014 Start a ready project',
-            '\u2022 `/rouge pause <project>` \u2014 Pause an active project',
-            '\u2022 `/rouge resume <project>` \u2014 Resume a paused project',
-            '\u2022 `/rouge ship <project>` \u2014 Approve a product in final-review for production',
-            '\u2022 `/rouge feedback <project> <text>` \u2014 Send feedback during final-review',
-          ].join('\n'),
+          blocks: helpBlocks,
         });
         break;
       }
