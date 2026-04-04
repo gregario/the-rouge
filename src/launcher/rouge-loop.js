@@ -1092,6 +1092,32 @@ async function runPhase(projectDir) {
     return { success: false, budgetExceeded: true };
   }
 
+  // Pre-dispatch: if current story is done, advance to next pending or let
+  // Claude run one last time so the state machine triggers deploy + milestone-check.
+  if (currentState === 'story-building' && state.current_milestone && state.current_story) {
+    const milestone = (state.milestones || []).find(m => m.name === state.current_milestone);
+    if (milestone) {
+      const currentStory = (milestone.stories || []).find(s => s.id === state.current_story);
+      if (currentStory && currentStory.status === 'done') {
+        const allFlat = (state.milestones || []).flatMap(m => m.stories || []);
+        const doneIds = new Set(allFlat.filter(s => s.status === 'done').map(s => s.id));
+        const nextPending = (milestone.stories || []).find(s =>
+          (s.status === 'pending' || s.status === 'retrying') &&
+          (s.depends_on || []).every(d => doneIds.has(d))
+        );
+        if (nextPending) {
+          log(`[${projectName}] Story "${state.current_story}" already done — advancing to "${nextPending.id}"`);
+          state.current_story = nextPending.id;
+          writeJson(stateFile, state);
+        } else {
+          // All stories done. Let Claude run — it reports PASS quickly, then the
+          // state machine triggers deploy + milestone-check. Don't skip this path.
+          log(`[${projectName}] All stories in "${milestone.name}" are done — proceeding to deploy flow`);
+        }
+      }
+    }
+  }
+
   // Snapshot state before phase — enables recovery from corruption
   snapshotState(projectDir, currentState);
 
