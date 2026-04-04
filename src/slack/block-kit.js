@@ -69,14 +69,25 @@ function phaseTransition(projectName, fromState, toState, details, confidenceHis
   };
 }
 
-function phaseComplete(projectName, phase, duration, filesDelta, lastOutput) {
+function phaseComplete(projectName, phase, duration, filesDelta, lastOutput, milestoneName, storyName) {
+  let headline = `✅ *${projectName}*`;
+  if (storyName && milestoneName) {
+    headline += ` — Story '${storyName}' complete (milestone: ${milestoneName})`;
+  } else if (storyName) {
+    headline += ` — Story '${storyName}' complete`;
+  } else if (milestoneName) {
+    headline += ` — ${phase} complete (milestone: ${milestoneName})`;
+  } else {
+    headline += ` — ${phase} complete`;
+  }
+
   return {
     blocks: [
       {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `✅ *${projectName}* — \`${phase}\` complete`,
+          text: headline,
         },
       },
       {
@@ -93,26 +104,50 @@ function phaseComplete(projectName, phase, duration, filesDelta, lastOutput) {
   };
 }
 
-function qaResult(projectName, verdict, healthScore, criteriaPass, criteriaTotal) {
-  const color = verdict === 'PASS' ? '#36a64f' : '#dc2626';
-  return {
-    blocks: [
-      {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: `${verdict === 'PASS' ? '✅' : '❌'} *${projectName}* — QA Gate: *${verdict}*`,
-        },
+function qaResult(projectName, verdict, healthScore, criteriaPass, criteriaTotal, milestoneName, failedCriteria) {
+  const blocks = [
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `${verdict === 'PASS' ? '✅' : '❌'} *${projectName}* — QA Gate: *${verdict}*${milestoneName ? ` (${milestoneName})` : ''}`,
       },
-      {
-        type: 'section',
-        fields: [
-          { type: 'mrkdwn', text: `*Health Score*\n${healthScore}/100` },
-          { type: 'mrkdwn', text: `*Criteria*\n${criteriaPass}/${criteriaTotal} pass` },
-        ],
-      },
-    ],
-  };
+    },
+    {
+      type: 'section',
+      fields: [
+        { type: 'mrkdwn', text: `*Health Score*\n${healthScore}/100` },
+        { type: 'mrkdwn', text: `*Criteria*\n${criteriaPass}/${criteriaTotal} pass` },
+      ],
+    },
+  ];
+
+  // Show failed criteria list (max 5)
+  if (failedCriteria && failedCriteria.length > 0) {
+    const shown = failedCriteria.slice(0, 5);
+    const remaining = failedCriteria.length - shown.length;
+    let failList = shown.map(c => `• ${c}`).join('\n');
+    if (remaining > 0) {
+      failList += `\n• ...and ${remaining} more`;
+    }
+    blocks.push({
+      type: 'section',
+      text: { type: 'mrkdwn', text: `*Failed Criteria:*\n${failList}` },
+    });
+  }
+
+  // Context note about next action
+  blocks.push({
+    type: 'context',
+    elements: [{
+      type: 'mrkdwn',
+      text: verdict === 'PASS'
+        ? '🎉 Milestone promoted — moving to next phase'
+        : '🔄 Generating fix stories for failed criteria',
+    }],
+  });
+
+  return { blocks };
 }
 
 function escalation(projectName, phase, reason, context) {
