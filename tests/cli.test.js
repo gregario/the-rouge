@@ -284,8 +284,14 @@ console.log('\n[rouge slack setup — prints guide text]');
 console.log('\n[rouge slack test — without webhook prints helpful error]');
 {
   const tmpDir = makeTmpDir();
-  // Use a custom ROUGE_HOME so no real secrets are found
-  const result = runCLI(['slack', 'test'], { ROUGE_HOME: tmpDir });
+  // Use ROUGE_SECRETS_BACKEND=none to bypass the OS keychain — otherwise a
+  // developer's real ROUGE_SLACK_WEBHOOK from `rouge setup slack` will leak
+  // into the test and the CLI will skip the error branch. ROUGE_HOME alone
+  // is not enough because the keychain is global, not home-directory-scoped.
+  const result = runCLI(['slack', 'test'], {
+    ROUGE_HOME: tmpDir,
+    ROUGE_SECRETS_BACKEND: 'none',
+  });
   assertEqual(result.status, 1, 'exits 1 without webhook');
   assert(result.stderr.includes('rouge setup slack'), 'suggests running rouge setup slack');
   cleanupDir(tmpDir);

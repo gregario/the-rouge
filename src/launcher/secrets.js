@@ -213,7 +213,19 @@ const windows = {
 // Platform selection
 // ---------------------------------------------------------------------------
 
+// Test-only bypass: when ROUGE_SECRETS_BACKEND=none, return a stub backend
+// that has no secrets. Lets the CLI tests simulate "no keychain entries" on
+// machines where the developer has real secrets stored in the system keychain.
+// Never set this in production — it silently disables secret retrieval.
+const nullBackend = {
+  store() {},
+  get() { return null; },
+  list() { return []; },
+  delete() { return false; },
+};
+
 function getBackend() {
+  if (process.env.ROUGE_SECRETS_BACKEND === 'none') return nullBackend;
   if (PLATFORM === 'darwin') return macOS;
   if (PLATFORM === 'linux') return linux;
   if (PLATFORM === 'win32') return windows;
