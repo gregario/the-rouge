@@ -284,7 +284,51 @@ function generateCycleContext(projectName) {
     writeState(projectName, state);
   }
 
-  return { featureAreas: featureAreas.length, specFiles: context.active_spec.spec_files.length };
+  // FIX #91: Count V3 milestones, stories, and acceptance criteria for status display.
+  // V2 spec file counts are misleading on V3 because V3 stores specs as milestones + stories
+  // in state.json (and optionally seed_spec/milestones.json), not as spec-*.md files.
+  let milestoneCount = 0;
+  let storyCount = 0;
+  let acCount = 0;
+  let schemaVersion = 'v2';
+  if (seedState && Array.isArray(seedState.milestones) && seedState.milestones.length > 0) {
+    schemaVersion = 'v3';
+    milestoneCount = seedState.milestones.length;
+    for (const m of seedState.milestones) {
+      const stories = Array.isArray(m.stories) ? m.stories : [];
+      storyCount += stories.length;
+      for (const s of stories) {
+        const acs = Array.isArray(s.acceptance_criteria) ? s.acceptance_criteria : [];
+        acCount += acs.length;
+      }
+    }
+    // If state.json stories don't carry acceptance criteria text, try seed_spec/milestones.json
+    if (acCount === 0 && fs.existsSync(specDir)) {
+      const msFile = path.join(specDir, 'milestones.json');
+      if (fs.existsSync(msFile)) {
+        try {
+          const msData = JSON.parse(fs.readFileSync(msFile, 'utf8'));
+          const msArr = Array.isArray(msData.milestones) ? msData.milestones : (Array.isArray(msData) ? msData : []);
+          for (const m of msArr) {
+            const stories = Array.isArray(m.stories) ? m.stories : [];
+            for (const s of stories) {
+              const acs = Array.isArray(s.acceptance_criteria) ? s.acceptance_criteria : [];
+              acCount += acs.length;
+            }
+          }
+        } catch {}
+      }
+    }
+  }
+
+  return {
+    featureAreas: featureAreas.length,
+    specFiles: context.active_spec.spec_files.length,
+    milestones: milestoneCount,
+    stories: storyCount,
+    acceptanceCriteria: acCount,
+    schemaVersion,
+  };
 }
 
 function isRateLimited(text) {
@@ -977,15 +1021,20 @@ app.event('app_mention', async ({ event, say }) => {
         // Generate cycle_context.json from seed artifacts
         const stats = generateCycleContext(seedProject);
 
-        // Safety: don't mark as ready if no spec files were generated
-        if (stats.specFiles === 0) {
-          console.log(`[${seedProject}] SEEDING_COMPLETE received but no spec files found — not marking as ready`);
+        // Safety: don't mark as ready if no seeding artifacts were produced (FIX #91).
+        // V3 writes milestones + stories into state.json; V2 writes spec-*.md files into seed_spec/.
+        // Either path needs real content before we can mark the project ready.
+        const hasContent = stats.schemaVersion === 'v3'
+          ? stats.milestones > 0
+          : stats.specFiles > 0;
+        if (!hasContent) {
+          console.log(`[${seedProject}] SEEDING_COMPLETE received but no artifacts found — not marking as ready`);
           // Post warning to thread so user knows something went wrong
           try {
             await app.client.chat.postMessage({
               channel: seedState.channel_id,
               thread_ts: seedState.thread_ts,
-              text: `⚠️ Seeding said complete but no spec files were generated. The seeding session may need to continue — try prompting it to run the SPEC discipline.`,
+              text: `⚠️ Seeding said complete but produced no artifacts (no milestones in state.json, no spec files in seed_spec/). The session may need to continue — try prompting the orchestrator to actually write the SPEC artifact.`,
             });
           } catch (e) { console.error('Failed to post spec warning:', e.message); }
         } else {
@@ -1159,11 +1208,15 @@ app.event('message', async ({ event, say }) => {
       // Generate cycle_context.json from seed artifacts
       const stats = generateCycleContext(seedProject);
 
-      // Safety: don't mark as ready if no spec files were generated
-      if (stats.specFiles === 0) {
-        console.log(`[${seedProject}] SEEDING_COMPLETE received via DM but no spec files found — not marking as ready`);
+      // Safety: don't mark as ready if no seeding artifacts were produced (FIX #91).
+      // V3 writes milestones + stories into state.json; V2 writes spec-*.md files into seed_spec/.
+      const hasContent = stats.schemaVersion === 'v3'
+        ? stats.milestones > 0
+        : stats.specFiles > 0;
+      if (!hasContent) {
+        console.log(`[${seedProject}] SEEDING_COMPLETE received via DM but no artifacts found — not marking as ready`);
         try {
-          await say(`⚠️ Seeding said complete but no spec files were generated. The seeding session may need to continue — try prompting it to run the SPEC discipline.`);
+          await say(`⚠️ Seeding said complete but produced no artifacts (no milestones in state.json, no spec files in seed_spec/). The session may need to continue — try prompting the orchestrator to actually write the SPEC artifact.`);
         } catch (e) { console.error('Failed to post spec warning:', e.message); }
       } else {
         const state = readState(seedProject);
@@ -1271,12 +1324,14 @@ app.command('/rouge', async ({ command, ack, respond }) => {
           return;
         }
 
-        // Check that seeding actually produced artifacts before allowing start
+        // Check that seeding actually produced artifacts before allowing start (FIX #91).
+        // V3: state.json has milestones[]. V2: seed_spec/ has spec-*.md files.
         const projectDir = path.join(PROJECTS_DIR, projectName);
         const specDir = path.join(projectDir, 'seed_spec');
-        const hasSpecs = fs.existsSync(specDir) && fs.readdirSync(specDir).length > 0;
-        if (!hasSpecs) {
-          await respond({ response_type: 'ephemeral', text: `\`${projectName}\` has no specs yet. Finish the seeding conversation first.` });
+        const hasV3Milestones = Array.isArray(state.milestones) && state.milestones.length > 0;
+        const hasV2SpecFiles = fs.existsSync(specDir) && fs.readdirSync(specDir).some(f => f.startsWith('spec-') && f.endsWith('.md'));
+        if (!hasV3Milestones && !hasV2SpecFiles) {
+          await respond({ response_type: 'ephemeral', text: `\`${projectName}\` has no seeding artifacts yet. Finish the seeding conversation first.` });
           return;
         }
 
@@ -1285,7 +1340,10 @@ app.command('/rouge', async ({ command, ack, respond }) => {
         if (!fs.existsSync(ctxPath)) {
           try {
             const stats = generateCycleContext(projectName);
-            await respond({ response_type: 'ephemeral', text: `📋 Generated cycle context: ${stats.featureAreas} feature areas, ${stats.specFiles} specs.` });
+            const detail = stats.schemaVersion === 'v3'
+              ? `${stats.milestones} milestones, ${stats.stories} stories${stats.acceptanceCriteria > 0 ? `, ${stats.acceptanceCriteria} acceptance criteria` : ''}`
+              : `${stats.featureAreas} feature areas, ${stats.specFiles} spec files`;
+            await respond({ response_type: 'ephemeral', text: `📋 Generated cycle context: ${detail}.` });
           } catch (err) {
             await respond({ response_type: 'ephemeral', text: `⚠️ Could not generate cycle context: ${err.message}. Starting anyway.` });
           }

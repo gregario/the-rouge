@@ -296,20 +296,29 @@ function rollbackAlert(projectName, reason) {
   };
 }
 
-function seedingComplete(projectName, featureCount, specCount) {
+// FIX #91: accepts the richer stats shape returned by generateCycleContext().
+// stats = { schemaVersion, milestones, stories, acceptanceCriteria, featureAreas, specFiles }
+function seedingComplete(projectName, stats) {
+  const s = stats || {};
+  const fields = s.schemaVersion === 'v3'
+    ? [
+        { type: 'mrkdwn', text: `*Milestones*\n${s.milestones || 0}` },
+        { type: 'mrkdwn', text: `*Stories*\n${s.stories || 0}` },
+        ...(s.acceptanceCriteria > 0
+          ? [{ type: 'mrkdwn', text: `*Acceptance Criteria*\n${s.acceptanceCriteria}` }]
+          : []),
+      ]
+    : [
+        { type: 'mrkdwn', text: `*Feature Areas*\n${s.featureAreas || 0}` },
+        { type: 'mrkdwn', text: `*Spec Files*\n${s.specFiles || 0}` },
+      ];
   return {
     blocks: [
       {
         type: 'section',
         text: { type: 'mrkdwn', text: `🌱 *${projectName}* seeding complete!` },
       },
-      {
-        type: 'section',
-        fields: [
-          { type: 'mrkdwn', text: `*Feature Areas*\n${featureCount}` },
-          { type: 'mrkdwn', text: `*Spec Files*\n${specCount}` },
-        ],
-      },
+      { type: 'section', fields },
       {
         type: 'actions',
         elements: [
