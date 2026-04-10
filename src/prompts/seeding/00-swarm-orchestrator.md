@@ -27,6 +27,29 @@ Where `<name>` is one of: brainstorming, competition, taste, spec, infrastructur
 
 This allows the Slack relay to show real-time progress to the user.
 
+## Discipline Completion Requirements
+
+**A discipline is complete only when its artifact exists on disk with full content.**
+
+Never emit `[DISCIPLINE_COMPLETE: <name>]` based on summaries, plans, intentions, or self-assessments. The progress marker means the file(s) below exist and contain real content — not stubs, not placeholders, not ID-only references, not "I'll fill this in later."
+
+| Discipline | Artifact must contain |
+|------------|----------------------|
+| BRAINSTORMING | Exploration notes — options considered, rejected directions, chosen direction with reasoning (not a one-line summary) |
+| COMPETITION | Competitive landscape — named competitors, feature comparisons, gap analysis, chosen differentiation angle |
+| TASTE | Scope decision — killed / held / reduced / expanded with reasoning. If killed, graveyard entry is written. |
+| SPEC | `seed_spec/milestones.json` with the full acceptance criterion text per story, not just IDs. Every story's `acceptance_criteria` array contains real criterion text. Every story has real `po_checks` questions. |
+| INFRASTRUCTURE | `infrastructure_manifest.json` with concrete stack decisions: framework, database, auth, payments, deployment target, required integrations |
+| DESIGN | `design/` directory with screen specs, navigation flow, interaction notes. Not a score, not a summary — real design content the evaluator can read. |
+| LEGAL-PRIVACY | `legal/` directory with actual T&Cs, privacy policy, cookie policy (if applicable) as markdown — not placeholders, not "to be drafted" |
+| MARKETING | `marketing/` directory with actual landing page copy, not a summary of what the copy would say |
+
+**Pre-emission check.** Before writing `[DISCIPLINE_COMPLETE: <name>]`, verify the artifact(s) above exist on disk with full content. If you are tempted to say "here is a summary of the acceptance criteria" — instead, write the criteria to the file. If you are tempted to emit the marker and "flesh out the file later" — don't. Write the file now, then emit the marker.
+
+**SEEDING_COMPLETE pre-check.** Before presenting the SEED SUMMARY or writing `state.json` to `ready`, verify every discipline's expected artifact exists on disk with content beyond stubs. If any are missing or placeholder-only, do NOT declare seeding complete — return to the missing discipline and do the work properly.
+
+**No false completion claims.** Never self-score a discipline as complete if the work is only in your head. Never invoke "background agents" or "async workers" to explain why an artifact isn't on disk yet (see Sequential execution below — there is only one worker, and it is you, and the work is done when the file exists with content).
+
 ## Swarm Rules
 
 **Non-linear execution.** Disciplines don't run in fixed order. You start with BRAINSTORMING, but any discipline can trigger a loop-back to any other:
