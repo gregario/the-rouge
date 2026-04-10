@@ -1,0 +1,131 @@
+id: neon-postgres-nextjs
+name: Neon Serverless Postgres + Drizzle ORM
+tier: draft
+category: database
+description: >
+  Neon is a serverless Postgres with autoscaling, branching, and sub-second
+  cold starts. Particularly well-suited for Next.js on Vercel: the
+  @neondatabase/serverless driver uses HTTP/WebSocket connections that survive
+  in cold-start and edge environments without connection-pool exhaustion.
+  Drizzle ORM provides type-safe queries, migrations, and schema introspection.
+
+cost_tier: free-to-start
+free_tier_limits:
+  storage_gb: 0.5
+  branches: 10
+  compute_hours_per_month: 191
+
+requires:
+  env_vars:
+    - DATABASE_URL          # pooled connection string (e.g. from Neon connection pooler)
+    - DATABASE_URL_UNPOOLED # direct (non-pooled) connection — required for migrations and long-running scripts
+  packages:
+    - "@neondatabase/serverless"
+    - "drizzle-orm"
+  dev_packages:
+    - "drizzle-kit"
+    - "pg"               # node-postgres driver (used for migrations and long-running ingest)
+    - "@types/pg"
+    - "tsx"              # for running drizzle-kit generate/migrate
+
+setup_steps:
+  - Create a Neon project at neon.tech (free plan sufficient for development)
+  - Copy the pooled and unpooled connection strings from the Neon dashboard
+  - Set DATABASE_URL (pooled) and DATABASE_URL_UNPOOLED (direct) in .env.local
+  - Install packages; create drizzle.config.ts pointing to DATABASE_URL_UNPOOLED
+  - Write schema in src/db/schema/*.ts; run `npx drizzle-kit generate` then `npx drizzle-kit migrate`
+  - For PostGIS and pgvector: use pure-SQL migration files (drizzle-kit cannot generate custom extension types)
+  - Enable extensions in migration: CREATE EXTENSION IF NOT EXISTS postgis; CREATE EXTENSION IF NOT EXISTS vector;
+
+teardown_steps:
+  - Remove packages and drizzle.config.ts
+  - Delete the Neon project from the dashboard
+  - Remove DATABASE_URL and DATABASE_URL_UNPOOLED from environment
+
+# ── Dual-driver pattern ────────────────────────────────────────────────────
+# This is the key insight for Next.js on Vercel:
+#
+# 1. Serverless driver (@neondatabase/serverless) — for Next.js API routes,
+#    Server Components, Edge Middleware. Stateless HTTP+WebSocket. No TCP.
+#    Use with drizzle-orm/neon-http or drizzle-orm/neon-serverless.
+#
+# 2. Node.js driver (pg/node-postgres) — for long-running processes:
+#    migrations, ingest pipelines, cron jobs with transaction support.
+#    Use with drizzle-orm/node-postgres. Requires DATABASE_URL_UNPOOLED.
+#    MUST call pool.end() when done.
+#
+# Pattern:
+#   export function getDb() {
+#     const sql = neon(process.env.DATABASE_URL!)
+#     return drizzle(sql, { schema })
+#   }
+#   export function getIngestDb() {
+#     const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL_UNPOOLED! })
+#     return { db: drizzle(pool, { schema }), pool }
+#   }
+#
+# ── PostGIS + pgvector in Drizzle ──────────────────────────────────────────
+# Drizzle does not have native PostGIS/pgvector types. Use customType():
+#
+#   const geometryPoint = customType<{ data: unknown; driverData: string }>({
+#     dataType() { return 'geometry(Point,4326)' },
+#   })
+#   const vector3072 = customType<{ data: number[]; driverData: string }>({
+#     dataType() { return 'vector(3072)' },
+#     fromDriver(v: string) { return JSON.parse(v) },
+#     toDriver(v: number[]) { return JSON.stringify(v) },
+#   })
+#
+# For HNSW indexes, GIN indexes, and generated tsvector columns, write
+# pure SQL migration files — drizzle-kit cannot express these.
+#
+# ── HNSW index syntax ─────────────────────────────────────────────────────
+#   CREATE INDEX idx_embedding_hnsw ON my_table
+#     USING hnsw (embedding_col vector_cosine_ops)
+#     WITH (m = 16, ef_construction = 64);
+#
+# ── Generated tsvector column syntax ──────────────────────────────────────
+#   tsv_col tsvector GENERATED ALWAYS AS (
+#     to_tsvector('english', coalesce(col_a, '') || ' ' || coalesce(col_b, ''))
+#   ) STORED
+#
+# ── drizzle.config.ts ─────────────────────────────────────────────────────
+#   import { defineConfig } from 'drizzle-kit'
+#   export default defineConfig({
+#     schema: './src/db/schema/index.ts',
+#     out: './src/db/migrations',
+#     dialect: 'postgresql',
+#     dbCredentials: { url: process.env.DATABASE_URL_UNPOOLED! },
+#   })
+
+alternatives_considered:
+  - option: Supabase
+    rejected_because: >
+      Supabase is a higher-level platform (auth, storage, realtime). For a
+      data-pipeline-heavy product where the DB is central and we run large
+      batch ingest jobs, bare Neon gives more control and lower cost per query.
+      Supabase is the right choice when you need its non-database features.
+  - option: Vercel Postgres (deprecated)
+    rejected_because: >
+      Vercel Postgres is sunset. Vercel now recommends Marketplace integrations.
+      Neon is the recommended replacement and is available on the Vercel Marketplace.
+  - option: PlanetScale / Turso
+    rejected_because: >
+      Neither supports PostGIS (required for geographic data). pgvector is also
+      better supported on Postgres than on MySQL-compatible databases.
+
+known_limitations:
+  - Free tier: 0.5 GB storage. Exceeds this after ~330K records with embeddings.
+    Upgrade to Launch ($19/mo) for 10 GB.
+  - PostGIS HNSW index build on 332K records can take 10-30 minutes on first run.
+    Build the index AFTER backfill, not before.
+  - DATABASE_URL_UNPOOLED must be used for migrations — the pooled connection
+    string does not work with drizzle-kit migrate.
+  - Neon compute auto-suspends after 5 minutes of inactivity on the free tier.
+    First query after suspension adds ~500ms cold start latency.
+
+tested_with:
+  - irish-planning (Next.js 15, Turborepo, Vercel, 332K records, PostGIS + pgvector)
+
+staleness_date: "2026-04-10"
+drafted_by: rouge-factory/irish-planning-foundation

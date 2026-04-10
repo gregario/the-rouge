@@ -1,0 +1,85 @@
+id: web-push-nextjs
+name: Web Push API with Next.js
+tier: draft
+category: notifications
+tags:
+  - pwa
+  - push-notifications
+  - service-worker
+  - web-push
+description: >
+  Browser Web Push API for sending push notifications to PWA users.
+  Uses VAPID keys for authentication, web-push npm package for server-side
+  delivery, and a custom service worker for notification display and click handling.
+applies_when: >
+  PWA needs push notifications for timely alerts (order deadlines, task overdue,
+  cascade summaries) without email. User must grant notification permission.
+
+requires:
+  packages:
+    - "web-push"
+    - "@types/web-push"
+  env_vars:
+    - NEXT_PUBLIC_VAPID_PUBLIC_KEY
+    - VAPID_PRIVATE_KEY
+    - VAPID_SUBJECT  # mailto: address
+    - CRON_SECRET    # protects cron endpoint from external callers
+  browser_apis:
+    - ServiceWorkerRegistration.pushManager
+    - PushManager.subscribe()
+    - Notification
+
+setup_steps:
+  - Generate VAPID keys: node -e "const wp=require('web-push'); const k=wp.generateVAPIDKeys(); console.log(JSON.stringify(k))"
+  - Add VAPID keys to .env.local and deployment platform env vars
+  - Write custom service worker at public/sw.js with push and notificationclick handlers
+  - Configure vercel.json to serve sw.js with Cache-Control: no-cache
+  - Create push_subscriptions table with endpoint, p256dh, auth_key columns
+  - Implement POST /api/push/subscribe (save subscription) and DELETE (unsubscribe)
+  - Implement POST /api/push/send (fire notifications via web-push)
+  - Call webpush.setVapidDetails() INSIDE handler functions, NOT at module level
+
+critical_notes:
+  - "MUST call webpush.setVapidDetails() inside handler, not at module top level.
+    Next.js 16 Turbopack evaluates modules during static generation — calling it
+    at module level causes 'No key set in vapidDetails.privateKey' build error."
+  - "Service worker must be served with Cache-Control: no-cache. Browser caches
+    sw.js aggressively — without this header, updates won't be picked up."
+  - "applicationServerKey in pushManager.subscribe() must be a Uint8Array.
+    Convert VAPID public key from URL-safe base64 using urlBase64ToUint8Array()."
+
+code_patterns:
+  - file: public/sw.js
+    description: Custom service worker with push event handler for notification display
+      and notificationclick handler for deep linking into the app.
+  - file: lib/push/client.ts
+    description: subscribeToPush() and unsubscribeFromPush() helpers for client components.
+  - file: app/api/push/subscribe/route.ts
+    description: POST saves PushSubscription JSON to DB; DELETE soft-disables.
+  - file: app/api/push/send/route.ts
+    description: POST accepts {subscriptions, notification} and sends via webpush.sendNotification().
+  - file: app/api/cron/daily-check/route.ts
+    description: Vercel Cron GET handler. Queries DB for overdue tasks and upcoming
+      order deadlines, batches notifications per user, calls /api/push/send.
+
+free_tier_limits:
+  vercel_cron: "1 cron job on Hobby tier (sufficient for daily digest)"
+  web_push: "Free — browser push infrastructure is free, no third-party service needed"
+  notification_delivery: "Browser push services (FCM, APNs, Mozilla) are free"
+
+limitations:
+  - "iOS requires iOS 16.4+ with PWA installed from home screen (not Safari browser)"
+  - "Push subscriptions expire — subscription.endpoint may return 410 Gone; handle by deleting from DB"
+  - "No delivery guarantees — browser may not be open or push may be delayed"
+  - "TTL must be set appropriately (e.g. 86400s for daily digest) to avoid delivering stale notifications"
+
+alternatives_considered:
+  - "OneSignal — third-party service, free tier sufficient but adds external dependency and privacy surface"
+  - "Firebase Cloud Messaging — Google dependency, more complex setup, same capability"
+  - "Native push via Supabase Edge Function + pg_cron — viable but adds edge function complexity"
+
+tested_with:
+  - nextjs-16-vercel-hobby
+  - supabase-auth-nextjs
+
+staleness_date: "2026-04-05"

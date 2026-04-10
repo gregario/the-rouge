@@ -1,0 +1,107 @@
+id: vercel-ai-gateway-nextjs
+name: Vercel AI Gateway
+tier: draft
+category: ai-proxy
+description: >
+  Vercel AI Gateway is a unified proxy for AI model APIs (OpenAI, Anthropic,
+  Google, etc.) with observability, model fallbacks, zero-data-retention (ZDR),
+  and caching. Routes API calls through Vercel's infrastructure instead of
+  hitting providers directly. GA since August 2025.
+  Use when you need: cross-provider routing, ZDR for GDPR compliance,
+  unified billing/observability, or fallback between providers.
+
+cost_tier: usage-based
+free_tier_limits:
+  requests_per_month: included_with_vercel_pro
+
+requires:
+  env_vars:
+    - AI_GATEWAY_URL   # e.g. https://gateway.ai.vercel.com/v1/{teamId}/{gatewaySlug}
+    - ANTHROPIC_API_KEY
+    - OPENAI_API_KEY
+  packages:
+    - "ai"                 # Vercel AI SDK v4+
+    - "@ai-sdk/anthropic"
+    - "@ai-sdk/openai"
+
+setup_steps:
+  - Create an AI Gateway in the Vercel dashboard under your team → AI → Gateway
+  - Add your AI provider API keys to the gateway configuration
+  - Copy the gateway base URL: https://gateway.ai.vercel.com/v1/{teamId}/{gatewaySlug}
+  - Set AI_GATEWAY_URL in project environment variables
+  - Use the URL as baseURL when creating SDK providers (see pattern below)
+
+teardown_steps:
+  - Remove AI_GATEWAY_URL from environment variables
+  - Remove gateway from Vercel dashboard
+  - Revert SDK clients to direct provider URLs
+
+# ── Usage pattern with AI SDK ─────────────────────────────────────────────
+#
+# The AI SDK's @ai-sdk/anthropic and @ai-sdk/openai providers accept a
+# custom baseURL. Pass the gateway URL to route through Vercel AI Gateway.
+#
+# Anthropic (via @anthropic-ai/sdk directly):
+#   const client = new Anthropic({
+#     apiKey: process.env.ANTHROPIC_API_KEY,
+#     baseURL: process.env.AI_GATEWAY_URL
+#       ? `${process.env.AI_GATEWAY_URL}/anthropic`
+#       : undefined,
+#   })
+#
+# OpenAI (via openai SDK directly):
+#   const client = new OpenAI({
+#     apiKey: process.env.OPENAI_API_KEY,
+#     baseURL: process.env.AI_GATEWAY_URL
+#       ? `${process.env.AI_GATEWAY_URL}/openai`
+#       : undefined,
+#   })
+#
+# Pattern for graceful fallback (gateway optional):
+#   const gatewayUrl = process.env.AI_GATEWAY_URL
+#   // If AI_GATEWAY_URL is not set, calls go directly to the provider.
+#   // Set it in production; leave unset in local dev for simplicity.
+#
+# ── Zero-data-retention (ZDR) ─────────────────────────────────────────────
+# ZDR is the main compliance reason to use this gateway.
+# With ZDR enabled, request/response payloads are not logged or stored by
+# Vercel. Required for GDPR-sensitive data (PII in prompts, etc.).
+# Enable in the gateway settings in Vercel dashboard.
+#
+# ── Provider URL suffixes ─────────────────────────────────────────────────
+# Anthropic:  {AI_GATEWAY_URL}/anthropic
+# OpenAI:     {AI_GATEWAY_URL}/openai
+# Google:     {AI_GATEWAY_URL}/google
+#
+# ── Embedding models ──────────────────────────────────────────────────────
+# text-embedding-3-large (OpenAI) routes through the openai suffix.
+# Dimensions must be explicitly set: dimensions: 3072
+
+alternatives_considered:
+  - option: Direct API calls (no gateway)
+    rejected_because: >
+      Direct calls work fine for local dev and small-scale use. For production
+      at scale, the gateway provides observability (how many tokens/requests per
+      model), ZDR for GDPR, and the ability to swap providers without code changes.
+      If the compliance requirement or observability requirement is absent, direct
+      calls are simpler.
+  - option: LangSmith / Portkey / similar third-party gateways
+    rejected_because: >
+      Additional vendor. Vercel AI Gateway is native to the deployment platform,
+      meaning it shares billing, auth, and zero-config setup with the project.
+      Use third-party gateways only if multi-cloud/multi-platform deployment is required.
+
+known_limitations:
+  - Gateway requires Vercel Pro or higher for production use at scale.
+  - Some provider-specific parameters (extended thinking tokens, batching APIs)
+    may not be proxied through the gateway. Check Vercel docs for current coverage.
+  - The /anthropic suffix path format must be verified against current docs —
+    Vercel periodically updates the gateway routing scheme.
+  - AI_GATEWAY_URL is optional — always code with fallback to direct provider
+    so local development works without gateway configuration.
+
+tested_with:
+  - irish-planning (Claude Haiku 4.5 classification, text-embedding-3-large embeddings)
+
+staleness_date: "2026-04-10"
+drafted_by: rouge-factory/irish-planning-foundation
