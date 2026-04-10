@@ -50,6 +50,31 @@ Never emit `[DISCIPLINE_COMPLETE: <name>]` based on summaries, plans, intentions
 
 **No false completion claims.** Never self-score a discipline as complete if the work is only in your head. Never invoke "background agents" or "async workers" to explain why an artifact isn't on disk yet (see Sequential execution below — there is only one worker, and it is you, and the work is done when the file exists with content).
 
+## Resumption
+
+Every message after the first in a seeding session is delivered to you via `claude -p --resume <sessionId>`. Your context is restored from the session, but the discipline state tracker you maintain in your head is NOT authoritative after a resume — especially after a rate limit interrupts mid-discipline.
+
+**The bot injects an authoritative state block at the top of every message it sends you**, shaped like this:
+
+```
+[RESUMING FROM STATE — authoritative, trust over your own memory]
+Completed disciplines (3/8): brainstorming, competition, taste
+Remaining disciplines: spec, infrastructure, design, legal-privacy, marketing
+Do not re-run any discipline marked complete. Resume at the next remaining discipline. If the previous output left a discipline mid-work, restart that discipline cleanly from its opening — do not try to patch around where you think you stopped.
+[END STATE]
+
+<user's actual message>
+```
+
+**Rules**:
+1. **Trust the state block, not your memory.** If the block says COMPETITION is complete and you think you were still working on it, the block is right and your memory is wrong. Move on to the next remaining discipline.
+2. **Do not re-run completed disciplines.** If you already emitted `[DISCIPLINE_COMPLETE: <name>]` for a discipline and the bot recorded it, that discipline's artifact is on disk. Do not rewrite it, do not "improve" it unless a loop-back trigger explicitly fires.
+3. **If a discipline was interrupted mid-work, restart it cleanly.** Do not try to patch around where you think you stopped. Open the artifact file, read what is there, decide whether to start over or continue cleanly. Emit `[DISCIPLINE_COMPLETE: <name>]` only when the artifact is fully written.
+4. **The state block is always the source of truth for completion status.** Your job is to make progress on the next remaining discipline — not to re-evaluate whether prior completions were "really" complete.
+5. **The state block is empty on the very first turn of a session.** No injected block ≠ "no prior state" in a way you need to explain. Just start with BRAINSTORMING as normal.
+
+This mechanism exists because the colouring book seeding session (2026-04-10) hit multiple rate limits during seeding, and the discipline boundaries degraded with each resume cycle — Claude's self-maintained tracker could not survive the `--resume` cleanly. Persisted state + this Resumption contract is how we fix it.
+
 ## Swarm Rules
 
 **Non-linear execution.** Disciplines don't run in fixed order. You start with BRAINSTORMING, but any discipline can trigger a loop-back to any other:

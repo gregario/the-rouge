@@ -186,6 +186,74 @@ function writeSeedingState(projectName, seedState) {
   fs.renameSync(tmp, seedPath);
 }
 
+// FIX #105: Discipline state tracker + resume handoff.
+//
+// The orchestrator prompt used to tell Claude to maintain a JSON tracker of
+// discipline state in its head. That tracker was never persisted to disk, so
+// when a rate limit killed the subprocess and the session was resumed via
+// --resume, Claude would reconstruct the tracker from its own memory —
+// sometimes misjudging where it had stopped and blurring the boundary between
+// disciplines. We now persist an authoritative tracker in seedingState and
+// inject it into every Claude call as a [RESUMING FROM STATE] block.
+
+const SEEDING_DISCIPLINES = [
+  'brainstorming', 'competition', 'taste', 'spec',
+  'infrastructure', 'design', 'legal-privacy', 'marketing',
+];
+
+/**
+ * Record a parsed [DISCIPLINE_COMPLETE: <name>] marker in seedingState.
+ * Normalises the discipline name (case-insensitive, strips whitespace).
+ * Mutates seedingState in place; caller is responsible for persisting.
+ */
+function updateDisciplineTracker(seedState, disciplineName) {
+  if (!seedState.disciplines) seedState.disciplines = {};
+  const normalised = String(disciplineName || '').trim().toLowerCase();
+  if (!normalised) return;
+  const existing = seedState.disciplines[normalised] || { runs: 0 };
+  seedState.disciplines[normalised] = {
+    status: 'complete',
+    completed_at: new Date().toISOString(),
+    runs: (existing.runs || 0) + 1,
+  };
+}
+
+/**
+ * Build the [RESUMING FROM STATE] block that gets prepended to every Claude
+ * seeding invocation after the first. Returns an empty string if there is no
+ * discipline state to report (first message in the session).
+ *
+ * The block is prose that the orchestrator's Resumption section tells Claude
+ * to trust as the authoritative source of truth — overriding its own memory
+ * of where the discipline boundaries fell.
+ */
+function buildResumingFromStateBlock(seedState) {
+  const disciplines = seedState && seedState.disciplines;
+  if (!disciplines || Object.keys(disciplines).length === 0) return '';
+
+  const completed = [];
+  const pending = [];
+  for (const name of SEEDING_DISCIPLINES) {
+    const entry = disciplines[name];
+    if (entry && entry.status === 'complete') {
+      completed.push(name);
+    } else {
+      pending.push(name);
+    }
+  }
+
+  const lines = [
+    '[RESUMING FROM STATE — authoritative, trust over your own memory]',
+    `Completed disciplines (${completed.length}/${SEEDING_DISCIPLINES.length}): ${completed.join(', ') || '(none)'}`,
+    `Remaining disciplines: ${pending.join(', ') || '(none)'}`,
+    'Do not re-run any discipline marked complete. Resume at the next remaining discipline. If the previous output left a discipline mid-work, restart that discipline cleanly from its opening — do not try to patch around where you think you stopped.',
+    '[END STATE]',
+    '',
+    '',
+  ];
+  return lines.join('\n');
+}
+
 // FIX #2: Generate cycle_context.json from seed artifacts when seeding completes
 function generateCycleContext(projectName) {
   const projectDir = path.join(PROJECTS_DIR, projectName);
@@ -981,7 +1049,12 @@ app.event('app_mention', async ({ event, say }) => {
         await app.client.reactions.add({ channel: event.channel, timestamp: event.ts, name: 'eyes' });
       } catch {}
 
-      const result = invokeClaudeSeeding(projectDir, text, seedState.session_id);
+      // FIX #105: prepend authoritative discipline state to every Claude
+      // invocation. Every subsequent call is a fresh `claude -p --resume`
+      // subprocess, so injection must happen on every turn, not just after
+      // rate limits. The block is empty on the very first turn (no state yet).
+      const resumeBlock = buildResumingFromStateBlock(seedState);
+      const result = invokeClaudeSeeding(projectDir, resumeBlock + text, seedState.session_id);
 
       // Remove 👀 — processing complete
       try {
@@ -1045,15 +1118,16 @@ app.event('app_mention', async ({ event, say }) => {
         }
       }
 
-      writeSeedingState(seedProject, seedState);
-
-      // FW.6: Parse discipline progress markers
-      const DISCIPLINES = ['brainstorming', 'competition', 'taste', 'spec', 'design', 'legal-privacy', 'marketing'];
+      // FW.6: Parse discipline progress markers (FIX #105: also persist to seedingState).
+      const DISCIPLINES = SEEDING_DISCIPLINES;
       const completedDisciplines = [];
       const progressMatches = response.matchAll(/\[DISCIPLINE_COMPLETE:\s*(\S+)\]/g);
       for (const match of progressMatches) {
         completedDisciplines.push(match[1]);
+        updateDisciplineTracker(seedState, match[1]);
       }
+
+      writeSeedingState(seedProject, seedState);
 
       // FW.1: Reply in thread
       const threadTs = seedState.thread_ts;
@@ -1170,7 +1244,10 @@ app.event('message', async ({ event, say }) => {
       await app.client.reactions.add({ channel: event.channel, timestamp: event.ts, name: 'eyes' });
     } catch {}
 
-    const result = invokeClaudeSeeding(projectDir, text, seedState.session_id);
+    // FIX #105: prepend authoritative discipline state to every Claude
+    // seeding invocation (DM code path).
+    const resumeBlock = buildResumingFromStateBlock(seedState);
+    const result = invokeClaudeSeeding(projectDir, resumeBlock + text, seedState.session_id);
 
     // Remove 👀
     try {
@@ -1226,15 +1303,16 @@ app.event('message', async ({ event, say }) => {
       }
     }
 
-    writeSeedingState(seedProject, seedState);
-
-    // FW.6: Parse discipline progress markers
-    const DM_DISCIPLINES = ['brainstorming', 'competition', 'taste', 'spec', 'design', 'infrastructure', 'legal-privacy', 'marketing'];
+    // FW.6: Parse discipline progress markers (FIX #105: also persist to seedingState).
+    const DM_DISCIPLINES = SEEDING_DISCIPLINES;
     const dmCompletedDisciplines = [];
     const dmProgressMatches = response.matchAll(/\[DISCIPLINE_COMPLETE:\s*(\S+)\]/g);
     for (const match of dmProgressMatches) {
       dmCompletedDisciplines.push(match[1]);
+      updateDisciplineTracker(seedState, match[1]);
     }
+
+    writeSeedingState(seedProject, seedState);
 
     // Show progress bar if any disciplines completed
     if (dmCompletedDisciplines.length > 0) {
