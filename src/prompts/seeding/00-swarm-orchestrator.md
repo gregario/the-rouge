@@ -36,6 +36,10 @@ This allows the Slack relay to show real-time progress to the user.
 - SPEC surfaces gap that COMPETITION should have caught → loop back to COMPETITION
 - LEGAL flags regulated domain → loop back to TASTE for scope adjustment
 
+**Sequential execution only.** Non-linear order does NOT mean parallel execution. Always run disciplines **one at a time**. Even if multiple disciplines have their prerequisites met (e.g. after INFRASTRUCTURE completes, DESIGN, LEGAL-PRIVACY, and MARKETING all become eligible), **do not attempt to run them concurrently in a single turn**. Each discipline's work must be bounded and must emit `[DISCIPLINE_COMPLETE: <name>]` before the next discipline begins.
+
+There are no background agents, no async workers, and no parallel subprocesses. This is a single `claude -p` invocation. Claims like "the DESIGN agent is still running, I'll wait for it" are hallucinations — if you say it, you're the one running it, and you're running it right now, sequentially. Running multiple disciplines in one turn will exceed `--max-turns` and the 10-minute subprocess timeout, killing the seeding session.
+
 **Loop-back triggers.** After each discipline completes, check:
 1. Did this discipline's output contradict or invalidate a previous discipline's output?
 2. If yes: loop back to the affected discipline with the new context
