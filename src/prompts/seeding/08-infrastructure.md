@@ -55,11 +55,15 @@ Flag immediately if the spec combines:
 
 ### 5. Staging Strategy
 
-Recommend one of:
-- **Cloudflare Workers staging**: `--env staging` (default for web apps)
-- **Docker Compose local**: for complex multi-service setups
-- **Vercel preview deployments**: for Next.js without CF
-- **None needed**: for CLI tools, MCP servers, libraries
+There is no default staging target. Choose the one that fits the product and record it explicitly in `infrastructure_manifest.json`. The launcher will refuse to deploy any project that has not declared an explicit `deployment_target` (see #96).
+
+Options:
+- **Vercel preview deployments**: for Next.js, Remix, SvelteKit, Astro — anything that benefits from Vercel's framework-aware build pipeline and Fluid Compute
+- **Cloudflare Workers staging**: `--env staging` — for Workers-native products, D1, R2, Durable Objects, or products that genuinely need Cloudflare's edge footprint
+- **Docker Compose local**: for complex multi-service setups, self-hosted open source products
+- **None needed**: for CLI tools, MCP servers, libraries, and other non-web deliverables
+
+Pick the target based on what the product actually needs, not on what Rouge has historically used. Write the choice with reasoning to `factory_decisions`.
 
 ### 6. Project Dependencies
 
@@ -91,7 +95,7 @@ Write `infrastructure_manifest.json` to the project root:
     "reason": "CF Workers incompatible with Prisma ORM"
   },
   "deploy": {
-    "target": "cloudflare-workers",
+    "target": "<explicit target slug — e.g. 'vercel', 'cloudflare-workers', 'docker-compose', 'none'>",
     "staging_env": "staging",
     "production_env": "production"
   },

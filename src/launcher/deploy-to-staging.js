@@ -68,13 +68,63 @@ function rollback(projectDir, versionId, reason) {
   }
 }
 
+/**
+ * Determine the deployment target for a project.
+ *
+ * The ONLY source of truth is `vision.json.infrastructure.deployment_target`.
+ * This function never silently defaults to cloudflare (or anything else) — that
+ * behaviour caused #96, where a construction-coordinator build declared "vercel"
+ * in vision.json but was silently routed to Cloudflare through an if/else
+ * fallthrough. If the field is missing, return null — the deploy() function
+ * will refuse to proceed and log a clear error.
+ *
+ * @param {string} projectDir absolute path to the project
+ * @returns {string|null} the explicit deploy target slug, or null if not declared
+ */
 function detectDeployTarget(projectDir) {
   const vision = readJson(path.join(projectDir, 'vision.json'));
-  if (vision?.infrastructure?.deployment_target) return vision.infrastructure.deployment_target;
-  if (fs.existsSync(path.join(projectDir, 'wrangler.toml'))) return 'cloudflare';
-  if (fs.existsSync(path.join(projectDir, 'vercel.json'))) return 'vercel';
-  if (fs.existsSync(path.join(projectDir, '.vercel'))) return 'vercel';
-  return 'cloudflare';
+  const declared = vision?.infrastructure?.deployment_target;
+  return declared || null;
+}
+
+// Handler registry — one entry per supported deploy target. Adding a new
+// target = adding one entry here. Unknown targets error with a clear message
+// instead of silently falling through to cloudflare. See #96.
+const DEPLOY_HANDLERS = {
+  'vercel': deployVercel,
+  'cloudflare': deployCloudflare,
+  'cloudflare-workers': deployCloudflare, // alias used in vision.json.infrastructure
+};
+
+function deployVercel(projectDir) {
+  // Vercel: deploy via CLI (project must be linked via .vercel/project.json).
+  // Use --prod because Vercel Hobby plan preview URLs return 401 (auth required).
+  // Production deploys are publicly accessible for health checks.
+  run('npx vercel deploy --yes --prod', {
+    cwd: projectDir,
+    env: { ...process.env },
+    timeout: 180000,
+  });
+  // Use the stable project URL for health checks, not the deployment-specific URL.
+  // Vercel Hobby plan returns 401 on deployment-specific URLs even with --prod.
+  const projectJson = readJson(path.join(projectDir, '.vercel', 'project.json'));
+  const projectName = projectJson?.projectName || path.basename(projectDir);
+  const stagingUrl = `https://${projectName}.vercel.app`;
+  log(`Deployed to ${stagingUrl}`);
+  return stagingUrl;
+}
+
+function deployCloudflare(projectDir) {
+  run('npm run build', { cwd: projectDir });
+  run('npx @opennextjs/cloudflare build', { cwd: projectDir });
+  const output = run('npx wrangler deploy --env staging', { cwd: projectDir });
+  const urlMatch = output.match(/https:\/\/[^\s]+\.workers\.dev/);
+  if (urlMatch) {
+    const stagingUrl = urlMatch[0];
+    log(`Deployed to ${stagingUrl}`);
+    return stagingUrl;
+  }
+  return null;
 }
 
 function deploy(projectDir) {
@@ -82,41 +132,29 @@ function deploy(projectDir) {
   const ctxFile = path.join(projectDir, 'cycle_context.json');
   const target = detectDeployTarget(projectDir);
 
+  if (!target) {
+    log(`❌ Deploy refused: ${projectName} has no vision.json.infrastructure.deployment_target declared. Set it to one of: ${Object.keys(DEPLOY_HANDLERS).join(', ')}. Rouge will not guess a deploy target — see #96.`);
+    return null;
+  }
+
+  const handler = DEPLOY_HANDLERS[target];
+  if (!handler) {
+    log(`❌ Deploy refused: ${projectName} declared deployment_target="${target}" but no handler is registered. Supported targets: ${Object.keys(DEPLOY_HANDLERS).join(', ')}. See #96 and DEPLOY_HANDLERS in deploy-to-staging.js to add a new target.`);
+    return null;
+  }
+
   log(`Deploying ${projectName} to staging (target: ${target})`);
 
-  const previousVersion = target === 'cloudflare' ? getDeploymentVersion(projectDir) : null;
+  // Cloudflare-only: capture current deployment version for rollback
+  const isCloudflare = target === 'cloudflare' || target === 'cloudflare-workers';
+  const previousVersion = isCloudflare ? getDeploymentVersion(projectDir) : null;
   if (previousVersion) {
     log(`Previous deployment: ${previousVersion}`);
   }
 
   let stagingUrl = null;
   try {
-    if (target === 'vercel') {
-      // Vercel: deploy via CLI (project must be linked via .vercel/project.json)
-      // Use --prod because Vercel Hobby plan preview URLs return 401 (auth required).
-      // Production deploys are publicly accessible for health checks.
-      run('npx vercel deploy --yes --prod', {
-        cwd: projectDir,
-        env: { ...process.env },
-        timeout: 180000,
-      });
-      // Use the stable project URL for health checks, not the deployment-specific URL.
-      // Vercel Hobby plan returns 401 on deployment-specific URLs even with --prod.
-      const projectJson = readJson(path.join(projectDir, '.vercel', 'project.json'));
-      const projectName = projectJson?.projectName || path.basename(projectDir);
-      stagingUrl = `https://${projectName}.vercel.app`;
-      log(`Deployed to ${stagingUrl}`);
-    } else {
-      // Cloudflare: build + deploy
-      run('npm run build', { cwd: projectDir });
-      run('npx @opennextjs/cloudflare build', { cwd: projectDir });
-      const output = run('npx wrangler deploy --env staging', { cwd: projectDir });
-      const urlMatch = output.match(/https:\/\/[^\s]+\.workers\.dev/);
-      if (urlMatch) {
-        stagingUrl = urlMatch[0];
-        log(`Deployed to ${stagingUrl}`);
-      }
-    }
+    stagingUrl = handler(projectDir);
   } catch (err) {
     log(`${target} deploy failed: ${(err.message || '').slice(0, 200)}`);
     return null;
