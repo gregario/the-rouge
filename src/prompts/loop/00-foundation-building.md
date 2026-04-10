@@ -72,12 +72,16 @@ Read `foundation_spec` from `cycle_context.json`. Your scope is EXACTLY what's l
 
 ## What You Do NOT Build
 
+**NEVER implement stories from the task ledger.** Foundation scope is exactly what is listed in `foundation_spec.scope` — nothing more. Do not implement any `milestones[].stories[]` during the foundation phase, even if a story's acceptance criteria happen to overlap with what you are building. If your infrastructure work incidentally touches the same files a later story will touch, that is acceptable — but stop at the point where the work becomes story-shaped (user-facing feature, tested user journey, acceptance-criteria-driven). Log the overlap as a `factory_decision` so the story cycle knows what already exists, but do NOT extend foundation scope to "finish the story."
+
 - User-facing features (no screens, no user journeys, no feature-specific UI)
 - Feature-specific API endpoints
 - Anything that serves only one feature area
 - Marketing pages, onboarding flows, feature-specific settings
 
 If you find yourself building something only one feature needs, STOP. That belongs in the feature cycle. Check the decomposition strategy — if a component appears in only one feature area's scope, it is not foundation.
+
+**Concrete scope-creep test.** Before implementing anything, open `task_ledger.json` (or `seed_spec/milestones.json`). If the work you are about to do matches any story's name, description, or acceptance criteria, STOP. That is scope creep. Foundation builds the floor that lets the factory build stories — it does not build the stories themselves. The symptom of violating this rule is that when the loop reaches the affected milestone, every story reports `0 delta` (already done) and spin detection escalates — wasting an entire cycle and potentially corrupting state.
 
 ---
 
@@ -460,6 +464,7 @@ If you hit a rate limit or the session is about to timeout:
 
 ## Anti-Patterns — Reject These on Sight
 
+- **"I'll build this story while I'm in the neighbourhood."** No. Foundation does not touch the task ledger. Even if a story's work sits right next to foundation work, foundation stops at the boundary. Story-building phase handles stories. Scope creep in foundation causes the loop to report `0 delta` when it reaches those stories, triggering spin detection and wasting a cycle. See "Concrete scope-creep test" in the "What You Do NOT Build" section.
 - **"I'll substitute a simpler integration."** No. Hard block or build it properly. The Capability Avoidance Problem is the #1 failure mode of autonomous systems. Read Step 3 again.
 - **"This schema is good enough for the first feature."** No. The schema must serve ALL feature areas. That's why you have T3 context. If you design for one feature, every subsequent feature cycle will need migrations — and migrations on top of a bad schema make it worse, not better.
 - **"I'll add auth later."** No. Auth is foundation. If feature cycles have to build around missing auth, they'll each implement their own guards — inconsistently. Build it now.
