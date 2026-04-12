@@ -404,12 +404,6 @@ Key finding: External skills are REFERENCE MATERIAL, not things we modify or inv
 - [x] FW.27 First-run welcome flow — bot explains itself in each channel with pinned usage guide
 - [x] FW.28 Document 5-step new user setup — create workspace, import manifest, install app, copy 3 tokens, start bot (everything else auto-configures)
 
-## Future Work — Rouge Maintain (Closed Source)
-
-Rouge Maintain: autonomous maintenance of deployed production systems.
-
-- [x] FM.1-FM.8 — MOVED to GitHub issue #34 (Rouge Maintain). FM.1 (SBOM/CVE), FM.2 (security patching), FM.5 (dependency updates), FM.6 (uptime), FM.7 (safeguards), FM.8 (weekly report) are Rouge Maintain scope. FM.3 (bug triage) moved to #41. FM.4 (migration planning) moved to #42.
-
 ## Future Work — Rate Limit Handling Rethink
 
 - [x] FW.29 Distinguish rate limits from real failures — rate limits should NEVER count toward the 3-retry limit. They're temporary, not errors.
@@ -462,7 +456,7 @@ Questions:
 Adapted from garrytan/gstack. Design docs in `docs/design/`. Phase prompt changes already landed.
 
 - [x] FW.51 Safety hooks implementation — build `rouge-safety-check` bash CLI and register hooks in `.claude/settings.json`. DONE: `src/launcher/rouge-safety-check.sh` + `tests/safety-hooks.test.sh`
-- [x] FW.52 External reviewer triage — MOVED to GitHub issue #35. Separate from Rouge Maintain. Design exists at `docs/design/rouge-maintain-external-reviewer-triage.md`
+- [x] FW.52 External reviewer triage — MOVED to GitHub issue #35. Design moved to The Works project.
 - [x] FW.53 Worktree-based parallel module builds — MOVED to GitHub issue #25 (remaining item). Post-V1.
 - [x] FW.54 Soft dependencies (BENEFITS_FROM) — DONE at prompt level: headers in building, qa-fixing, analyzing prompts + protocol in autonomous-mode.md. Launcher orchestration deferred.
 - [x] FW.55 Natural language Slack routing — MOVED to GitHub issue #36. Post-V1.

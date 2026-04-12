@@ -401,15 +401,12 @@ Both stages must pass before the task is accepted. Do not accept "good enough." 
 
 After all tasks are implemented and reviewed, deploy to the staging environment. **Never deploy to production.** Production promotion happens in a separate phase.
 
-```bash
-# Build first (if not already built)
-npx @opennextjs/cloudflare build
+Read `infrastructure_manifest.json` (or `vision.json.infrastructure.deployment_target`) to determine the deployment platform. Do NOT assume Cloudflare — execute the platform-appropriate commands:
 
-# Deploy to staging environment
-npx wrangler deploy --env staging
-
-# For non-Cloudflare deployment targets, read the project's deploy config
-```
+- **Cloudflare Workers** (`cloudflare` or `cloudflare-workers`): `npx @opennextjs/cloudflare build && npx wrangler deploy --env staging`
+- **Vercel** (`vercel`): `npx vercel deploy --yes --prod` (use `--prod` because Vercel Hobby plan preview URLs return 401)
+- **Docker Compose** (`docker-compose`): `docker compose up -d --build`
+- **Other**: read the deploy pattern from `library/integrations/` for the declared target. If no pattern exists, ESCALATE.
 
 Capture the staging URL from the deploy output. You will need it for `cycle_context.json`.
 
@@ -421,20 +418,20 @@ If the deploy fails:
 
 ---
 
-## Step 7: Supabase Slot Management (If Applicable)
+## Step 7: Database Operations (If Applicable)
 
-If the project needs a database (check `cycle_context.json` for `supabase.project_ref` or the vision document for database requirements):
+If the project uses a database (check `infrastructure_manifest.json` or `cycle_context.json` for database configuration):
 
-1. **Read `cycle_context.json.supabase`** for the project reference.
-2. **If no project exists yet:**
-   - Check active project count: `supabase projects list --output json`
-   - If at the 2-slot free tier limit: identify the least-recently-active project (check `cycle_context.json` timestamps across all projects), pause it: `supabase projects pause --project-ref <ref>`
-   - Create or unpause the needed project.
-   - Log the slot swap to `cycle_context.json`.
-3. **Run migrations:** `supabase db push` to apply any new or modified migrations.
-4. **Deploy edge functions** if the project uses them: `supabase functions deploy`
+1. **Read `infrastructure_manifest.json`** for the database provider and connection details. Do NOT assume Supabase — the project may use Neon, D1, or another provider.
 
-If Supabase operations fail, log the error and continue. A missing database is a blocker for tasks that need it, but other tasks can proceed.
+2. **Execute provider-appropriate operations:**
+   - **Supabase**: read `cycle_context.json.supabase` for project ref; run `supabase db push` for migrations; deploy edge functions if applicable
+   - **Neon/Drizzle**: run `npx drizzle-kit migrate` using `DATABASE_URL_UNPOOLED`
+   - **Other**: read the provider's integration pattern from `library/integrations/` and follow its migration steps
+
+3. **If no database provider is configured** but the code references database operations, log a `factory_question` with severity `significant` — don't attempt to provision one.
+
+If database operations fail, log the error and continue. A missing database is a blocker for tasks that need it, but other tasks can proceed.
 
 ---
 

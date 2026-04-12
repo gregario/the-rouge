@@ -937,7 +937,7 @@ git commit -m "test(v3): add integration smoke test — tiny project end-to-end"
 4. **Composable decomposition:** Add the INFRASTRUCTURE discipline (8th) and foundation-at-spec-time concept.
 5. **Economics:** Update cost estimates based on per-phase model selection (Opus for reasoning, Sonnet for mechanical). Note 40-50% reduction vs V2.
 6. **Safety section:** Add cost caps, spin detection, milestone lock, deploy blocking, PreToolUse hooks + audit trail.
-7. **What's next:** Update Rouge Grow / Rouge Maintain / Rouge Embed descriptions. Add self-improvement and linked project dependencies as shipped V3 features.
+7. **What's next:** Rouge Grow / Rouge Maintain / Rouge Embed have moved to The Works. Update this section to reflect that. Add self-improvement and linked project dependencies as shipped V3 features.
 8. **Getting started → Prerequisites:** No changes expected, but verify accuracy.
 9. **Badge pills:** Verify shields.io badges still render (no URL changes).
 

@@ -59,9 +59,9 @@ Rouge Story (#79) is a completion step within Rouge Build — the final phase ge
 
 Three additional products are envisioned but deferred beyond V3:
 
-- **Rouge Grow** — feature expansion loop for shipped products. Takes a live product + feature request, runs the build-evaluate loop to add capabilities. Builds on Rouge Build's foundation.
-- **Rouge Maintain** — autonomous production upkeep. Dependency updates, framework upgrades, SBOM management, security patching, monitoring response. Closed source.
-- **Rouge Embed** — reverse-engineer existing products. Takes a live product URL, produces specs and architecture docs. Enables Rouge Build to extend products it didn't originally build.
+- **Rouge Grow** (moved to The Works) — feature expansion loop for shipped products. Takes a live product + feature request, runs the build-evaluate loop to add capabilities. Builds on Rouge Build's foundation.
+- **Rouge Maintain** (moved to The Works) — autonomous production upkeep. Dependency updates, framework upgrades, SBOM management, security patching, monitoring response. Closed source.
+- **Rouge Embed** (moved to The Works) — reverse-engineer existing products. Takes a live product URL, produces specs and architecture docs. Enables Rouge Build to extend products it didn't originally build.
 
 These require a stable, working Rouge Build (V3) as their foundation. They are tracked in GitHub issues (#33, #34, #18) but explicitly out of scope for V3.
 

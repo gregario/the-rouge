@@ -64,9 +64,8 @@ Rouge itself should:
 ### Out of scope (for now)
 
 - Non-software domains (electronics, music, video, writing)
-- Rouge Grow, Rouge Maintain, Rouge Embed (future products, separate from core)
+- Post-build lifecycle (feature expansion, production maintenance, codebase onboarding) — these are moving to The Works
 - Multi-tenancy or cloud hosting of Rouge itself
-- Charging for Rouge Build (it's free; only Grow/Maintain/Embed will be paid)
 
 ## How decisions get made
 

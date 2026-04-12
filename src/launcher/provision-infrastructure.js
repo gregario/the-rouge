@@ -314,15 +314,30 @@ function main() {
   }
 
   const infra = ctx.vision?.infrastructure || {};
+  const target = infra.deployment_target;
   log(`Provisioning infrastructure for "${projectName}"`);
-  log(`  needs_database: ${infra.needs_database}, needs_auth: ${infra.needs_auth}, target: ${infra.deployment_target}`);
+  log(`  needs_database: ${infra.needs_database}, needs_auth: ${infra.needs_auth}, target: ${target || '(none)'}`);
 
-  // Cloudflare Workers (always — all web products deploy here)
-  const stagingUrl = provisionCloudflare(projectDir, projectName);
-  if (stagingUrl) {
-    ctx.infrastructure = ctx.infrastructure || {};
-    ctx.infrastructure.staging_url = stagingUrl;
-    ctx.deployment_url = stagingUrl;
+  // FIX B3: Dispatch provisioning based on declared deployment_target.
+  // Previously this unconditionally called provisionCloudflare() for ALL projects,
+  // which meant a project declaring deployment_target: "vercel" would still get
+  // wrangler.toml, @opennextjs/cloudflare, and a Workers staging deploy. See #96.
+  if (!target) {
+    log('❌ No deployment_target in vision.json.infrastructure — cannot provision. Set it to one of: cloudflare, cloudflare-workers, vercel, docker-compose, none');
+  } else if (target === 'cloudflare' || target === 'cloudflare-workers') {
+    const stagingUrl = provisionCloudflare(projectDir, projectName);
+    if (stagingUrl) {
+      ctx.infrastructure = ctx.infrastructure || {};
+      ctx.infrastructure.staging_url = stagingUrl;
+      ctx.deployment_url = stagingUrl;
+    }
+  } else if (target === 'vercel') {
+    log('Vercel: project must be linked via `vercel link` before deploy. Skipping Cloudflare provisioning.');
+    log('Vercel: the deploy handler in deploy-to-staging.js handles `vercel deploy --yes --prod`.');
+  } else if (target === 'docker-compose' || target === 'none') {
+    log(`${target}: no cloud provisioning needed.`);
+  } else {
+    log(`❌ Unknown deployment_target "${target}" — no provisioner registered. Supported: cloudflare, cloudflare-workers, vercel, docker-compose, none`);
   }
 
   // Supabase (if needed)

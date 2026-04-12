@@ -24,7 +24,11 @@ rouge build my-product
 rouge status
 ```
 
-> **Experimental.** Rouge invokes Claude Code autonomously, in YOLO mode, deploys to real infrastructure, and makes real git commits, has full write access to your whole computer. It could rack up your token usage, deploy broken code to staging, or commit something embarrassing and even though there are hooks in place could delete your file system. It will not, to our knowledge, sell your grandmother. Use at your own risk.
+> **Experimental. Full filesystem access.** Rouge runs `claude -p --dangerously-skip-permissions` — Claude Code with no permission checks, no workspace boundaries, and full read/write access to your entire machine. It deploys to real infrastructure, makes real git commits, and manages real cloud resources (Vercel, Supabase, GitHub).
+>
+> **Recommended:** run Rouge on a dedicated machine, VM, or user account — not a machine with sensitive personal data. Rouge includes safety hooks (`rouge-safety-check.sh`) that block some destructive patterns, and prompt-level isolation rules that instruct the model not to touch other projects' infrastructure. These are **convention, not security boundaries** — they reduce the likelihood of accidents but cannot prevent a determined or confused model from accessing anything on the filesystem.
+>
+> It will not, to our knowledge, sell your grandmother. Use at your own risk.
 
 ## How it works
 
@@ -205,21 +209,14 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## What's next
 
-Rouge currently builds web products on Next.js with Cloudflare and Supabase. The architecture is stack-agnostic. What it can build depends on what stacks and integrations are in the catalogue, and we aim to grow that with the help of contributions.
+Rouge builds products. The architecture is stack-agnostic — what it can build depends on what stacks and integrations are in the catalogue, and that surface grows with every product shipped and every community contribution.
 
-### Rouge Grow
+Current priorities:
+- **More stacks** — Vercel, Docker Compose, additional database providers, framework support beyond Next.js
+- **Dashboard** — a web-based control plane alongside the Slack bot, for real-time visibility into build progress, escalations, and project health
+- **Community patterns** — every product Rouge builds can contribute integration patterns back to the catalogue, making Rouge better at building the next one
 
-Feature expansion on shipped products. Works from a known state (built by Rouge or onboarded via Embed), respects existing users and data, reads analytics or Rouge Spec inputs to decide what to build next.
-
-### Rouge Maintain
-
-Autonomous production upkeep. SBOM scanning, bug triage, dependency updates, performance regression detection. No new features. Just keeping the lights on.
-
-### Rouge Embed
-
-Bring an existing codebase into the loop. Three phases: understanding (reverse-engineer into specs), standardisation (decouple, clean up, remove mystery hooks), handoff (now Maintain and Grow can operate on it).
-
-Early access to new products as they're built for [sponsors](https://github.com/sponsors/gregario).
+**The Works** — a business operating system that extends Rouge's rigour to the full product lifecycle (marketing, legal, finance, growth, maintenance, operations) — is in development. Early access for [sponsors](https://github.com/sponsors/gregario).
 
 ## License
 

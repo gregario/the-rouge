@@ -323,14 +323,6 @@ Interactive seeding via Slack. Human + AI co-design a product through conversati
 
 The Karpathy Loop. Takes a seed package and autonomously builds the product through iterative cycles of building, testing, evaluating, and refining. This is what built Epoch.
 
-### Rouge Grow — "Make it better"
-
-Feature expansion on shipped products. Unlike Build (which creates from zero), Grow works with existing users, existing data, and existing patterns that must be preserved. It reads analytics (PostHog), user feedback, and market signals to decide what to build next.
-
-### Rouge Maintain — "Keep it alive"
-
-Autonomous production upkeep. SBOM and CVE scanning, bug triage from Sentry error streams, dependency updates, database migration management, performance regression detection. No new features — just keeping the lights on and the foundation solid.
-
 ---
 
 ## What We're Building Toward

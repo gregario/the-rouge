@@ -279,21 +279,27 @@ If the deploy fails:
 
 ---
 
-## Step 8: Supabase Slot Management (If Applicable)
+## Step 8: Database Setup (If Applicable)
 
-If the project needs a database (check `foundation_spec` for database requirements):
+If the project needs a database (check `foundation_spec` and `infrastructure_manifest.json` for database requirements):
 
-1. **Read `cycle_context.json.supabase`** for the project reference.
-2. **If no project exists yet:**
-   - Check active project count: `supabase projects list --output json`
-   - If at the 2-slot free tier limit: identify the least-recently-active project (check `cycle_context.json` for project activity timestamps), pause it: `supabase projects pause --project-ref <ref>`
-   - Create or unpause the needed project.
-   - Log the slot swap to `cycle_context.json`.
-3. **Run migrations:** `supabase db push` to apply schema.
-4. **Seed data:** Run seed scripts to populate test data.
-5. **Deploy edge functions** if applicable: `supabase functions deploy`
+1. **Read `infrastructure_manifest.json`** for the database provider and configuration. Do NOT assume Supabase — the project may use Neon, D1, or another provider. Execute the provider-appropriate commands.
 
-If Supabase operations fail, log the error and continue where possible.
+2. **If using Supabase** (`infrastructure_manifest.json.database.provider === "supabase"`):
+   - Read `cycle_context.json.supabase` for the project reference
+   - If no project exists yet, check slot availability and create/unpause as needed
+   - Run migrations with the Supabase CLI
+   - Deploy edge functions if applicable
+
+3. **If using Neon** (`infrastructure_manifest.json.database.provider === "neon"`):
+   - Read `DATABASE_URL` and `DATABASE_URL_UNPOOLED` from env vars
+   - Run migrations with the project's ORM tool (e.g., `npx drizzle-kit migrate`)
+
+4. **If using another provider**: read the provider's integration pattern from the catalogue (`library/integrations/`) and follow its setup steps.
+
+5. **Seed data:** Run seed scripts to populate test data (provider-agnostic — this is always `npm run seed` or equivalent).
+
+If database operations fail, log the error and continue where possible.
 
 ---
 

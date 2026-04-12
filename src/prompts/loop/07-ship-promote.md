@@ -146,11 +146,12 @@ Create a PR from the loop branch to `main` using `gh pr create` (structure defin
 
 ### Step 6 — Promote to Production
 
-Execute the production deployment. This is platform-specific:
+Execute the production deployment. Read `infrastructure_manifest.json` (or `vision.json.infrastructure.deployment_target`) to determine the platform. Do NOT assume Cloudflare — the project may deploy to Vercel, Docker Compose, or another target.
 
-- **Cloudflare Workers**: Run `npx wrangler deploy` to promote to production. Verify with `curl -s -o /dev/null -w "%{http_code}" <production-url>`. If the response is not 200, check `wrangler tail --name <worker-name>` for errors.
-- **npm publish**: Run `npm publish` (only if the project is a published package).
-- **Other platforms**: Read deployment configuration from project files and execute accordingly.
+- **Cloudflare Workers** (`deployment_target: "cloudflare"` or `"cloudflare-workers"`): Run `npx wrangler deploy` to promote to production. Verify with `curl -s -o /dev/null -w "%{http_code}" <production-url>`.
+- **Vercel** (`deployment_target: "vercel"`): Run `npx vercel deploy --yes --prod`. Verify the stable project URL responds with 200.
+- **npm publish**: Run `npm publish` (only if the project is a published package — check `package.json.private`).
+- **Other platforms**: Read the deployment pattern from the integration catalogue (`library/integrations/`) and execute accordingly. If no pattern exists for the target, ESCALATE — do not improvise a deploy command.
 
 **CRITICAL: If promotion fails, do NOT retry automatically.** Production deployments that fail may leave the system in an inconsistent state. On failure:
 
@@ -183,17 +184,19 @@ On successful promotion, update `cycle_context.json`:
 
 ### Step 7.5 — Rollback Plan
 
-If post-deploy verification fails (production URL returns errors, key user flows broken):
+If post-deploy verification fails (production URL returns errors, key user flows broken), execute the platform-appropriate rollback. Read `infrastructure_manifest.json` for the deployment target:
 
+**Cloudflare Workers:**
 ```bash
-# List available versions
 npx wrangler versions list --name <worker-name>
-
-# Roll back to the previous version
 npx wrangler versions deploy <previous-version-id>@100% --name <worker-name> --yes
 ```
 
-On rollback:
+**Vercel:** Use the Vercel dashboard or `vercel rollback` to revert to the previous production deployment.
+
+**Other platforms:** Read the rollback procedure from the integration catalogue. If no rollback procedure exists, ESCALATE.
+
+On any rollback:
 1. Log the failure in `cycle_context.json` under `ship_error` with the rollback details.
 2. The code remains on the loop branch for investigation in the next cycle.
 3. Set `escalation_needed: true` — production rollbacks always need human awareness.

@@ -292,12 +292,21 @@ function generateCycleContext(projectName) {
         description: `See seed_spec/spec-*-${fa.name}.md`,
         status: 'pending',
       })),
-      infrastructure: {
-        needs_database: true,
-        needs_auth: false,
-        needs_payments: false,
-        deployment_target: 'cloudflare-workers',
-      },
+      // FIX B7+I13: read infrastructure from vision.json instead of hardcoding.
+      // Previously hardcoded needs_database: true and deployment_target: 'cloudflare-workers'
+      // for every project regardless of what the seeding infrastructure discipline decided.
+      infrastructure: (() => {
+        const vision = readJson(path.join(projectDir, 'vision.json'));
+        const visionInfra = vision?.infrastructure || {};
+        return {
+          needs_database: visionInfra.needs_database ?? false,
+          needs_auth: visionInfra.needs_auth ?? false,
+          needs_payments: visionInfra.needs_payments ?? false,
+          deployment_target: visionInfra.deployment_target || null,
+          ...(visionInfra.services ? { services: visionInfra.services } : {}),
+          ...(visionInfra.framework ? { framework: visionInfra.framework } : {}),
+        };
+      })(),
     },
     product_standard: {
       inherits: ['global', 'domain/web'],

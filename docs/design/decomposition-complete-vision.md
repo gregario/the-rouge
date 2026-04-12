@@ -352,9 +352,8 @@ Behaviour:
 11. Private GitHub repos from foundation cycle — safety net
 12. Licensing at promotion, not seeding
 13. Node.js launcher (primary)
-14. Rouge Embed — reverse-engineer existing products (vision, not V1)
-15. Meta Rouge — cross-domain composition (internal vision only, never public)
-16. "Builds tech" positioning — describe what Rouge does well, never position by putting down competitors
+14. Meta Rouge — cross-domain composition (internal vision only, never public)
+15. "Builds tech" positioning — describe what Rouge does well, never position by putting down competitors
 
 ---
 

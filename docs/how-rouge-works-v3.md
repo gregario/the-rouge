@@ -218,12 +218,6 @@ Human + AI co-design a product through Slack conversation. Eight discipline-spec
 ### Rouge Build — "How to build it"
 The Karpathy Loop. Autonomous build-evaluate-improve cycles until quality converges. This is what built Epoch.
 
-### Rouge Grow — "Make it better"
-Feature expansion on shipped products. Reads analytics and user feedback. Builds new features while preserving existing user experience.
-
-### Rouge Maintain — "Keep it alive"
-Autonomous upkeep. CVE scanning, bug triage, dependency updates, migration management. No new features — just keeping the foundation solid.
-
 ---
 
 The goal: describe a product over coffee, approve a cost estimate, come back to a deployed, monitored, production-ready application.
