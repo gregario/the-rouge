@@ -498,24 +498,29 @@ function invokeClaudeSeeding(projectDir, prompt, sessionId) {
 }
 
 
+// V3 state machine phases — must match STATE_TO_PROMPT in rouge-loop.js.
 const STATE_EMOJI = {
-  building: '\u{1F528}',
-  'test-integrity': '\u{1F9EA}',
-  'code-review': '\u{1F50D}',
-  'product-walk': '\u{1F6B6}',
-  'evaluation': '\u{1F4CA}',
-  're-walk': '\u{1F504}',
-  'qa-fixing': '\u{1F527}',
-  analyzing: '\u{1F9E0}',
-  'generating-change-spec': '\u{1F4DD}',
-  'vision-checking': '\u{1F52D}',
-  promoting: '\u{1F680}',
-  'rolling-back': '\u23EA',
-  'final-review': '\u{1F3C1}',
-  complete: '\u2705',
-  'waiting-for-human': '\u23F8\uFE0F',
-  ready: '\u{1F4CB}',
-  seeding: '\u{1F331}',
+  // Foundation
+  'foundation': '\u{1F3D7}',          // 🏗️
+  'foundation-eval': '\u{1F50D}',     // 🔍
+  // Story loop
+  'story-building': '\u{1F528}',      // 🔨
+  'story-diagnosis': '\u{1F9EA}',     // 🧪
+  // Milestone loop
+  'milestone-check': '\u{1F4CB}',     // 📋
+  'milestone-fix': '\u{1F527}',       // 🔧
+  // Progression
+  'analyzing': '\u{1F9E0}',           // 🧠
+  'generating-change-spec': '\u{1F4DD}', // 📝
+  'vision-check': '\u{1F52D}',        // 🔭
+  'shipping': '\u{1F680}',            // 🚀
+  'final-review': '\u{1F3C1}',        // 🏁
+  // Terminal / control states
+  'complete': '\u2705',               // ✅
+  'waiting-for-human': '\u23F8\uFE0F', // ⏸️
+  'escalation': '\u{1F6A8}',          // 🚨
+  'ready': '\u{1F4CB}',               // 📋
+  'seeding': '\u{1F331}',             // 🌱
 };
 
 function showHelp(say) {
@@ -702,7 +707,8 @@ app.action(/^skip_/, async ({ action, ack, respond }) => {
   if (state && state.current_state === 'waiting-for-human') {
     const stuckPhase = state.paused_from_state || 'unknown';
     // Advance past the stuck phase
-    const pipeline = ['building', 'test-integrity', 'qa-gate', 'po-review-journeys', 'po-review-screens', 'po-review-heuristics', 'analyzing', 'vision-checking', 'promoting'];
+    // V3 phase pipeline — must match STATE_TO_PROMPT order in rouge-loop.js
+    const pipeline = ['story-building', 'story-diagnosis', 'milestone-check', 'milestone-fix', 'analyzing', 'generating-change-spec', 'vision-check', 'shipping', 'final-review'];
     const idx = pipeline.indexOf(stuckPhase);
     const nextPhase = idx >= 0 && idx < pipeline.length - 1 ? pipeline[idx + 1] : 'promoting';
     state.current_state = nextPhase;

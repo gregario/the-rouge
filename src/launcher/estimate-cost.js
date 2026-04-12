@@ -24,19 +24,21 @@ if (!PROJECT_DIR) {
   process.exit(1);
 }
 
-// --- Calibration data from countdowntimer retro ---
-// Average opus minutes per phase (successful completions only)
+// --- Calibration data (V3 phase names) ---
+// Average opus minutes per phase (calibrated from countdowntimer retro,
+// re-mapped to V3 state machine phases per STATE_TO_PROMPT in rouge-loop.js).
 const PHASE_MINUTES = {
-  building: 10.1,
-  'test-integrity': 4.3,
-  'qa-gate': 8.4,
-  'po-review-journeys': 5.8,
-  'po-review-screens': 7.0,
-  'po-review-heuristics': 5.8,
-  analyzing: 3.9,
-  'vision-checking': 2.8,
-  promoting: 4.1,
-  'generating-change-spec': 3.0, // estimated, no retro data
+  'foundation': 15.0,            // foundation-building (longer than a story build)
+  'foundation-eval': 8.0,       // foundation evaluation
+  'story-building': 10.1,       // was: building
+  'story-diagnosis': 4.3,       // was: test-integrity + qa-gate (combined in V3)
+  'milestone-check': 12.0,      // was: qa-gate + po-review-* (evaluation orchestrator in V3)
+  'milestone-fix': 8.0,         // fix cycle after milestone evaluation
+  'analyzing': 3.9,             // unchanged
+  'generating-change-spec': 3.0, // unchanged
+  'vision-check': 2.8,          // was: vision-checking
+  'shipping': 4.1,              // was: promoting
+  'final-review': 5.0,          // new in V3 (post-ship verification)
 };
 
 // Token estimates per minute of opus runtime (empirical)

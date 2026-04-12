@@ -197,7 +197,9 @@ function notify(msg) {
       `curl -s -X POST "$ROUGE_SLACK_WEBHOOK" -H 'Content-Type: application/json' -d '${JSON.stringify({ text: msg }).replace(/'/g, "'\\''")}'`,
       { env: process.env, timeout: 10000, stdio: 'ignore' }
     );
-  } catch {}
+  } catch (err) {
+    log(`Slack webhook failed: ${(err.message || '').slice(0, 150)}`);
+  }
 }
 
 function notifyRich(type, args) {
@@ -207,7 +209,9 @@ function notifyRich(type, args) {
       type,
       JSON.stringify(args),
     ], { env: process.env, timeout: 15000, stdio: 'pipe' });
-  } catch {}
+  } catch (err) {
+    log(`Slack rich notification (${type}) failed: ${(err.message || '').slice(0, 150)}`);
+  }
 }
 
 function isRateLimited(text) {
