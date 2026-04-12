@@ -419,6 +419,41 @@ async function advanceState(projectDir) {
         log(`[${projectName}] Pattern contribution failed: ${(err.message || '').slice(0, 100)}`);
       }
 
+      // FIX #19: Auto-create private GitHub repo as a safety net.
+      // If the machine dies mid-build, work isn't lost. At promotion, the user
+      // decides: make public, keep private, change license, transfer org.
+      try {
+        const hasRemote = (() => {
+          try {
+            execSync('git remote get-url origin', { cwd: projectDir, encoding: 'utf8', timeout: 5000, stdio: 'pipe' });
+            return true;
+          } catch { return false; }
+        })();
+        if (!hasRemote) {
+          log(`[${projectName}] Creating private GitHub repo as backup...`);
+          // Ensure we have an initial commit to push
+          try { execSync('git add -A && git diff --cached --quiet || git commit -m "rouge: initial project scaffold"', { cwd: projectDir, encoding: 'utf8', timeout: 30000, stdio: 'pipe', shell: true }); } catch {}
+          const repoOutput = execSync(
+            `gh repo create "gregario/${projectName}" --private --source=. --push 2>&1 || true`,
+            { cwd: projectDir, encoding: 'utf8', timeout: 60000, stdio: 'pipe' }
+          );
+          if (repoOutput.includes('github.com')) {
+            const repoUrl = repoOutput.match(/https:\/\/github\.com\/[^\s]+/)?.[0] || `https://github.com/gregario/${projectName}`;
+            log(`[${projectName}] Private repo created: ${repoUrl}`);
+            state.github_repo = repoUrl;
+            writeJson(stateFile, state);
+          } else {
+            log(`[${projectName}] GitHub repo creation skipped or failed (non-blocking): ${repoOutput.slice(0, 150)}`);
+          }
+        } else {
+          log(`[${projectName}] GitHub remote already exists — skipping repo creation`);
+          // Push latest foundation work to existing remote
+          try { execSync('git push origin HEAD 2>&1 || true', { cwd: projectDir, encoding: 'utf8', timeout: 30000, stdio: 'pipe' }); } catch {}
+        }
+      } catch (err) {
+        log(`[${projectName}] GitHub repo setup failed (non-blocking): ${(err.message || '').slice(0, 150)}`);
+      }
+
       // Provision cloud dev infrastructure ONCE before stories start
       log(`[${projectName}] Provisioning dev infrastructure...`);
       try {
@@ -543,6 +578,14 @@ async function advanceState(projectDir) {
       }
 
       writeJson(stateFile, state);
+
+      // FIX #19: Push to GitHub backup after each story (non-blocking).
+      // Only if a remote exists (set up during foundation-eval PASS).
+      if (outcome === 'pass' && state.github_repo) {
+        try {
+          execSync('git push origin HEAD 2>&1 || true', { cwd: projectDir, encoding: 'utf8', timeout: 30000, stdio: 'pipe' });
+        } catch {}
+      }
 
       // V3: Spin detection — escalate if loop is spinning without progress
       const spinReason = shouldEscalateForSpin({
