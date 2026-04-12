@@ -45,11 +45,14 @@ describe('Spin Detection', () => {
       assert.deepEqual(detectDuplicateStories(history), []);
     });
 
-    test('returns duplicate story names', () => {
+    test('returns consecutive duplicate story names', () => {
+      // After da651fd, detectDuplicateStories checks consecutive entries only.
+      // Non-consecutive repeats (a, b, a) are not flagged — they legitimately
+      // re-appear after resets or across milestone boundaries.
       const history = [
         { name: 'story-a', delta: 10 },
-        { name: 'story-b', delta: 20 },
         { name: 'story-a', delta: 0 },
+        { name: 'story-b', delta: 20 },
       ];
       assert.deepEqual(detectDuplicateStories(history), ['story-a']);
     });
