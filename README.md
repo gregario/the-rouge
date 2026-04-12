@@ -46,7 +46,7 @@ Inspired by [Karpathy's AutoResearch](https://github.com/karpathy/autoresearch).
 
 **Analyse** — reads all reports, classifies root causes, decides: fix, advance to the next feature, restructure the architecture, or ship.
 
-The loop runs until all feature areas meet the quality bar. Then it promotes to production and pings you on Slack.
+The loop runs until all feature areas meet the quality bar. Then it promotes to production and notifies you via the dashboard (or Slack, if configured).
 
 **Self-improvement** — after each completed product, Rouge reviews its own prompts against what worked and what didn't. Improvement proposals become GitHub issues, run in an isolated git worktree with an allowlist/blocklist, and land as PRs for human review. The running loop never modifies itself.
 
@@ -137,16 +137,35 @@ cd the-rouge && npm install
   npm install -g @anthropic-ai/claude-code
   ```
   Requires a [Claude subscription](https://claude.ai/code) (Pro or Max). Verify: `claude --version`
-- **Node.js 18+** — launcher, Slack bot, scripts
+- **Node.js 18+** — launcher, dashboard, scripts
 - **Git** — every phase commits
 - **[GStack](https://github.com/garrytan/gstack)** — required for web product evaluation (browser QA, product walk, design review). Install: `git clone --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup`. Verify: `rouge doctor`
-- **[Slack App](docs/slack-setup.md)** — notifications and control plane (start, pause, monitor from your phone)
 
 Optional:
 - **Wrangler CLI** — Cloudflare Workers deployment
 - **Supabase CLI** — database, auth, storage
+- **Vercel CLI** — Vercel deployment
 
 Run `rouge doctor` to verify all prerequisites are installed.
+
+### First-time setup
+
+```bash
+rouge setup                 # Install dashboard, check prerequisites, create dirs
+```
+
+This runs `rouge doctor`, installs the dashboard, and prepares the projects directory. Everything else is optional.
+
+### Start the dashboard
+
+```bash
+rouge dashboard start       # Background mode (persistent, survives terminal close)
+rouge dashboard status      # Check if running
+rouge dashboard stop        # Stop background processes
+rouge dashboard             # Foreground mode (dev, Ctrl+C to stop)
+```
+
+The dashboard is the primary control plane: real-time project visibility, escalation responses, build logs, milestone progress, and seeding sessions. It runs a bridge server (port 3002) that reads live project state.
 
 ### Set up integrations
 
@@ -158,16 +177,20 @@ rouge secrets list
 
 Secrets stored in your OS credential store (macOS Keychain, Linux secret-service, Windows Credential Manager). Rouge never sees the values.
 
-### Set up Slack
+### Alternative: Slack control plane (experimental)
+
+For teams that already live in Slack, Rouge can send notifications and accept commands via a Slack bot. The Slack integration is functional but secondary to the dashboard — the dashboard provides richer visibility and doesn't require external tokens.
 
 ```bash
 rouge slack setup     # Prints step-by-step guide
-rouge setup slack     # Store tokens
+rouge setup slack     # Store tokens (3 required: bot, app, webhook)
 rouge slack start     # Start the bot
 rouge slack test      # Verify
 ```
 
 See [docs/slack-setup.md](docs/slack-setup.md) for the full guide.
+
+> **Note:** The dashboard and Slack bot should not run simultaneously for the same project — they both write to `state.json` and can race. Use `rouge.config.json` `control_plane` field (`"frontend"` or `"slack"`) to choose one. Dashboard is the default.
 
 ### Build a product
 
@@ -213,7 +236,7 @@ Rouge builds products. The architecture is stack-agnostic — what it can build 
 
 Current priorities:
 - **More stacks** — Vercel, Docker Compose, additional database providers, framework support beyond Next.js
-- **Dashboard** — a web-based control plane alongside the Slack bot, for real-time visibility into build progress, escalations, and project health
+- **Dashboard polish** — the dashboard ships as the primary control plane; next steps are live SSE event streaming and the onboarding wizard
 - **Community patterns** — every product Rouge builds can contribute integration patterns back to the catalogue, making Rouge better at building the next one
 
 **The Works** — a business operating system that extends Rouge's rigour to the full product lifecycle (marketing, legal, finance, growth, maintenance, operations) — is in development. Early access for [sponsors](https://github.com/sponsors/gregario).

@@ -26,21 +26,28 @@ Get from zero to your first Rouge-built product in 5 minutes.
 
    Fix any items marked with a red cross before continuing. Warnings (yellow) are optional.
 
-3. (Optional) Set up Slack control plane:
+3. Run first-time setup:
 
    ```bash
-   rouge setup slack      # Interactive — stores tokens in OS keychain
-   rouge slack start      # Start the Slack bot
+   rouge setup             # Installs dashboard, verifies prereqs
    ```
 
-   Slack lets you monitor builds from your phone and receive notifications when Rouge needs your input.
-
-4. (Optional) Set up the dashboard:
+4. Start the dashboard (recommended):
 
    ```bash
-   npm run dashboard:install
-   rouge dashboard
+   rouge dashboard start   # Background mode — survives terminal close
    ```
+
+   The dashboard is your primary control plane: real-time project visibility, escalation responses, build logs, and milestone progress. Open [http://localhost:3001](http://localhost:3001) after starting.
+
+5. (Optional) Set up Slack:
+
+   ```bash
+   rouge setup slack       # Interactive — stores tokens in OS keychain
+   rouge slack start       # Start the Slack bot
+   ```
+
+   Slack is an alternative control plane for teams that already live there. The dashboard provides richer visibility and doesn't require external tokens.
 
 ## Your First Product
 

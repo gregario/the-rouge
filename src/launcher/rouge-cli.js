@@ -355,7 +355,16 @@ function cmdInit(name) {
 
   console.log(`\n  Project created: ${name}`);
   console.log(`  Path: ${projectPath}`);
-  console.log(`\n  Next: run \`rouge seed ${name}\` to start the seeding process.\n`);
+  console.log(`\n  Next: run \`rouge seed ${name}\` to start the seeding process.`);
+  // Nudge about dashboard if not running
+  const ROUGE_HOME = process.env.ROUGE_HOME || path.join(require('os').homedir(), '.rouge');
+  const pidFile = path.join(ROUGE_HOME, 'dashboard.pid');
+  const dashRunning = (() => { try { const p = JSON.parse(fs.readFileSync(pidFile, 'utf8')); return p.bridge && ((() => { try { process.kill(p.bridge, 0); return true; } catch { return false; } })()); } catch { return false; } })();
+  if (!dashRunning) {
+    console.log(`  Tip: run \`rouge dashboard start\` for real-time build visibility.\n`);
+  } else {
+    console.log('');
+  }
 }
 
 function cmdSeed(name) {
