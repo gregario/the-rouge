@@ -18,9 +18,12 @@ Not one-shot code generation. Iterative product development: build, evaluate aga
 ```bash
 npm install -g the-rouge
 
+rouge setup                 # First-time: install dashboard, check prerequisites
+rouge dashboard start       # Start the dashboard (optional, recommended)
+
 rouge init my-product
-rouge seed my-product
-rouge build my-product
+rouge seed my-product       # Interactive co-design (~10-20 min)
+rouge build my-product      # Start the autonomous loop
 rouge status
 ```
 
@@ -80,7 +83,7 @@ Rouge derives a **complexity profile** from your spec. Measurements, not categor
 
 A timer app produces a trivial infrastructure manifest and a single milestone. A fleet management SaaS activates everything: foundation cycles, multi-milestone dependency ordering, integration escalation, linked project resolution. Same system, different measurements.
 
-**The capability avoidance problem.** Without this, the builder optimises for what it CAN build, not what the product NEEDS. No maps pattern? It substitutes a table of coordinates. Every test passes. The product is useless. Rouge's fix: hard blocking. If maps are needed and the pattern doesn't exist, Rouge blocks and pings you on Slack. It either builds the pattern autonomously (researches the API, evaluates scale trade-offs, creates a wrapper) or escalates. When it does build that pattern, it gets added to the catalogue. The next product that needs maps doesn't start from scratch.
+**The capability avoidance problem.** Without this, the builder optimises for what it CAN build, not what the product NEEDS. No maps pattern? It substitutes a table of coordinates. Every test passes. The product is useless. Rouge's fix: hard blocking. If maps are needed and the pattern doesn't exist, Rouge blocks and escalates. It either builds the pattern autonomously (researches the API, evaluates scale trade-offs, creates a wrapper) or escalates. When it does build that pattern, it gets added to the catalogue. The next product that needs maps doesn't start from scratch.
 
 **The backwards flow.** Sometimes the decomposition is wrong. The analysing phase detects the structural issue and inserts a foundation cycle mid-flight, like a startup pivot at a smaller scale. Autonomous when bounded. Escalates when it isn't.
 
@@ -128,7 +131,7 @@ Set a budget cap in `rouge.config.json` (`budget_cap_usd`) to prevent runaway co
 - **[OpenSpec](https://github.com/openspecio/openspec)** — product specification and task management
 - **[Excalidraw](https://excalidraw.com)** — hand-drawn diagrams
 - **[Supabase](https://supabase.com)** — database, auth, and storage for products Rouge builds
-- **[Cloudflare Workers](https://workers.cloudflare.com)** — deployment target for products Rouge builds
+- **[Cloudflare Workers](https://workers.cloudflare.com)** / **[Vercel](https://vercel.com)** — deployment targets for products Rouge builds
 
 ## Getting started (detailed)
 
