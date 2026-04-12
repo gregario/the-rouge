@@ -76,7 +76,7 @@ Rouge is open source today. You can install it, connect it to Slack, and build y
 
 I'm also publishing the first product it builds for its launch — a self-hostable testimonial wall — as a separate open source project. Beautiful by default, own your data, deploy to your own infrastructure.
 
-The vision is two products: Rouge Spec (co-design with AI) and Rouge Build (the autonomous loop), both available today. The post-build lifecycle (growth, maintenance, operations) is moving to a new project called The Works.
+Rouge has two modes: Rouge Spec (co-design with AI) and Rouge Build (the autonomous loop), both available today.
 
 The goal: describe a product over coffee, approve a cost estimate, and come back to a deployed application. We're not there yet. But we're closer than I expected.
 

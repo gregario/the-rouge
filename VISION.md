@@ -64,7 +64,7 @@ Rouge itself should:
 ### Out of scope (for now)
 
 - Non-software domains (electronics, music, video, writing)
-- Post-build lifecycle (feature expansion, production maintenance, codebase onboarding) — these are moving to The Works
+- Post-build lifecycle (feature expansion, production maintenance, codebase onboarding) — out of scope for Rouge
 - Multi-tenancy or cloud hosting of Rouge itself
 
 ## How decisions get made

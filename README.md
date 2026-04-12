@@ -36,6 +36,18 @@ rouge status
   <img src="docs/diagrams/rouge-v3-process-map-gen2.png" alt="V3 Process Map: Rouge Spec (8 disciplines) → Foundation → Story Building Loop (with safety layer) → Ship + Self-Improvement" width="720">
 </p>
 
+### Dashboard
+
+<p align="center">
+  <img src="docs/images/dashboard.png" alt="Rouge Dashboard — flight control tower showing project status, escalations, milestones, and build progress" width="720">
+</p>
+
+The dashboard is your control plane: real-time project visibility, escalation responses, build logs, milestone progress, and seeding sessions. It reads live project state from the filesystem via a lightweight bridge server. Start it with `rouge dashboard start` for background mode, or `rouge dashboard` for dev mode.
+
+For teams that already live in Slack, Rouge also supports a Slack bot as an alternative control plane — see [Slack setup](docs/slack-setup.md). The dashboard and Slack bot should not run simultaneously for the same project.
+
+### The loop
+
 Inspired by [Karpathy's AutoResearch](https://github.com/karpathy/autoresearch). No long-running process. Each phase starts fresh, reads state from the filesystem, does one thing, saves, and exits. Git is the audit trail. The loop iterates as many times as it needs to. There's no fixed limit. It's done when it's done.
 
 **Seed** — you describe the product. Eight discipline-specific personas run through it (brainstorming, competition, taste, spec, infrastructure, design, legal, marketing). About 10-20 minutes of your time. Then it's autonomous. [See a full seeding example.](docs/seeding-example.md)
@@ -239,7 +251,7 @@ Current priorities:
 - **Dashboard polish** — the dashboard ships as the primary control plane; next steps are live SSE event streaming and the onboarding wizard
 - **Community patterns** — every product Rouge builds can contribute integration patterns back to the catalogue, making Rouge better at building the next one
 
-**The Works** — a business operating system that extends Rouge's rigour to the full product lifecycle (marketing, legal, finance, growth, maintenance, operations) — is in development. Early access for [sponsors](https://github.com/sponsors/gregario).
+Early access to new capabilities for [sponsors](https://github.com/sponsors/gregario).
 
 ## License
 
