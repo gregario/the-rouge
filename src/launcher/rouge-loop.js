@@ -1027,18 +1027,98 @@ async function advanceState(projectDir) {
     // ──────────────────────────────────────────────
 
     case 'escalation': {
+      // Check for human_response on any pending escalation (bidirectional contract)
+      const pendingEsc = (state.escalations || []).find(e => e.status === 'pending' && e.human_response);
+      if (pendingEsc) {
+        const hrType = pendingEsc.human_response.type;
+        pendingEsc.status = 'resolved';
+        pendingEsc.resolved_at = new Date().toISOString();
+
+        if (hrType === 'guidance') {
+          const hrCtx = readJson(contextFile) || {};
+          hrCtx.human_guidance = pendingEsc.human_response.text;
+          writeJson(contextFile, hrCtx);
+          const hrStory = flat.find(s => s.id === pendingEsc.story_id);
+          if (hrStory && (hrStory.status === 'blocked' || hrStory.status === 'pending')) hrStory.status = 'retrying';
+          state.consecutive_failures = 0;
+          writeJson(stateFile, state);
+          const hrMs = (state.milestones || []).find(m => m.name === state.current_milestone);
+          if (hrMs) {
+            const hrElig = findNextStory(hrMs, flatStories(state));
+            if (hrElig) {
+              next = startStory(state, hrMs, hrElig);
+              writeJson(stateFile, state);
+              log(`[${projectName}] Escalation resolved (guidance) — story: ${hrElig.id}`);
+            } else {
+              next = 'milestone-check';
+            }
+          } else {
+            next = 'milestone-check';
+          }
+        } else if (hrType === 'manual-fix-applied') {
+          state.consecutive_failures = 0;
+          const hrStory = flat.find(s => s.id === pendingEsc.story_id);
+          if (hrStory && hrStory.status === 'blocked') hrStory.status = 'done';
+          writeJson(stateFile, state);
+          next = 'milestone-check';
+          log(`[${projectName}] Escalation resolved (manual-fix-applied) — advancing to milestone-check`);
+        } else if (hrType === 'dismiss-false-positive') {
+          state.consecutive_failures = 0;
+          const hrStory = flat.find(s => s.id === pendingEsc.story_id);
+          if (hrStory && (hrStory.status === 'blocked' || hrStory.status === 'pending')) hrStory.status = 'retrying';
+          writeJson(stateFile, state);
+          const hrMs = (state.milestones || []).find(m => m.name === state.current_milestone);
+          if (hrMs) {
+            const hrElig = findNextStory(hrMs, flatStories(state));
+            if (hrElig) {
+              next = startStory(state, hrMs, hrElig);
+              writeJson(stateFile, state);
+              log(`[${projectName}] Escalation dismissed — story: ${hrElig.id}`);
+            } else {
+              next = 'milestone-check';
+            }
+          } else {
+            next = 'milestone-check';
+          }
+        } else if (hrType === 'abort-story') {
+          const hrStory = flat.find(s => s.id === pendingEsc.story_id);
+          if (hrStory) hrStory.status = 'blocked';
+          state.consecutive_failures = 0;
+          writeJson(stateFile, state);
+          const hrMs = (state.milestones || []).find(m => m.name === state.current_milestone);
+          if (hrMs) {
+            const hrElig = findNextStory(hrMs, flatStories(state));
+            if (hrElig) {
+              next = startStory(state, hrMs, hrElig);
+              writeJson(stateFile, state);
+              log(`[${projectName}] Story aborted — next story: ${hrElig.id}`);
+            } else {
+              next = 'milestone-check';
+            }
+          } else {
+            next = 'milestone-check';
+          }
+        } else {
+          // Unrecognised response type — ignore, stay in escalation
+          log(`[${projectName}] Unrecognised escalation response type: ${hrType}`);
+          pendingEsc.status = 'pending';
+          delete pendingEsc.resolved_at;
+        }
+        break;
+      }
+
+      // Legacy: feedback.json resolution
       const feedbackFile = path.join(projectDir, 'feedback.json');
       if (!fs.existsSync(feedbackFile)) break; // stays in escalation
 
       const feedback = readJson(feedbackFile);
       if (!feedback?.resolved) break;
 
-      // Resolve escalations — either a specific one (feedback.escalation_id) or all pending
       const targetId = feedback.escalation_id || null;
       let resolvedCount = 0;
       for (const esc of state.escalations || []) {
         if (esc.status !== 'pending') continue;
-        if (targetId && esc.id !== targetId) continue; // skip if not the targeted escalation
+        if (targetId && esc.id !== targetId) continue;
         esc.status = 'resolved';
         esc.resolution = feedback.resolution || 'human-resolved';
         esc.resolved_at = new Date().toISOString();

@@ -436,6 +436,60 @@ export function createBridgeServer(config: BridgeConfig): Server {
           return
         }
 
+        // POST /projects/:name/resolve-escalation
+        if (req.method === 'POST' && action === 'resolve-escalation') {
+          const stateFile = join(config.projectsRoot, name, 'state.json')
+          if (!existsSync(stateFile)) {
+            sendJson(res, 404, { error: 'Project not found' })
+            return
+          }
+          const body = await readBody(req) as {
+            escalation_id?: string
+            response_type?: string
+            text?: string
+          }
+          if (!body?.escalation_id || !body?.response_type) {
+            sendJson(res, 400, { error: 'escalation_id and response_type are required' })
+            return
+          }
+
+          const validTypes = ['guidance', 'manual-fix-applied', 'dismiss-false-positive', 'abort-story']
+          if (!validTypes.includes(body.response_type)) {
+            sendJson(res, 400, { error: `Invalid response_type. Must be one of: ${validTypes.join(', ')}` })
+            return
+          }
+
+          const raw = JSON.parse(readFileSync(stateFile, 'utf-8'))
+          const escalation = (raw.escalations || []).find(
+            (e: { id: string; status: string }) => e.id === body.escalation_id && e.status === 'pending'
+          )
+          if (!escalation) {
+            sendJson(res, 404, { error: `No pending escalation found with id "${body.escalation_id}"` })
+            return
+          }
+
+          // Write human_response to the escalation
+          escalation.human_response = {
+            type: body.response_type,
+            text: body.text || '',
+            submitted_at: new Date().toISOString(),
+          }
+
+          // Reset consecutive_failures so the loop doesn't immediately re-escalate
+          raw.consecutive_failures = 0
+
+          // Restore current_state from paused_from_state if available,
+          // otherwise keep as escalation — advanceState will handle the transition
+          if (raw.paused_from_state) {
+            raw.current_state = raw.paused_from_state
+            delete raw.paused_from_state
+          }
+
+          writeFileSync(stateFile, JSON.stringify(raw, null, 2))
+          sendJson(res, 200, raw)
+          return
+        }
+
         // POST /projects/:name/pause
         if (req.method === 'POST' && action === 'pause') {
           const stateFile = join(config.projectsRoot, name, 'state.json')
