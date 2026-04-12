@@ -28,3 +28,8 @@ docs/*.pdf
 
 # Worktrees
 .worktrees/
+
+# Dashboard build artifacts (source is tracked)
+dashboard/node_modules/
+dashboard/.next/
+dashboard/.turbo/

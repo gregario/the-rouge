@@ -1,0 +1,6 @@
+{
+  "projects_root": "../projects",
+  "rouge_cli": "../src/launcher/rouge-cli.js",
+  "orchestrator_prompt": "../src/prompts/seeding/00-swarm-orchestrator.md",
+  "bridge_port": 3002
+}
