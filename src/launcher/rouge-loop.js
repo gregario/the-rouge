@@ -1691,7 +1691,23 @@ process.on('uncaughtException', (err) => {
   if (err?.stack) log(err.stack);
 });
 
-main().catch(err => {
-  log(`FATAL: ${err.message}\n${err.stack}`);
-  process.exit(1);
-});
+// Export internals for testing
+module.exports = {
+  advanceState,
+  findNextStory,
+  findNextMilestone,
+  flatStories,
+  isBatchComplete,
+  startStory,
+  recordFixMemory,
+  readJson,
+  writeJson,
+};
+
+// Only start the main loop when run directly (not when required for testing)
+if (require.main === module) {
+  main().catch(err => {
+    log(`FATAL: ${err.message}\n${err.stack}`);
+    process.exit(1);
+  });
+}
