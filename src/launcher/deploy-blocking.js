@@ -10,6 +10,9 @@ function sleep(ms) {
 async function deployWithRetry(deployFn, opts = {}) {
   const maxRetries = opts.maxRetries || 3;
   const retryDelayMs = opts.retryDelayMs ?? 30000;
+  const logger = opts.logger || ((msg) => console.error(`[deploy-retry] ${msg}`));
+
+  let lastError = null;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -17,8 +20,11 @@ async function deployWithRetry(deployFn, opts = {}) {
       if (url) {
         return { url, blocked: false, attempts: attempt };
       }
+      logger(`Attempt ${attempt}/${maxRetries}: deploy returned null (see deploy log for reason)`);
     } catch (err) {
-      // Deploy threw — treat as failure
+      lastError = err;
+      const detail = (err && (err.stderr || err.message)) || String(err);
+      logger(`Attempt ${attempt}/${maxRetries} threw: ${String(detail).slice(0, 400)}`);
     }
 
     if (attempt < maxRetries && retryDelayMs > 0) {
@@ -26,10 +32,13 @@ async function deployWithRetry(deployFn, opts = {}) {
     }
   }
 
+  const tail = lastError && (lastError.stderr || lastError.message);
   return {
     url: null,
     blocked: true,
-    reason: `Staging deploy failed ${maxRetries} times`,
+    reason: tail
+      ? `Staging deploy failed ${maxRetries} times — last error: ${String(tail).slice(0, 200)}`
+      : `Staging deploy failed ${maxRetries} times`,
     attempts: maxRetries,
   };
 }

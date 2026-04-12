@@ -844,7 +844,7 @@ async function advanceState(projectDir) {
         log(`[${projectName}] Milestone "${milestone.name}" batch complete (${doneCount} done, ${blockedCount} blocked) — deploying to staging`);
         // V3: Deploy with retry + blocking
         const { deploy } = require('./deploy-to-staging');
-        const deployResult = await deployWithRetry(() => deploy(projectDir), { maxRetries: 3, retryDelayMs: 30000 });
+        const deployResult = await deployWithRetry(() => deploy(projectDir), { maxRetries: 3, retryDelayMs: 30000, logger: log });
         if (shouldBlockMilestoneCheck(deployResult)) {
           log(`[${projectName}] Deploy failed after retries — blocking milestone-check`);
           notifyRich('deploy-failure', {
@@ -1432,7 +1432,7 @@ async function runPhase(projectDir) {
           log(`[${projectName}] All stories in "${milestone.name}" are done — deploying to staging`);
           try {
             const { deploy } = require('./deploy-to-staging');
-            const deployResult = await deployWithRetry(() => deploy(projectDir), { maxRetries: 3, retryDelayMs: 30000 });
+            const deployResult = await deployWithRetry(() => deploy(projectDir), { maxRetries: 3, retryDelayMs: 30000, logger: log });
             if (shouldBlockMilestoneCheck(deployResult)) {
               log(`[${projectName}] Deploy failed after retries — escalating`);
               if (!state.escalations) state.escalations = [];
