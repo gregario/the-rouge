@@ -44,6 +44,12 @@ export interface RougeV3Story {
   files_changed?: string[]
 }
 
+export interface EscalationHumanResponse {
+  type: 'guidance' | 'manual-fix-applied' | 'dismiss-false-positive' | 'abort-story'
+  text?: string
+  submitted_at: string
+}
+
 export interface RougeEscalation {
   id: string
   tier: number
@@ -54,6 +60,7 @@ export interface RougeEscalation {
   created_at: string
   resolution?: string
   resolved_at?: string
+  human_response?: EscalationHumanResponse
 }
 
 // V2 project state (legacy — countdowntimer, fruit-and-veg)
