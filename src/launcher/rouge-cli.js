@@ -572,121 +572,152 @@ function cmdSlackTest() {
 // ---------------------------------------------------------------------------
 
 function cmdDoctor() {
-  const issues = [];
+  const blockers = [];
+  const warnings = [];
   const lines = [];
 
   lines.push('');
   lines.push('  Rouge Doctor');
-  lines.push(`  ${'─'.repeat(35)}`);
-
-  // --- Required ---
+  lines.push(`  ${'─'.repeat(40)}`);
   lines.push('');
-  lines.push('  Required:');
 
-  // 1. Node.js version
+  // Helper: run a command and return trimmed stdout, or null on failure
+  function tryExec(cmd, timeout = 5000) {
+    try {
+      return execSync(cmd, { encoding: 'utf8', stdio: 'pipe', timeout }).trim();
+    } catch {
+      return null;
+    }
+  }
+
+  // --- Node.js version ---
   const nodeVersion = process.version;
   const nodeMajor = parseInt(nodeVersion.slice(1), 10);
   if (nodeMajor >= 18) {
-    lines.push(`    ✓ Node.js ${nodeVersion}`);
+    lines.push(`  \u2705 Node.js ${nodeVersion} (>= 18 required)`);
   } else {
-    lines.push(`    ✗ Node.js ${nodeVersion} — requires >= 18`);
-    lines.push('      Install: https://nodejs.org/');
-    issues.push('Node.js >= 18 required');
+    lines.push(`  \u274C Node.js ${nodeVersion} — requires >= 18 (install: https://nodejs.org/)`);
+    blockers.push('Node.js >= 18 required');
   }
 
-  // 2. Git
-  try {
-    const gitOut = execSync('git --version', { encoding: 'utf8', stdio: 'pipe' }).trim();
+  // --- Claude Code CLI ---
+  const claudeOut = tryExec('claude --version');
+  if (claudeOut) {
+    lines.push(`  \u2705 Claude Code CLI installed (${claudeOut})`);
+  } else {
+    lines.push('  \u274C Claude Code CLI not found (install: npm install -g @anthropic-ai/claude-code)');
+    blockers.push('Claude Code CLI not found');
+  }
+
+  // --- Git ---
+  const gitOut = tryExec('git --version');
+  if (gitOut) {
     const gitVersion = gitOut.replace('git version ', '');
-    lines.push(`    ✓ Git ${gitVersion}`);
-  } catch {
-    lines.push('    ✗ Git — not found');
-    lines.push('      Install: https://git-scm.com/');
-    issues.push('Git not found');
+    lines.push(`  \u2705 Git installed (${gitVersion})`);
+  } else {
+    lines.push('  \u274C Git not found (install: https://git-scm.com/)');
+    blockers.push('Git not found');
   }
 
-  // 3. Claude Code CLI
-  try {
-    const claudeOut = execSync('claude --version', { encoding: 'utf8', stdio: 'pipe' }).trim();
-    lines.push(`    ✓ Claude Code CLI ${claudeOut}`);
-  } catch {
-    lines.push('    ✗ Claude Code CLI — not found');
-    lines.push('      Install: npm install -g @anthropic-ai/claude-code (requires Claude subscription)');
-    issues.push('Claude Code CLI not found');
+  // --- GitHub CLI ---
+  const ghOut = tryExec('gh --version');
+  if (ghOut) {
+    const ghVersion = ghOut.split('\n')[0]; // first line only
+    lines.push(`  \u2705 GitHub CLI installed (${ghVersion})`);
+  } else {
+    lines.push('  \u274C GitHub CLI not found (install: https://cli.github.com/)');
+    blockers.push('GitHub CLI not found');
   }
 
-  // 4. GStack browse
+  // --- Slack tokens ---
+  const slackBot = getSecret('slack', 'SLACK_BOT_TOKEN');
+  const slackApp = getSecret('slack', 'SLACK_APP_TOKEN');
+  if (slackBot && slackApp) {
+    lines.push('  \u2705 Slack tokens configured');
+  } else {
+    lines.push('  \u274C Slack tokens not configured (run: rouge setup slack)');
+    blockers.push('Slack tokens not configured');
+  }
+
+  // --- Anthropic auth ---
+  if (claudeOut) {
+    const authCheck = tryExec('claude -p "test" --max-turns 0', 10000);
+    if (authCheck !== null) {
+      lines.push('  \u2705 Anthropic auth valid');
+    } else {
+      lines.push('  \u274C Anthropic auth invalid (run: claude login)');
+      blockers.push('Anthropic auth invalid');
+    }
+  }
+
+  // --- Optional: Supabase CLI ---
+  const supabaseOut = tryExec('supabase --version');
+  if (supabaseOut) {
+    lines.push(`  \u2705 Supabase CLI installed (${supabaseOut})`);
+  } else {
+    lines.push('  \u26A0\uFE0F  Supabase CLI not installed (optional \u2014 needed for Supabase projects)');
+    warnings.push('Supabase CLI not installed');
+  }
+
+  // --- Optional: Vercel CLI ---
+  const vercelOut = tryExec('vercel --version');
+  if (vercelOut) {
+    lines.push(`  \u2705 Vercel CLI installed (${vercelOut})`);
+  } else {
+    lines.push('  \u26A0\uFE0F  Vercel CLI not installed (optional \u2014 needed for Vercel deployments)');
+    warnings.push('Vercel CLI not installed');
+  }
+
+  // --- Optional: GStack browse ---
   const home = process.env.HOME || process.env.USERPROFILE || '/tmp';
   const gstackSkillPath = path.join(home, '.claude', 'skills', 'gstack', 'browse', 'dist', 'browse');
   let gstackFound = false;
-
   if (fs.existsSync(gstackSkillPath)) {
     gstackFound = true;
-    lines.push(`    ✓ GStack browse (${gstackSkillPath})`);
   } else {
-    // Try which
-    try {
-      const whichOut = execSync('which browse', { encoding: 'utf8', stdio: 'pipe' }).trim();
-      if (whichOut) {
-        gstackFound = true;
-        lines.push(`    ✓ GStack browse (${whichOut})`);
-      }
-    } catch { /* not found via which */ }
+    const whichBrowse = tryExec('which browse');
+    if (whichBrowse) gstackFound = true;
   }
-
-  if (!gstackFound) {
-    lines.push('    ✗ GStack browse — not found');
-    lines.push('      Install: https://github.com/garrytan/gstack (required for web products, macOS only)');
-    issues.push('GStack browse not found');
-  }
-
-  // --- Recommended ---
-  lines.push('');
-  lines.push('  Recommended:');
-
-  const slackBot = getSecret('slack', 'SLACK_BOT_TOKEN');
-  const slackApp = getSecret('slack', 'SLACK_APP_TOKEN');
-  const slackWebhook = getSecret('slack', 'ROUGE_SLACK_WEBHOOK');
-
-  if (slackBot && slackApp && slackWebhook) {
-    lines.push('    ✓ Slack — tokens configured');
+  if (gstackFound) {
+    lines.push('  \u2705 GStack browse installed');
   } else {
-    lines.push('    ✗ Slack — not configured');
-    lines.push('      Run `rouge slack setup` to configure Slack (recommended for notifications)');
+    lines.push('  \u26A0\uFE0F  GStack browse not installed (optional \u2014 needed for web product QA)');
+    warnings.push('GStack browse not installed');
   }
 
-  // --- Optional integrations ---
-  lines.push('');
-  lines.push('  Integrations:');
-
-  const integrationNames = Object.keys(INTEGRATION_KEYS).filter((name) => name !== 'slack');
-  for (const name of integrationNames) {
-    const keys = INTEGRATION_KEYS[name];
-    const hasAny = keys.some((key) => getSecret(name, key));
-    if (hasAny) {
-      lines.push(`    ✓ ${name} — configured`);
+  // --- Dashboard dependencies ---
+  const dashboardModules = path.join(ROUGE_ROOT, 'dashboard', 'node_modules');
+  if (fs.existsSync(dashboardModules)) {
+    lines.push('  \u2705 Dashboard dependencies installed');
+  } else {
+    const dashboardDir = path.join(ROUGE_ROOT, 'dashboard');
+    if (fs.existsSync(dashboardDir)) {
+      lines.push('  \u274C Dashboard dependencies missing (run: npm run dashboard:install)');
+      blockers.push('Dashboard dependencies missing');
     } else {
-      lines.push(`    ✗ ${name} — not configured (run \`rouge setup ${name}\`)`);
+      lines.push('  \u26A0\uFE0F  Dashboard not found (optional)');
+      warnings.push('Dashboard directory not found');
     }
   }
 
   // --- Summary ---
   lines.push('');
-  if (issues.length === 0) {
-    lines.push('  All required dependencies found.');
-  } else if (issues.length === 1) {
-    lines.push(`  1 issue found. ${issues[0]}.`);
+  lines.push(`  ${'─'.repeat(40)}`);
+  if (blockers.length === 0 && warnings.length === 0) {
+    lines.push('  All checks passed. You\'re ready to build.');
+  } else if (blockers.length === 0) {
+    lines.push(`  All required checks passed. ${warnings.length} optional warning${warnings.length > 1 ? 's' : ''}.`);
   } else {
-    lines.push(`  ${issues.length} issues found.`);
-    for (const issue of issues) {
-      lines.push(`    - ${issue}`);
+    lines.push(`  ${blockers.length} blocker${blockers.length > 1 ? 's' : ''} found. Fix these before running Rouge:`);
+    for (const b of blockers) {
+      lines.push(`    - ${b}`);
     }
   }
   lines.push('');
 
   console.log(lines.join('\n'));
 
-  if (issues.length > 0) {
+  if (blockers.length > 0) {
     process.exit(1);
   }
 }

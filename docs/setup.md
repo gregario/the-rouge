@@ -70,41 +70,47 @@ gh auth login
 6. Install to workspace → save Bot Token as `SLACK_BOT_TOKEN`
 7. Create an **Incoming Webhook** → save URL as `ROUGE_SLACK_WEBHOOK`
 
-## 4. Environment Variables
+## 4. Secrets Management
 
-Create `.env` in The Rouge root (gitignored):
+Rouge stores secrets in the OS credential store (macOS Keychain, Linux secret-service, Windows Credential Manager) — **not** in `.env` files.
+
+Use the interactive setup command for each integration:
 
 ```bash
-# Slack
-SLACK_BOT_TOKEN=xoxb-...
-SLACK_APP_TOKEN=xapp-...
-ROUGE_SLACK_WEBHOOK=https://hooks.slack.com/services/...
+rouge setup slack       # Stores SLACK_BOT_TOKEN, SLACK_APP_TOKEN, ROUGE_SLACK_WEBHOOK
+rouge setup stripe      # Stores STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY
+rouge setup supabase    # Stores SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_KEY
+rouge setup cloudflare  # Stores CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID
+```
 
-# Projects directory (default: ./projects)
-ROUGE_PROJECTS_DIR=./projects
-
-# Launcher config
-ROUGE_LOOP_DELAY=30  # seconds between loop iterations
+Verify what's stored:
+```bash
+rouge secrets list
+rouge doctor           # Shows which integrations are configured
 ```
 
 ## 5. Start The Rouge
 
 ```bash
-# Terminal 1: Start the Slack bot
-cd src/slack && node bot.js
+# Start the Slack bot (loads tokens from secrets store)
+rouge slack start
 
-# Terminal 2: Start the launcher
-node src/launcher/rouge-loop.js
+# In another terminal: start the build loop
+rouge build <project-name>
 ```
 
-Or run both in tmux:
+> **Important:** Do NOT run `cd src/slack && node bot.js` directly — it will crash with `AppInitializationError` because tokens are not loaded. Always use `rouge slack start`, which loads tokens from the secrets store before starting the bot.
+
+## 6. Dashboard (Optional)
+
+The dashboard is integrated into the repo at `dashboard/`. To set it up:
+
 ```bash
-tmux new-session -d -s rouge 'cd src/slack && node bot.js'
-tmux split-window -h 'node src/launcher/rouge-loop.js'
-tmux attach -t rouge
+npm run dashboard:install   # Install dashboard dependencies
+rouge dashboard             # Start the dashboard dev server
 ```
 
-## 6. Morning Briefing (Optional)
+## 7. Morning Briefing (Optional)
 
 ```bash
 # Add to crontab for 8am daily briefings

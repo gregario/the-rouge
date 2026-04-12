@@ -240,7 +240,9 @@ console.log('\n[rouge doctor — checks prerequisites]');
   assert(result.stdout.includes('Node.js'), 'output contains Node.js');
   assert(result.stdout.includes('Git'), 'output contains Git');
   assert(result.stdout.includes('Rouge Doctor'), 'output contains Rouge Doctor header');
-  assert(result.stdout.includes('Required'), 'output contains Required section');
+  assert(result.stdout.includes('Claude Code CLI'), 'output contains Claude Code CLI check');
+  assert(result.stdout.includes('GitHub CLI'), 'output contains GitHub CLI check');
+  assert(result.stdout.includes('Dashboard'), 'output contains Dashboard check');
 }
 
 // ---- rouge (no args) — help text ----
