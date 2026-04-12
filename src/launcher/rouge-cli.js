@@ -733,6 +733,7 @@ function cmdDoctor() {
     lines.push('  \u2705 GStack browse installed');
   } else {
     lines.push('  \u26A0\uFE0F  GStack browse not installed (optional \u2014 needed for web product QA)');
+    lines.push('       Install: git clone --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && (cd ~/.claude/skills/gstack && ./setup)');
     warnings.push('GStack browse not installed');
   }
 

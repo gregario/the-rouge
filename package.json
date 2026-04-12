@@ -25,6 +25,9 @@
   "engines": {
     "node": ">=18"
   },
+  "dependencies": {
+    "@slack/bolt": "^4.6.0"
+  },
   "scripts": {
     "test": "node tests/secrets.test.js && node tests/cli.test.js && node tests/self-improve.test.js && node --test test/launcher/*.test.js test/prompts/*.test.js test/integration/*.test.js",
     "dashboard": "cd dashboard && npm run dev",
@@ -39,7 +42,7 @@
     "src/slack/block-kit.js",
     "src/slack/format.js",
     "src/slack/manifest.yaml",
-    "src/slack/package.json",
+    "dashboard/",
     "schemas/",
     "library/global/",
     "library/domain/",
