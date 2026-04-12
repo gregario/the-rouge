@@ -841,6 +841,57 @@ if (command === 'doctor') {
     if (result.pr) console.log(`    PR: ${result.pr}`);
     console.log('');
   }
+} else if (command === 'dashboard') {
+  const subcommand = args[1];
+  const dashboardDir = path.join(__dirname, '..', '..', 'dashboard');
+  if (!fs.existsSync(dashboardDir)) {
+    console.error('Dashboard not found at', dashboardDir);
+    console.error('The dashboard should be at The-Rouge/dashboard/. Run `npm run dashboard:install` first.');
+    process.exit(1);
+  }
+  if (subcommand === 'install') {
+    console.log('Installing dashboard dependencies...');
+    execSync('npm install', { cwd: dashboardDir, stdio: 'inherit' });
+  } else if (subcommand === 'bridge') {
+    console.log('Starting bridge server...');
+    const child = spawn('npx', ['tsx', 'src/bridge/index.ts'], {
+      cwd: dashboardDir,
+      stdio: 'inherit',
+      env: { ...process.env },
+    });
+    child.on('close', (code) => process.exit(code || 0));
+  } else if (subcommand === 'start' || !subcommand) {
+    // Start both bridge and frontend
+    console.log('Starting dashboard (bridge + frontend)...');
+    const bridge = spawn('npx', ['tsx', 'src/bridge/index.ts'], {
+      cwd: dashboardDir,
+      stdio: 'pipe',
+      env: { ...process.env },
+    });
+    bridge.stdout?.on('data', (d) => process.stdout.write(`[bridge] ${d}`));
+    bridge.stderr?.on('data', (d) => process.stderr.write(`[bridge] ${d}`));
+    // Wait a moment for bridge to start, then launch frontend
+    setTimeout(() => {
+      const frontend = spawn('npm', ['run', 'dev'], {
+        cwd: dashboardDir,
+        stdio: 'inherit',
+        env: { ...process.env },
+      });
+      frontend.on('close', (code) => {
+        bridge.kill();
+        process.exit(code || 0);
+      });
+    }, 1500);
+    process.on('SIGINT', () => { bridge.kill(); process.exit(0); });
+    process.on('SIGTERM', () => { bridge.kill(); process.exit(0); });
+  } else {
+    console.error('Usage: rouge dashboard [start|bridge|install]');
+    console.error('  rouge dashboard           Start bridge + frontend (default)');
+    console.error('  rouge dashboard start     Same as above');
+    console.error('  rouge dashboard bridge    Start bridge server only');
+    console.error('  rouge dashboard install   Install dashboard dependencies');
+    process.exit(1);
+  }
 } else if (command === 'improve') {
   const { run } = require('./self-improve.js');
   const maxIdx = args.indexOf('--max-iterations');
@@ -887,6 +938,9 @@ if (command === 'doctor') {
     rouge secrets expiry set <s/K> <date>  Set expiry for a secret
     rouge feasibility <description> Assess feasibility of a proposed change
     rouge contribute <path>         Contribute a draft integration pattern via PR
+    rouge dashboard                 Start dashboard (bridge + frontend)
+    rouge dashboard bridge          Start bridge server only
+    rouge dashboard install         Install dashboard dependencies
     rouge improve                   Run one self-improvement iteration
     rouge improve --max-iterations 5  Run up to 5 iterations
     rouge improve --explore         Enable exploration when no issues remain
