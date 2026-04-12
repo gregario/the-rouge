@@ -437,11 +437,16 @@ function tryParseClaudeOutput(raw) {
 }
 
 function invokeClaudeSeeding(projectDir, prompt, sessionId) {
+  const rougeRoot = path.resolve(__dirname, '../..');
   const args = ['claude', '-p'];
   args.push('--dangerously-skip-permissions');
   args.push('--model', 'opus');
   args.push('--max-turns', '50');
   args.push('--output-format', 'json');
+  // --add-dir: whitelist only the Rouge directories seeding needs.
+  // Defence-in-depth — prevents accidental sibling-project discovery.
+  args.push('--add-dir', path.join(rougeRoot, 'src/prompts/seeding'));
+  args.push('--add-dir', path.join(rougeRoot, 'library'));
   if (sessionId) {
     args.push('--resume', sessionId);
   }

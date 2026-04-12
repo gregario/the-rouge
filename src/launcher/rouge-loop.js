@@ -1327,6 +1327,15 @@ async function runPhase(projectDir) {
     // Load project secrets from OS credential store
     const secretsEnv = loadSecretsForProject(projectDir, projectName);
 
+    // --add-dir: whitelist only the Rouge directories this phase needs.
+    // This is defence-in-depth — not a security boundary, but prevents
+    // accidental sibling-project discovery via ls ../ or similar.
+    const isSeeding = currentState === 'seeding';
+    const addDirs = [
+      path.join(ROUGE_ROOT, isSeeding ? 'src/prompts/seeding' : 'src/prompts/loop'),
+      path.join(ROUGE_ROOT, 'library'),
+    ];
+
     // spawn (not execFile) for real-time stdout streaming
     const child = spawn('claude', [
       '-p',
@@ -1334,6 +1343,7 @@ async function runPhase(projectDir) {
       '--dangerously-skip-permissions',
       '--model', model,
       '--max-turns', '200',
+      ...addDirs.flatMap(dir => ['--add-dir', dir]),
     ], {
       cwd: projectDir,
       env: { ...process.env, ...secretsEnv },
