@@ -401,7 +401,25 @@ Both stages must pass before the task is accepted. Do not accept "good enough." 
 
 After all tasks are implemented and reviewed, deploy to the staging environment. **Never deploy to production.** Production promotion happens in a separate phase.
 
-Read `infrastructure_manifest.json` (or `vision.json.infrastructure.deployment_target`) to determine the deployment platform. Do NOT assume Cloudflare — execute the platform-appropriate commands:
+### Preferred: Intent-based deploy
+
+Instead of running deploy commands directly, write your intent to `pending-action.json`:
+
+```json
+{
+  "action": "deploy-staging",
+  "params": {},
+  "reason": "All story tasks implemented and tests passing — deploying to staging for milestone evaluation"
+}
+```
+
+Then exit. The launcher will validate the intent and execute the deploy on your behalf, writing the result to `action-result.json`. On your next invocation, read `action-result.json` to see if the deploy succeeded.
+
+This is the **preferred** approach. The launcher handles provider detection, health checks, and rollback automatically.
+
+### Alternative: Direct deploy
+
+If `pending-action.json` is not available or you need more control, you can deploy directly. Read `infrastructure_manifest.json` (or `vision.json.infrastructure.deployment_target`) to determine the platform:
 
 - **Cloudflare Workers** (`cloudflare` or `cloudflare-workers`): `npx @opennextjs/cloudflare build && npx wrangler deploy --env staging`
 - **Vercel** (`vercel`): `npx vercel deploy --yes --prod` (use `--prod` because Vercel Hobby plan preview URLs return 401)
@@ -409,6 +427,17 @@ Read `infrastructure_manifest.json` (or `vision.json.infrastructure.deployment_t
 - **Other**: read the deploy pattern from `library/integrations/` for the declared target. If no pattern exists, ESCALATE.
 
 Capture the staging URL from the deploy output. You will need it for `cycle_context.json`.
+
+### Other infrastructure actions via intent
+
+You can also use `pending-action.json` for:
+
+- `db-migrate` — run database migrations (provider auto-detected from infrastructure_manifest.json)
+- `db-seed` — run seed scripts (script path must be relative, no `..`)
+- `git-push` — push to remote (NEVER with `force: true`)
+- `git-tag` — create a git tag
+
+Write the action, exit, read the result on next invocation.
 
 If the deploy fails:
 1. Read the error output. Most deploy failures are build failures (TypeScript errors, missing dependencies, incorrect config).

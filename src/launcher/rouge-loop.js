@@ -341,6 +341,167 @@ function startStory(state, milestone, story) {
   return 'story-building';
 }
 
+// ---------------------------------------------------------------------------
+// Layer 4 (#103): Intent-based infrastructure callbacks.
+//
+// Claude writes intent to pending-action.json instead of running infra
+// commands directly. The launcher validates the intent against the project's
+// infrastructure_manifest.json / vision.json and executes on Claude's behalf.
+//
+// Phase 1 (this implementation): backwards-compatible. Claude CAN still run
+// commands directly via --dangerously-skip-permissions. If pending-action.json
+// exists after a phase, the launcher handles it. If it doesn't, nothing changes.
+//
+// Phase 2 (future): drop --dangerously-skip-permissions, enforce --allowedTools.
+// ---------------------------------------------------------------------------
+
+const INFRA_ACTION_HANDLERS = {
+  'deploy-staging': (params, projectDir) => {
+    const { deploy } = require('./deploy-to-staging.js');
+    const url = deploy(projectDir);
+    return url
+      ? { status: 'success', result: { url, timestamp: new Date().toISOString() } }
+      : { status: 'failed', reason: 'Deploy returned null — check rouge.log for details' };
+  },
+
+  'deploy-production': (params, projectDir) => {
+    // Production deploy uses the same handler with explicit environment
+    const { deploy } = require('./deploy-to-staging.js');
+    const url = deploy(projectDir);
+    return url
+      ? { status: 'success', result: { url, timestamp: new Date().toISOString() } }
+      : { status: 'failed', reason: 'Production deploy returned null' };
+  },
+
+  'db-migrate': (params, projectDir) => {
+    const manifest = readJson(path.join(projectDir, 'infrastructure_manifest.json'));
+    const provider = params.provider || manifest?.database?.provider || 'unknown';
+    try {
+      if (provider === 'supabase') {
+        const ref = params.project_ref || readJson(path.join(projectDir, 'cycle_context.json'))?.supabase?.project_ref;
+        if (!ref) return { status: 'failed', reason: 'No Supabase project ref found' };
+        execSync(`supabase db push --project-ref ${ref}`, { cwd: projectDir, encoding: 'utf8', timeout: 60000 });
+      } else if (provider === 'neon' || provider === 'drizzle') {
+        execSync('npx drizzle-kit migrate', { cwd: projectDir, encoding: 'utf8', timeout: 60000 });
+      } else {
+        return { status: 'failed', reason: `Unknown database provider: ${provider}` };
+      }
+      return { status: 'success', result: { provider, timestamp: new Date().toISOString() } };
+    } catch (err) {
+      return { status: 'failed', reason: err.message.slice(0, 300) };
+    }
+  },
+
+  'db-seed': (params, projectDir) => {
+    const script = params.script || 'npm run seed';
+    // Security: script must not contain absolute paths or ..
+    if (script.includes('..') || path.isAbsolute(script)) {
+      return { status: 'refused', reason: 'Script path must be relative to project dir, no ..' };
+    }
+    try {
+      execSync(script, { cwd: projectDir, encoding: 'utf8', timeout: 60000 });
+      return { status: 'success', result: { script, timestamp: new Date().toISOString() } };
+    } catch (err) {
+      return { status: 'failed', reason: err.message.slice(0, 300) };
+    }
+  },
+
+  'git-push': (params, projectDir) => {
+    const remote = params.remote || 'origin';
+    const branch = params.branch || 'HEAD';
+    // NEVER force push
+    if (params.force) {
+      return { status: 'refused', reason: 'Force push is never allowed. See #103 isolation rules.' };
+    }
+    try {
+      execSync(`git push ${remote} ${branch}`, { cwd: projectDir, encoding: 'utf8', timeout: 30000 });
+      return { status: 'success', result: { remote, branch, timestamp: new Date().toISOString() } };
+    } catch (err) {
+      return { status: 'failed', reason: err.message.slice(0, 300) };
+    }
+  },
+
+  'git-tag': (params, projectDir) => {
+    const tagName = params.tag_name;
+    if (!tagName) return { status: 'refused', reason: 'tag_name is required' };
+    try {
+      execSync(`git tag "${tagName}"`, { cwd: projectDir, encoding: 'utf8', timeout: 10000 });
+      return { status: 'success', result: { tag: tagName, timestamp: new Date().toISOString() } };
+    } catch (err) {
+      return { status: 'failed', reason: err.message.slice(0, 300) };
+    }
+  },
+};
+
+/**
+ * Process a pending infrastructure action written by Claude.
+ * Reads pending-action.json, validates, dispatches to the appropriate handler,
+ * writes the result to action-result.json, and cleans up.
+ *
+ * @param {string} projectDir - absolute path to the project
+ * @param {object} state - current state.json contents
+ * @returns {{ handled: boolean, action?: string, result?: object }}
+ */
+function processInfraAction(projectDir, state) {
+  const actionFile = path.join(projectDir, 'pending-action.json');
+  if (!fs.existsSync(actionFile)) return { handled: false };
+
+  const action = readJson(actionFile);
+  if (!action || !action.action) {
+    log(`[${path.basename(projectDir)}] Invalid pending-action.json — missing 'action' field`);
+    fs.unlinkSync(actionFile);
+    return { handled: false };
+  }
+
+  const actionType = action.action;
+  const params = action.params || {};
+  const projectName = path.basename(projectDir);
+
+  log(`[${projectName}] Infrastructure intent: ${actionType} (reason: ${action.reason || 'none given'})`);
+
+  const handler = INFRA_ACTION_HANDLERS[actionType];
+  let result;
+
+  if (!handler) {
+    result = {
+      action: actionType,
+      status: 'refused',
+      reason: `Unknown action type "${actionType}". Supported: ${Object.keys(INFRA_ACTION_HANDLERS).join(', ')}`,
+    };
+    log(`[${projectName}] Intent refused: unknown action type "${actionType}"`);
+  } else {
+    try {
+      const handlerResult = handler(params, projectDir, state);
+      result = { action: actionType, ...handlerResult };
+      log(`[${projectName}] Intent ${actionType}: ${result.status}`);
+    } catch (err) {
+      result = { action: actionType, status: 'failed', reason: `Handler threw: ${err.message.slice(0, 300)}` };
+      log(`[${projectName}] Intent ${actionType} error: ${err.message.slice(0, 200)}`);
+    }
+  }
+
+  // Write result for Claude to read on next invocation
+  const resultFile = path.join(projectDir, 'action-result.json');
+  writeJson(resultFile, result);
+
+  // Clean up the consumed action
+  fs.unlinkSync(actionFile);
+
+  // Log to interventions.jsonl for audit trail
+  const interventionsFile = path.join(projectDir, 'interventions.jsonl');
+  try {
+    fs.appendFileSync(interventionsFile, JSON.stringify({
+      type: 'infra-action',
+      action: actionType,
+      status: result.status,
+      reason: action.reason || null,
+      timestamp: new Date().toISOString(),
+    }) + '\n');
+  } catch {}
+
+  return { handled: true, action: actionType, result };
+}
+
 async function advanceState(projectDir) {
   const projectName = path.basename(projectDir);
   const stateFile = path.join(projectDir, 'state.json');
@@ -1658,6 +1819,19 @@ async function runPhase(projectDir) {
         }
       }
 
+      // Layer 4 (#103): Check for pending infrastructure action from Claude.
+      // If Claude wrote pending-action.json, validate and execute it before
+      // advancing the state machine. This is Phase 1 (backwards-compatible) —
+      // Claude can still run commands directly via --dangerously-skip-permissions.
+      try {
+        const infraResult = processInfraAction(projectDir, readJson(stateFile) || {});
+        if (infraResult.handled) {
+          log(`[${projectName}] Processed infrastructure action: ${infraResult.action} → ${infraResult.result?.status}`);
+        }
+      } catch (err) {
+        log(`[${projectName}] Infrastructure action error (non-blocking): ${(err.message || '').slice(0, 200)}`);
+      }
+
       // Advance state machine
       try {
         await advanceState(projectDir);
@@ -1862,6 +2036,7 @@ module.exports = {
   isBatchComplete,
   startStory,
   recordFixMemory,
+  processInfraAction,
   readJson,
   writeJson,
 };
