@@ -134,6 +134,12 @@ function assembleStoryContext(projectDir, state, storySpec) {
     // Milestone learnings (injected by circuit breaker)
     milestone_learnings: milestoneLearnings,
 
+    // Cross-story fix patterns (accumulated across retries)
+    fix_patterns: state.fix_patterns || {},
+
+    // Shipped milestone insights (persists across milestones)
+    shipped_insights: state.shipped_insights || [],
+
     // Global context (T2 tier — summary, not full)
     vision_summary: ctx.vision
       ? `${ctx.vision.product_name}: ${ctx.vision.one_liner}. Target: ${ctx.vision.target_audience?.primary || 'unknown'}. Deploy: ${ctx.vision.deploy_model || 'unknown'}.`

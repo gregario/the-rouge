@@ -530,6 +530,25 @@ async function advanceState(projectDir) {
 
         // No deploy here — deploy happens once before milestone-check
 
+        // If this story was retried (attempts > 1), extract a fix pattern
+        if ((story.attempts || 0) > 1 && state.fix_memory?.[story.id]?.length > 0) {
+          const lastFailure = state.fix_memory[story.id].slice(-1)[0];
+          const patternKey = lastFailure.classification || 'unknown';
+          if (!state.fix_patterns) state.fix_patterns = {};
+          if (state.fix_patterns[patternKey]) {
+            state.fix_patterns[patternKey].occurrences += 1;
+          } else {
+            state.fix_patterns[patternKey] = {
+              pattern: patternKey,
+              symptom: lastFailure.symptom || '',
+              fix: lastFailure.fix || result.fix_attempted || '',
+              story_id: story.id,
+              first_seen: new Date().toISOString(),
+              occurrences: 1,
+            };
+          }
+        }
+
       } else if (outcome === 'blocked') {
         story.status = 'blocked';
         story.blocked_by = result.blocked_by || 'unknown';
@@ -863,6 +882,16 @@ async function advanceState(projectDir) {
         } catch (err) {
           log(`[${projectName}] Milestone "${state.current_milestone}" promoted and locked (tag failed: ${(err.message || '').slice(0, 100)})`);
         }
+
+        // Record shipped insights before transitioning
+        if (!state.shipped_insights) state.shipped_insights = [];
+        state.shipped_insights.push({
+          milestone: state.current_milestone,
+          completed_at: new Date().toISOString(),
+          story_count: (milestone.stories || []).length,
+          retry_count: (milestone.stories || []).reduce((sum, s) => sum + (s.attempts || 0), 0),
+          patterns_discovered: Object.keys(state.fix_patterns || {}),
+        });
 
         // Next milestone
         const nextMs = findNextMilestone(state);
