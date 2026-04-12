@@ -42,7 +42,7 @@ rouge status
 ### Dashboard
 
 <p align="center">
-  <img src="docs/images/dashboard.png" alt="Rouge Dashboard — flight control tower showing project status, escalations, milestones, and build progress" width="720">
+  <img src="https://github.com/user-attachments/assets/4d744aab-c27d-485c-a6c9-897ab02eb118" alt="Rouge Dashboard — flight control tower showing project status, escalations, milestones, and build progress" width="720">
 </p>
 
 The dashboard is your control plane: real-time project visibility, escalation responses, build logs, milestone progress, and seeding sessions. It reads live project state from the filesystem via a lightweight bridge server. Start it with `rouge dashboard start` for background mode, or `rouge dashboard` for dev mode.
