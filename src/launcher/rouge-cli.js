@@ -707,6 +707,19 @@ function cmdDoctor() {
     blockers.push('Git not found');
   }
 
+  // --- jq ---
+  // Required by rouge-safety-check.sh (the PreToolUse hook). If missing,
+  // every Bash/Write/Edit call fails the hook → Claude Code blocks. Without
+  // this check the failure mode is "every tool call mysteriously rejected".
+  const jqOut = tryExec('jq --version');
+  if (jqOut) {
+    lines.push(`  \u2705 jq installed (${jqOut})`);
+  } else {
+    lines.push('  \u274C jq not found — required by rouge-safety-check.sh PreToolUse hook');
+    lines.push('       Install: `brew install jq` (macOS) | `apt-get install jq` (Debian/Ubuntu) | https://stedolan.github.io/jq/');
+    blockers.push('jq not found');
+  }
+
   // --- GitHub CLI ---
   const ghOut = tryExec('gh --version');
   if (ghOut) {
