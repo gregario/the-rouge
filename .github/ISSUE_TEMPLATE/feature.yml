@@ -1,0 +1,31 @@
+name: Feature request
+description: Propose a capability or integration
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        New integrations (Tier 2 services, Tier 3 code patterns) and new
+        deploy stacks are the highest-value contributions. If your idea is
+        one of those, `rouge feasibility "<description>"` is a good dry run
+        before opening an issue.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: What can't Rouge build today that it should be able to?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed approach
+      description: If you've thought about implementation, share it. A rough sketch is fine.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Why not a simpler workaround? Why not the status quo?

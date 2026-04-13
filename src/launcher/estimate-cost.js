@@ -142,9 +142,9 @@ function saveCalibration(phaseData, wasteData) {
 // --- Actual cost calculation from logs ---
 
 function calculateActualCost() {
-  const LOG_DIR = path.join(__dirname, '../../logs');
+  const { getLogFile } = require('./logger.js');
   const projectName = path.basename(PROJECT_DIR);
-  const logFile = path.join(LOG_DIR, 'rouge.log');
+  const logFile = getLogFile();
 
   if (!fs.existsSync(logFile)) {
     console.error('No rouge.log found');

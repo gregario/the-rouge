@@ -1,6 +1,6 @@
 {
   "name": "the-rouge",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Autonomous product development system that builds production-quality products through iterative self-evaluation",
   "type": "commonjs",
   "license": "PolyForm-Noncommercial-1.0.0",
@@ -31,9 +31,10 @@
   "scripts": {
     "test": "node tests/secrets.test.js && node tests/cli.test.js && node tests/self-improve.test.js && node --test test/launcher/*.test.js test/prompts/*.test.js test/integration/*.test.js",
     "dashboard": "cd dashboard && npm run dev",
-    "dashboard:bridge": "cd dashboard && npm run bridge",
     "dashboard:install": "cd dashboard && npm install",
-    "dashboard:test": "cd dashboard && npm test"
+    "dashboard:build": "cd dashboard && npm ci --include=dev && npm run build && node ../scripts/stage-standalone.js",
+    "dashboard:test": "cd dashboard && npm test",
+    "prepack": "npm run dashboard:build"
   },
   "files": [
     "src/launcher/",
@@ -42,7 +43,7 @@
     "src/slack/block-kit.js",
     "src/slack/format.js",
     "src/slack/manifest.yaml",
-    "dashboard/",
+    "dashboard/dist/",
     "schemas/",
     "library/global/",
     "library/domain/",
@@ -53,6 +54,10 @@
     "LICENSE",
     "README.md",
     "CONTRIBUTING.md",
-    "docs/slack-setup.md"
+    "CODE_OF_CONDUCT.md",
+    "VISION.md",
+    "docs/slack-setup.md",
+    "docs/troubleshooting.md",
+    "docs/seeding-example.md"
   ]
 }

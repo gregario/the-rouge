@@ -3,6 +3,12 @@ import { platform } from '@/data/platform'
 import { ProviderSlotCard } from '@/components/provider-slot-card'
 import { LiveRefresh } from '@/components/live-refresh'
 
+// This page shows live project state — it must render per-request so the
+// same-origin /api/platform fetch actually resolves. Without this, Next
+// tries to statically prerender at build time (no server running yet,
+// no base URL), which silently exports an error page.
+export const dynamic = 'force-dynamic'
+
 interface PlatformData {
   quotas: Array<{
     provider: string

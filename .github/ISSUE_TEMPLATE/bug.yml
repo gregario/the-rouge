@@ -1,0 +1,54 @@
+name: Bug report
+description: Something Rouge does that it shouldn't, or doesn't that it should
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Before opening, please check
+        `rouge doctor` — most environment issues surface there first.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, what did you see instead?
+      placeholder: |
+        Expected: …
+        Got: …
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      description: The shortest sequence of commands we need to see this.
+      render: bash
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant `rouge.log` lines
+      description: |
+        Paste the last ~50 lines of `~/.rouge/logs/rouge.log` (or `<repo>/logs/rouge.log`
+        on source checkouts). Redact anything that looks like a token.
+      render: text
+
+  - type: input
+    id: version
+    attributes:
+      label: Rouge version
+      description: Output of `rouge --version` (or the version in `package.json`).
+    validations:
+      required: true
+
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: macOS / Linux / Windows, plus Node version.
+    validations:
+      required: true

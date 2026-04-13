@@ -132,17 +132,19 @@ async function cmdSetup(integration) {
     // 2. Install dashboard
     const dashboardDir = path.join(__dirname, '..', '..', 'dashboard');
     if (fs.existsSync(dashboardDir)) {
-      console.log('\n  Step 2: Installing dashboard dependencies...');
-      try {
-        execSync('npm install', { cwd: dashboardDir, stdio: 'inherit', timeout: 120000 });
-        // Ensure .env.local
-        const envFile = path.join(dashboardDir, '.env.local');
-        if (!fs.existsSync(envFile)) {
-          fs.writeFileSync(envFile, 'NEXT_PUBLIC_BRIDGE_URL=http://localhost:3002\n');
+      // Source checkouts install dev deps so `rouge dashboard` can `next dev`.
+      // Global installs ship the prebuilt standalone — skip `npm install`.
+      const hasPrebuilt = fs.existsSync(path.join(dashboardDir, 'dist', 'server.js'));
+      if (hasPrebuilt) {
+        console.log('\n  Step 2: Dashboard prebuilt runtime detected — skipping install ✅');
+      } else {
+        console.log('\n  Step 2: Installing dashboard dev dependencies...');
+        try {
+          execSync('npm install', { cwd: dashboardDir, stdio: 'inherit', timeout: 120000 });
+          console.log('  Dashboard dev deps installed ✅');
+        } catch (err) {
+          console.error(`  Dashboard install failed: ${(err.message || '').slice(0, 150)}`);
         }
-        console.log('  Dashboard installed ✅');
-      } catch (err) {
-        console.error(`  Dashboard install failed: ${(err.message || '').slice(0, 150)}`);
       }
     } else {
       console.log('\n  Step 2: Dashboard directory not found (skipping)');
@@ -977,29 +979,23 @@ if (command === 'doctor') {
 } else if (command === 'dashboard') {
   const subcommand = args[1];
   const dashboardDir = path.join(__dirname, '..', '..', 'dashboard');
+  const standaloneServer = path.join(dashboardDir, 'dist', 'server.js');
+  const standaloneMarker = path.join(dashboardDir, 'dist', 'ROUGE_STANDALONE');
   const ROUGE_HOME = process.env.ROUGE_HOME || path.join(require('os').homedir(), '.rouge');
   const PID_FILE = path.join(ROUGE_HOME, 'dashboard.pid');
+  const DASHBOARD_PORT = parseInt(process.env.ROUGE_DASHBOARD_PORT || '3001', 10);
+  const DASHBOARD_URL = `http://localhost:${DASHBOARD_PORT}`;
 
-  // Ensure dashboard directory exists
   if (!fs.existsSync(dashboardDir)) {
     console.error('Dashboard not found at', dashboardDir);
-    console.error('The dashboard should be at The-Rouge/dashboard/.');
-    console.error('Run `rouge setup` for first-time setup.');
+    console.error('The dashboard should be at The-Rouge/dashboard/. Run `rouge setup` for first-time setup.');
     process.exit(1);
   }
 
-  // Ensure dashboard deps are installed
-  if (!fs.existsSync(path.join(dashboardDir, 'node_modules')) && subcommand !== 'install') {
-    console.log('Dashboard dependencies not installed. Installing...');
-    execSync('npm install', { cwd: dashboardDir, stdio: 'inherit' });
-  }
-
-  // Ensure .env.local exists with bridge URL
-  const envFile = path.join(dashboardDir, '.env.local');
-  if (!fs.existsSync(envFile)) {
-    fs.writeFileSync(envFile, 'NEXT_PUBLIC_BRIDGE_URL=http://localhost:3002\n');
-    console.log('Created dashboard/.env.local with bridge URL');
-  }
+  // Prebuilt tarball installs: .next/standalone/ is shipped by `prepack`.
+  // Source checkouts: no standalone, use `next dev` via the dashboard deps.
+  const hasPrebuilt = fs.existsSync(standaloneServer) && fs.existsSync(standaloneMarker);
+  const hasDevDeps = fs.existsSync(path.join(dashboardDir, 'node_modules', 'next'));
 
   function readPids() {
     try { return JSON.parse(fs.readFileSync(PID_FILE, 'utf8')); } catch { return null; }
@@ -1014,62 +1010,93 @@ if (command === 'doctor') {
   function isRunning(pid) {
     try { process.kill(pid, 0); return true; } catch { return false; }
   }
+  function openBrowser(url) {
+    // Cross-platform URL open. Best effort — swallow failures (headless
+    // boxes, CI, users who've disabled the default handler).
+    const opener =
+      process.platform === 'darwin' ? { cmd: 'open', args: [url] } :
+      process.platform === 'win32'  ? { cmd: 'cmd',  args: ['/c', 'start', '""', url] } :
+                                      { cmd: 'xdg-open', args: [url] };
+    try {
+      const child = spawn(opener.cmd, opener.args, { stdio: 'ignore', detached: true });
+      child.unref();
+    } catch {
+      // ignore — user can copy/paste the URL
+    }
+  }
+  function spawnDashboard({ detached, stdio, logFd }) {
+    // Forward projects root / cli path so Next route handlers can resolve
+    // them without a rouge-dashboard.config.json sitting alongside the
+    // standalone server (which won't exist in tarball installs).
+    const env = {
+      ...process.env,
+      PORT: String(DASHBOARD_PORT),
+      HOSTNAME: '127.0.0.1',
+      ROUGE_PROJECTS_DIR: process.env.ROUGE_PROJECTS_DIR || PROJECTS_DIR,
+      ROUGE_CLI: process.env.ROUGE_CLI || process.argv[1],
+    };
+
+    if (hasPrebuilt) {
+      // Standalone server.js is self-contained — node runs it directly,
+      // no `next` CLI, no dev compile. ~2s cold start vs 30-60s for
+      // `next dev`. This is the default path for npm global installs.
+      return spawn(process.argv[0], [standaloneServer], {
+        cwd: path.dirname(standaloneServer),
+        detached,
+        stdio: stdio === 'log' ? ['ignore', logFd, logFd] : stdio,
+        env,
+      });
+    }
+    // Source checkout fallback: `next dev` inside the dashboard package.
+    return spawn('npx', ['next', 'dev', '-p', String(DASHBOARD_PORT)], {
+      cwd: dashboardDir,
+      detached,
+      stdio: stdio === 'log' ? ['ignore', logFd, logFd] : stdio,
+      env,
+    });
+  }
 
   if (subcommand === 'install') {
     console.log('Installing dashboard dependencies...');
     execSync('npm install', { cwd: dashboardDir, stdio: 'inherit' });
-    // Ensure .env.local
-    if (!fs.existsSync(envFile)) {
-      fs.writeFileSync(envFile, 'NEXT_PUBLIC_BRIDGE_URL=http://localhost:3002\n');
-      console.log('Created dashboard/.env.local with bridge URL');
-    }
     console.log('Dashboard installed. Run `rouge dashboard` to start.');
 
   } else if (subcommand === 'start' || subcommand === 'up') {
     assertControlPlaneAllowed('frontend');
-    // Background mode — detached processes with PID tracking
     const existing = readPids();
-    if (existing && isRunning(existing.bridge)) {
-      console.log(`Dashboard already running (bridge PID ${existing.bridge}, frontend PID ${existing.frontend}).`);
-      console.log(`  Bridge:    http://localhost:3002`);
-      console.log(`  Dashboard: http://localhost:3001`);
+    if (existing && existing.pid && isRunning(existing.pid)) {
+      console.log(`Dashboard already running (PID ${existing.pid}).`);
+      console.log(`  Open:      ${DASHBOARD_URL}`);
       console.log(`  Stop:      rouge dashboard stop`);
       process.exit(0);
     }
 
-    console.log('Starting dashboard in background...');
+    if (!hasPrebuilt && !hasDevDeps) {
+      console.log('Dashboard dependencies not installed. Installing...');
+      execSync('npm install', { cwd: dashboardDir, stdio: 'inherit' });
+    }
+
+    console.log(`Starting dashboard in background (${hasPrebuilt ? 'prebuilt' : 'dev mode'})...`);
     const logDir = path.join(ROUGE_HOME, 'logs');
     if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+    const logFd = fs.openSync(path.join(logDir, 'dashboard.log'), 'a');
 
-    const bridgeLog = fs.openSync(path.join(logDir, 'dashboard-bridge.log'), 'a');
-    const frontendLog = fs.openSync(path.join(logDir, 'dashboard-frontend.log'), 'a');
+    const child = spawnDashboard({ detached: true, stdio: 'log', logFd });
+    child.unref();
+    writePids({ pid: child.pid, started_at: new Date().toISOString(), mode: hasPrebuilt ? 'prebuilt' : 'dev' });
 
-    const bridge = spawn('npx', ['tsx', 'src/bridge/index.ts'], {
-      cwd: dashboardDir,
-      detached: true,
-      stdio: ['ignore', bridgeLog, bridgeLog],
-      env: { ...process.env },
-    });
-    bridge.unref();
+    console.log(`  PID:       ${child.pid}`);
+    console.log(`  URL:       ${DASHBOARD_URL}`);
+    console.log(`  Log:       ${path.join(logDir, 'dashboard.log')}`);
+    console.log(`  Stop:      rouge dashboard stop`);
+    console.log(`  Status:    rouge dashboard status`);
 
-    // Wait for bridge to start before launching frontend
-    setTimeout(() => {
-      const frontend = spawn('npx', ['next', 'dev', '-p', '3001'], {
-        cwd: dashboardDir,
-        detached: true,
-        stdio: ['ignore', frontendLog, frontendLog],
-        env: { ...process.env },
-      });
-      frontend.unref();
-
-      writePids({ bridge: bridge.pid, frontend: frontend.pid, started_at: new Date().toISOString() });
-
-      console.log(`  Bridge:    http://localhost:3002 (PID ${bridge.pid})`);
-      console.log(`  Dashboard: http://localhost:3001 (PID ${frontend.pid})`);
-      console.log(`  Logs:      ${logDir}/dashboard-*.log`);
-      console.log(`  Stop:      rouge dashboard stop`);
-      console.log(`  Status:    rouge dashboard status`);
-    }, 1500);
+    // Give the server a moment to bind the port before opening the browser,
+    // otherwise the OS handler races with Next and shows a connection error.
+    const noOpen = args.includes('--no-open');
+    if (!noOpen) {
+      setTimeout(() => openBrowser(DASHBOARD_URL), hasPrebuilt ? 1500 : 4000);
+    }
 
   } else if (subcommand === 'stop' || subcommand === 'down') {
     const pids = readPids();
@@ -1077,14 +1104,17 @@ if (command === 'doctor') {
       console.log('Dashboard is not running (no PID file).');
       process.exit(0);
     }
+    // Support both the new single-PID schema and the legacy {bridge, frontend} schema
+    // so a `rouge dashboard stop` still cleans up after an upgrade.
+    const candidates = pids.pid ? [pids.pid] : [pids.bridge, pids.frontend].filter(Boolean);
     let stopped = 0;
-    for (const name of ['bridge', 'frontend']) {
-      if (pids[name] && isRunning(pids[name])) {
-        try { process.kill(pids[name], 'SIGTERM'); stopped++; } catch {}
+    for (const pid of candidates) {
+      if (isRunning(pid)) {
+        try { process.kill(pid, 'SIGTERM'); stopped++; } catch {}
       }
     }
     clearPids();
-    console.log(stopped > 0 ? `Dashboard stopped (${stopped} processes).` : 'Dashboard was not running.');
+    console.log(stopped > 0 ? `Dashboard stopped (${stopped} process${stopped > 1 ? 'es' : ''}).` : 'Dashboard was not running.');
 
   } else if (subcommand === 'status') {
     const pids = readPids();
@@ -1092,25 +1122,25 @@ if (command === 'doctor') {
       console.log('Dashboard is not running.');
       process.exit(1);
     }
-    const bridgeUp = pids.bridge && isRunning(pids.bridge);
-    const frontendUp = pids.frontend && isRunning(pids.frontend);
-    console.log(`Bridge:    ${bridgeUp ? `✅ running (PID ${pids.bridge})` : '❌ not running'}`);
-    console.log(`Frontend:  ${frontendUp ? `✅ running (PID ${pids.frontend})` : '❌ not running'}`);
+    const pid = pids.pid || pids.bridge; // back-compat
+    const up = pid && isRunning(pid);
+    console.log(`Dashboard: ${up ? `✅ running (PID ${pid})` : '❌ not running'}`);
+    if (pids.mode) console.log(`Mode:      ${pids.mode}`);
     if (pids.started_at) console.log(`Started:   ${pids.started_at}`);
-    process.exit(bridgeUp && frontendUp ? 0 : 1);
+    console.log(`URL:       ${DASHBOARD_URL}`);
+    process.exit(up ? 0 : 1);
 
   } else if (subcommand === 'restart') {
-    // Stop then start
     const pids = readPids();
     if (pids) {
-      for (const name of ['bridge', 'frontend']) {
-        if (pids[name] && isRunning(pids[name])) {
-          try { process.kill(pids[name], 'SIGTERM'); } catch {}
+      const candidates = pids.pid ? [pids.pid] : [pids.bridge, pids.frontend].filter(Boolean);
+      for (const pid of candidates) {
+        if (isRunning(pid)) {
+          try { process.kill(pid, 'SIGTERM'); } catch {}
         }
       }
       clearPids();
     }
-    // Re-invoke with 'start'
     const child = spawn(process.argv[0], [process.argv[1], 'dashboard', 'start'], {
       stdio: 'inherit', env: process.env,
     });
@@ -1118,35 +1148,37 @@ if (command === 'doctor') {
 
   } else if (!subcommand) {
     assertControlPlaneAllowed('frontend');
-    // Foreground mode (dev) — same as before, good for debugging
-    console.log('Starting dashboard in foreground (Ctrl+C to stop)...');
-    console.log('Use `rouge dashboard start` for background mode.\n');
-    const bridge = spawn('npx', ['tsx', 'src/bridge/index.ts'], {
-      cwd: dashboardDir,
-      stdio: 'pipe',
-      env: { ...process.env },
-    });
-    bridge.stdout?.on('data', (d) => process.stdout.write(`[bridge] ${d}`));
-    bridge.stderr?.on('data', (d) => process.stderr.write(`[bridge] ${d}`));
-    setTimeout(() => {
-      const frontend = spawn('npm', ['run', 'dev'], {
-        cwd: dashboardDir,
-        stdio: 'inherit',
-        env: { ...process.env },
-      });
-      frontend.on('close', (code) => { bridge.kill(); process.exit(code || 0); });
-    }, 1500);
-    process.on('SIGINT', () => { bridge.kill(); process.exit(0); });
-    process.on('SIGTERM', () => { bridge.kill(); process.exit(0); });
+    console.log(`Starting dashboard in foreground (${hasPrebuilt ? 'prebuilt' : 'dev mode'}, Ctrl+C to stop)...`);
+    console.log(`  URL:       ${DASHBOARD_URL}`);
+    console.log(`  Background mode: rouge dashboard start\n`);
+
+    if (!hasPrebuilt && !hasDevDeps) {
+      console.log('Dashboard dependencies not installed. Installing...');
+      execSync('npm install', { cwd: dashboardDir, stdio: 'inherit' });
+    }
+
+    const child = spawnDashboard({ detached: false, stdio: 'inherit' });
+    const noOpen = args.includes('--no-open');
+    if (!noOpen) {
+      setTimeout(() => openBrowser(DASHBOARD_URL), hasPrebuilt ? 1500 : 4000);
+    }
+    child.on('close', (code) => process.exit(code || 0));
+    process.on('SIGINT', () => { try { child.kill('SIGTERM'); } catch {} process.exit(0); });
+    process.on('SIGTERM', () => { try { child.kill('SIGTERM'); } catch {} process.exit(0); });
 
   } else {
     console.error(`
   rouge dashboard                 Start in foreground (dev mode)
   rouge dashboard start           Start in background (persistent)
-  rouge dashboard stop            Stop background processes
+  rouge dashboard stop            Stop background process
   rouge dashboard status          Check if running
   rouge dashboard restart         Stop + start
-  rouge dashboard install         Install dependencies
+  rouge dashboard install         Install dependencies (source checkouts)
+
+  Flags:
+    --no-open                     Don't auto-open the browser
+  Env:
+    ROUGE_DASHBOARD_PORT          Override default port 3001
 `);
     process.exit(1);
   }
@@ -1196,12 +1228,13 @@ if (command === 'doctor') {
     rouge secrets expiry set <s/K> <date>  Set expiry for a secret
     rouge feasibility <description> Assess feasibility of a proposed change
     rouge contribute <path>         Contribute a draft integration pattern via PR
-    rouge dashboard                 Start dashboard in foreground (dev)
+    rouge dashboard                 Start dashboard in foreground (auto-opens browser)
     rouge dashboard start           Start dashboard in background (persistent)
-    rouge dashboard stop            Stop background dashboard
+    rouge dashboard stop            Stop dashboard
     rouge dashboard status          Check dashboard status
     rouge dashboard restart         Restart background dashboard
-    rouge dashboard install         Install dashboard dependencies
+    rouge dashboard install         Install dev deps (source checkouts only)
+    rouge dashboard --no-open       Don't auto-open the browser
     rouge improve                   Run one self-improvement iteration
     rouge improve --max-iterations 5  Run up to 5 iterations
     rouge improve --explore         Enable exploration when no issues remain

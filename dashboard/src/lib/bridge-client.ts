@@ -1,33 +1,41 @@
-// Bridge client — connects the dashboard to the Rouge bridge server.
-// When NEXT_PUBLIC_BRIDGE_URL is not set (empty), isBridgeEnabled() returns false
-// and the dashboard falls back to static mock data.
+// Bridge client — connects the dashboard to the Rouge API routes.
+//
+// Post-unification, the bridge runs as Next route handlers under /api/* on
+// the same origin as the frontend. BRIDGE_URL defaults to empty (relative
+// URLs hit the same host/port). NEXT_PUBLIC_BRIDGE_URL is kept as an
+// override for dev scenarios where the frontend is served from one host
+// and the API from another.
+//
+// isBridgeEnabled() now always returns true — the API routes always exist,
+// even if the backing projects directory is empty. Retained for callers
+// that still branch on it; safe to drop in a follow-up.
 
-const BRIDGE_URL = process.env.NEXT_PUBLIC_BRIDGE_URL || ''
+const BRIDGE_URL = process.env.NEXT_PUBLIC_BRIDGE_URL ?? ''
 
 export function isBridgeEnabled(): boolean {
-  return BRIDGE_URL.length > 0
+  return true
 }
 
 export async function fetchBridgeProjects() {
-  const res = await fetch(`${BRIDGE_URL}/projects`)
+  const res = await fetch(`${BRIDGE_URL}/api/projects`)
   if (!res.ok) throw new Error(`Bridge error: ${res.status}`)
   return res.json()
 }
 
 export async function fetchBridgeProject(name: string) {
-  const res = await fetch(`${BRIDGE_URL}/projects/${name}`)
+  const res = await fetch(`${BRIDGE_URL}/api/projects/${name}`)
   if (!res.ok) throw new Error(`Bridge error: ${res.status}`)
   return res.json()
 }
 
 export async function fetchBridgeSpec(name: string) {
-  const res = await fetch(`${BRIDGE_URL}/projects/${name}/spec`)
+  const res = await fetch(`${BRIDGE_URL}/api/projects/${name}/spec`)
   if (!res.ok) throw new Error(`Bridge error: ${res.status}`)
   return res.json()
 }
 
 export async function fetchBridgeInfrastructure(name: string) {
-  const res = await fetch(`${BRIDGE_URL}/projects/${name}/infrastructure`)
+  const res = await fetch(`${BRIDGE_URL}/api/projects/${name}/infrastructure`)
   if (!res.ok) throw new Error(`Bridge error: ${res.status}`)
   return res.json()
 }
@@ -41,38 +49,38 @@ export interface BuildLogPayload {
 }
 
 export async function fetchBridgeStoryEnrichment(name: string) {
-  const res = await fetch(`${BRIDGE_URL}/projects/${name}/story-enrichment`)
+  const res = await fetch(`${BRIDGE_URL}/api/projects/${name}/story-enrichment`)
   if (!res.ok) throw new Error(`Bridge error: ${res.status}`)
   return res.json()
 }
 
 export async function fetchBridgeStoryContext(name: string) {
-  const res = await fetch(`${BRIDGE_URL}/projects/${name}/story-context`)
+  const res = await fetch(`${BRIDGE_URL}/api/projects/${name}/story-context`)
   if (!res.ok) throw new Error(`Bridge error: ${res.status}`)
   return res.json()
 }
 
 export async function fetchBridgeBuildLog(name: string, tail = 50): Promise<BuildLogPayload> {
-  const res = await fetch(`${BRIDGE_URL}/projects/${name}/build-log?tail=${tail}`)
+  const res = await fetch(`${BRIDGE_URL}/api/projects/${name}/build-log?tail=${tail}`)
   if (!res.ok) throw new Error(`Bridge error: ${res.status}`)
   return res.json()
 }
 
 export async function fetchBridgeActivity(name: string, verbose = false) {
   const q = verbose ? '?verbose=true' : ''
-  const res = await fetch(`${BRIDGE_URL}/projects/${name}/activity${q}`)
+  const res = await fetch(`${BRIDGE_URL}/api/projects/${name}/activity${q}`)
   if (!res.ok) throw new Error(`Bridge error: ${res.status}`)
   return res.json()
 }
 
 export async function fetchBridgePlatform() {
-  const res = await fetch(`${BRIDGE_URL}/platform`)
+  const res = await fetch(`${BRIDGE_URL}/api/platform`)
   if (!res.ok) throw new Error(`Bridge error: ${res.status}`)
   return res.json()
 }
 
 export async function createBridgeProject(slug: string, name?: string) {
-  const res = await fetch(`${BRIDGE_URL}/projects`, {
+  const res = await fetch(`${BRIDGE_URL}/api/projects`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ slug, name }),
@@ -91,13 +99,13 @@ export interface BuildStatus {
 }
 
 export async function fetchBuildStatus(slug: string): Promise<BuildStatus> {
-  const res = await fetch(`${BRIDGE_URL}/projects/${slug}/build-status`)
+  const res = await fetch(`${BRIDGE_URL}/api/projects/${slug}/build-status`)
   if (!res.ok) throw new Error(`Bridge error: ${res.status}`)
   return res.json()
 }
 
 export async function sendCommand(name: string, command: string, body?: object) {
-  const res = await fetch(`${BRIDGE_URL}/projects/${name}/${command}`, {
+  const res = await fetch(`${BRIDGE_URL}/api/projects/${name}/${command}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
@@ -111,7 +119,11 @@ export async function sendCommand(name: string, command: string, body?: object) 
 
 export function subscribeBridgeEvents(onEvent: (event: unknown) => void): EventSource | null {
   if (!isBridgeEnabled()) return null
-  const es = new EventSource(`${BRIDGE_URL}/events`)
+  // Guard for non-browser environments (SSR, JSDOM unit tests) that don't
+  // provide a global EventSource. The dashboard ships as a client-rendered
+  // view so a no-op here is safe.
+  if (typeof EventSource === 'undefined') return null
+  const es = new EventSource(`${BRIDGE_URL}/api/events`)
   es.onmessage = (e) => {
     try {
       onEvent(JSON.parse(e.data))
@@ -135,7 +147,7 @@ export interface SeedingChatMessage {
 }
 
 export async function fetchSeedingMessages(slug: string): Promise<SeedingChatMessage[]> {
-  const res = await fetch(`${BRIDGE_URL}/projects/${slug}/seed/messages`)
+  const res = await fetch(`${BRIDGE_URL}/api/projects/${slug}/seed/messages`)
   if (!res.ok) throw new Error(`Bridge error: ${res.status}`)
   return res.json()
 }
@@ -151,7 +163,7 @@ export interface SendSeedMessageResult {
 }
 
 export async function sendSeedMessage(slug: string, text: string): Promise<SendSeedMessageResult> {
-  const res = await fetch(`${BRIDGE_URL}/projects/${slug}/seed/message`, {
+  const res = await fetch(`${BRIDGE_URL}/api/projects/${slug}/seed/message`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text }),
