@@ -595,17 +595,37 @@ async function advanceState(projectDir) {
           log(`[${projectName}] Creating private GitHub repo as backup...`);
           // Ensure we have an initial commit to push
           try { execSync('git add -A && git diff --cached --quiet || git commit -m "rouge: initial project scaffold"', { cwd: projectDir, encoding: 'utf8', timeout: 30000, stdio: 'pipe', shell: true }); } catch {}
-          const repoOutput = execSync(
-            `gh repo create "gregario/${projectName}" --private --source=. --push 2>&1 || true`,
-            { cwd: projectDir, encoding: 'utf8', timeout: 60000, stdio: 'pipe' }
-          );
-          if (repoOutput.includes('github.com')) {
-            const repoUrl = repoOutput.match(/https:\/\/github\.com\/[^\s]+/)?.[0] || `https://github.com/gregario/${projectName}`;
-            log(`[${projectName}] Private repo created: ${repoUrl}`);
-            state.github_repo = repoUrl;
-            writeJson(stateFile, state);
+          // Resolve the GitHub owner from env > rouge.config.json >
+          // `gh` CLI's authenticated user. Hardcoding a single owner here
+          // was a bug — it would create every user's product repos under
+          // the upstream author's account.
+          const ghOwner = (() => {
+            if (process.env.ROUGE_GITHUB_OWNER) return process.env.ROUGE_GITHUB_OWNER;
+            try {
+              const cfg = readJson(path.join(ROUGE_ROOT, 'rouge.config.json'));
+              if (cfg?.github_owner) return cfg.github_owner;
+            } catch {}
+            try {
+              return execSync('gh api user --jq .login', {
+                encoding: 'utf8', timeout: 5000, stdio: ['ignore', 'pipe', 'ignore'],
+              }).trim();
+            } catch { return null; }
+          })();
+          if (!ghOwner) {
+            log(`[${projectName}] No GitHub owner resolved (set ROUGE_GITHUB_OWNER or run \`gh auth login\`) — skipping repo creation`);
           } else {
-            log(`[${projectName}] GitHub repo creation skipped or failed (non-blocking): ${repoOutput.slice(0, 150)}`);
+            const repoOutput = execSync(
+              `gh repo create "${ghOwner}/${projectName}" --private --source=. --push 2>&1 || true`,
+              { cwd: projectDir, encoding: 'utf8', timeout: 60000, stdio: 'pipe' }
+            );
+            if (repoOutput.includes('github.com')) {
+              const repoUrl = repoOutput.match(/https:\/\/github\.com\/[^\s]+/)?.[0] || `https://github.com/${ghOwner}/${projectName}`;
+              log(`[${projectName}] Private repo created: ${repoUrl}`);
+              state.github_repo = repoUrl;
+              writeJson(stateFile, state);
+            } else {
+              log(`[${projectName}] GitHub repo creation skipped or failed (non-blocking): ${repoOutput.slice(0, 150)}`);
+            }
           }
         } else {
           log(`[${projectName}] GitHub remote already exists — skipping repo creation`);

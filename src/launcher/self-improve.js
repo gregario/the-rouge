@@ -20,8 +20,33 @@ const fs = require('fs');
 
 const ROUGE_ROOT = path.resolve(__dirname, '../..');
 
-// Only work on issues from trusted sources
-const TRUSTED_AUTHORS = ['gregario']; // repo owner
+// Only work on issues from trusted sources. Resolve from rouge.config.json
+// `self_improvement.trusted_authors`, falling back to the current repo's
+// GitHub owner (via `git config` remote URL) so forks "just work" for the
+// person who forked. Empty list = no issue is trusted, self-improve is a
+// no-op. Hardcoding a single name here was a bug — it silently disabled
+// self-improvement for anyone except the upstream author.
+function resolveTrustedAuthors() {
+  try {
+    const cfgPath = path.join(ROUGE_ROOT, 'rouge.config.json');
+    if (fs.existsSync(cfgPath)) {
+      const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+      const list = cfg?.self_improvement?.trusted_authors;
+      if (Array.isArray(list) && list.length > 0) return list;
+    }
+  } catch { /* fall through */ }
+  try {
+    const { execSync } = require('child_process');
+    const url = execSync('git config --get remote.origin.url', {
+      encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], cwd: ROUGE_ROOT,
+    }).trim();
+    // https://github.com/<owner>/<repo>.git or git@github.com:<owner>/<repo>.git
+    const m = url.match(/github\.com[:/]([^/]+)\//);
+    if (m) return [m[1]];
+  } catch { /* no git or no remote */ }
+  return [];
+}
+const TRUSTED_AUTHORS = resolveTrustedAuthors();
 
 // ---------------------------------------------------------------------------
 // Helpers

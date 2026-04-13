@@ -7,6 +7,11 @@ import { LiveRefresh } from '@/components/live-refresh'
 import { NewProjectButton } from '@/components/new-project-button'
 import { cn } from '@/lib/utils'
 
+// Render per-request so the same-origin /api/projects fetch resolves.
+// Otherwise Next tries to statically prerender at build time — no server,
+// no base URL, exports an error page.
+export const dynamic = 'force-dynamic'
+
 // Map bridge BridgeProjectSummary response to ProjectSummary[].
 // The bridge returns a shape close to Rouge state.json — we fill in
 // dashboard-specific fields with safe defaults where Rouge doesn't track them.
@@ -121,10 +126,13 @@ export default async function Home() {
       <LiveRefresh />
       {error && (
         <div className="mb-6 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
-          <strong>Bridge error:</strong> {error}
+          <strong>API error:</strong> {error}
           <p className="mt-1 text-xs text-red-700">
-            The bridge server at {process.env.NEXT_PUBLIC_BRIDGE_URL} is not responding.
-            Check that it&rsquo;s running (<code>npm run bridge</code>).
+            Couldn&rsquo;t read project state. Check the launcher log
+            (<code>~/.rouge/logs/rouge.log</code> or
+            <code> &lt;repo&gt;/logs/rouge.log</code>) and make sure
+            <code>$ROUGE_PROJECTS_DIR</code> points at a valid projects
+            directory.
           </p>
         </div>
       )}

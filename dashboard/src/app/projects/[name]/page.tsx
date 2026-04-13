@@ -76,7 +76,7 @@ export default function ProjectPage({
     let cancelled = false
     const check = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BRIDGE_URL}/projects/${name}/build-status`)
+        const res = await fetch(`/api/projects/${name}/build-status`)
         const data = await res.json()
         if (!cancelled) setBuildRunning(!!data.running)
       } catch {
@@ -199,10 +199,12 @@ export default function ProjectPage({
   if (bridgeError) {
     return (
       <div className="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <h1 className="text-2xl font-bold text-gray-900">Bridge error</h1>
+        <h1 className="text-2xl font-bold text-gray-900">API error</h1>
         <p className="mt-2 text-red-700">{bridgeError}</p>
         <p className="mt-2 text-sm text-gray-500">
-          The bridge server is not responding. Check that it&rsquo;s running (<code>npm run bridge</code>).
+          Couldn&rsquo;t read project state. Check the launcher log
+          (<code>~/.rouge/logs/rouge.log</code>) and that
+          <code> $ROUGE_PROJECTS_DIR</code> points at a valid directory.
         </p>
         <a href="/" className="mt-4 inline-block text-gray-900 underline underline-offset-4">
           ← Back to dashboard

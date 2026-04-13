@@ -132,17 +132,19 @@ async function cmdSetup(integration) {
     // 2. Install dashboard
     const dashboardDir = path.join(__dirname, '..', '..', 'dashboard');
     if (fs.existsSync(dashboardDir)) {
-      console.log('\n  Step 2: Installing dashboard dependencies...');
-      try {
-        execSync('npm install', { cwd: dashboardDir, stdio: 'inherit', timeout: 120000 });
-        // Ensure .env.local
-        const envFile = path.join(dashboardDir, '.env.local');
-        if (!fs.existsSync(envFile)) {
-          fs.writeFileSync(envFile, 'NEXT_PUBLIC_BRIDGE_URL=http://localhost:3002\n');
+      // Source checkouts install dev deps so `rouge dashboard` can `next dev`.
+      // Global installs ship the prebuilt standalone — skip `npm install`.
+      const hasPrebuilt = fs.existsSync(path.join(dashboardDir, 'dist', 'server.js'));
+      if (hasPrebuilt) {
+        console.log('\n  Step 2: Dashboard prebuilt runtime detected — skipping install ✅');
+      } else {
+        console.log('\n  Step 2: Installing dashboard dev dependencies...');
+        try {
+          execSync('npm install', { cwd: dashboardDir, stdio: 'inherit', timeout: 120000 });
+          console.log('  Dashboard dev deps installed ✅');
+        } catch (err) {
+          console.error(`  Dashboard install failed: ${(err.message || '').slice(0, 150)}`);
         }
-        console.log('  Dashboard installed ✅');
-      } catch (err) {
-        console.error(`  Dashboard install failed: ${(err.message || '').slice(0, 150)}`);
       }
     } else {
       console.log('\n  Step 2: Dashboard directory not found (skipping)');
