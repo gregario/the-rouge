@@ -115,15 +115,19 @@ function deployVercel(projectDir) {
 }
 
 function deployCloudflare(projectDir) {
-  run('npm run build', { cwd: projectDir });
-  run('npx @opennextjs/cloudflare build', { cwd: projectDir });
-  const output = run('npx wrangler deploy --env staging', { cwd: projectDir });
+  // `@opennextjs/cloudflare build` routinely exceeds the 120s default on cold
+  // caches; bump to 5 minutes for the Cloudflare build chain.
+  run('npm run build', { cwd: projectDir, timeout: 300000 });
+  run('npx @opennextjs/cloudflare build', { cwd: projectDir, timeout: 300000 });
+  const output = run('npx wrangler deploy --env staging', { cwd: projectDir, timeout: 300000 });
   const urlMatch = output.match(/https:\/\/[^\s]+\.workers\.dev/);
   if (urlMatch) {
     const stagingUrl = urlMatch[0];
     log(`Deployed to ${stagingUrl}`);
     return stagingUrl;
   }
+  log('⚠️  Could not extract deploy URL from `wrangler deploy` output. Health check and rollback will be skipped. First 500 chars of output follow:');
+  log(output.slice(0, 500));
   return null;
 }
 
@@ -156,7 +160,11 @@ function deploy(projectDir) {
   try {
     stagingUrl = handler(projectDir);
   } catch (err) {
-    log(`${target} deploy failed: ${(err.message || '').slice(0, 200)}`);
+    // execSync surfaces command output on err.stderr / err.stdout — prefer
+    // stderr (where wrangler/vercel/supabase put actual errors) so the
+    // escalation has enough signal to diagnose without a manual re-run.
+    const detail = (err && (err.stderr || err.stdout || err.message)) || String(err);
+    log(`${target} deploy failed: ${String(detail).slice(0, 500)}`);
     return null;
   }
 
@@ -170,9 +178,15 @@ function deploy(projectDir) {
       log('Health check FAILED — site not responding');
       if (previousVersion) {
         rollback(projectDir, previousVersion, 'post-deploy health check failed');
-        // Re-check after rollback
+        // Cloudflare edge propagation takes ~10s after a rollback; hitting
+        // the URL immediately often reads the still-broken edge cache and
+        // makes the "verified" log a coin flip. Wait before verifying.
+        log('Waiting 10s for edge propagation before verifying rollback...');
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10000);
         if (healthCheck(stagingUrl)) {
           log('Rollback verified — previous version is healthy');
+        } else {
+          log('Rollback verification failed — URL still unhealthy after propagation window');
         }
       }
       return null; // deploy failed
@@ -204,7 +218,10 @@ function deploy(projectDir) {
         }
 
         // Step 2: Check for destructive operations
-        const destructivePatterns = /\bDROP\s+(TABLE|COLUMN|INDEX|CONSTRAINT|DATABASE)\b|\bTRUNCATE\b|\bDELETE\s+FROM\b(?!\s+.*\bWHERE\b)|\bALTER\s+.*\bTYPE\b/i;
+        // Dotall (`s`) so `.*` in the DELETE-without-WHERE lookahead crosses
+        // newlines — without it, `DELETE FROM t\n  WHERE x=1` is misread as
+        // a destructive unconditional delete.
+        const destructivePatterns = /\bDROP\s+(TABLE|COLUMN|INDEX|CONSTRAINT|DATABASE)\b|\bTRUNCATE\b|\bDELETE\s+FROM\b(?!\s+.*\bWHERE\b)|\bALTER\s+.*\bTYPE\b/is;
         const pendingMigrations = migrations.map(f =>
           fs.readFileSync(path.join(migrationDir, f), 'utf8')
         ).join('\n');

@@ -43,6 +43,42 @@ function resolveProjectsDir() {
   return path.join(home, '.rouge', 'projects');
 }
 const PROJECTS_DIR = resolveProjectsDir();
+
+// ---------------------------------------------------------------------------
+// Control plane config — rouge.config.json declares which control plane
+// (dashboard vs slack) is active. When `control_plane_lock` is true, the
+// CLI refuses to start the non-selected plane so the two can't race on
+// state.json. README documents this as the user-visible contract.
+// ---------------------------------------------------------------------------
+
+function readRougeConfig() {
+  const candidates = [
+    path.join(process.cwd(), 'rouge.config.json'),
+    path.join(ROUGE_ROOT, 'rouge.config.json'),
+  ];
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) return JSON.parse(fs.readFileSync(p, 'utf8'));
+    } catch { /* fall through */ }
+  }
+  return {};
+}
+
+function assertControlPlaneAllowed(requested) {
+  const cfg = readRougeConfig();
+  const selected = cfg.control_plane || 'frontend';
+  const locked = cfg.control_plane_lock !== false; // default on
+  if (!locked) return;
+  const ok = (requested === 'slack' && selected === 'slack')
+    || (requested === 'frontend' && (selected === 'frontend' || selected === 'dashboard'));
+  if (!ok) {
+    console.error(`  Refusing to start ${requested} control plane.`);
+    console.error(`  rouge.config.json has control_plane="${selected}" with control_plane_lock=true.`);
+    console.error(`  Running both dashboard and Slack against the same project races on state.json.`);
+    console.error(`  Either set control_plane="${requested}" in rouge.config.json, or set control_plane_lock=false to override.`);
+    process.exit(1);
+  }
+}
 const {
   storeSecret,
   getSecret,
@@ -537,6 +573,7 @@ function cmdSlackSetup() {
 }
 
 function cmdSlackStart() {
+  assertControlPlaneAllowed('slack');
   const botToken = getSecret('slack', 'SLACK_BOT_TOKEN');
   const appToken = getSecret('slack', 'SLACK_APP_TOKEN');
 
@@ -670,6 +707,19 @@ function cmdDoctor() {
     blockers.push('Git not found');
   }
 
+  // --- jq ---
+  // Required by rouge-safety-check.sh (the PreToolUse hook). If missing,
+  // every Bash/Write/Edit call fails the hook → Claude Code blocks. Without
+  // this check the failure mode is "every tool call mysteriously rejected".
+  const jqOut = tryExec('jq --version');
+  if (jqOut) {
+    lines.push(`  \u2705 jq installed (${jqOut})`);
+  } else {
+    lines.push('  \u274C jq not found — required by rouge-safety-check.sh PreToolUse hook');
+    lines.push('       Install: `brew install jq` (macOS) | `apt-get install jq` (Debian/Ubuntu) | https://stedolan.github.io/jq/');
+    blockers.push('jq not found');
+  }
+
   // --- GitHub CLI ---
   const ghOut = tryExec('gh --version');
   if (ghOut) {
@@ -733,6 +783,7 @@ function cmdDoctor() {
     lines.push('  \u2705 GStack browse installed');
   } else {
     lines.push('  \u26A0\uFE0F  GStack browse not installed (optional \u2014 needed for web product QA)');
+    lines.push('       Install: git clone --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && (cd ~/.claude/skills/gstack && ./setup)');
     warnings.push('GStack browse not installed');
   }
 
@@ -975,6 +1026,7 @@ if (command === 'doctor') {
     console.log('Dashboard installed. Run `rouge dashboard` to start.');
 
   } else if (subcommand === 'start' || subcommand === 'up') {
+    assertControlPlaneAllowed('frontend');
     // Background mode — detached processes with PID tracking
     const existing = readPids();
     if (existing && isRunning(existing.bridge)) {
@@ -1065,6 +1117,7 @@ if (command === 'doctor') {
     child.on('close', (code) => process.exit(code || 0));
 
   } else if (!subcommand) {
+    assertControlPlaneAllowed('frontend');
     // Foreground mode (dev) — same as before, good for debugging
     console.log('Starting dashboard in foreground (Ctrl+C to stop)...');
     console.log('Use `rouge dashboard start` for background mode.\n');

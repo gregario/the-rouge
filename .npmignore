@@ -1,0 +1,11 @@
+dashboard/.next/
+dashboard/node_modules/
+dashboard/.turbo/
+dashboard/out/
+dashboard/coverage/
+dashboard/.env*
+!dashboard/.env.example
+src/slack/node_modules/
+src/slack/package-lock.json
+**/*.log
+.DS_Store

@@ -18,6 +18,33 @@
             "command": "./src/launcher/rouge-safety-check.sh pre-write \"$TOOL_INPUT\""
           }
         ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./src/launcher/rouge-safety-check.sh pre-write \"$TOOL_INPUT\""
+          }
+        ]
+      },
+      {
+        "matcher": "MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./src/launcher/rouge-safety-check.sh pre-write \"$TOOL_INPUT\""
+          }
+        ]
+      },
+      {
+        "matcher": "NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./src/launcher/rouge-safety-check.sh pre-write \"$TOOL_INPUT\""
+          }
+        ]
       }
     ],
     "PostToolUse": [

@@ -2,210 +2,345 @@
  * Cross-platform secrets management for The Rouge.
  *
  * Stores and retrieves secrets from the OS credential store:
- *   - macOS:   Keychain via `security` CLI
- *   - Linux:   secret-service via `secret-tool` CLI
- *   - Windows: Credential Manager via PowerShell
+ *   - macOS:   Keychain via `security` CLI (interactive mode, stdin-driven)
+ *   - Linux:   secret-service via `secret-tool` CLI (password via stdin)
+ *   - Windows: Credential Manager via PowerShell + inline C# P/Invoke
  *
- * All operations use execSync — no native dependencies required.
- * Secret values are NEVER logged or exposed to the model.
+ * Secret values never appear in argv or shell command strings. All child
+ * processes are spawned with an args array (no `/bin/sh -c ...`), and secret
+ * material is passed via stdin or via a child process's own stdout buffer.
+ * Values are never logged or returned to the model.
  */
 
-const { execSync } = require('child_process');
+const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 const PLATFORM = process.platform;
 const SERVICE_PREFIX = 'rouge';
 
 // ---------------------------------------------------------------------------
-// Platform backends
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Run a subprocess without a shell. Returns { status, stdout, stderr }. */
+function run(cmd, args, opts = {}) {
+  const r = spawnSync(cmd, args, {
+    encoding: 'utf8',
+    ...opts,
+  });
+  return {
+    status: r.status,
+    stdout: r.stdout || '',
+    stderr: r.stderr || '',
+    error: r.error,
+  };
+}
+
+/**
+ * Quote a value for `security -i` interactive mode on macOS. The interactive
+ * parser is shell-like: double-quote wraps, backslash escapes `\` and `"`.
+ */
+function secDQ(s) {
+  return '"' + String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+}
+
+// ---------------------------------------------------------------------------
+// macOS backend — Keychain via `security -i` (stdin-driven, no argv leak)
 // ---------------------------------------------------------------------------
 
 const macOS = {
   store(service, key, value) {
     const account = `${service}/${key}`;
     const serviceName = `${SERVICE_PREFIX}-${service}`;
-    // Delete first to allow overwrite (ignore errors if not found)
-    try {
-      execSync(
-        `security delete-generic-password -s ${esc(serviceName)} -a ${esc(account)}`,
-        { stdio: 'ignore' }
-      );
-    } catch { /* not found — fine */ }
-    execSync(
-      `security add-generic-password -s ${esc(serviceName)} -a ${esc(account)} -w ${esc(value)}`,
-      { encoding: 'utf8', stdio: 'pipe' }
-    );
+    // Feed commands to `security -i` via stdin so the value is never in argv.
+    const input =
+      `delete-generic-password -s ${secDQ(serviceName)} -a ${secDQ(account)}\n` +
+      `add-generic-password -s ${secDQ(serviceName)} -a ${secDQ(account)} -w ${secDQ(value)}\n`;
+    const r = run('security', ['-i'], {
+      input,
+      stdio: ['pipe', 'ignore', 'pipe'],
+    });
+    // `add-generic-password` after a delete that missed is fine; only hard-fail
+    // if the add itself errored. `security -i` returns 0 even if the delete
+    // raised "not found", so trust the exit code.
+    if (r.status !== 0) {
+      throw new Error(`security store failed: ${(r.stderr || '').slice(0, 200)}`);
+    }
   },
 
   get(service, key) {
     const account = `${service}/${key}`;
     const serviceName = `${SERVICE_PREFIX}-${service}`;
-    try {
-      const result = execSync(
-        `security find-generic-password -s ${esc(serviceName)} -a ${esc(account)} -w`,
-        { encoding: 'utf8', stdio: 'pipe' }
-      );
-      return result.trim();
-    } catch {
-      return null;
-    }
+    // `-w` prints the password to stdout (our private pipe); not argv.
+    const r = run(
+      'security',
+      ['find-generic-password', '-s', serviceName, '-a', account, '-w'],
+      { stdio: ['ignore', 'pipe', 'ignore'] }
+    );
+    if (r.status !== 0) return null;
+    return r.stdout.replace(/\n$/, '') || null;
   },
 
   list(service) {
     const serviceName = `${SERVICE_PREFIX}-${service}`;
-    try {
-      const raw = execSync(
-        `security dump-keychain 2>/dev/null`,
-        { encoding: 'utf8', stdio: 'pipe', maxBuffer: 10 * 1024 * 1024 }
-      );
-      const names = [];
-      // Split into blocks at each "class:" boundary and search within each block
-      const blocks = raw.split(/^(?=keychain:)/m);
-      for (const block of blocks) {
-        if (block.includes(`"svce"<blob>="${serviceName}"`)) {
-          const match = block.match(/"acct"<blob>="([^"]+)"/);
-          if (match) {
-            const parts = match[1].split('/');
-            if (parts.length >= 2) {
-              names.push(parts.slice(1).join('/'));
-            }
-          }
+    const r = run('security', ['dump-keychain'], {
+      stdio: ['ignore', 'pipe', 'ignore'],
+      maxBuffer: 10 * 1024 * 1024,
+    });
+    if (r.status !== 0) return [];
+    const names = [];
+    const blocks = r.stdout.split(/^(?=keychain:)/m);
+    for (const block of blocks) {
+      if (block.includes(`"svce"<blob>="${serviceName}"`)) {
+        const match = block.match(/"acct"<blob>="([^"]+)"/);
+        if (match) {
+          const parts = match[1].split('/');
+          if (parts.length >= 2) names.push(parts.slice(1).join('/'));
         }
       }
-      return names;
-    } catch {
-      return [];
     }
+    return names;
   },
 
   delete(service, key) {
     const account = `${service}/${key}`;
     const serviceName = `${SERVICE_PREFIX}-${service}`;
-    try {
-      execSync(
-        `security delete-generic-password -s ${esc(serviceName)} -a ${esc(account)}`,
-        { encoding: 'utf8', stdio: 'pipe' }
-      );
-      return true;
-    } catch {
-      return false;
-    }
+    const r = run(
+      'security',
+      ['delete-generic-password', '-s', serviceName, '-a', account],
+      { stdio: 'ignore' }
+    );
+    return r.status === 0;
   },
 };
+
+// ---------------------------------------------------------------------------
+// Linux backend — secret-tool (password via stdin)
+// ---------------------------------------------------------------------------
 
 const linux = {
   store(service, key, value) {
     const label = `${SERVICE_PREFIX}-${service}-${key}`;
-    execSync(
-      `echo -n ${esc(value)} | secret-tool store --label=${esc(label)} integration ${esc(service)} key ${esc(key)} app rouge`,
-      { encoding: 'utf8', stdio: 'pipe' }
+    // `secret-tool store` reads the password from stdin when stdin isn't a TTY.
+    const r = run(
+      'secret-tool',
+      [
+        'store', '--label', label,
+        'integration', service,
+        'key', key,
+        'app', 'rouge',
+      ],
+      { input: value, stdio: ['pipe', 'ignore', 'pipe'] }
     );
+    if (r.status !== 0) {
+      throw new Error(`secret-tool store failed: ${(r.stderr || '').slice(0, 200)}`);
+    }
   },
 
   get(service, key) {
-    try {
-      const result = execSync(
-        `secret-tool lookup integration ${esc(service)} key ${esc(key)} app rouge`,
-        { encoding: 'utf8', stdio: 'pipe' }
-      );
-      return result.trim() || null;
-    } catch {
-      return null;
-    }
+    const r = run(
+      'secret-tool',
+      [
+        'lookup',
+        'integration', service,
+        'key', key,
+        'app', 'rouge',
+      ],
+      { stdio: ['ignore', 'pipe', 'ignore'] }
+    );
+    if (r.status !== 0) return null;
+    const v = r.stdout.replace(/\n$/, '');
+    return v || null;
   },
 
   list(service) {
-    try {
-      const raw = execSync(
-        `secret-tool search --all integration ${esc(service)} app rouge 2>&1`,
-        { encoding: 'utf8', stdio: 'pipe' }
-      );
-      const names = [];
-      const matches = raw.matchAll(/attribute\.key\s*=\s*(.+)/g);
-      for (const m of matches) {
-        names.push(m[1].trim());
-      }
-      return names;
-    } catch {
-      return [];
-    }
+    const r = run(
+      'secret-tool',
+      ['search', '--all', 'integration', service, 'app', 'rouge'],
+      { stdio: ['ignore', 'pipe', 'pipe'] }
+    );
+    if (r.status !== 0 && !r.stdout) return [];
+    const names = [];
+    const matches = (r.stdout + r.stderr).matchAll(/attribute\.key\s*=\s*(.+)/g);
+    for (const m of matches) names.push(m[1].trim());
+    return names;
   },
 
   delete(service, key) {
-    try {
-      // secret-tool doesn't have a direct delete; clear the value
-      execSync(
-        `echo -n "" | secret-tool store --label="deleted" integration ${esc(service)} key ${esc(key)} app rouge`,
-        { encoding: 'utf8', stdio: 'pipe' }
-      );
-      return true;
-    } catch {
-      return false;
-    }
+    // `secret-tool clear` is the proper deletion primitive.
+    const r = run(
+      'secret-tool',
+      [
+        'clear',
+        'integration', service,
+        'key', key,
+        'app', 'rouge',
+      ],
+      { stdio: 'ignore' }
+    );
+    return r.status === 0;
   },
 };
 
+// ---------------------------------------------------------------------------
+// Windows backend — PowerShell + inline C# P/Invoke (CredWrite/CredRead/CredDelete)
+//
+// The PowerShell script is fixed (no secret interpolation) and runs via
+// -EncodedCommand so no user-controlled string ever touches argv. Target name
+// and username travel via env vars (not secret). The secret travels via stdin
+// on writes and comes back via stdout on reads — both are private pipes owned
+// by this process.
+// ---------------------------------------------------------------------------
+
+const WIN_PS_SCRIPT = `
+$ErrorActionPreference = 'Stop'
+Add-Type -MemberDefinition @"
+[StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)]
+public struct CREDENTIAL {
+  public uint Flags;
+  public uint Type;
+  [MarshalAs(UnmanagedType.LPWStr)] public string TargetName;
+  [MarshalAs(UnmanagedType.LPWStr)] public string Comment;
+  public System.Runtime.InteropServices.ComTypes.FILETIME LastWritten;
+  public uint CredentialBlobSize;
+  public IntPtr CredentialBlob;
+  public uint Persist;
+  public uint AttributeCount;
+  public IntPtr Attributes;
+  [MarshalAs(UnmanagedType.LPWStr)] public string TargetAlias;
+  [MarshalAs(UnmanagedType.LPWStr)] public string UserName;
+}
+[DllImport("advapi32.dll", SetLastError=true, CharSet=CharSet.Unicode, EntryPoint="CredWriteW")]
+public static extern bool CredWrite([In] ref CREDENTIAL cred, [In] uint flags);
+[DllImport("advapi32.dll", SetLastError=true, CharSet=CharSet.Unicode, EntryPoint="CredReadW")]
+public static extern bool CredRead([In] string target, [In] uint type, [In] uint flags, out IntPtr credPtr);
+[DllImport("advapi32.dll", SetLastError=true, EntryPoint="CredFree")]
+public static extern void CredFree([In] IntPtr cred);
+[DllImport("advapi32.dll", SetLastError=true, CharSet=CharSet.Unicode, EntryPoint="CredDeleteW")]
+public static extern bool CredDelete([In] string target, [In] uint type, [In] uint flags);
+"@ -Name Cred -Namespace Rouge -UsingNamespace System.Runtime.InteropServices
+
+$op = $env:ROUGE_OP
+$target = $env:ROUGE_TARGET
+$user = $env:ROUGE_USER
+
+if ($op -eq 'store') {
+  $secret = [Console]::In.ReadToEnd()
+  if ($secret.EndsWith("\`r\`n")) { $secret = $secret.Substring(0, $secret.Length - 2) }
+  elseif ($secret.EndsWith("\`n")) { $secret = $secret.Substring(0, $secret.Length - 1) }
+  $bytes = [System.Text.Encoding]::Unicode.GetBytes($secret)
+  $ptr = [System.Runtime.InteropServices.Marshal]::AllocHGlobal($bytes.Length)
+  try {
+    [System.Runtime.InteropServices.Marshal]::Copy($bytes, 0, $ptr, $bytes.Length)
+    $c = New-Object Rouge.Cred+CREDENTIAL
+    $c.Type = 1  # CRED_TYPE_GENERIC
+    $c.TargetName = $target
+    $c.CredentialBlobSize = [uint32]$bytes.Length
+    $c.CredentialBlob = $ptr
+    $c.Persist = 2  # CRED_PERSIST_LOCAL_MACHINE
+    $c.UserName = $user
+    $ok = [Rouge.Cred]::CredWrite([ref]$c, 0)
+    if (-not $ok) { throw "CredWrite failed: $([System.Runtime.InteropServices.Marshal]::GetLastWin32Error())" }
+  } finally {
+    # Zero and free
+    for ($i = 0; $i -lt $bytes.Length; $i++) { $bytes[$i] = 0 }
+    [System.Runtime.InteropServices.Marshal]::Copy($bytes, 0, $ptr, $bytes.Length)
+    [System.Runtime.InteropServices.Marshal]::FreeHGlobal($ptr)
+  }
+  exit 0
+}
+elseif ($op -eq 'get') {
+  $ptr = [IntPtr]::Zero
+  $ok = [Rouge.Cred]::CredRead($target, 1, 0, [ref]$ptr)
+  if (-not $ok) { exit 1 }
+  try {
+    $c = [System.Runtime.InteropServices.Marshal]::PtrToStructure($ptr, [type][Rouge.Cred+CREDENTIAL])
+    $bytes = New-Object byte[] $c.CredentialBlobSize
+    [System.Runtime.InteropServices.Marshal]::Copy($c.CredentialBlob, $bytes, 0, $c.CredentialBlobSize)
+    $value = [System.Text.Encoding]::Unicode.GetString($bytes)
+    [Console]::Out.Write($value)
+  } finally {
+    [Rouge.Cred]::CredFree($ptr)
+  }
+  exit 0
+}
+elseif ($op -eq 'delete') {
+  $ok = [Rouge.Cred]::CredDelete($target, 1, 0)
+  if (-not $ok) { exit 1 }
+  exit 0
+}
+else {
+  Write-Error "unknown op: $op"
+  exit 2
+}
+`;
+
+// Cache the base64-encoded UTF-16LE script once per process.
+let WIN_PS_ENCODED = null;
+function winEncodedScript() {
+  if (WIN_PS_ENCODED) return WIN_PS_ENCODED;
+  WIN_PS_ENCODED = Buffer.from(WIN_PS_SCRIPT, 'utf16le').toString('base64');
+  return WIN_PS_ENCODED;
+}
+
+function winSpawn(op, service, key, opts = {}) {
+  const target = `${SERVICE_PREFIX}-${service}-${key}`;
+  return run(
+    'powershell',
+    ['-NoProfile', '-NonInteractive', '-EncodedCommand', winEncodedScript()],
+    {
+      ...opts,
+      env: {
+        ...process.env,
+        ROUGE_OP: op,
+        ROUGE_TARGET: target,
+        ROUGE_USER: key,
+      },
+    }
+  );
+}
+
 const windows = {
   store(service, key, value) {
-    const target = `${SERVICE_PREFIX}-${service}-${key}`;
-    const ps = `
-      $cred = New-Object -TypeName PSCredential -ArgumentList '${key}', (ConvertTo-SecureString '${value.replace(/'/g, "''")}' -AsPlainText -Force);
-      New-StoredCredential -Target '${target}' -UserName '${key}' -Password '${value.replace(/'/g, "''")}' -Persist LocalMachine -ErrorAction SilentlyContinue;
-      if (-not $?) { cmdkey /add:${target} /user:${key} /pass:${value.replace(/'/g, "''")} }
-    `.trim();
-    execSync(`powershell -Command "${ps.replace(/"/g, '\\"')}"`, {
-      encoding: 'utf8',
-      stdio: 'pipe',
+    const r = winSpawn('store', service, key, {
+      input: value,
+      stdio: ['pipe', 'ignore', 'pipe'],
     });
+    if (r.status !== 0) {
+      throw new Error(`Windows credential store failed: ${(r.stderr || '').slice(0, 200)}`);
+    }
   },
 
   get(service, key) {
-    const target = `${SERVICE_PREFIX}-${service}-${key}`;
-    try {
-      const ps = `
-        $output = cmdkey /list:${target} 2>&1;
-        if ($output -match 'User:') { Write-Output 'found' } else { Write-Output 'notfound' }
-      `.trim();
-      const result = execSync(`powershell -Command "${ps.replace(/"/g, '\\"')}"`, {
-        encoding: 'utf8',
-        stdio: 'pipe',
-      });
-      // Windows Credential Manager doesn't easily expose passwords via CLI
-      // For a full implementation, use CredRead via C# inline
-      return result.trim() === 'found' ? '<stored>' : null;
-    } catch {
-      return null;
-    }
+    const r = winSpawn('get', service, key, {
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    if (r.status !== 0) return null;
+    return r.stdout || null;
   },
 
   list(service) {
+    // `cmdkey /list` is a read-only listing that never emits passwords.
     const prefix = `${SERVICE_PREFIX}-${service}-`;
-    try {
-      const raw = execSync(`cmdkey /list`, { encoding: 'utf8', stdio: 'pipe' });
-      const names = [];
-      for (const line of raw.split('\n')) {
-        const trimmed = line.trim();
-        if (trimmed.startsWith('Target:') && trimmed.includes(prefix)) {
-          const target = trimmed.replace('Target:', '').trim();
-          const key = target.replace(prefix, '');
-          if (key) names.push(key);
-        }
+    const r = run('cmdkey', ['/list'], { stdio: ['ignore', 'pipe', 'ignore'] });
+    if (r.status !== 0) return [];
+    const names = [];
+    for (const line of r.stdout.split('\n')) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('Target:') && trimmed.includes(prefix)) {
+        const tgt = trimmed.replace('Target:', '').trim();
+        const key = tgt.replace(prefix, '');
+        if (key) names.push(key);
       }
-      return names;
-    } catch {
-      return [];
     }
+    return names;
   },
 
   delete(service, key) {
-    const target = `${SERVICE_PREFIX}-${service}-${key}`;
-    try {
-      execSync(`cmdkey /delete:${target}`, { encoding: 'utf8', stdio: 'pipe' });
-      return true;
-    } catch {
-      return false;
-    }
+    const r = winSpawn('delete', service, key, { stdio: 'ignore' });
+    return r.status === 0;
   },
 };
 
@@ -232,12 +367,6 @@ function getBackend() {
   throw new Error(`Unsupported platform: ${PLATFORM}. Supported: darwin, linux, win32`);
 }
 
-/** Shell-escape a value for use in commands. */
-function esc(val) {
-  // Wrap in single quotes, escape any embedded single quotes
-  return "'" + String(val).replace(/'/g, "'\\''") + "'";
-}
-
 // ---------------------------------------------------------------------------
 // Integration key definitions
 // ---------------------------------------------------------------------------
@@ -255,66 +384,31 @@ const INTEGRATION_KEYS = {
 // Public API
 // ---------------------------------------------------------------------------
 
-/**
- * Store a secret in the OS credential store.
- * @param {string} service — integration name (e.g., "stripe", "supabase")
- * @param {string} key — env var name (e.g., "STRIPE_SECRET_KEY")
- * @param {string} value — the secret value
- */
 function storeSecret(service, key, value) {
   getBackend().store(service, key, value);
 }
 
-/**
- * Retrieve a secret from the OS credential store.
- * @param {string} service — integration name
- * @param {string} key — env var name
- * @returns {string|null} — the secret value, or null if not found
- */
 function getSecret(service, key) {
   return getBackend().get(service, key);
 }
 
-/**
- * List stored secret names (NOT values) for a service.
- * @param {string} service — integration name
- * @returns {string[]} — array of key names
- */
 function listSecrets(service) {
   return getBackend().list(service);
 }
 
-/**
- * Delete a secret from the OS credential store.
- * @param {string} service — integration name
- * @param {string} key — env var name
- * @returns {boolean} — true if deleted, false if not found
- */
 function deleteSecret(service, key) {
   return getBackend().delete(service, key);
 }
 
-/**
- * Load all required secrets for a project from the credential store.
- *
- * Reads the project's vision.json `infrastructure` section to determine
- * which integrations are needed, then loads the corresponding keys.
- *
- * @param {string} projectDir — absolute path to the project directory
- * @returns {{ env: Record<string, string>, missing: string[], loaded: string[] }}
- */
 function loadProjectSecrets(projectDir) {
   const env = {};
   const missing = [];
   const loaded = [];
 
-  // Determine required integrations from vision.json
   const integrations = discoverIntegrations(projectDir);
-
   for (const integration of integrations) {
     const keys = INTEGRATION_KEYS[integration];
     if (!keys) continue;
-
     for (const key of keys) {
       const value = getSecret(integration, key);
       if (value) {
@@ -329,21 +423,13 @@ function loadProjectSecrets(projectDir) {
   return { env, missing, loaded };
 }
 
-/**
- * Discover which integrations a project needs by reading vision.json.
- * @param {string} projectDir
- * @returns {string[]}
- */
 function discoverIntegrations(projectDir) {
   const integrations = new Set();
-
-  // Check vision.json infrastructure section
   const visionPath = path.join(projectDir, 'vision.json');
   if (fs.existsSync(visionPath)) {
     try {
       const vision = JSON.parse(fs.readFileSync(visionPath, 'utf8'));
       if (vision.infrastructure) {
-        // Check both keys AND values for integration names
         const searchText = JSON.stringify(vision.infrastructure).toLowerCase();
         if (searchText.includes('stripe')) integrations.add('stripe');
         if (searchText.includes('supabase')) integrations.add('supabase');
@@ -352,7 +438,6 @@ function discoverIntegrations(projectDir) {
         if (searchText.includes('cloudflare')) integrations.add('cloudflare');
         if (searchText.includes('vercel')) integrations.add('vercel');
       }
-      // Also check deploy/hosting section
       if (vision.deploy?.platform === 'cloudflare' || vision.hosting?.platform === 'cloudflare') {
         integrations.add('cloudflare');
       }
@@ -361,94 +446,88 @@ function discoverIntegrations(projectDir) {
       }
     } catch { /* corrupted vision.json — skip */ }
   }
-
   return [...integrations];
 }
 
 // ---------------------------------------------------------------------------
-// Validity checking — hit lightweight API endpoints to verify keys work
+// Validation — curl with `-K -` (config from stdin), no secrets in argv
 // ---------------------------------------------------------------------------
 
 /**
- * Validation endpoints per integration key.
- * Each returns a shell command that exits 0 if valid, non-zero otherwise.
- * Commands must NOT expose the secret in stdout/stderr (use -s, redirect output).
+ * Each validator returns one of:
+ *   - null               → format ok, no remote check possible
+ *   - 'false'            → format invalid
+ *   - { args, stdin }    → run curl with these argv + this stdin config
+ * Secrets only appear inside the stdin config blob, never in argv.
  */
 const VALIDATION_COMMANDS = {
-  STRIPE_SECRET_KEY: (val) =>
-    `curl -sf -o /dev/null -u ${esc(val + ':')} https://api.stripe.com/v1/balance`,
-  STRIPE_PUBLISHABLE_KEY: (val) =>
-    // Publishable keys can't be validated server-side — check format only
-    val.startsWith('pk_') ? null : 'false',
-  SUPABASE_URL: (val) =>
-    `curl -sf -o /dev/null ${esc(val + '/rest/v1/')} -H "apikey: dummy"`,
-  SUPABASE_ANON_KEY: () => null, // JWT — can't validate without URL context
-  SUPABASE_SERVICE_KEY: () => null, // JWT — can't validate without URL context
-  SENTRY_AUTH_TOKEN: (val) =>
-    `curl -sf -o /dev/null -H ${esc('Authorization: Bearer ' + val)} https://sentry.io/api/0/`,
-  SENTRY_DSN: (val) =>
-    // DSN is a URL — check it parses and the host resolves
-    val.startsWith('https://') ? null : 'false',
-  CLOUDFLARE_API_TOKEN: (val) =>
-    `curl -sf -o /dev/null -H ${esc('Authorization: Bearer ' + val)} https://api.cloudflare.com/client/v4/user/tokens/verify`,
-  CLOUDFLARE_ACCOUNT_ID: () => null, // Account ID isn't a secret — format check only
-  VERCEL_TOKEN: (val) =>
-    `curl -sf -o /dev/null -H ${esc('Authorization: Bearer ' + val)} https://api.vercel.com/v2/user`,
-  ROUGE_SLACK_WEBHOOK: (val) =>
-    // Webhook URLs should start with https://hooks.slack.com
-    val.startsWith('https://hooks.slack.com/') ? null : 'false',
-  SLACK_BOT_TOKEN: (val) =>
-    `curl -sf -o /dev/null -H ${esc('Authorization: Bearer ' + val)} https://slack.com/api/auth.test`,
-  SLACK_APP_TOKEN: () => null, // App tokens need WebSocket — skip
+  STRIPE_SECRET_KEY: (val) => ({
+    args: ['-sf', '-o', '/dev/null', '-K', '-', 'https://api.stripe.com/v1/balance'],
+    stdin: `user = "${curlEscape(val)}:"\n`,
+  }),
+  STRIPE_PUBLISHABLE_KEY: (val) => (val.startsWith('pk_') ? null : 'false'),
+  SUPABASE_URL: (val) => {
+    if (!/^https?:\/\//.test(val)) return 'false';
+    return {
+      args: ['-sf', '-o', '/dev/null', '-K', '-', `${val.replace(/\/$/, '')}/rest/v1/`],
+      stdin: `header = "apikey: dummy"\n`,
+    };
+  },
+  SUPABASE_ANON_KEY: () => null,
+  SUPABASE_SERVICE_KEY: () => null,
+  SENTRY_AUTH_TOKEN: (val) => ({
+    args: ['-sf', '-o', '/dev/null', '-K', '-', 'https://sentry.io/api/0/'],
+    stdin: `header = "Authorization: Bearer ${curlEscape(val)}"\n`,
+  }),
+  SENTRY_DSN: (val) => (val.startsWith('https://') ? null : 'false'),
+  CLOUDFLARE_API_TOKEN: (val) => ({
+    args: ['-sf', '-o', '/dev/null', '-K', '-', 'https://api.cloudflare.com/client/v4/user/tokens/verify'],
+    stdin: `header = "Authorization: Bearer ${curlEscape(val)}"\n`,
+  }),
+  CLOUDFLARE_ACCOUNT_ID: () => null,
+  VERCEL_TOKEN: (val) => ({
+    args: ['-sf', '-o', '/dev/null', '-K', '-', 'https://api.vercel.com/v2/user'],
+    stdin: `header = "Authorization: Bearer ${curlEscape(val)}"\n`,
+  }),
+  ROUGE_SLACK_WEBHOOK: (val) => (val.startsWith('https://hooks.slack.com/') ? null : 'false'),
+  SLACK_BOT_TOKEN: (val) => ({
+    args: ['-sf', '-o', '/dev/null', '-K', '-', 'https://slack.com/api/auth.test'],
+    stdin: `header = "Authorization: Bearer ${curlEscape(val)}"\n`,
+  }),
+  SLACK_APP_TOKEN: () => null,
 };
 
-/**
- * Validate a single secret by hitting its API endpoint.
- * @param {string} service — integration name
- * @param {string} key — env var name
- * @returns {{ key: string, status: 'valid'|'invalid'|'unchecked'|'error', message?: string }}
- */
-function validateSecret(service, key) {
-  const value = getSecret(service, key);
-  if (!value) {
-    return { key, status: 'invalid', message: 'not stored' };
-  }
-
-  const cmdFactory = VALIDATION_COMMANDS[key];
-  if (!cmdFactory) {
-    return { key, status: 'unchecked', message: 'no validator defined' };
-  }
-
-  const cmd = cmdFactory(value);
-  if (cmd === null) {
-    // Format check passed or no remote validation possible
-    return { key, status: 'unchecked', message: 'format ok, no remote check' };
-  }
-
-  try {
-    execSync(cmd, { encoding: 'utf8', stdio: 'pipe', timeout: 10000 });
-    return { key, status: 'valid' };
-  } catch (err) {
-    return { key, status: 'invalid', message: `API check failed (exit ${err.status || 'timeout'})` };
-  }
+/** Escape a value for curl's `-K` config format (double-quoted strings). */
+function curlEscape(v) {
+  return String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
-/**
- * Validate all secrets for an integration.
- * @param {string} service — integration name
- * @returns {Array<{ key: string, status: string, message?: string }>}
- */
+function validateSecret(service, key) {
+  const value = getSecret(service, key);
+  if (!value) return { key, status: 'invalid', message: 'not stored' };
+
+  const factory = VALIDATION_COMMANDS[key];
+  if (!factory) return { key, status: 'unchecked', message: 'no validator defined' };
+
+  const spec = factory(value);
+  if (spec === null) return { key, status: 'unchecked', message: 'format ok, no remote check' };
+  if (spec === 'false') return { key, status: 'invalid', message: 'format check failed' };
+
+  const r = run('curl', spec.args, {
+    input: spec.stdin,
+    stdio: ['pipe', 'ignore', 'pipe'],
+    timeout: 10000,
+  });
+  if (r.status === 0) return { key, status: 'valid' };
+  return { key, status: 'invalid', message: `API check failed (exit ${r.status == null ? 'timeout' : r.status})` };
+}
+
 function validateIntegration(service) {
   const keys = INTEGRATION_KEYS[service];
   if (!keys) return [];
   return keys.map((key) => validateSecret(service, key));
 }
 
-/**
- * Validate all secrets for a project's detected integrations.
- * @param {string} projectDir — absolute path to project
- * @returns {Array<{ integration: string, results: Array<{ key: string, status: string, message?: string }> }>}
- */
 function validateProjectSecrets(projectDir) {
   const integrations = discoverIntegrations(projectDir);
   return integrations.map((integration) => ({
@@ -462,14 +541,10 @@ function validateProjectSecrets(projectDir) {
 // ---------------------------------------------------------------------------
 
 const EXPIRY_FILE = path.join(
-  process.env.HOME || process.env.USERPROFILE || '/tmp',
+  os.homedir() || '/tmp',
   '.rouge-token-expiry.json'
 );
 
-/**
- * Read the expiry registry from disk.
- * @returns {Record<string, { expires_at?: string, last_validated?: string, notes?: string }>}
- */
 function readExpiryRegistry() {
   try {
     return JSON.parse(fs.readFileSync(EXPIRY_FILE, 'utf8'));
@@ -478,51 +553,28 @@ function readExpiryRegistry() {
   }
 }
 
-/**
- * Write the expiry registry to disk.
- */
 function writeExpiryRegistry(registry) {
-  fs.writeFileSync(EXPIRY_FILE, JSON.stringify(registry, null, 2) + '\n');
+  // Write with owner-only perms in case future versions cache API responses.
+  fs.writeFileSync(EXPIRY_FILE, JSON.stringify(registry, null, 2) + '\n', { mode: 0o600 });
+  try { fs.chmodSync(EXPIRY_FILE, 0o600); } catch { /* best effort on Windows */ }
 }
 
-/**
- * Record when a secret was last validated and optionally its expiry date.
- * @param {string} service
- * @param {string} key
- * @param {{ expires_at?: string, notes?: string }} opts
- */
 function recordValidation(service, key, opts = {}) {
   const registry = readExpiryRegistry();
   const id = `${service}/${key}`;
-  registry[id] = {
-    ...registry[id],
-    last_validated: new Date().toISOString(),
-    ...opts,
-  };
+  registry[id] = { ...registry[id], last_validated: new Date().toISOString(), ...opts };
   writeExpiryRegistry(registry);
 }
 
-/**
- * Set an expiry date for a secret.
- * @param {string} service
- * @param {string} key
- * @param {string} expiresAt — ISO 8601 date string
- */
 function setExpiry(service, key, expiresAt) {
   recordValidation(service, key, { expires_at: expiresAt });
 }
 
-/**
- * Get secrets that are expired or expiring within the given window.
- * @param {number} withinDays — number of days to look ahead (default 7)
- * @returns {Array<{ id: string, expires_at: string, days_remaining: number }>}
- */
 function getExpiringSecrets(withinDays = 7) {
   const registry = readExpiryRegistry();
   const now = Date.now();
   const windowMs = withinDays * 24 * 60 * 60 * 1000;
   const results = [];
-
   for (const [id, entry] of Object.entries(registry)) {
     if (!entry.expires_at) continue;
     const expiresMs = new Date(entry.expires_at).getTime();
@@ -531,7 +583,6 @@ function getExpiringSecrets(withinDays = 7) {
       results.push({ id, expires_at: entry.expires_at, days_remaining: daysRemaining });
     }
   }
-
   return results.sort((a, b) => a.days_remaining - b.days_remaining);
 }
 

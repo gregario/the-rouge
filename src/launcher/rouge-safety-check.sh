@@ -17,8 +17,15 @@ AUDIT_DIR="$HOME/.rouge"
 AUDIT_LOG="$AUDIT_DIR/audit-log.jsonl"
 CONFIG_FILE="rouge.config.json"
 
-# Ensure audit directory exists
+# Ensure audit directory and log file exist with owner-only perms.
+# The log captures command summaries and stdout/stderr snippets — tighten
+# defaults so it isn't world-readable on shared boxes.
 mkdir -p "$AUDIT_DIR"
+chmod 700 "$AUDIT_DIR" 2>/dev/null || true
+if [[ ! -f "$AUDIT_LOG" ]]; then
+  touch "$AUDIT_LOG"
+  chmod 600 "$AUDIT_LOG" 2>/dev/null || true
+fi
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -128,6 +135,40 @@ pre_bash() {
 
     if [[ "$has_allowed" != "true" ]]; then
       block "pre-bash" "$summary" "Blocked: wrangler deploy without --env staging (production deploy guard)"
+    fi
+  fi
+
+  # --- Vercel deploy ---
+  # Our Vercel handler intentionally uses --prod (Hobby tier preview URLs are
+  # auth-walled and break health checks). Allow the expected handler form
+  # (`vercel deploy --yes --prod` or `vercel --prod`) and any deploy targeting
+  # an allowlisted environment via --target. Block bare `vercel deploy` to
+  # production from a prompt context — production deploys must come through
+  # the deploy-to-staging.js handler so retry/health-check/rollback wrap them.
+  if echo "$cmd" | grep -qE '(^|[[:space:]]|;|&&|\|\|)(npx[[:space:]]+)?vercel([[:space:]]|$)'; then
+    local v_allowed=false
+    # Expected handler invocation: must include --yes (non-interactive) AND --prod.
+    if echo "$cmd" | grep -qE -e '--yes' && echo "$cmd" | grep -qE -e '--prod'; then
+      v_allowed=true
+    fi
+    # Or an explicit --target from the configured allowed list.
+    if [[ "$v_allowed" != "true" ]]; then
+      local allowed_targets
+      allowed_targets=$(load_allowed_deploy_targets)
+      while IFS= read -r target; do
+        [[ -z "$target" ]] && continue
+        if echo "$cmd" | grep -qE -e "--target[[:space:]]+$target"; then
+          v_allowed=true
+          break
+        fi
+      done <<< "$allowed_targets"
+    fi
+    # Read-only subcommands are fine (list, inspect, env, login, link, whoami...).
+    if echo "$cmd" | grep -qE -e 'vercel[[:space:]]+(ls|list|inspect|env|login|logout|link|whoami|teams|switch|domains|certs|logs|pull|build([[:space:]]|$))'; then
+      v_allowed=true
+    fi
+    if [[ "$v_allowed" != "true" ]]; then
+      block "pre-bash" "$summary" "Blocked: vercel deploy must go through deploy-to-staging.js (expected: --yes --prod) or use --target from allowed_deploy_targets"
     fi
   fi
 
