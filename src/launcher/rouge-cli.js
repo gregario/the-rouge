@@ -977,8 +977,8 @@ if (command === 'doctor') {
 } else if (command === 'dashboard') {
   const subcommand = args[1];
   const dashboardDir = path.join(__dirname, '..', '..', 'dashboard');
-  const standaloneServer = path.join(dashboardDir, '.next', 'standalone', 'dashboard', 'server.js');
-  const standaloneMarker = path.join(dashboardDir, '.next', 'standalone', 'ROUGE_STANDALONE');
+  const standaloneServer = path.join(dashboardDir, 'dist', 'server.js');
+  const standaloneMarker = path.join(dashboardDir, 'dist', 'ROUGE_STANDALONE');
   const ROUGE_HOME = process.env.ROUGE_HOME || path.join(require('os').homedir(), '.rouge');
   const PID_FILE = path.join(ROUGE_HOME, 'dashboard.pid');
   const DASHBOARD_PORT = parseInt(process.env.ROUGE_DASHBOARD_PORT || '3001', 10);

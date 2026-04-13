@@ -9,8 +9,7 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-
-const ROUGE_ROOT = path.resolve(__dirname, '../..');
+const { log: logLine } = require('./logger.js');
 
 function readJson(filePath) {
   try { return JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch { return null; }
@@ -25,7 +24,7 @@ function writeJson(filePath, data) {
 function log(msg) {
   const line = `[${new Date().toISOString().slice(0, 19)}Z] [deploy] ${msg}`;
   console.log(line);
-  fs.appendFileSync(path.join(ROUGE_ROOT, 'logs', 'rouge.log'), line + '\n');
+  logLine(line);
 }
 
 function run(cmd, opts) {

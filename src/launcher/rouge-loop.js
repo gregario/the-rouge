@@ -78,12 +78,13 @@ function loadSecretsForProject(projectDir, projectName) {
 // --- Logging ---
 
 const HAS_TTY = process.stdout.isTTY;
+const { log: logLine } = require('./logger.js');
 
 function log(msg) {
   const ts = new Date().toISOString().replace('T', 'T').slice(0, 19) + 'Z';
   const line = `[${ts}] ${msg}`;
   if (HAS_TTY) { try { console.log(line); } catch {} }
-  fs.appendFileSync(path.join(LOG_DIR, 'rouge.log'), line + '\n');
+  logLine(line);
 }
 
 // --- State helpers ---

@@ -43,7 +43,7 @@
     "src/slack/block-kit.js",
     "src/slack/format.js",
     "src/slack/manifest.yaml",
-    "dashboard/",
+    "dashboard/dist/",
     "schemas/",
     "library/global/",
     "library/domain/",
@@ -54,6 +54,10 @@
     "LICENSE",
     "README.md",
     "CONTRIBUTING.md",
-    "docs/slack-setup.md"
+    "CODE_OF_CONDUCT.md",
+    "VISION.md",
+    "docs/slack-setup.md",
+    "docs/troubleshooting.md",
+    "docs/seeding-example.md"
   ]
 }

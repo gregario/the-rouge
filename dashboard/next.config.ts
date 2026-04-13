@@ -8,10 +8,17 @@ const nextConfig: NextConfig = {
   // start instead of 30–60s with `next dev`.
   output: "standalone",
 
-  // The dashboard lives inside the monorepo at <root>/dashboard. Without
-  // this, NFT roots tracing at the dashboard package and misses workspace
-  // hoists. Anchor at the repo root so traced files resolve correctly.
-  outputFileTracingRoot: path.join(__dirname, ".."),
+  // Pin NFT's tracing root to the dashboard package. Next 16 otherwise
+  // auto-hoists the root when it sees a higher-level node_modules/ or
+  // lockfile (the Rouge repo has both at the root level), which produces
+  // a weird `.next/standalone/Projects/ClaudeCode/The-Rouge/` layout AND
+  // bakes the absolute build path into required-server-files.json and
+  // server.js — shipping the author's home-dir path to every install.
+  outputFileTracingRoot: __dirname,
+
+  // Keep required-server-files.json from serializing the absolute build
+  // path. We resolve paths at runtime from the server.js location.
+  experimental: {},
 };
 
 export default nextConfig;

@@ -34,3 +34,9 @@ docs/*.pdf
 dashboard/node_modules/
 dashboard/.next/
 dashboard/.turbo/
+# dashboard/dist/ is produced by `npm run dashboard:build` at publish time
+# and consumed by the launcher. Intentionally NOT gitignored — npm-packlist
+# respects .gitignore even when `files` lists a path, so ignoring dist/
+# here would cause the standalone runtime to be silently dropped from the
+# tarball. Leave a `.gitignore` inside dashboard/dist/ if it needs to go
+# away for local `git status` cleanliness.

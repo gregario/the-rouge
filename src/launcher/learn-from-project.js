@@ -17,9 +17,11 @@
 const fs = require('fs');
 const path = require('path');
 
+const { getLogDir } = require('./logger.js');
+
 const ROUGE_ROOT = path.resolve(__dirname, '../..');
 const PERSONAL_DIR = path.join(ROUGE_ROOT, 'library', 'personal');
-const LOG_DIR = path.join(ROUGE_ROOT, 'logs');
+const LOG_DIR = getLogDir();
 
 function readJson(filePath) {
   try { return JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch { return null; }

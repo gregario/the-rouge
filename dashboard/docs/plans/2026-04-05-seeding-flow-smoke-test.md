@@ -2,9 +2,9 @@
 
 ## Prerequisites
 - `claude` CLI available in PATH (`which claude`)
-- Bridge server running: `npm run bridge`
-- Dashboard running: `NEXT_PUBLIC_BRIDGE_URL=http://localhost:3002 npm run dev`
-- Terminal access to `/Users/gregario/Projects/ClaudeCode/The-Rouge/projects/`
+- Dashboard running: `rouge dashboard` (foreground) or `rouge dashboard start` (background)
+- Terminal access to `$ROUGE_PROJECTS_DIR` (default `~/.rouge/projects/` on global installs,
+  or `<repo>/projects/` on source checkouts)
 
 ## Test 1: Create new project + first Rouge response
 
@@ -17,7 +17,7 @@
 7. **Verify on disk:**
 
 ```bash
-ls /Users/gregario/Projects/ClaudeCode/The-Rouge/projects/smoke-test-product/
+ls "$ROUGE_PROJECTS_DIR/smoke-test-product/"
 # Should show: state.json, seeding-state.json, seeding-chat.jsonl
 
 cat <project-dir>/seeding-chat.jsonl
@@ -49,7 +49,7 @@ cat <project-dir>/seeding-state.json
 ## Test 5: Cleanup after testing
 
 ```bash
-rm -rf /Users/gregario/Projects/ClaudeCode/The-Rouge/projects/smoke-test-product
+rm -rf "$ROUGE_PROJECTS_DIR/smoke-test-product"
 ```
 
 ## Known limitations (v1)
