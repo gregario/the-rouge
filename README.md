@@ -45,7 +45,7 @@ rouge status
   <img src="https://github.com/user-attachments/assets/4d744aab-c27d-485c-a6c9-897ab02eb118" alt="Rouge Dashboard — flight control tower showing project status, escalations, milestones, and build progress" width="720">
 </p>
 
-The dashboard is your control plane: real-time project visibility, escalation responses, build logs, milestone progress, and seeding sessions. It reads live project state from the filesystem via a lightweight bridge server. Start it with `rouge dashboard start` for background mode, or `rouge dashboard` for dev mode.
+The dashboard is your control plane: real-time project visibility, escalation responses, build logs, milestone progress, and seeding sessions. One process, one port, auto-opens in your browser. Start it with `rouge dashboard start` (background) or `rouge dashboard` (foreground). Global installs ship a prebuilt Next.js standalone server — cold start is ~2s, no dev toolchain required. Pass `--no-open` to skip the auto-open.
 
 For teams that already live in Slack, Rouge also supports a Slack bot as an alternative control plane — see [Slack setup](docs/slack-setup.md). The dashboard and Slack bot should not run simultaneously for the same project.
 
@@ -174,13 +174,14 @@ This runs `rouge doctor`, installs the dashboard, and prepares the projects dire
 ### Start the dashboard
 
 ```bash
-rouge dashboard start       # Background mode (persistent, survives terminal close)
+rouge dashboard start       # Background mode (persistent, survives terminal close; auto-opens browser)
 rouge dashboard status      # Check if running
-rouge dashboard stop        # Stop background processes
-rouge dashboard             # Foreground mode (dev, Ctrl+C to stop)
+rouge dashboard stop        # Stop the dashboard
+rouge dashboard             # Foreground mode (Ctrl+C to stop)
+rouge dashboard --no-open   # Skip the auto-open
 ```
 
-The dashboard is the primary control plane: real-time project visibility, escalation responses, build logs, milestone progress, and seeding sessions. It runs a bridge server (port 3002) that reads live project state.
+The dashboard is the primary control plane: real-time project visibility, escalation responses, build logs, milestone progress, and seeding sessions. It runs on port 3001 and reads live project state from `~/.rouge/projects/`. Override the port with `ROUGE_DASHBOARD_PORT`.
 
 ### Set up integrations
 

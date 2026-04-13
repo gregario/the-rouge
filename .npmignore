@@ -1,11 +1,50 @@
-dashboard/.next/
+# Dashboard — ship only the prebuilt standalone artifact produced by
+# `npm run dashboard:build` (wired up via `prepack`). Everything else
+# under dashboard/ — source, node_modules, dev configs, tests — stays
+# out of the tarball so users don't download a 200MB Next.js toolchain
+# they don't need.
 dashboard/node_modules/
+dashboard/src/
+dashboard/docs/
 dashboard/.turbo/
 dashboard/out/
 dashboard/coverage/
+dashboard/public/
 dashboard/.env*
 !dashboard/.env.example
+dashboard/tsconfig*.json
+dashboard/vitest.config.ts
+dashboard/eslint.config.mjs
+dashboard/postcss.config.mjs
+dashboard/next.config.ts
+dashboard/next-env.d.ts
+dashboard/components.json
+dashboard/package-lock.json
+dashboard/AGENTS.md
+dashboard/CLAUDE.md
+dashboard/README.md
+
+# Within .next/, keep only the standalone runtime. `next build` also
+# emits cache/, types/, trace/, server/, etc. which aren't needed to run.
+dashboard/.next/cache/
+dashboard/.next/types/
+dashboard/.next/diagnostics/
+dashboard/.next/server/
+dashboard/.next/trace
+dashboard/.next/build-manifest.json
+dashboard/.next/prerender-manifest.json
+dashboard/.next/routes-manifest.json
+dashboard/.next/required-server-files.json
+dashboard/.next/export-marker.json
+dashboard/.next/images-manifest.json
+dashboard/.next/*.js
+dashboard/.next/*.nft.json
+dashboard/.next/*.pack
+dashboard/.next/*.map
+
+# Nested slack bot dev artifacts.
 src/slack/node_modules/
 src/slack/package-lock.json
+
 **/*.log
 .DS_Store

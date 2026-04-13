@@ -1,6 +1,10 @@
-import { NextResponse } from 'next/server'
-import { platform } from '@/data/platform'
+import { NextResponse } from "next/server";
+import { readPlatformData } from "@/bridge/platform-reader";
+import { loadServerConfig } from "@/lib/server-config";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return NextResponse.json(platform)
+  const { projectsRoot } = loadServerConfig();
+  return NextResponse.json(readPlatformData(projectsRoot));
 }

@@ -9,8 +9,9 @@ logs/
 docs/drafts/
 .gstack/
 
-# Project data (real products built by Rouge — separate repos)
-projects/
+# Project data (real products built by Rouge — separate repos).
+# Root-anchored so dashboard/src/app/api/projects/** isn't swept up.
+/projects/
 
 # Personal data
 library/personal/
