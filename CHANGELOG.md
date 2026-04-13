@@ -6,6 +6,8 @@ All notable changes to Rouge ship here. Format follows
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-04-13
+
 ### Added
 - `SECURITY.md` disclosure policy, GitHub Security Advisories as the reporting channel.
 - Shared `src/launcher/logger.js` with size-based rotation (10 MB → rotate to
