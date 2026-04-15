@@ -1,7 +1,6 @@
 import type { ProjectDetail } from '@/lib/types'
 import { Card, CardContent } from '@/components/ui/card'
 import { StateBadge } from '@/components/state-badge'
-import { Sparkline } from '@/components/sparkline'
 import { cn } from '@/lib/utils'
 import { ExternalLink } from 'lucide-react'
 
@@ -28,8 +27,6 @@ export function MetricsSidebar({ project }: { project: ProjectDetail }) {
     project.cost.budgetCap > 0
       ? (project.cost.totalSpend / project.cost.budgetCap) * 100
       : 0
-  const confidenceData = project.confidenceHistory.map((p) => p.value)
-
   return (
     <div className="flex flex-col gap-3" data-testid="metrics-sidebar">
       {/* Health */}
@@ -49,21 +46,6 @@ export function MetricsSidebar({ project }: { project: ProjectDetail }) {
               className={cn('h-full rounded-full transition-all', healthBg(project.health))}
               style={{ width: `${Math.min(project.health, 100)}%` }}
             />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Confidence */}
-      <Card size="sm">
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">Confidence</span>
-            <span className="text-lg font-bold tabular-nums text-foreground">
-              {Math.round(project.confidence * 100)}%
-            </span>
-          </div>
-          <div className="mt-1">
-            <Sparkline data={confidenceData} width={200} height={28} className="w-full" />
           </div>
         </CardContent>
       </Card>

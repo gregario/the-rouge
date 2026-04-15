@@ -1,5 +1,4 @@
 import { fetchBridgePlatform, isBridgeEnabled } from '@/lib/bridge-client'
-import { platform } from '@/data/platform'
 import { ProviderSlotCard } from '@/components/provider-slot-card'
 import { LiveRefresh } from '@/components/live-refresh'
 
@@ -22,11 +21,13 @@ interface PlatformData {
     limit?: number
   }>
   totalProjects: number
+  totalSpendUsd: number
+  totalCapUsd: number
 }
 
 async function getData(): Promise<{ data?: PlatformData; error?: string }> {
   if (!isBridgeEnabled()) {
-    return { data: { quotas: [], totalProjects: 0 } }
+    return { data: { quotas: [], totalProjects: 0, totalSpendUsd: 0, totalCapUsd: 0 } }
   }
   try {
     const data = await fetchBridgePlatform()
@@ -59,20 +60,25 @@ export default async function PlatformPage() {
       {data && (
         <>
           <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <div className="rounded-lg border border-gray-200 bg-gray-50 px-6 py-5">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 px-6 py-5" title="Sum of cumulative_cost_usd across all non-archived projects">
               <p className="text-xs font-medium uppercase tracking-wider text-gray-400">
-                Monthly Spend
+                Total Spend
               </p>
               <p className="mt-1 text-3xl font-bold tabular-nums text-gray-900">
-                ${platform.totalMonthlySpend.toFixed(0)}
+                ${data.totalSpendUsd.toFixed(2)}
               </p>
             </div>
-            <div className="rounded-lg border border-gray-200 bg-gray-50 px-6 py-5">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 px-6 py-5" title="Sum of per-project budget caps minus total spend">
               <p className="text-xs font-medium uppercase tracking-wider text-gray-400">
                 Budget Remaining
               </p>
-              <p className="mt-1 text-3xl font-bold tabular-nums text-green-600">
-                ${platform.budgetRemaining.toFixed(0)}
+              <p className={`mt-1 text-3xl font-bold tabular-nums ${
+                data.totalCapUsd - data.totalSpendUsd < 0 ? 'text-red-600' : 'text-green-600'
+              }`}>
+                ${(data.totalCapUsd - data.totalSpendUsd).toFixed(2)}
+              </p>
+              <p className="mt-1 text-[10px] text-muted-foreground tabular-nums">
+                of ${data.totalCapUsd.toFixed(0)} capped
               </p>
             </div>
             <div className="rounded-lg border border-gray-200 bg-gray-50 px-6 py-5">

@@ -42,7 +42,7 @@ function ProgressRing({ progress, hasEscalation, size = 48 }: { progress: number
           strokeDasharray={circumference} strokeDashoffset={circumference - filled}
         />
       </svg>
-      <span className={cn('absolute text-sm font-bold tabular-nums', progressColor(progress, hasEscalation))}>
+      <span className={cn('absolute text-[11px] font-bold tabular-nums', progressColor(progress, hasEscalation))}>
         {progress}%
       </span>
     </div>
