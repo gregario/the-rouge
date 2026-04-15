@@ -7,6 +7,7 @@ import { InfrastructureStack } from '@/components/infrastructure-stack'
 import { CycleRhythm } from '@/components/cycle-rhythm'
 import { ProjectTitleEditable } from '@/components/project-title-editable'
 import { ArchiveButton } from '@/components/archive-button'
+import { ProjectBudgetCapInline } from '@/components/project-budget-cap-inline'
 import { ExternalLink, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
@@ -42,13 +43,6 @@ function HealthRingSmall({ health }: { health: number }) {
       </span>
     </div>
   )
-}
-
-function formatCost(project: ProjectDetail): string {
-  if (project.state === 'complete') {
-    return `Build Cost: $${project.cost.totalSpend.toFixed(2)}`
-  }
-  return `$${project.cost.totalSpend.toFixed(2)} / $${project.cost.budgetCap.toFixed(0)}`
 }
 
 export function ProjectHeader({
@@ -93,12 +87,20 @@ export function ProjectHeader({
             lastPhase={project.lastPhase}
             checkpointCount={project.checkpointCount}
           />
-          <div className="flex flex-col items-center gap-0.5" title="Build cost">
-            <span className="text-sm font-semibold tabular-nums text-gray-900">
-              {formatCost(project)}
-            </span>
-            <span className="text-[10px] text-muted-foreground">Build Cost</span>
-          </div>
+          {project.state === 'complete' ? (
+            <div className="flex flex-col items-center gap-0.5" title="Build cost">
+              <span className="text-sm font-semibold tabular-nums text-gray-900">
+                ${project.cost.totalSpend.toFixed(2)}
+              </span>
+              <span className="text-[10px] text-muted-foreground">Build Cost</span>
+            </div>
+          ) : (
+            <ProjectBudgetCapInline
+              slug={project.slug}
+              cap={project.cost.budgetCap}
+              totalSpend={project.cost.totalSpend}
+            />
+          )}
         </div>
       </div>
 

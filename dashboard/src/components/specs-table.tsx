@@ -34,6 +34,8 @@ export function SpecsTable({ specs }: { specs: ProjectSummary[] }) {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [promoting, setPromoting] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [confirmSlug, setConfirmSlug] = useState<string | null>(null)
+  const [confirmCap, setConfirmCap] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
 
   const filtered = useMemo(() => {
@@ -86,7 +88,6 @@ export function SpecsTable({ specs }: { specs: ProjectSummary[] }) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error ?? `HTTP ${res.status}`)
       }
-      // Optimistic reload — page is RSC so a full refresh is fine.
       window.location.reload()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -94,21 +95,46 @@ export function SpecsTable({ specs }: { specs: ProjectSummary[] }) {
     }
   }
 
-  async function promote(slug: string) {
-    setPromoting(slug)
+  function openPromoteConfirm(slug: string, currentCap: number) {
+    setConfirmSlug(slug)
+    setConfirmCap(String(currentCap))
+    setError(null)
+  }
+
+  async function confirmPromote() {
+    if (!confirmSlug) return
+    const capN = Number(confirmCap)
+    if (!Number.isFinite(capN) || capN < 0) {
+      setError('Cap must be a non-negative number')
+      return
+    }
+    const spec = specs.find((s) => s.slug === confirmSlug)
+    const currentCap = spec?.cost.budgetCap ?? 100
+    setPromoting(confirmSlug)
     setError(null)
     try {
-      // "Promotion" = starting the build loop. A spec in the `ready` state
-      // has everything it needs; /start kicks off the Karpathy Loop and
-      // the project moves into `foundation` (building).
-      const res = await fetch(`/api/projects/${encodeURIComponent(slug)}/start`, {
+      // Persist cap change first (cheap) before starting the build.
+      if (capN !== currentCap) {
+        const patchRes = await fetch(`/api/projects/${encodeURIComponent(confirmSlug)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ budgetCap: capN }),
+        })
+        if (!patchRes.ok) {
+          const body = await patchRes.json().catch(() => ({}))
+          throw new Error(body.error ?? `HTTP ${patchRes.status}`)
+        }
+      }
+      // "Promotion" = starting the build loop. A spec in `ready` has
+      // everything it needs; /start kicks off the Karpathy Loop and the
+      // project moves into `foundation` (building).
+      const res = await fetch(`/api/projects/${encodeURIComponent(confirmSlug)}/start`, {
         method: 'POST',
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error ?? `HTTP ${res.status}`)
       }
-      // The project moves out of Specs and into Building on next render.
       window.location.reload()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -223,7 +249,7 @@ export function SpecsTable({ specs }: { specs: ProjectSummary[] }) {
                   {isReady ? (
                     <Button
                       size="sm"
-                      onClick={() => promote(p.slug)}
+                      onClick={() => openPromoteConfirm(p.slug, p.cost.budgetCap)}
                       disabled={isPromoting}
                       className="h-7"
                     >
@@ -262,6 +288,63 @@ export function SpecsTable({ specs }: { specs: ProjectSummary[] }) {
           </div>
         )}
       </div>
+
+      {/* Promote-to-build confirmation */}
+      {confirmSlug && (() => {
+        const spec = specs.find((s) => s.slug === confirmSlug)
+        if (!spec) return null
+        const isPromoting = promoting === confirmSlug
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
+            onClick={() => !isPromoting && setConfirmSlug(null)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-lg border border-border bg-background p-5 shadow-lg"
+            >
+              <h3 className="text-base font-semibold text-foreground">
+                Build <span className="italic">{spec.name}</span>?
+              </h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Starts the build loop. Rouge will pause and escalate if spend exceeds the cap below.
+              </p>
+              <label className="mt-4 flex items-center gap-2 text-sm">
+                <span className="w-24 text-muted-foreground">Budget cap</span>
+                <span className="text-muted-foreground">$</span>
+                <input
+                  type="number" min="0" step="10"
+                  value={confirmCap}
+                  onChange={(e) => setConfirmCap(e.target.value)}
+                  disabled={isPromoting}
+                  className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-ring"
+                  autoFocus
+                />
+              </label>
+              <p className="mt-1 ml-26 text-[11px] text-muted-foreground">
+                Change the default for future projects in <Link href="/setup" className="underline">Setup</Link>.
+              </p>
+              {error && (
+                <p className="mt-3 text-xs text-red-700">{error}</p>
+              )}
+              <div className="mt-4 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmSlug(null)}
+                  disabled={isPromoting}
+                  className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-accent disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <Button onClick={confirmPromote} disabled={isPromoting}>
+                  {isPromoting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
+                  <span className="ml-1.5">Start build</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

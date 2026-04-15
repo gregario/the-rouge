@@ -52,6 +52,11 @@
         "capabilities_activated": { "type": "array", "items": { "type": "string", "enum": ["foundation-cycle", "dependency-ordering", "parallel-building", "integration-pass", "integration-escalation", "foundation-evaluation"] } }
       }
     },
+    "budget_cap_usd": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Per-project spend cap in USD. Overrides rouge.config.json's global default. Launcher pauses the loop when cumulative spend exceeds this."
+    },
     "authMode": {
       "type": "string",
       "enum": ["subscription", "api", "bedrock", "vertex"],

@@ -7,7 +7,6 @@ import { ProjectCard } from '@/components/project-card'
 import { TopBar } from '@/components/top-bar'
 import { LiveRefresh } from '@/components/live-refresh'
 import { NewProjectButton } from '@/components/new-project-button'
-import { BudgetPanel } from '@/components/budget-panel'
 import { SpecsTable } from '@/components/specs-table'
 import { Archive } from 'lucide-react'
 import Link from 'next/link'
@@ -36,7 +35,8 @@ function mapBridgeProjects(data: Record<string, unknown>[]): ProjectSummary[] {
       progress: Number(p.progress ?? 0),
       confidence: 0.75,
       cost: {
-        totalSpend: Number(p.costUsd ?? 0), budgetCap: 500,
+        totalSpend: Number(p.costUsd ?? 0),
+        budgetCap: typeof p.budgetCapUsd === 'number' ? p.budgetCapUsd : 100,
         breakdown: { llmTokens: 0, deploys: 0, other: 0 },
         lastUpdated: new Date().toISOString(),
       },
@@ -155,10 +155,7 @@ export default async function Home() {
       )}
       <div className="flex flex-wrap items-start justify-between gap-6">
         <TopBar />
-        <div className="flex flex-wrap items-start gap-6">
-          <BudgetPanel />
-          <NewProjectButton />
-        </div>
+        <NewProjectButton />
       </div>
       {archivedCount > 0 && (
         <div className="mt-4 flex justify-end">
