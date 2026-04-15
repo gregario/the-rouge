@@ -1,5 +1,7 @@
+import { redirect } from 'next/navigation'
 import { projects as mockProjects } from '@/data/projects'
 import { isBridgeEnabled, fetchBridgeProjects } from '@/lib/bridge-client'
+import { isSetupComplete } from '@/lib/setup-state'
 import type { ProjectSummary, ProjectState, Provider } from '@/lib/types'
 import { ProjectCard } from '@/components/project-card'
 import { TopBar } from '@/components/top-bar'
@@ -119,6 +121,13 @@ function sortByUpdated(list: ProjectSummary[]): ProjectSummary[] {
 }
 
 export default async function Home() {
+  // First-time users: no setup-complete marker yet → send them to /setup.
+  // Returning users (marker exists, even if skipped) see the dashboard.
+  // Re-enter /setup anytime via the nav link.
+  if (!isSetupComplete()) {
+    redirect('/setup')
+  }
+
   const { projects, error } = await getProjects()
 
   return (

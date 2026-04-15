@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { DoctorStep } from './doctor-step'
 import { SecretsStep } from './secrets-step'
 import { DaemonStep } from './daemon-step'
+import { FinishStep } from './finish-step'
 
 type StepId = 'prereqs' | 'secrets' | 'slack' | 'daemon' | 'finish'
 
@@ -22,7 +23,7 @@ const steps: Step[] = [
   { id: 'secrets', label: 'Integrations' },
   { id: 'slack', label: 'Slack (optional)', comingSoon: true },
   { id: 'daemon', label: 'Background daemon' },
-  { id: 'finish', label: 'Create first project', comingSoon: true },
+  { id: 'finish', label: 'Finish' },
 ]
 
 export function SetupWizard() {
@@ -46,12 +47,28 @@ export function SetupWizard() {
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Set up Rouge</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          One-time setup — takes under 5 minutes. You can come back to this page
-          anytime from the nav.
-        </p>
+      <header className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Set up Rouge</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            One-time setup — takes under 5 minutes. You can come back to this page
+            anytime from the nav.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={async () => {
+            await fetch('/api/system/setup-state', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ skipped: true }),
+            })
+            window.location.href = '/'
+          }}
+          className="shrink-0 text-sm text-muted-foreground hover:text-foreground underline underline-offset-4"
+        >
+          Skip for now
+        </button>
       </header>
 
       {/* Step indicator */}
@@ -95,6 +112,7 @@ export function SetupWizard() {
         {active.id === 'prereqs' && <DoctorStep onReady={(r) => markReady('prereqs', r)} />}
         {active.id === 'secrets' && <SecretsStep onReady={(r) => markReady('secrets', r)} />}
         {active.id === 'daemon' && <DaemonStep onReady={(r) => markReady('daemon', r)} />}
+        {active.id === 'finish' && <FinishStep onReady={(r) => markReady('finish', r)} />}
       </div>
 
       {/* Footer actions */}
