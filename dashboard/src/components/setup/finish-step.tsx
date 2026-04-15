@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2, Rocket } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -11,7 +11,11 @@ export function FinishStep({ onReady }: { onReady: (ready: boolean) => void }) {
   const [error, setError] = useState<string | null>(null)
 
   // Always "ready" — the whole point of this step is to finish.
-  if (!busy) onReady(true)
+  // MUST run in useEffect, not during render. Calling setState on the
+  // parent mid-render breaks React hydration and kills all click
+  // handlers in the surrounding tree.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { onReady(true) }, [])
 
   async function finish(skipped: boolean) {
     setBusy(true)

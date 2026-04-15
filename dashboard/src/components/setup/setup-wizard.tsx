@@ -21,7 +21,7 @@ interface Step {
 
 const steps: Step[] = [
   { id: 'prereqs', label: 'Prerequisites' },
-  { id: 'secrets', label: 'Integrations' },
+  { id: 'secrets', label: 'Integrations (optional)' },
   { id: 'slack', label: 'Slack (optional)' },
   { id: 'daemon', label: 'Background daemon' },
   { id: 'finish', label: 'Finish' },
