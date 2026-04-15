@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://the-rouge.dev/schemas/vendor-manifest.json",
+  "title": "Vendor Manifest",
+  "description": "Declarative contract for an infrastructure vendor (Vercel, Supabase, Cloudflare, Fly, etc.). The launcher auto-discovers every library/vendors/<name>/manifest.yaml at startup, validates against this schema, and wires the declared intents into INFRA_ACTION_HANDLERS plus the declared deny_patterns into --allowedTools.",
+  "type": "object",
+  "required": ["name", "version", "intents", "ownership_fence"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "Vendor slug. Must match the containing directory name (library/vendors/<name>/)."
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Manifest schema version this file targets. Current: 1."
+    },
+    "description": {
+      "type": "string",
+      "description": "One-line human summary of what the vendor is and what Rouge uses it for."
+    },
+    "allow_patterns": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": [],
+      "description": "Bash patterns the vendor explicitly grants to Claude subprocesses. Usually empty — vendors should route through intents, not grant shell access. Use sparingly; anything here widens the attack surface."
+    },
+    "deny_patterns": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": [],
+      "description": "Bash patterns that must be denied whenever this vendor is loaded. E.g. ['Bash(vercel *)', 'Bash(npx vercel *)']."
+    },
+    "intents": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "handler"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Intent action name registered into INFRA_ACTION_HANDLERS. E.g. 'deploy-staging', 'rollback-production', 'provision-database'."
+          },
+          "handler": {
+            "type": "string",
+            "description": "Name of the exported function in handler.js. Receives (action, context) and returns { success, details }."
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "ownership_fence": {
+      "type": "object",
+      "required": ["manifest_field", "verify"],
+      "additionalProperties": false,
+      "properties": {
+        "manifest_field": {
+          "type": "string",
+          "description": "Field in the project's infrastructure_manifest.json that stores the vendor-side identifier (e.g. vercel_project_id, supabase_project_ref). Deploy-blocking compares this against the live resource before any infra callback fires."
+        },
+        "verify": {
+          "type": "string",
+          "description": "Name of the exported verifyOwnership function in handler.js. Given (expectedId, liveResource) returns { matches: boolean, reason?: string }."
+        },
+        "pre_foundation_snapshot": {
+          "type": "string",
+          "description": "Optional. Name of a handler.js export that lists pre-existing resources in the user's account. The launcher calls this before foundation starts to populate state.json:existing_external_resources, which gates ambiguous adoptions."
+        }
+      }
+    },
+    "escalations": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": [],
+      "description": "Escalation classifications this vendor can raise (e.g. 'infrastructure-ownership-ambiguity', 'vendor-auth-expired'). Used by the escalation-response contract (#101)."
+    }
+  }
+}

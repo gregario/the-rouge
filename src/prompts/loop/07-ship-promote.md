@@ -184,17 +184,17 @@ On successful promotion, update `cycle_context.json`:
 
 ### Step 7.5 — Rollback Plan
 
-If post-deploy verification fails (production URL returns errors, key user flows broken), execute the platform-appropriate rollback. Read `infrastructure_manifest.json` for the deployment target:
+If post-deploy verification fails (production URL returns errors, key user flows broken), request a rollback via the intent callback protocol. Do not run provider CLIs directly — the launcher executes the rollback on your behalf using the vendor handler registered in `library/vendors/<vendor>/handler.js`.
 
-**Cloudflare Workers:**
-```bash
-npx wrangler versions list --name <worker-name>
-npx wrangler versions deploy <previous-version-id>@100% --name <worker-name> --yes
+Write `pending-action.json`:
+```json
+{
+  "action": "rollback-production",
+  "reason": "<one-line why verification failed>"
+}
 ```
 
-**Vercel:** Use the Vercel dashboard or `vercel rollback` to revert to the previous production deployment.
-
-**Other platforms:** Read the rollback procedure from the integration catalogue. If no rollback procedure exists, ESCALATE.
+The launcher reads `infrastructure_manifest.json` to determine the vendor, dispatches to the vendor handler, and writes the result to `action-result.json`. If no vendor handler exists for the target, the launcher escalates automatically.
 
 On any rollback:
 1. Log the failure in `cycle_context.json` under `ship_error` with the rollback details.
