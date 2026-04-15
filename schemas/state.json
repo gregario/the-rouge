@@ -52,6 +52,12 @@
         "capabilities_activated": { "type": "array", "items": { "type": "string", "enum": ["foundation-cycle", "dependency-ordering", "parallel-building", "integration-pass", "integration-escalation", "foundation-evaluation"] } }
       }
     },
+    "authMode": {
+      "type": "string",
+      "enum": ["subscription", "api", "bedrock", "vertex"],
+      "default": "subscription",
+      "description": "Which Anthropic auth path the Claude subprocess uses. Set per-spec. Default subscription."
+    },
     "timestamp": { "type": "string", "format": "date-time" }
   }
 }

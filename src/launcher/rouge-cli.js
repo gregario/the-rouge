@@ -159,6 +159,7 @@ const {
   getExpiringSecrets,
   INTEGRATION_KEYS,
 } = require('./secrets.js');
+const { buildClaudeEnv } = require('./auth-mode.js');
 
 // ---------------------------------------------------------------------------
 // Interactive input helper
@@ -539,8 +540,14 @@ function cmdSeed(name) {
   }
 
   const promptContent = fs.readFileSync(promptFile, 'utf8');
+  // Route seeding through the same provider the project will use for build.
+  const statePath = path.join(projectPath, 'state.json');
+  let state = null;
+  try { state = JSON.parse(fs.readFileSync(statePath, 'utf8')); } catch {}
+  const { env: claudeEnv } = buildClaudeEnv({ state });
   const child = spawn('claude', ['-p', '--project', projectPath], {
     stdio: ['pipe', 'inherit', 'inherit'],
+    env: claudeEnv,
   });
   child.stdin.write(promptContent);
   child.stdin.end();

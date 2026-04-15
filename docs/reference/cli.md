@@ -47,7 +47,7 @@ The Rouge CLI
     rouge slack start               Start the Slack bot
     rouge slack test                Send a test webhook message
 
-  Integrations: stripe, supabase, sentry, slack, cloudflare, vercel
+  Integrations: stripe, supabase, sentry, slack, cloudflare, vercel, llm
 
   Suppress experimental warnings: ROUGE_SUPPRESS_EXPERIMENTAL_WARNING=1
 ```

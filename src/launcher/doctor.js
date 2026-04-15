@@ -75,12 +75,25 @@ function runDoctor({ ROUGE_ROOT, getSecret } = {}) {
       : { id: 'slack', label: 'Slack tokens', status: 'blocker', detail: 'not configured', installHint: 'rouge setup slack' });
   }
 
-  // Anthropic auth
+  // Anthropic auth — mode-aware. Reports which provider(s) are configured and
+  // which one the subprocess would actually pick today (env override > state
+  // default of subscription).
   if (claudeOut) {
-    const authCheck = tryExec('claude -p "test" --max-turns 0', 10000);
-    push(authCheck !== null
-      ? { id: 'anthropic-auth', label: 'Anthropic auth', status: 'ok', detail: 'valid' }
-      : { id: 'anthropic-auth', label: 'Anthropic auth', status: 'blocker', detail: 'invalid', installHint: 'claude login' });
+    const override = process.env.ROUGE_LLM_PROVIDER;
+    const activeMode = override || 'subscription';
+    const modes = [];
+    // Subscription: claude login-based; the -p --max-turns 0 call hits it.
+    const subOk = tryExec('claude -p "test" --max-turns 0', 10000) !== null;
+    if (subOk) modes.push('subscription (claude login)');
+    if (getSecret && getSecret('llm', 'ANTHROPIC_API_KEY')) modes.push('api key');
+    if (getSecret && getSecret('llm', 'AWS_BEDROCK_ACCESS_KEY_ID')) modes.push('bedrock');
+    if (getSecret && getSecret('llm', 'GCP_VERTEX_PROJECT')) modes.push('vertex');
+
+    if (modes.length === 0) {
+      push({ id: 'anthropic-auth', label: 'Anthropic auth', status: 'blocker', detail: 'no provider configured', installHint: 'claude login (for subscription) or configure an API key in dashboard setup' });
+    } else {
+      push({ id: 'anthropic-auth', label: 'Anthropic auth', status: 'ok', detail: `active: ${activeMode} · available: ${modes.join(', ')}` });
+    }
   }
 
   // Optional: Supabase CLI
