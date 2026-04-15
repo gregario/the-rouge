@@ -19,6 +19,12 @@ export interface ProviderQuota {
 export interface PlatformData {
   quotas: ProviderQuota[]
   totalProjects: number
+  // Aggregated spend figures across all non-archived projects. Cap total is
+  // the sum of per-project budget_cap_usd (falling back to globalDefault for
+  // projects that predate per-project caps). Spend total sums
+  // state.costs.cumulative_cost_usd, same field as the project cards.
+  totalSpendUsd: number
+  totalCapUsd: number
 }
 
 // Provider limits (free tier / common defaults — display only, not enforced)
@@ -30,6 +36,25 @@ const DEFAULT_LIMITS: Record<string, number> = {
   posthog: 20,
 }
 
+// Read rouge.config.json's global default cap. Projects that predate
+// per-project caps still fall back to this at enforcement time, so we mirror
+// that in aggregation.
+function readGlobalDefaultCap(projectsRoot: string): number {
+  const candidates = [
+    join(projectsRoot, '..', 'rouge.config.json'),
+    join(process.cwd(), 'rouge.config.json'),
+  ]
+  for (const p of candidates) {
+    try {
+      if (existsSync(p)) {
+        const cfg = JSON.parse(readFileSync(p, 'utf-8')) as { budget_cap_usd?: number }
+        if (typeof cfg.budget_cap_usd === 'number') return cfg.budget_cap_usd
+      }
+    } catch { /* next */ }
+  }
+  return 100
+}
+
 export function readPlatformData(projectsRoot: string): PlatformData {
   const entries = readdirSync(projectsRoot)
   const providerMap: Record<string, ProviderProject[]> = {
@@ -39,6 +64,9 @@ export function readPlatformData(projectsRoot: string): PlatformData {
     sentry: [],
     posthog: [],
   }
+  const globalDefaultCap = readGlobalDefaultCap(projectsRoot)
+  let totalSpendUsd = 0
+  let totalCapUsd = 0
 
   for (const entry of entries) {
     const projectDir = join(projectsRoot, entry)
@@ -79,6 +107,16 @@ export function readPlatformData(projectsRoot: string): PlatformData {
     // Only `waiting-for-human` maps to paused; everything else is active.
     const status: 'active' | 'paused' =
       currentState === 'waiting-for-human' ? 'paused' : 'active'
+
+    // Archived projects don't count toward spend or cap totals — they're
+     // parked, not active budget. Mirrors the homepage filter.
+    if (state.archived !== true) {
+      const costs = (state.costs as { cumulative_cost_usd?: number } | undefined) ?? {}
+      const spend = typeof costs.cumulative_cost_usd === 'number' ? costs.cumulative_cost_usd : 0
+      const cap = typeof state.budget_cap_usd === 'number' ? (state.budget_cap_usd as number) : globalDefaultCap
+      totalSpendUsd += spend
+      totalCapUsd += cap
+    }
 
     const project: ProviderProject = { slug: entry, name, deployUrl, status }
 
@@ -141,5 +179,10 @@ export function readPlatformData(projectsRoot: string): PlatformData {
     }
   }).length
 
-  return { quotas, totalProjects }
+  return {
+    quotas,
+    totalProjects,
+    totalSpendUsd,
+    totalCapUsd,
+  }
 }
