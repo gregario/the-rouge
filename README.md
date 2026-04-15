@@ -259,8 +259,10 @@ Early access to new capabilities for [sponsors](https://github.com/sponsors/greg
 
 ## License
 
-[PolyForm Noncommercial 1.0.0](LICENSE)
+Rouge is source-available under [PolyForm Noncommercial 1.0.0](LICENSE) with a tiered commercial license on top. See [COMMERCIAL.md](COMMERCIAL.md) for full terms.
 
-Free for personal and non-commercial use. Personal projects, research, learning, tinkering, hobby work, education.
+- **Free (Noncommercial)** — personal projects, research, learning, teaching, hobby work.
+- **Internal Commercial — $100/month** via [GitHub Sponsors](https://github.com/sponsors/gregario). Single company, internal use only, ≤ 5 developers, ≤ $1M ARR. Does **not** permit hosting Rouge as a service, reselling, white-labeling, or offering Rouge-powered services to third parties as a primary component.
+- **Enterprise / Scale / Hosting** — contact gregj64@gmail.com. Required for hosted services, resale, OEM, teams above the caps, or any use where Rouge is a primary functional component of a product or service offered to third parties.
 
-Commercial use available via the [$100/month Commercial tier on GitHub Sponsors](https://github.com/sponsors/gregario).
+Not sure which tier fits? See the FAQ in [COMMERCIAL.md](COMMERCIAL.md) or email gregj64@gmail.com.
