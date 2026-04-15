@@ -1,5 +1,7 @@
 # Your first product
 
+> ⚠️ **Onboarding is being refactored.** The canonical path is now: run `rouge setup`, open the dashboard, click **New Project**. The CLI steps below still work but are no longer the recommended path for new users. See `docs/plans/2026-04-15-onboarding-refactor.md` for the full plan.
+
 You've installed Rouge, run `rouge doctor`, and read the [seeding example](seeding-example.md). Now you want to actually build something. Here's what happens end to end.
 
 ## Before you start

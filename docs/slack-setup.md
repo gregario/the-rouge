@@ -1,5 +1,7 @@
 # Slack Setup Guide
 
+> 🧪 **Experimental.** Slack as a full control plane is no longer the recommended path. The dashboard is now the primary control surface; Slack is being repositioned as notifications + lightweight remote commands. See `docs/plans/2026-04-15-onboarding-refactor.md`. This guide still works if you want it, but expect the setup flow to move into a dashboard wizard in an upcoming phase.
+
 Connect Rouge to Slack so you can seed products via conversation, monitor autonomous builds, and control everything with slash commands.
 
 ## Prerequisites
