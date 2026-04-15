@@ -45,7 +45,9 @@ ${helpText.trim()}
 - \`0\` — success
 - \`1\` — blocker (e.g., \`doctor\` found missing prereqs, \`setup\` failed, invalid args)
 
-See the [onboarding refactor plan](../plans/2026-04-15-onboarding-refactor.md) for context on why certain commands are marked experimental.
+Commands marked \`EXPERIMENTAL\` in the help output still work but are no
+longer the recommended path — the dashboard is the primary control surface.
+They print a warning on use; suppress with \`ROUGE_SUPPRESS_EXPERIMENTAL_WARNING=1\`.
 `;
 }
 

@@ -63,8 +63,16 @@ function checkLinks() {
       // Skip template placeholders
       if (target.startsWith('<') || target.includes('{')) continue;
       const resolved = path.resolve(dir, target);
+      const relFromRepo = path.relative(REPO, resolved);
+      // Skip links pointing into gitignored / ephemeral directories. These
+      // exist on some dev machines but not in CI clones, and flagging them
+      // as broken produces noisy false positives. Keep the list small and
+      // literal — matches the .gitignore entries.
+      if (/^(projects|docs\/plans|docs\/archive|docs\/drafts|docs\/research)(\/|$)/.test(relFromRepo)) {
+        continue;
+      }
       if (!fs.existsSync(resolved)) {
-        failures.push({ file: path.relative(REPO, file), link: match[1], resolved: path.relative(REPO, resolved) });
+        failures.push({ file: path.relative(REPO, file), link: match[1], resolved: relFromRepo });
       }
     }
   }
