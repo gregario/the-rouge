@@ -1,9 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Check, Loader2, Save, Trash2 } from 'lucide-react'
+import { AlertCircle, Check, Loader2, Save, ShieldCheck, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+
+interface ValidationResult {
+  key: string
+  status: 'valid' | 'invalid' | 'error'
+  message?: string
+}
 
 type IntegrationMap = Record<string, Record<string, boolean>>
 
@@ -18,6 +24,47 @@ const INTEGRATION_BLURBS: Record<string, string> = {
   vercel: 'Deployment target. Needed for Vercel-hosted products.',
 }
 
+function ValidationSection({
+  integration, results, validating, onValidate, storedCount,
+}: {
+  integration: string
+  results?: ValidationResult[]
+  validating: boolean
+  onValidate: () => void
+  storedCount: number
+}) {
+  if (storedCount === 0) return null
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-md bg-muted/40 px-3 py-2 text-xs">
+      <Button size="sm" variant="outline" onClick={onValidate} disabled={validating}>
+        {validating ? <Loader2 className="h-3 w-3 animate-spin" /> : <ShieldCheck className="h-3 w-3" />}
+        <span className="ml-1.5">{validating ? 'Checking' : 'Validate live'}</span>
+      </Button>
+      {results && results.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          {results.map((r) => (
+            <span key={r.key} className={cn(
+              'flex items-center gap-1',
+              r.status === 'valid' && 'text-green-700',
+              r.status === 'invalid' && 'text-red-700',
+              r.status === 'error' && 'text-amber-700',
+            )}>
+              {r.status === 'valid' ? <Check className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+              <code className="font-mono">{r.key}</code>
+              {r.message && <span className="text-muted-foreground">— {r.message}</span>}
+            </span>
+          ))}
+        </div>
+      )}
+      {!results && (
+        <span className="text-muted-foreground">
+          Checks {integration} keys against the live API.
+        </span>
+      )}
+    </div>
+  )
+}
+
 export function SecretsStep({ onReady }: { onReady: (ready: boolean) => void }) {
   const [integrations, setIntegrations] = useState<IntegrationMap>({})
   const [loading, setLoading] = useState(true)
@@ -25,6 +72,8 @@ export function SecretsStep({ onReady }: { onReady: (ready: boolean) => void }) 
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState<string | null>(null)
   const [savedBanner, setSavedBanner] = useState<string | null>(null)
+  const [validating, setValidating] = useState<string | null>(null)
+  const [validationByIntegration, setValidationByIntegration] = useState<Record<string, ValidationResult[]>>({})
 
   async function load() {
     setLoading(true)
@@ -70,6 +119,24 @@ export function SecretsStep({ onReady }: { onReady: (ready: boolean) => void }) 
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setSaving(null)
+    }
+  }
+
+  async function validate(integration: string) {
+    setValidating(integration)
+    try {
+      const res = await fetch('/api/system/secrets/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ integration }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const body = await res.json()
+      setValidationByIntegration((v) => ({ ...v, [integration]: body.results ?? [] }))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setValidating(null)
     }
   }
 
@@ -150,6 +217,13 @@ export function SecretsStep({ onReady }: { onReady: (ready: boolean) => void }) 
               </summary>
 
               <div className="border-t border-border p-4 space-y-3">
+                <ValidationSection
+                  integration={integration}
+                  results={validationByIntegration[integration]}
+                  validating={validating === integration}
+                  onValidate={() => validate(integration)}
+                  storedCount={storedCount}
+                />
                 {Object.entries(keys).map(([key, stored]) => {
                   const draftKey = `${integration}.${key}`
                   const isSaving = saving === draftKey

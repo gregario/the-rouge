@@ -7,6 +7,7 @@ import { ProjectCard } from '@/components/project-card'
 import { TopBar } from '@/components/top-bar'
 import { LiveRefresh } from '@/components/live-refresh'
 import { NewProjectButton } from '@/components/new-project-button'
+import { BudgetPanel } from '@/components/budget-panel'
 import { cn } from '@/lib/utils'
 
 // Render per-request so the same-origin /api/projects fetch resolves.
@@ -145,9 +146,12 @@ export default async function Home() {
           </p>
         </div>
       )}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <TopBar />
-        <NewProjectButton />
+        <div className="flex flex-wrap items-start gap-4">
+          <BudgetPanel />
+          <NewProjectButton />
+        </div>
       </div>
 
       <div className="mt-10 flex flex-col gap-12">
