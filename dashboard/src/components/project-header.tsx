@@ -6,7 +6,6 @@ import { ProjectStack } from '@/components/project-stack'
 import { InfrastructureStack } from '@/components/infrastructure-stack'
 import { CycleRhythm } from '@/components/cycle-rhythm'
 import { ProjectTitleEditable } from '@/components/project-title-editable'
-import { NameSuggestionBanner } from '@/components/name-suggestion-banner'
 import { ExternalLink, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
@@ -66,9 +65,6 @@ export function ProjectHeader({
         <ArrowLeft className="size-4" />
         Dashboard
       </Link>
-
-      {/* Marketing / seeding-swarm name suggestion — only shows on Untitled specs */}
-      <NameSuggestionBanner slug={project.slug} currentName={project.name} state={project.state} />
 
       {/* Title row with inline metrics */}
       <div className="flex flex-wrap items-center justify-between gap-4">

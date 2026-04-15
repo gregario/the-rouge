@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadServerConfig } from "@/lib/server-config";
+import { readChatLog } from "@/bridge/chat-reader";
 import {
   mergeSeedingProgress,
   readCheckpointSummary,
@@ -121,4 +122,56 @@ export async function PATCH(
     slug: slugChanged ?? name,
     slugChanged: !!slugChanged,
   });
+}
+
+// DELETE /api/projects/[name]
+// Removes the project directory from disk. Scoped narrowly to the one case
+// that matters for the new-spec UX cleanup: a spec that has never received
+// a human message AND is still in a pre-build state. Anything past that
+// has real work attached (checkpoints, git history, deploys) and deserves
+// a deliberate archival path, not a quick-delete button.
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ name: string }> },
+) {
+  const { name } = await params;
+  const { projectsRoot } = loadServerConfig();
+  const projectDir = join(projectsRoot, name);
+  const stateFile = join(projectDir, "state.json");
+
+  if (!existsSync(stateFile)) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
+
+  let currentState = "unknown";
+  try {
+    const state = JSON.parse(readFileSync(stateFile, "utf-8"));
+    currentState = state.current_state ?? state.state ?? "unknown";
+  } catch {
+    // Malformed state.json — still let the user clean up.
+  }
+
+  const preBuildStates = new Set(["seeding", "ready"]);
+  if (!preBuildStates.has(currentState)) {
+    return NextResponse.json({
+      error: `Cannot delete a project in state "${currentState}". Only pre-build specs (seeding / ready) can be deleted from here.`,
+    }, { status: 409 });
+  }
+
+  const humanMessages = readChatLog(projectDir).filter((m) => m.role === "human").length;
+  if (humanMessages > 0) {
+    return NextResponse.json({
+      error: `Project has ${humanMessages} message${humanMessages > 1 ? "s" : ""} already. Delete is only for empty placeholder specs.`,
+    }, { status: 409 });
+  }
+
+  try {
+    rmSync(projectDir, { recursive: true, force: true });
+  } catch (err) {
+    return NextResponse.json({
+      error: err instanceof Error ? err.message : String(err),
+    }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true });
 }

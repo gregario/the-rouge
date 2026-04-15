@@ -4,6 +4,7 @@ import { runClaude, detectRateLimit, extractMarkers } from './claude-runner'
 import { appendChatMessage } from './chat-reader'
 import { readSeedingState, updateSessionId, markDisciplineComplete, markSeedingComplete, setStatus } from './seeding-state'
 import { finalizeSeeding } from './seeding-finalize'
+import { maybeDeriveWorkingTitle } from './derive-title'
 
 // Read from rouge-dashboard.config.json if available, otherwise use relative path
 const configPath = resolve(__dirname, '../../rouge-dashboard.config.json')
@@ -109,6 +110,11 @@ export async function handleSeedMessage(
   // Append conversation (user message + rouge response) tagged with the
   // discipline that was active BEFORE markers fired.
   appendMessages(projectDir, userText, result.result, activeDiscipline)
+
+  // If this was the first user message and the project is still
+  // placeholder-named, derive a working title in the background.
+  // Fire-and-forget: the chat response does not wait on it.
+  void maybeDeriveWorkingTitle(projectDir, userText)
 
   // Check for SEEDING_COMPLETE
   let readyTransition = false

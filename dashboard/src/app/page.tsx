@@ -49,6 +49,9 @@ function mapBridgeProjects(data: Record<string, unknown>[]): ProjectSummary[] {
       productionUrl: undefined,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      isPlaceholderName: Boolean(p.isPlaceholderName),
+      messageCount: typeof p.messageCount === 'number' ? p.messageCount : undefined,
+      firstMessagePreview: typeof p.firstMessagePreview === 'string' ? p.firstMessagePreview : undefined,
     }
   })
 }

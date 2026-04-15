@@ -87,6 +87,12 @@ export interface BridgeProjectSummary {
   hasStateFile: boolean
   providers: string[]
   deploymentUrl?: string
+  // For the Specs table: distinguishes "Untitled but in progress" from
+  // "Untitled and abandoned." Preview is a short excerpt of the first
+  // human message if any exists.
+  messageCount?: number
+  firstMessagePreview?: string
+  isPlaceholderName?: boolean
 }
 
 // ─── Seeding chat log ────────────────────────────────────────────────
