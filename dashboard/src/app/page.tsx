@@ -9,6 +9,8 @@ import { LiveRefresh } from '@/components/live-refresh'
 import { NewProjectButton } from '@/components/new-project-button'
 import { BudgetPanel } from '@/components/budget-panel'
 import { SpecsTable } from '@/components/specs-table'
+import { Archive } from 'lucide-react'
+import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
 // Render per-request so the same-origin /api/projects fetch resolves.
@@ -49,6 +51,11 @@ function mapBridgeProjects(data: Record<string, unknown>[]): ProjectSummary[] {
       productionUrl: undefined,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      isPlaceholderName: Boolean(p.isPlaceholderName),
+      messageCount: typeof p.messageCount === 'number' ? p.messageCount : undefined,
+      firstMessagePreview: typeof p.firstMessagePreview === 'string' ? p.firstMessagePreview : undefined,
+      archived: Boolean(p.archived),
+      archivedAt: typeof p.archivedAt === 'string' ? p.archivedAt : undefined,
     }
   })
 }
@@ -125,7 +132,11 @@ export default async function Home() {
     redirect('/setup')
   }
 
-  const { projects, error } = await getProjects()
+  const { projects: allProjects, error } = await getProjects()
+  // Archived projects are only visible on /archived. Everything else filters
+  // them out by default.
+  const projects = allProjects.filter((p) => !p.archived)
+  const archivedCount = allProjects.length - projects.length
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -149,6 +160,17 @@ export default async function Home() {
           <NewProjectButton />
         </div>
       </div>
+      {archivedCount > 0 && (
+        <div className="mt-4 flex justify-end">
+          <Link
+            href="/archived"
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground underline underline-offset-4"
+          >
+            <Archive className="h-3.5 w-3.5" />
+            {archivedCount} archived
+          </Link>
+        </div>
+      )}
 
       <div className="mt-10 flex flex-col gap-12">
         {/* Needs Attention — cards, only renders when non-empty */}

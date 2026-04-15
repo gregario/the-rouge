@@ -171,6 +171,12 @@ export interface ProjectSummary {
   productionUrl?: string
   createdAt: string
   updatedAt: string
+  // Specs-table metadata
+  isPlaceholderName?: boolean
+  messageCount?: number
+  firstMessagePreview?: string
+  archived?: boolean
+  archivedAt?: string
 }
 
 /** Full detail for war room / project deep dive */
@@ -202,6 +208,8 @@ export interface ProjectDetail {
   repoUrl?: string
   createdAt: string
   updatedAt: string
+  archived?: boolean
+  archivedAt?: string
 }
 
 // ─── Chat / Seeding Conversation ─────────────────────────────────────

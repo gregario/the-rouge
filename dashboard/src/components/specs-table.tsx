@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ArrowUpDown, Loader2, Rocket, Search } from 'lucide-react'
+import { ArrowUpDown, Loader2, Rocket, Search, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { ProjectSummary } from '@/lib/types'
@@ -33,6 +33,7 @@ export function SpecsTable({ specs }: { specs: ProjectSummary[] }) {
   const [sortKey, setSortKey] = useState<SortKey>('touched')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [promoting, setPromoting] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const filtered = useMemo(() => {
@@ -67,6 +68,32 @@ export function SpecsTable({ specs }: { specs: ProjectSummary[] }) {
     } else {
       setSortKey(k)
       setSortDir(k === 'name' ? 'asc' : 'desc')
+    }
+  }
+
+  async function deleteSpec(slug: string, messageCount: number, name: string) {
+    // Confirm only when there's real content. Empty placeholders nuke
+    // silently — that's their whole reason for existing.
+    if (messageCount > 0) {
+      const label = name || 'this spec'
+      const ok = window.confirm(
+        `Delete "${label}"? This permanently removes ${messageCount} message${messageCount > 1 ? 's' : ''} and the project directory. This cannot be undone.`,
+      )
+      if (!ok) return
+    }
+    setDeleting(slug)
+    setError(null)
+    try {
+      const res = await fetch(`/api/projects/${encodeURIComponent(slug)}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? `HTTP ${res.status}`)
+      }
+      // Optimistic reload — page is RSC so a full refresh is fine.
+      window.location.reload()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+      setDeleting(null)
     }
   }
 
@@ -166,11 +193,26 @@ export function SpecsTable({ specs }: { specs: ProjectSummary[] }) {
               >
                 <Link
                   href={`/projects/${p.slug}`}
-                  className="min-w-0 flex-col hover:underline underline-offset-2"
+                  className="group min-w-0 flex flex-col hover:underline underline-offset-2"
                 >
-                  <div className="truncate font-medium text-foreground">{p.name}</div>
-                  {p.description && (
-                    <div className="truncate text-xs text-muted-foreground">{p.description}</div>
+                  {p.isPlaceholderName ? (
+                    <>
+                      <div className="truncate font-medium text-muted-foreground italic">
+                        Untitled spec
+                      </div>
+                      <div className="truncate text-xs text-muted-foreground/70">
+                        {p.firstMessagePreview
+                          ? <>&ldquo;{p.firstMessagePreview}&rdquo;</>
+                          : 'empty — nothing sent yet'}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="truncate font-medium text-foreground">{p.name}</div>
+                      {p.description && (
+                        <div className="truncate text-xs text-muted-foreground">{p.description}</div>
+                      )}
+                    </>
                   )}
                 </Link>
                 <div><SpecDepthPill project={p} /></div>
@@ -180,7 +222,7 @@ export function SpecsTable({ specs }: { specs: ProjectSummary[] }) {
                 <div className="text-right tabular-nums text-muted-foreground">
                   {timeAgo(p.updatedAt ?? p.lastCheckpointAt)}
                 </div>
-                <div className="flex justify-end">
+                <div className="flex items-center justify-end gap-2">
                   {isReady ? (
                     <Button
                       size="sm"
@@ -199,6 +241,19 @@ export function SpecsTable({ specs }: { specs: ProjectSummary[] }) {
                       Open →
                     </Link>
                   )}
+                  {/* Delete button on every spec row. Empty placeholders
+                      nuke silently; non-empty specs get a confirm. */}
+                  <button
+                    type="button"
+                    onClick={() => deleteSpec(p.slug, p.messageCount ?? 0, p.name)}
+                    disabled={deleting === p.slug}
+                    title={p.messageCount ? 'Delete spec (asks for confirmation)' : 'Delete empty spec'}
+                    className="p-1 text-muted-foreground/60 hover:text-red-600 transition-colors disabled:opacity-50"
+                  >
+                    {deleting === p.slug
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <Trash2 className="h-3.5 w-3.5" />}
+                  </button>
                 </div>
               </li>
             )

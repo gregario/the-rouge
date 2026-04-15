@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, existsSync, statSync } from 'fs'
 import { join } from 'path'
 import type { BridgeProjectSummary } from './types'
+import { readChatLog } from './chat-reader'
 
 /**
  * Scan a Rouge projects directory and return normalized summaries
@@ -41,11 +42,34 @@ function detectSchemaVersion(raw: Record<string, unknown>): 'v2' | 'v3' {
   return 'v2'
 }
 
-function titleCase(slug: string): string {
+// The slug fallback used to titleCase things like `untitled-mo0c46fx` into
+// "Untitled Mo0c46fx", which leaked the filesystem artifact into the UI.
+// For placeholder slugs we return empty string and let the UI render
+// "Untitled spec" from isPlaceholderName instead.
+function slugFallbackName(slug: string): string {
+  if (slug.startsWith('untitled-') || slug === 'untitled') return ''
   return slug
     .split('-')
     .map(w => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ')
+}
+
+function isPlaceholderName(n: string): boolean {
+  const t = n.trim().toLowerCase()
+  return t === '' || t === 'untitled' || t === 'untitled spec'
+}
+
+function firstMessageSummary(projectDir: string): { count: number; preview?: string } {
+  try {
+    const log = readChatLog(projectDir)
+    const humanMessages = log.filter((m) => m.role === 'human')
+    if (humanMessages.length === 0) return { count: 0 }
+    const first = humanMessages[0].content.trim().replace(/\s+/g, ' ')
+    const preview = first.length > 140 ? first.slice(0, 137) + '…' : first
+    return { count: humanMessages.length, preview }
+  } catch {
+    return { count: 0 }
+  }
 }
 
 function computeProgress(
@@ -170,9 +194,13 @@ function normalizeProject(
   const version = detectSchemaVersion(raw)
   const state = (raw.current_state as string) || 'unknown'
 
-  // Name: V3 uses raw.project, V2 may use raw.name, fallback to titleCase
-  const name =
-    (raw.project as string) || (raw.name as string) || titleCase(slug)
+  // Name: V3 uses raw.project, V2 may use raw.name. Fallback to a
+  // slug-derived label that returns '' for `untitled-*` slugs so the
+  // Specs table knows to render "Untitled spec" instead of leaking the
+  // base36 timestamp.
+  const rawName = ((raw.project as string) || (raw.name as string) || '').trim()
+  const name = rawName || slugFallbackName(slug)
+  const placeholder = isPlaceholderName(name) || slug.startsWith('untitled-')
 
   // Milestones
   let total = 0
@@ -207,9 +235,18 @@ function normalizeProject(
   // Cost and last activity from checkpoints
   const lastCheckpoint = readLastCheckpoint(projectDir)
 
+  // First-message preview (only useful for the Specs table on placeholder-
+  // named projects, but we read it for everyone — it's trivially cheap).
+  const msg = firstMessageSummary(projectDir)
+
   return {
     name,
     slug,
+    messageCount: msg.count,
+    firstMessagePreview: msg.preview,
+    isPlaceholderName: placeholder,
+    archived: raw.archived === true,
+    archivedAt: typeof raw.archivedAt === 'string' ? raw.archivedAt : undefined,
     state,
     schemaVersion: version,
     health: computeHealth(state, !!pending, progress),
