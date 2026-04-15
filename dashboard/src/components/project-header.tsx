@@ -5,6 +5,8 @@ import { StackBar } from '@/components/stack-icons'
 import { ProjectStack } from '@/components/project-stack'
 import { InfrastructureStack } from '@/components/infrastructure-stack'
 import { CycleRhythm } from '@/components/cycle-rhythm'
+import { ProjectTitleEditable } from '@/components/project-title-editable'
+import { NameSuggestionBanner } from '@/components/name-suggestion-banner'
 import { ExternalLink, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
@@ -65,10 +67,13 @@ export function ProjectHeader({
         Dashboard
       </Link>
 
+      {/* Marketing / seeding-swarm name suggestion — only shows on Untitled specs */}
+      <NameSuggestionBanner slug={project.slug} currentName={project.name} state={project.state} />
+
       {/* Title row with inline metrics */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-4">
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">{project.name}</h1>
+          <ProjectTitleEditable slug={project.slug} name={project.name} state={project.state} />
           <StateBadge state={project.state} size="lg" />
         </div>
 
