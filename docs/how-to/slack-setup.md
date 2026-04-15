@@ -17,7 +17,7 @@ Connect Rouge to Slack so you can seed products via conversation, monitor autono
 2. Click **Create New App** > **From an app manifest**
 3. Select your workspace
 4. Switch the format selector to **YAML**
-5. Paste the contents of [`src/slack/manifest.yaml`](../src/slack/manifest.yaml) (the full manifest is included in the Rouge repo)
+5. Paste the contents of [`src/slack/manifest.yaml`](../../src/slack/manifest.yaml) (the full manifest is included in the Rouge repo)
 6. Click **Next** > Review the summary > **Create**
 
 This configures the bot user, slash commands, event subscriptions, and all required OAuth scopes in one step.

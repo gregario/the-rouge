@@ -34,6 +34,8 @@
     "dashboard:install": "cd dashboard && npm install",
     "dashboard:build": "cd dashboard && npm ci --include=dev && npm run build && node ../scripts/stage-standalone.js",
     "dashboard:test": "cd dashboard && npm test",
+    "docs:check": "node scripts/check-docs.js && node scripts/generate-cli-reference.js --check",
+    "docs:cli": "node scripts/generate-cli-reference.js",
     "prepack": "npm run dashboard:build"
   },
   "files": [

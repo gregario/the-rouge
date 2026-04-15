@@ -66,7 +66,7 @@ The idea entered Rouge through **Rouge Spec**, the interactive seeding phase. Th
 
 Rouge Spec runs a **seeding swarm**: eight discipline-specific AI personas that each interrogate the idea from a different angle. They don't run simultaneously — they take turns, building on each other's output:
 
-![Rouge Spec seeding flow](diagrams/spec-flow.png)
+![Rouge Spec seeding flow](../diagrams/spec-flow.png)
 
 The **human participates throughout** — answering questions, making taste decisions, vetoing bad ideas at any stage. The swarm asks; the human decides. The Product Taster is the hard gate: ideas that aren't worth building go to the graveyard before any specs are written.
 
@@ -105,7 +105,7 @@ The seed package contained six feature areas with 37 acceptance criteria, a comp
 
 Rouge builds products through an iterative loop inspired by Andrej Karpathy's description of how neural networks train: build, evaluate, adjust, repeat. Each cycle advances the product toward convergence with the vision.
 
-![The Karpathy Loop](diagrams/karpathy-loop.png)
+![The Karpathy Loop](../diagrams/karpathy-loop.png)
 
 Each phase has a distinct role:
 
@@ -146,7 +146,7 @@ The builder made architectural decisions along the way:
 
 Result: 89 tests passing. Deployed to Cloudflare Workers.
 
-![First build — desktop focus state](../projects/countdowntimer/screenshots/cycle-2/epoch-desktop-focus.png)
+![First build — desktop focus state](../../projects/countdowntimer/screenshots/cycle-2/epoch-desktop-focus.png)
 
 ### Cycle 2: The Quality Ratchet
 
@@ -263,7 +263,7 @@ The Design lens scores screenshots across eight categories (typography, color, s
 
 The architecture separates observation from judgment:
 
-![Observe once, judge through lenses](diagrams/observe-judge.png)
+![Observe once, judge through lenses](../diagrams/observe-judge.png)
 
 **code-review** runs first, using only CLI tools (linting, dependency audit, AI code analysis). No browser. It produces an engineering assessment: architecture score, dead code count, security findings.
 
@@ -277,13 +277,13 @@ The architecture separates observation from judgment:
 
 After 5 cycles, Rouge produced a deployed Pomodoro timer that met its vision: atmospheric, opinionated, crafted.
 
-![Timer first load — focus state](../projects/countdowntimer/screenshots/cycle-5/final-review/01-first-load.png)
+![Timer first load — focus state](../../projects/countdowntimer/screenshots/cycle-5/final-review/01-first-load.png)
 
-![Timer running](../projects/countdowntimer/screenshots/cycle-5/final-review/02-timer-running.png)
+![Timer running](../../projects/countdowntimer/screenshots/cycle-5/final-review/02-timer-running.png)
 
-![Settings panel open](../projects/countdowntimer/screenshots/cycle-5/final-review/03-settings-open.png)
+![Settings panel open](../../projects/countdowntimer/screenshots/cycle-5/final-review/03-settings-open.png)
 
-![Mobile and desktop responsive views](../projects/countdowntimer/screenshots/cycle-5/final-review/mobile-desktop.png)
+![Mobile and desktop responsive views](../../projects/countdowntimer/screenshots/cycle-5/final-review/mobile-desktop.png)
 
 > "Epoch has converged strongly on its vision. The core promise — a focus timer beautiful enough to leave on screen — is delivered through a cohesive techno-futuristic aesthetic, atmospheric phase transitions, and purposeful minimalism."
 
@@ -313,7 +313,7 @@ The real cost was in system development: building Rouge itself. But that cost am
 
 Building a product from scratch is only one capability. The full vision covers the entire lifecycle:
 
-![The Rouge product line](diagrams/product-line.png)
+![The Rouge product line](../diagrams/product-line.png)
 
 ### Rouge Spec — "What to build"
 
