@@ -1,5 +1,7 @@
 # The Rouge — Technical Architecture
 
+> ⚠️ **Onboarding sections are being refactored.** The canonical user-facing path is now dashboard-first: run `rouge setup`, open the dashboard, click **New Project**. Sections below describing Slack-based seeding as the primary entry point are out of date. See `docs/plans/2026-04-15-onboarding-refactor.md`.
+
 **Date:** 2026-03-17
 **Status:** Approved (explore session complete, pending spec update)
 **Supersedes:** Original spec assumptions about a traditional software runtime

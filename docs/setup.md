@@ -1,5 +1,7 @@
 # The Rouge — Setup Guide
 
+> ⚠️ **Onboarding is being refactored.** The canonical path is now: run `rouge setup`, open the dashboard, click **New Project**. The Slack and CLI steps below still work but are no longer the recommended path for new users. See `docs/plans/2026-04-15-onboarding-refactor.md` for the full plan.
+
 One-time setup for running The Rouge on your machine.
 
 ## Prerequisites
