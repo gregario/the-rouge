@@ -6,13 +6,14 @@ import { Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { DoctorStep } from './doctor-step'
+import { LlmProviderStep } from './llm-provider-step'
 import { SecretsStep } from './secrets-step'
 import { SlackStep } from './slack-step'
 import { DaemonStep } from './daemon-step'
 import { DefaultsStep } from './defaults-step'
 import { FinishStep } from './finish-step'
 
-type StepId = 'prereqs' | 'secrets' | 'slack' | 'daemon' | 'defaults' | 'finish'
+type StepId = 'prereqs' | 'llm' | 'secrets' | 'slack' | 'daemon' | 'defaults' | 'finish'
 
 interface Step {
   id: StepId
@@ -22,6 +23,7 @@ interface Step {
 
 const steps: Step[] = [
   { id: 'prereqs', label: 'Prerequisites' },
+  { id: 'llm', label: 'LLM provider' },
   { id: 'secrets', label: 'Integrations (optional)' },
   { id: 'slack', label: 'Slack (optional)' },
   { id: 'daemon', label: 'Background daemon' },
@@ -32,7 +34,7 @@ const steps: Step[] = [
 export function SetupWizard() {
   const [activeIdx, setActiveIdx] = useState(0)
   const [readyMap, setReadyMap] = useState<Record<StepId, boolean>>({
-    prereqs: false, secrets: false, slack: false, daemon: false, defaults: false, finish: false,
+    prereqs: false, llm: false, secrets: false, slack: false, daemon: false, defaults: false, finish: false,
   })
 
   const active = steps[activeIdx]
@@ -113,6 +115,7 @@ export function SetupWizard() {
       {/* Step body */}
       <div className="rounded-xl border border-border bg-background p-6 shadow-sm">
         {active.id === 'prereqs' && <DoctorStep onReady={(r) => markReady('prereqs', r)} />}
+        {active.id === 'llm' && <LlmProviderStep onReady={(r) => markReady('llm', r)} />}
         {active.id === 'secrets' && <SecretsStep onReady={(r) => markReady('secrets', r)} />}
         {active.id === 'slack' && <SlackStep onReady={(r) => markReady('slack', r)} />}
         {active.id === 'daemon' && <DaemonStep onReady={(r) => markReady('daemon', r)} />}
