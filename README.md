@@ -47,13 +47,13 @@ rouge status
 
 The dashboard is your control plane: real-time project visibility, escalation responses, build logs, milestone progress, and seeding sessions. One process, one port, auto-opens in your browser. Start it with `rouge dashboard start` (background) or `rouge dashboard` (foreground). Global installs ship a prebuilt Next.js standalone server — cold start is ~2s, no dev toolchain required. Pass `--no-open` to skip the auto-open.
 
-For teams that already live in Slack, Rouge also supports a Slack bot as an alternative control plane — see [Slack setup](docs/slack-setup.md). The dashboard and Slack bot should not run simultaneously for the same project.
+For teams that already live in Slack, Rouge also supports a Slack bot as an alternative control plane — see [Slack setup](docs/how-to/slack-setup.md). The dashboard and Slack bot should not run simultaneously for the same project.
 
 ### The loop
 
 Inspired by [Karpathy's AutoResearch](https://github.com/karpathy/autoresearch). No long-running process. Each phase starts fresh, reads state from the filesystem, does one thing, saves, and exits. Git is the audit trail. The loop iterates as many times as it needs to. There's no fixed limit. It's done when it's done.
 
-**Seed** — you describe the product. Eight discipline-specific personas run through it (brainstorming, competition, taste, spec, infrastructure, design, legal, marketing). About 10-20 minutes of your time. Then it's autonomous. [See a full seeding example.](docs/seeding-example.md)
+**Seed** — you describe the product. Eight discipline-specific personas run through it (brainstorming, competition, taste, spec, infrastructure, design, legal, marketing). About 10-20 minutes of your time. Then it's autonomous. [See a full seeding example.](docs/tutorials/seeding-example.md)
 
 **Build** — reads specs, writes code with TDD, deploys to staging. All work happens on a single branch with milestone tags per shipped feature area — no branch-per-story sprawl. State is tracked via a dual ledger: `task_ledger.json` for task tracking and `checkpoints.jsonl` for immutable cycle history.
 
@@ -204,7 +204,7 @@ rouge slack start     # Start the bot
 rouge slack test      # Verify
 ```
 
-See [docs/slack-setup.md](docs/slack-setup.md) for the full guide.
+See [docs/how-to/slack-setup.md](docs/how-to/slack-setup.md) for the full guide.
 
 > **Note:** The dashboard and Slack bot should not run simultaneously for the same project — they both write to `state.json` and can race. Use `rouge.config.json` `control_plane` field (`"frontend"` or `"slack"`) to choose one. Dashboard is the default.
 
@@ -234,7 +234,7 @@ rouge cost my-product       # See cost estimate
 > [!CAUTION]
 > Rouge runs with `--dangerously-skip-permissions` (Claude Code's YOLO mode). The safety hooks above cover known-dangerous patterns, but they are not comprehensive filesystem protection. Rouge can read, write, and execute arbitrary commands within the project directory. Run it on a machine you're comfortable giving that level of access to, and keep your work committed. Git is your undo button.
 
-For common issues, see [troubleshooting](docs/troubleshooting.md).
+For common issues, see [troubleshooting](docs/how-to/troubleshooting.md).
 
 ## Contributing
 

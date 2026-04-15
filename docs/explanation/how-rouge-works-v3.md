@@ -27,7 +27,7 @@ A Pomodoro timer for knowledge workers who have tried every timer app and found 
 
 The idea entered Rouge through **Rouge Spec**, the interactive seeding phase. A human describes what they want to build in a Slack conversation, and an eight-persona AI swarm turns that conversation into a buildable plan.
 
-![Rouge Spec seeding flow](diagrams/spec-flow.png)
+![Rouge Spec seeding flow](../diagrams/spec-flow.png)
 
 Each persona interrogates the idea from a different angle:
 
@@ -52,7 +52,7 @@ The output is a **seed package**: vision document, six feature area specificatio
 
 Rouge builds products through an iterative loop inspired by how neural networks train: build, evaluate, adjust, repeat. Each cycle advances the product toward convergence with the vision.
 
-![The Karpathy Loop](diagrams/karpathy-loop.png)
+![The Karpathy Loop](../diagrams/karpathy-loop.png)
 
 | Phase | What happens | Browser? |
 |-------|-------------|:---:|
@@ -78,7 +78,7 @@ Rouge built all six feature areas in a single cycle: Pomodoro engine, timer disp
 
 89 tests passing. Deployed to Cloudflare Workers.
 
-![First build — desktop focus state](../projects/countdowntimer/screenshots/cycle-2/epoch-desktop-focus.png)
+![First build — desktop focus state](../../projects/countdowntimer/screenshots/cycle-2/epoch-desktop-focus.png)
 
 ### Cycle 2: The Quality Ratchet
 
@@ -104,13 +104,13 @@ Each subsequent cycle refined further — polishing interactions, improving arch
 
 After 5 cycles, Rouge produced a deployed Pomodoro timer that met its vision.
 
-![Timer first load](../projects/countdowntimer/screenshots/cycle-5/final-review/01-first-load.png)
+![Timer first load](../../projects/countdowntimer/screenshots/cycle-5/final-review/01-first-load.png)
 
-![Timer running](../projects/countdowntimer/screenshots/cycle-5/final-review/02-timer-running.png)
+![Timer running](../../projects/countdowntimer/screenshots/cycle-5/final-review/02-timer-running.png)
 
-![Settings panel](../projects/countdowntimer/screenshots/cycle-5/final-review/03-settings-open.png)
+![Settings panel](../../projects/countdowntimer/screenshots/cycle-5/final-review/03-settings-open.png)
 
-![Responsive views](../projects/countdowntimer/screenshots/cycle-5/final-review/mobile-desktop.png)
+![Responsive views](../../projects/countdowntimer/screenshots/cycle-5/final-review/mobile-desktop.png)
 
 > "Epoch has converged strongly on its vision. The core promise — a focus timer beautiful enough to leave on screen — is delivered through a cohesive techno-futuristic aesthetic, atmospheric phase transitions, and purposeful minimalism."
 
@@ -134,7 +134,7 @@ Rouge does not evaluate products through vibes. Every judgment is structured dat
 
 ### Three lenses on one observation
 
-![Observe once, judge through lenses](diagrams/observe-judge.png)
+![Observe once, judge through lenses](../diagrams/observe-judge.png)
 
 **code-review** runs CLI tools: ESLint, dependency audit, duplication detection, dead code analysis, and a seven-dimension AI code audit. No browser needed.
 
@@ -210,7 +210,7 @@ The real cost was building Rouge itself. But that amortizes across every product
 
 ## The Vision
 
-![The Rouge product line](diagrams/product-line.png)
+![The Rouge product line](../diagrams/product-line.png)
 
 ### Rouge Spec — "What to build"
 Human + AI co-design a product through Slack conversation. Eight discipline-specific personas. Produces vision, specs, design, and infrastructure plan.

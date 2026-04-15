@@ -1,6 +1,6 @@
 # FAQ & Troubleshooting
 
-Quick answers to common questions and fixes for common problems. For the full walkthrough, see [your-first-product.md](your-first-product.md). For Slack-specific issues, see the [Slack setup troubleshooting section](slack-setup.md#troubleshooting).
+Quick answers to common questions and fixes for common problems. For the full walkthrough, see [your-first-product.md](../tutorials/your-first-product.md). For Slack-specific issues, see the [Slack setup troubleshooting section](slack-setup.md#troubleshooting).
 
 ---
 
@@ -19,7 +19,7 @@ Currently Next.js on Cloudflare with Supabase. The architecture is stack-agnosti
 PolyForm Noncommercial for personal use. [$100/month Commercial tier](https://github.com/sponsors/gregario) for business use.
 
 **How do I contribute?**
-See [CONTRIBUTING.md](../CONTRIBUTING.md).
+See [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
 **Can I use Rouge without Slack?**
 Yes. You lose notifications and the control plane (start, pause, feedback from your phone). Without Slack, you monitor via `rouge status` and stop/start from the terminal.
@@ -32,7 +32,7 @@ Yes. You lose notifications and the control plane (start, pause, feedback from y
 State is checkpointed after every phase. Nothing is lost. Run `rouge build <project>` to resume from the last checkpoint.
 
 **Evaluation keeps failing on the same gap.**
-After 3 consecutive failures, the circuit breaker fires. The analysing phase runs a diagnostic first. If it still can't resolve the issue, Rouge escalates to Slack with context, what it tried, and options. Create a `feedback.json` in the project directory with your guidance, and it resumes. See also [common situations](your-first-product.md#common-situations).
+After 3 consecutive failures, the circuit breaker fires. The analysing phase runs a diagnostic first. If it still can't resolve the issue, Rouge escalates to Slack with context, what it tried, and options. Create a `feedback.json` in the project directory with your guidance, and it resumes. See also [common situations](../tutorials/your-first-product.md#common-situations).
 
 **Rate limited.**
 Rouge has built-in backoff with reset time parsing. It usually resolves itself within a few minutes. If it persists across multiple cycles, wait for your rate limit window to reset and run `rouge build` again.

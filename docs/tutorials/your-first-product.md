@@ -15,7 +15,7 @@ Run `rouge doctor` and make sure everything is green. If anything is red, fix it
 
 **Start simple.** Your first Rouge product should not be a fleet management SaaS with 5 feature areas and a map integration. Pick something with 2-3 features. A recipe organiser. A habit tracker. A reading list. You want to learn the loop, not stress-test it.
 
-**Set up Slack.** Seriously. The whole point of autonomous building is that you walk away and check your phone. If Slack isn't set up, you're staring at a terminal. See [slack-setup.md](slack-setup.md).
+**Set up Slack.** Seriously. The whole point of autonomous building is that you walk away and check your phone. If Slack isn't set up, you're staring at a terminal. See [slack-setup.md](../how-to/slack-setup.md).
 
 ## Initialise
 

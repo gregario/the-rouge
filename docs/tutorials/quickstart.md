@@ -66,7 +66,7 @@ For a detailed walkthrough of what happens at each step, see [your-first-product
 
 ## Next Steps
 
-- [Setup guide](setup.md) — full setup including optional integrations (Stripe, Supabase, Cloudflare, Sentry)
-- [Slack setup](slack-setup.md) — detailed Slack app configuration
+- [Setup guide](../how-to/setup.md) — full setup including optional integrations (Stripe, Supabase, Cloudflare, Sentry)
+- [Slack setup](../how-to/slack-setup.md) — detailed Slack app configuration
 - [Seeding example](seeding-example.md) — what a real seeding session looks like
-- [How Rouge works](how-rouge-works-v3.md) — architecture overview
+- [How Rouge works](../explanation/how-rouge-works-v3.md) — architecture overview
