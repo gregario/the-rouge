@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { CheckCircle2, XCircle, AlertTriangle, Loader2, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Help } from '@/components/ui/help'
 import { cn } from '@/lib/utils'
 import type { DoctorResult, DoctorCheck } from '@/lib/doctor-types'
 
@@ -47,6 +48,11 @@ export function DoctorStep({ onReady }: { onReady: (ready: boolean) => void }) {
           <p className="mt-1 text-sm text-muted-foreground">
             Rouge needs a few tools on your system. Green is ready. Red blocks builds. Amber is optional.
           </p>
+          <Help className="mt-2">
+            <p><strong>Why these tools?</strong></p>
+            <p><strong>Claude Code CLI</strong> runs the actual builds. <strong>Git</strong> + <strong>GitHub CLI</strong> are how Rouge ships code. <strong>jq</strong> is required by the safety hook that gates Claude&apos;s tool calls — without it every build fails mysteriously.</p>
+            <p>The amber items (Supabase CLI, Vercel CLI, GStack) are only needed for specific deployment targets. Skip if you&apos;re not using them.</p>
+          </Help>
         </div>
         <Button
           variant="outline"

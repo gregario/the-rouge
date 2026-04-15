@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { CheckCircle2, Loader2, Power, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Help } from '@/components/ui/help'
 import { cn } from '@/lib/utils'
 
 interface DaemonStatus {
@@ -73,9 +74,15 @@ export function DaemonStep({ onReady }: { onReady: (ready: boolean) => void }) {
       <div>
         <h2 className="text-xl font-semibold text-foreground">Background daemon</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Keep the Rouge dashboard running in the background so it's there when you need it.
+          Keep the Rouge dashboard running in the background so it&apos;s there when you need it.
           Install once and it auto-starts at login. Shut down anytime via the Power icon in the nav.
         </p>
+        <Help className="mt-2">
+          <p><strong>What exactly gets installed?</strong> A macOS launch agent at <code className="break-all">~/Library/LaunchAgents/com.rouge.dashboard.plist</code>. It runs <code>rouge dashboard start --no-open</code> at login — just starts the server, doesn&apos;t auto-open your browser.</p>
+          <p><strong>Can I stop it temporarily?</strong> Yes. Click the Power icon in the top-right of the dashboard, or run <code>rouge stop</code>.</p>
+          <p><strong>Can I remove it later?</strong> Yes. Reinstall and Uninstall buttons are here; <code>rouge uninstall</code> removes it as part of full cleanup.</p>
+          <p><strong>Linux/Windows:</strong> not yet supported. Start manually with <code>rouge start</code>.</p>
+        </Help>
       </div>
 
       {error && (
