@@ -6,20 +6,43 @@ import { Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { DoctorStep } from './doctor-step'
+import { SecretsStep } from './secrets-step'
+import { DaemonStep } from './daemon-step'
 
-// Phase 3a ships the wizard shell + the doctor (prereqs) step only.
-// Phases 3b and 3c will fill in Secrets, Slack, Daemon, and Finish.
-const steps = [
-  { id: 'prereqs', label: 'Prerequisites', status: 'active' as const },
-  { id: 'secrets', label: 'Integrations', status: 'coming-soon' as const },
-  { id: 'slack', label: 'Slack (optional)', status: 'coming-soon' as const },
-  { id: 'daemon', label: 'Background daemon', status: 'coming-soon' as const },
-  { id: 'finish', label: 'Create first project', status: 'coming-soon' as const },
+type StepId = 'prereqs' | 'secrets' | 'slack' | 'daemon' | 'finish'
+
+interface Step {
+  id: StepId
+  label: string
+  comingSoon?: boolean
+}
+
+const steps: Step[] = [
+  { id: 'prereqs', label: 'Prerequisites' },
+  { id: 'secrets', label: 'Integrations' },
+  { id: 'slack', label: 'Slack (optional)', comingSoon: true },
+  { id: 'daemon', label: 'Background daemon' },
+  { id: 'finish', label: 'Create first project', comingSoon: true },
 ]
 
 export function SetupWizard() {
-  const [activeId, setActiveId] = useState('prereqs')
-  const [prereqsReady, setPrereqsReady] = useState(false)
+  const [activeIdx, setActiveIdx] = useState(0)
+  const [readyMap, setReadyMap] = useState<Record<StepId, boolean>>({
+    prereqs: false, secrets: false, slack: false, daemon: false, finish: false,
+  })
+
+  const active = steps[activeIdx]
+  const canAdvance = readyMap[active.id]
+
+  function goTo(idx: number) {
+    if (idx < 0 || idx >= steps.length) return
+    if (steps[idx].comingSoon) return
+    setActiveIdx(idx)
+  }
+
+  function markReady(id: StepId, ready: boolean) {
+    setReadyMap((m) => ({ ...m, [id]: ready }))
+  }
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
@@ -34,20 +57,20 @@ export function SetupWizard() {
       {/* Step indicator */}
       <nav className="mb-8 flex flex-wrap items-center gap-2" aria-label="Setup progress">
         {steps.map((step, i) => {
-          const isActive = step.id === activeId
-          const isDone = step.id === 'prereqs' && prereqsReady
-          const isComingSoon = step.status === 'coming-soon'
+          const isActive = i === activeIdx
+          const isDone = readyMap[step.id] && i !== activeIdx
+          const disabled = step.comingSoon
           return (
             <div key={step.id} className="flex items-center gap-2">
               <button
                 type="button"
-                disabled={isComingSoon}
-                onClick={() => !isComingSoon && setActiveId(step.id)}
+                disabled={disabled}
+                onClick={() => goTo(i)}
                 className={cn(
                   'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
                   isActive && 'bg-accent text-accent-foreground',
-                  !isActive && !isComingSoon && 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                  isComingSoon && 'cursor-not-allowed text-muted-foreground/50',
+                  !isActive && !disabled && 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                  disabled && 'cursor-not-allowed text-muted-foreground/50',
                 )}
               >
                 <span className={cn(
@@ -59,7 +82,7 @@ export function SetupWizard() {
                   {isDone ? <Check className="h-3 w-3" /> : i + 1}
                 </span>
                 {step.label}
-                {isComingSoon && <span className="text-xs opacity-70">(soon)</span>}
+                {disabled && <span className="text-xs opacity-70">(soon)</span>}
               </button>
               {i < steps.length - 1 && <span className="text-muted-foreground/40">→</span>}
             </div>
@@ -69,7 +92,9 @@ export function SetupWizard() {
 
       {/* Step body */}
       <div className="rounded-xl border border-border bg-background p-6 shadow-sm">
-        {activeId === 'prereqs' && <DoctorStep onReady={setPrereqsReady} />}
+        {active.id === 'prereqs' && <DoctorStep onReady={(r) => markReady('prereqs', r)} />}
+        {active.id === 'secrets' && <SecretsStep onReady={(r) => markReady('secrets', r)} />}
+        {active.id === 'daemon' && <DaemonStep onReady={(r) => markReady('daemon', r)} />}
       </div>
 
       {/* Footer actions */}
@@ -78,20 +103,32 @@ export function SetupWizard() {
           ← Back to dashboard
         </Link>
         <div className="flex items-center gap-3">
-          {!prereqsReady && (
-            <span className="text-xs text-muted-foreground">
-              Fix the red items above to continue.
-            </span>
+          {activeIdx > 0 && (
+            <Button variant="outline" onClick={() => {
+              // Skip any "coming-soon" steps when going back.
+              let i = activeIdx - 1
+              while (i >= 0 && steps[i].comingSoon) i--
+              if (i >= 0) setActiveIdx(i)
+            }}>
+              Back
+            </Button>
           )}
-          <Button disabled title="Coming in Phase 3b">
-            Next: Integrations
-          </Button>
+          {activeIdx < steps.length - 1 && (
+            <Button
+              onClick={() => {
+                // Skip any "coming-soon" steps when advancing.
+                let i = activeIdx + 1
+                while (i < steps.length && steps[i].comingSoon) i++
+                if (i < steps.length) setActiveIdx(i)
+              }}
+              disabled={!canAdvance}
+              title={!canAdvance && active.id === 'prereqs' ? 'Fix the red items above first' : undefined}
+            >
+              Next
+            </Button>
+          )}
         </div>
       </div>
-
-      <p className="mt-8 text-center text-xs text-muted-foreground">
-        Phase 3a: prerequisite check only. Integrations, Slack, daemon, and first-project steps land in upcoming phases.
-      </p>
     </div>
   )
 }
