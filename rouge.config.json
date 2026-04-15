@@ -3,7 +3,10 @@
   "control_plane_lock": true,
   "safety": {
     "blocked_commands": [],
-    "allowed_deploy_targets": ["staging", "preview"],
+    "allowed_deploy_targets": [
+      "staging",
+      "preview"
+    ],
     "custom_pre_hooks": []
   },
   "budget_cap_usd": 50,
@@ -15,8 +18,17 @@
   "model_overrides": {},
   "self_improvement": {
     "enabled": true,
-    "allowlist": ["src/prompts/loop/*.md", "src/prompts/seeding/*.md", "docs/design/*.md"],
-    "blocklist": ["src/launcher/*.js", ".claude/settings.json", "rouge.config.json", "rouge-safety-check.sh"],
+    "allowlist": [
+      "src/prompts/loop/*.md",
+      "src/prompts/seeding/*.md",
+      "docs/design/*.md"
+    ],
+    "blocklist": [
+      "src/launcher/*.js",
+      ".claude/settings.json",
+      "rouge.config.json",
+      "rouge-safety-check.sh"
+    ],
     "test_budget_usd": 5
   },
   "linked_projects": {
