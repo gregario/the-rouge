@@ -7,12 +7,16 @@
 // to relative paths for dev mode.
 
 import path from "node:path";
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 
 function resolveLauncherDir(): string {
   const envCli = process.env.ROUGE_CLI;
   if (envCli && existsSync(envCli)) {
-    return path.dirname(envCli);
+    // ROUGE_CLI is usually /opt/homebrew/bin/rouge — a symlink into
+    // lib/node_modules/the-rouge/src/launcher/rouge-cli.js. Resolve it
+    // before taking the dirname, otherwise we look for doctor.js next
+    // to the symlink (which lives in /opt/homebrew/bin/).
+    return path.dirname(realpathSync(envCli));
   }
   // Dev fallback: this file is at dashboard/src/lib/launcher-bridge.ts,
   // launcher is at ../../src/launcher/ relative to dashboard root.
