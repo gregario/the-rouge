@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { AlertCircle, Check, Loader2, Save, ShieldCheck, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Help } from '@/components/ui/help'
 import { cn } from '@/lib/utils'
 
 interface ValidationResult {
@@ -163,6 +164,11 @@ export function SecretsStep({ onReady }: { onReady: (ready: boolean) => void }) 
           Values go to your OS keychain under the <code className="rounded bg-muted px-1">rouge-*</code> prefix —
           your personal keychain entries are not touched. You can add these later.
         </p>
+        <Help className="mt-2">
+          <p><strong>Do I need these now?</strong> No — you can skip this step and add creds later via the Setup tab.</p>
+          <p><strong>Which ones?</strong> Only the services your product will use. Stripe for payments, Supabase for database+auth, Sentry for error tracking, Cloudflare for DNS, Vercel for deployment. Rouge won&apos;t try to wire up integrations whose keys aren&apos;t set.</p>
+          <p><strong>Safety:</strong> Rouge stores under the <code>rouge-*</code> prefix. Your existing Stripe/Supabase/etc keychain entries for other projects are not touched, and <code>rouge uninstall</code> only removes <code>rouge-*</code> entries.</p>
+        </Help>
       </div>
 
       {error && (

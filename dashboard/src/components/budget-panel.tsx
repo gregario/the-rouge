@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { DollarSign, Loader2, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Help } from '@/components/ui/help'
 import { cn } from '@/lib/utils'
 
 interface BudgetData {
@@ -140,6 +141,13 @@ export function BudgetPanel() {
       {error && (
         <p className="mt-2 text-xs text-red-700">{error}</p>
       )}
+      <div className="mt-2">
+        <Help>
+          <p><strong>What counts as spend?</strong> Cumulative Claude API cost across all projects, read from each project&apos;s <code>state.json</code> (<code>costs.cumulative_cost_usd</code>).</p>
+          <p><strong>What does the cap do?</strong> Rouge pauses a running loop if its project&apos;s spend exceeds <code>budget_cap_usd</code>. The cap here is global in rouge.config.json; per-project caps are a future addition.</p>
+          <p><strong>Saving the cap</strong> writes to <code>rouge.config.json</code> directly — same file <code>rouge</code> reads.</p>
+        </Help>
+      </div>
     </div>
   )
 }

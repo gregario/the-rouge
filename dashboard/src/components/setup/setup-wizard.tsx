@@ -119,9 +119,19 @@ export function SetupWizard() {
 
       {/* Footer actions */}
       <div className="mt-6 flex items-center justify-between">
-        <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
-          ← Back to dashboard
-        </Link>
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <Link href="/" className="hover:text-foreground">
+            ← Back to dashboard
+          </Link>
+          <a
+            href="https://github.com/gregario/the-rouge/tree/main/docs"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-foreground"
+          >
+            Full docs ↗
+          </a>
+        </div>
         <div className="flex items-center gap-3">
           {activeIdx > 0 && (
             <Button variant="outline" onClick={() => {

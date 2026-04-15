@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Check, Copy, ExternalLink, Loader2, Save, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Help } from '@/components/ui/help'
 import { cn } from '@/lib/utils'
 
 type ValidationState = 'idle' | 'checking' | 'ok' | 'error'
@@ -166,6 +167,13 @@ export function SlackStep({ onReady }: { onReady: (ready: boolean) => void }) {
           The dashboard is your primary control surface — Slack is secondary.
           Skip this step if you&apos;re not using Slack.
         </p>
+        <Help className="mt-2">
+          <p><strong>Bot token vs App token vs Webhook — what are they?</strong></p>
+          <p><strong>Bot token</strong> (<code>xoxb-…</code>): identifies your bot when it posts or reads messages. Required.</p>
+          <p><strong>App token</strong> (<code>xapp-…</code>): enables Socket Mode, which lets the bot receive events over a websocket instead of a public webhook URL. Required — Rouge uses Socket Mode so you don&apos;t need to expose a public URL.</p>
+          <p><strong>Webhook</strong> (<code>https://hooks.slack.com/…</code>): one-way channel for Rouge to post build notifications. Optional but recommended — it works without the bot being running.</p>
+          <p><strong>Full docs:</strong> see <a href="/docs/how-to/slack-setup" className="underline">how-to/slack-setup</a> for the manual version.</p>
+        </Help>
       </div>
 
       {error && (
