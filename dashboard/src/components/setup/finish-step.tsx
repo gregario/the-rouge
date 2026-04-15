@@ -56,7 +56,8 @@ export function FinishStep({ onReady }: { onReady: (ready: boolean) => void }) {
           <Rocket className="h-8 w-8 text-red-500 shrink-0" />
           <div className="flex-1">
             <p className="text-sm text-foreground">
-              From here, the fastest path is the <strong>New Project</strong> button on the dashboard.
+              From here, the fastest path is the{' '}
+              <strong>New Project</strong> button on the dashboard.
               It&apos;ll walk you through naming and seeding your first product.
             </p>
             <p className="mt-3 text-xs text-muted-foreground">

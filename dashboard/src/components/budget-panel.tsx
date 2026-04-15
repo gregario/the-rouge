@@ -12,6 +12,10 @@ interface BudgetData {
   configPath?: string | null
 }
 
+/**
+ * Compact one-line budget strip for the dashboard header.
+ * Shows spend/cap + progress bar + Edit + Why? — all inline.
+ */
 export function BudgetPanel() {
   const [data, setData] = useState<BudgetData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -67,15 +71,15 @@ export function BudgetPanel() {
 
   if (loading && !data) {
     return (
-      <div className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> Loading budget…
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading budget…
       </div>
     )
   }
 
   if (!data) {
     return error ? (
-      <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800">{error}</div>
+      <span className="text-xs text-red-700">Budget: {error}</span>
     ) : null
   }
 
@@ -84,38 +88,24 @@ export function BudgetPanel() {
   const color = overCap ? 'bg-red-500' : pct > 80 ? 'bg-amber-500' : 'bg-green-500'
 
   return (
-    <div className="rounded-lg border border-border bg-card p-3 text-sm w-full max-w-xs">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 font-medium text-foreground">
-          <DollarSign className="h-4 w-4" />
-          Budget
-        </div>
-        {!editing && (
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
-          >
-            Edit cap
-          </button>
-        )}
-      </div>
-
-      <div className="mt-2 flex items-baseline gap-1.5">
-        <span className={cn('text-lg font-semibold tabular-nums', overCap && 'text-red-600')}>
+    <div className="flex flex-col items-end gap-1">
+      <div className="flex items-center gap-2 text-sm">
+        <DollarSign className="h-4 w-4 text-muted-foreground" />
+        <span className={cn('font-semibold tabular-nums', overCap && 'text-red-600')}>
           ${data.spend.total.toFixed(2)}
         </span>
-        <span className="text-xs text-muted-foreground">/</span>
+        <span className="text-muted-foreground">/</span>
         {editing ? (
-          <div className="flex items-center gap-1">
-            <span className="text-sm text-muted-foreground">$</span>
+          <span className="flex items-center gap-1">
+            <span className="text-muted-foreground">$</span>
             <input
               type="number" min="0" step="1"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              className="w-20 rounded-md border border-border bg-background px-2 py-0.5 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-16 rounded-md border border-border bg-background px-2 py-0.5 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-ring"
+              autoFocus
             />
-            <Button size="sm" onClick={save} disabled={saving}>
+            <Button size="sm" onClick={save} disabled={saving} className="h-6 px-2">
               {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
             </Button>
             <button
@@ -125,29 +115,33 @@ export function BudgetPanel() {
             >
               Cancel
             </button>
-          </div>
+          </span>
         ) : (
-          <span className="text-sm text-muted-foreground tabular-nums">${data.cap.toFixed(0)} cap</span>
+          <>
+            <span className="text-muted-foreground tabular-nums">${data.cap.toFixed(0)} cap</span>
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 ml-1"
+            >
+              Edit
+            </button>
+          </>
         )}
       </div>
-
-      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+      <div className="h-1 w-40 overflow-hidden rounded-full bg-muted">
         <div className={cn('h-full rounded-full transition-all', color)} style={{ width: `${Math.max(1, pct)}%` }} />
       </div>
-
       {overCap && (
-        <p className="mt-2 text-xs text-red-700">Over cap — raise it or pause active builds.</p>
+        <span className="text-xs text-red-700">Over cap — raise it or pause active builds.</span>
       )}
       {error && (
-        <p className="mt-2 text-xs text-red-700">{error}</p>
+        <span className="text-xs text-red-700">{error}</span>
       )}
-      <div className="mt-2">
-        <Help>
-          <p><strong>What counts as spend?</strong> Cumulative Claude API cost across all projects, read from each project&apos;s <code>state.json</code> (<code>costs.cumulative_cost_usd</code>).</p>
-          <p><strong>What does the cap do?</strong> Rouge pauses a running loop if its project&apos;s spend exceeds <code>budget_cap_usd</code>. The cap here is global in rouge.config.json; per-project caps are a future addition.</p>
-          <p><strong>Saving the cap</strong> writes to <code>rouge.config.json</code> directly — same file <code>rouge</code> reads.</p>
-        </Help>
-      </div>
+      <Help>
+        <p><strong>What counts as spend?</strong> Cumulative Claude API cost across all projects, read from each project&apos;s <code>state.json</code> (<code>costs.cumulative_cost_usd</code>).</p>
+        <p><strong>What does the cap do?</strong> Rouge pauses a running loop if its project&apos;s spend exceeds <code>budget_cap_usd</code>. Global cap lives in rouge.config.json.</p>
+      </Help>
     </div>
   )
 }
