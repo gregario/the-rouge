@@ -9,7 +9,7 @@
     ],
     "custom_pre_hooks": []
   },
-  "budget_cap_usd": 300,
+  "budget_cap_usd": 50,
   "spin_detection": {
     "zero_delta_threshold": 3,
     "time_stall_minutes": 30,
