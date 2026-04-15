@@ -1611,6 +1611,7 @@ async function runPhase(projectDir) {
     log(`[${projectName}] Auth mode: ${authMode}`);
 
     // spawn (not execFile) for real-time stdout streaming
+    const { args: denyArgs } = require('./tool-permissions').buildDenylistArgs();
     const child = spawn('claude', [
       '-p',
       promptInstruction,
@@ -1618,6 +1619,7 @@ async function runPhase(projectDir) {
       '--model', model,
       '--max-turns', '200',
       ...addDirs.flatMap(dir => ['--add-dir', dir]),
+      ...denyArgs,
     ], {
       cwd: projectDir,
       env: claudeEnv,

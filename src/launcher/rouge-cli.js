@@ -545,7 +545,8 @@ function cmdSeed(name) {
   let state = null;
   try { state = JSON.parse(fs.readFileSync(statePath, 'utf8')); } catch {}
   const { env: claudeEnv } = buildClaudeEnv({ state });
-  const child = spawn('claude', ['-p', '--project', projectPath], {
+  const { args: denyArgs } = require('./tool-permissions').buildDenylistArgs();
+  const child = spawn('claude', ['-p', '--project', projectPath, ...denyArgs], {
     stdio: ['pipe', 'inherit', 'inherit'],
     env: claudeEnv,
   });

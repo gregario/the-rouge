@@ -447,6 +447,14 @@ function invokeClaudeSeeding(projectDir, prompt, sessionId) {
   // Defence-in-depth — prevents accidental sibling-project discovery.
   args.push('--add-dir', path.join(rougeRoot, 'src/prompts/seeding'));
   args.push('--add-dir', path.join(rougeRoot, 'library'));
+  // Rouge-core + vendor denylist. execSync uses a joined string, so
+  // each pattern is single-quoted to survive shell parsing.
+  const toolPermissions = require(path.join(rougeRoot, 'src/launcher/tool-permissions'));
+  const { args: denyArgs } = toolPermissions.buildDenylistArgs();
+  for (const arg of denyArgs) {
+    // --disallowedTools or a pattern like Bash(gh *)
+    args.push(arg.startsWith('--') ? arg : `'${arg.replace(/'/g, "'\\''")}'`);
+  }
   if (sessionId) {
     args.push('--resume', sessionId);
   }

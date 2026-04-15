@@ -8,45 +8,45 @@ Every vendor is one directory containing exactly two files:
 
 ```
 library/vendors/<name>/
-  manifest.yaml   # declarative configuration
+  manifest.json   # declarative configuration
   handler.js     # intent implementations + ownership verification
 ```
 
-`<name>` must be lowercase kebab-case (e.g. `fly`, `cloudflare-workers`) and must equal the `name` field in `manifest.yaml`.
+`<name>` must be lowercase kebab-case (e.g. `fly`, `cloudflare-workers`) and must equal the `name` field in `manifest.json`.
 
-## `manifest.yaml`
+## `manifest.json`
 
 Validated against `schemas/vendor-manifest.json` at launcher startup. Invalid manifests abort boot — fail loud, not mid-build.
 
 Required fields: `name`, `version`, `intents`, `ownership_fence`. Typical structure:
 
-```yaml
-name: fly
-version: 1
-description: Fly.io app deploys via flyctl
-
-deny_patterns:
-  - "Bash(flyctl *)"
-  - "Bash(fly *)"
-
-intents:
-  - name: deploy-staging
-    handler: deployStaging
-    description: Deploy the staging app via the Fly Machines API
-  - name: deploy-production
-    handler: deployProduction
-  - name: rollback-production
-    handler: rollbackProduction
-
-ownership_fence:
-  manifest_field: fly_app_id
-  verify: verifyOwnership
-  pre_foundation_snapshot: listExistingApps
-
-escalations:
-  - infrastructure-ownership-ambiguity
-  - vendor-auth-expired
+```json
+{
+  "name": "fly",
+  "version": 1,
+  "description": "Fly.io app deploys via flyctl",
+  "deny_patterns": [
+    "Bash(flyctl *)",
+    "Bash(fly *)"
+  ],
+  "intents": [
+    { "name": "deploy-staging", "handler": "deployStaging" },
+    { "name": "deploy-production", "handler": "deployProduction" },
+    { "name": "rollback-production", "handler": "rollbackProduction" }
+  ],
+  "ownership_fence": {
+    "manifest_field": "fly_app_id",
+    "verify": "verifyOwnership",
+    "pre_foundation_snapshot": "listExistingApps"
+  },
+  "escalations": [
+    "infrastructure-ownership-ambiguity",
+    "vendor-auth-expired"
+  ]
+}
 ```
+
+Loader: `src/launcher/vendors.js`. Handler auto-wiring into `INFRA_ACTION_HANDLERS` lands in a follow-up; PR (b) only merges `deny_patterns` into `--disallowedTools`.
 
 ## `handler.js`
 
@@ -93,7 +93,7 @@ The launcher test harness exposes `mockVendorContext()` — use it. See `test/ve
 
 ## Checklist before opening a PR
 
-- [ ] `manifest.yaml` validates against `schemas/vendor-manifest.json`
+- [ ] `manifest.json` validates against `schemas/vendor-manifest.json`
 - [ ] Every declared intent has a matching export in `handler.js`
 - [ ] `verifyOwnership` export exists and is wired to `ownership_fence.verify`
 - [ ] `deny_patterns` cover the vendor's CLI (including `npx <cli>` form if applicable)

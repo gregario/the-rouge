@@ -65,6 +65,16 @@ Deny takes precedence over allow per Claude Code permission semantics.
 - **Compound commands.** Prompts use `&&`, `||`, `|` extensively. Claude Code splits these and matches each leg against the allowlist independently. Every leg must be in the allow list or the whole command is denied. Audit above lists each leg separately.
 - **`npx` is not stripped.** `Bash(npx:*)` would be far too broad. Each `npx <tool>` is whitelisted by specific tool name.
 
+## Empirical findings (PR b, 2026-04-16)
+
+Verified against `claude 2.1.110` via `test/launcher/allowed-tools-behavior.test.js`:
+
+1. **Denied Bash pattern in `-p` mode returns a string error; does not hang.** Safe for autonomous loops.
+2. **`--dangerously-skip-permissions` does NOT bypass `--disallowedTools`.** Observed: *"The command was denied by your permission settings."* — subprocess continued and said DONE.
+3. **Allowed Bash patterns execute without prompts in `-p`.**
+
+Consequence: PR (b) passes `--disallowedTools` alongside `--dangerously-skip-permissions` at every spawn site. Denies enforce immediately; dropping the dangerous flag becomes a PR (c) hardening step, not a prerequisite.
+
 ## Vendor extensibility
 
-Vendor-specific allow/deny patterns live in `library/vendors/<vendor>/manifest.yaml` and are merged into the launcher-constructed `--allowedTools` at spawn time. See `docs/contributing/adding-a-vendor.md` and `schemas/vendor-manifest.json`. The Rouge-core allow/deny in this document is vendor-agnostic.
+Vendor-specific deny patterns live in `library/vendors/<vendor>/manifest.json` and are merged into the launcher-constructed `--disallowedTools` at spawn time by `src/launcher/vendors.js` + `src/launcher/tool-permissions.js`. See `docs/contributing/adding-a-vendor.md` and `schemas/vendor-manifest.json`. The Rouge-core denylist in `src/launcher/tool-permissions.js:ROUGE_CORE_DENY` is vendor-agnostic.
