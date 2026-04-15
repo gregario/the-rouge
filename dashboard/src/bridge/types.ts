@@ -83,6 +83,7 @@ export interface BridgeProjectSummary {
   currentStory?: string
   escalation?: { tier: number; summary: string }
   costUsd?: number
+  budgetCapUsd?: number
   lastCheckpointAt?: string
   hasStateFile: boolean
   providers: string[]

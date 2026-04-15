@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { assertLoopback } from "@/lib/localhost-guard";
+import { loadServerConfig } from "@/lib/server-config";
 import { existsSync, readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
@@ -17,12 +18,11 @@ function resolveRougeConfigPath(): string | null {
   return null;
 }
 
-function projectsRoot(): string {
-  return process.env.ROUGE_PROJECTS_DIR ?? path.join(process.env.HOME ?? "/tmp", ".rouge", "projects");
-}
-
 function readTotalSpend(): { total: number; byProject: Record<string, number> } {
-  const root = projectsRoot();
+  // Use the shared server config — the old handcoded `~/.rouge/projects`
+  // fallback didn't match where the launcher actually writes projects
+  // when run from a cloned repo, which broke the spend sum silently.
+  const root = loadServerConfig().projectsRoot;
   const byProject: Record<string, number> = {};
   let total = 0;
   if (!existsSync(root)) return { total, byProject };
@@ -53,7 +53,7 @@ export async function GET() {
 
   const cfgPath = resolveRougeConfigPath();
   const cfg = cfgPath ? JSON.parse(readFileSync(cfgPath, "utf-8")) as { budget_cap_usd?: number } : {};
-  const cap = Number(cfg.budget_cap_usd ?? 50);
+  const cap = Number(cfg.budget_cap_usd ?? 100);
   const spend = readTotalSpend();
   return NextResponse.json({ cap, spend, configPath: cfgPath });
 }

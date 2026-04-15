@@ -1414,15 +1414,19 @@ async function runPhase(projectDir) {
   const checkpointsFile = path.join(projectDir, 'checkpoints.jsonl');
   const configFile = path.join(ROUGE_ROOT, 'rouge.config.json');
   const config = readJson(configFile) || {};
-  if (config.budget_cap_usd && checkBudgetCap(state, config.budget_cap_usd)) {
-    log(`[${projectName}] Budget cap reached ($${state.costs?.cumulative_cost_usd?.toFixed(2)} / $${config.budget_cap_usd}) — escalating`);
+  // Per-project cap (set at creation or via dashboard) overrides the
+  // global default. Keeps runaway-build protection but lets a user raise
+  // the cap on a specific build without changing the global default.
+  const effectiveCap = state.budget_cap_usd ?? config.budget_cap_usd;
+  if (effectiveCap && checkBudgetCap(state, effectiveCap)) {
+    log(`[${projectName}] Budget cap reached ($${state.costs?.cumulative_cost_usd?.toFixed(2)} / $${effectiveCap}) — escalating`);
     state.current_state = 'escalation';
     if (!state.escalations) state.escalations = [];
     state.escalations.push({
       id: `esc-budget-cap-${Date.now()}`,
       tier: 2,
       classification: 'budget-exceeded',
-      summary: `Budget cap reached: $${state.costs?.cumulative_cost_usd?.toFixed(2)} / $${config.budget_cap_usd}`,
+      summary: `Budget cap reached: $${state.costs?.cumulative_cost_usd?.toFixed(2)} / $${effectiveCap}`,
       story_id: null,
       status: 'pending',
       created_at: new Date().toISOString(),
@@ -1801,15 +1805,16 @@ async function runPhase(projectDir) {
         writeJson(stateFile, state);
         log(`[${projectName}] Cost: ~${state.costs.phase_cost_usd.toFixed(2)} USD this phase, ~${state.costs.cumulative_cost_usd.toFixed(2)} USD cumulative`);
 
-        // V3: Cost milestone notifications
-        if (config.budget_cap_usd) {
-          const pct = Math.round((state.costs.cumulative_cost_usd / config.budget_cap_usd) * 100);
+        // V3: Cost milestone notifications (per-project cap wins over global)
+        const alertCap = state.budget_cap_usd ?? config.budget_cap_usd;
+        if (alertCap) {
+          const pct = Math.round((state.costs.cumulative_cost_usd / alertCap) * 100);
           if (pct >= 80 && !state._cost_alert_80) {
             state._cost_alert_80 = true;
-            notifyRich('cost-alert', { project: projectName, currentUsd: state.costs.cumulative_cost_usd, budgetUsd: config.budget_cap_usd, percentage: 80 });
+            notifyRich('cost-alert', { project: projectName, currentUsd: state.costs.cumulative_cost_usd, budgetUsd: alertCap, percentage: 80 });
           } else if (pct >= 50 && !state._cost_alert_50) {
             state._cost_alert_50 = true;
-            notifyRich('cost-alert', { project: projectName, currentUsd: state.costs.cumulative_cost_usd, budgetUsd: config.budget_cap_usd, percentage: 50 });
+            notifyRich('cost-alert', { project: projectName, currentUsd: state.costs.cumulative_cost_usd, budgetUsd: alertCap, percentage: 50 });
           }
           writeJson(stateFile, state);
         }

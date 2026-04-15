@@ -1,10 +1,28 @@
 import { NextResponse } from "next/server";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { scanProjects } from "@/bridge/scanner";
 import { writeSeedingState } from "@/bridge/seeding-state";
 import { startSeedingSession } from "@/bridge/seed-handler";
 import { loadServerConfig } from "@/lib/server-config";
+
+// Pull the global default cap from rouge.config.json. Falls back to 100
+// if the file isn't found (matches the live default).
+function readDefaultBudgetCap(): number {
+  const candidates = [
+    join(process.cwd(), "rouge.config.json"),
+    resolve(__dirname, "../../../../../../rouge.config.json"),
+  ];
+  for (const p of candidates) {
+    try {
+      if (existsSync(p)) {
+        const cfg = JSON.parse(readFileSync(p, "utf-8")) as { budget_cap_usd?: number };
+        if (typeof cfg.budget_cap_usd === "number") return cfg.budget_cap_usd;
+      }
+    } catch { /* next candidate */ }
+  }
+  return 100;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +60,10 @@ export async function POST(request: Request) {
     project: slug,
     name,
     current_state: "seeding",
+    // Per-project cap copied from the global default at creation. Users
+    // can override this from the project page or promote-to-build
+    // confirmation.
+    budget_cap_usd: readDefaultBudgetCap(),
     milestones: [],
     escalations: [],
     seedingProgress: {

@@ -256,6 +256,7 @@ function normalizeProject(
     currentStory: (raw.current_story as string) || undefined,
     escalation,
     costUsd: lastCheckpoint.costUsd,
+    budgetCapUsd: typeof raw.budget_cap_usd === 'number' ? (raw.budget_cap_usd as number) : undefined,
     lastCheckpointAt: lastCheckpoint.timestamp,
     hasStateFile: true,
     providers,

@@ -70,6 +70,7 @@ export async function PATCH(
     displayName?: string;
     slug?: string;
     archived?: boolean;
+    budgetCap?: number;
   };
 
   const state = JSON.parse(readFileSync(stateFile, "utf-8"));
@@ -131,9 +132,20 @@ export async function PATCH(
     state.project = trimmed;
   }
 
-  // Persist state.json once — covers archive toggle, display-name update,
-  // or both in the same request.
-  if (body.displayName !== undefined || body.archived !== undefined) {
+  // Per-project budget cap
+  if (body.budgetCap !== undefined) {
+    const n = Number(body.budgetCap);
+    if (!Number.isFinite(n) || n < 0) {
+      return NextResponse.json({ error: "budgetCap must be a non-negative number" }, { status: 400 });
+    }
+    state.budget_cap_usd = n;
+    // Clear prior alerts so raising the cap doesn't leave stale 80% flags.
+    delete state._cost_alert_80;
+    delete state._cost_alert_50;
+  }
+
+  // Single write — covers display-name, archive toggle, budget cap, or any combo.
+  if (body.displayName !== undefined || body.archived !== undefined || body.budgetCap !== undefined) {
     const targetDir = slugChanged ? join(projectsRoot, slugChanged) : projectDir;
     writeFileSync(join(targetDir, "state.json"), JSON.stringify(state, null, 2) + "\n");
   }

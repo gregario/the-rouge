@@ -74,11 +74,13 @@ interface RougeState {
   }
   // Checkpoint summary from latest checkpoint (added by bridge)
   costUsd?: number | null
+  budgetCapUsd?: number | null
   lastCheckpointAt?: string | null
   lastPhase?: string | null
   checkpointCount?: number
   archived?: boolean
   archivedAt?: string
+  budget_cap_usd?: number
 }
 
 function mapSeedingProgress(raw: RougeState['seedingProgress']): SeedingProgress | undefined {
@@ -247,7 +249,10 @@ export function mapRougeStateToProjectDetail(raw: unknown, slug: string): Projec
     cost: {
       // Real cumulative cost from latest checkpoint, or 0 if no checkpoints yet
       totalSpend: state.costUsd ?? 0,
-      budgetCap: 500, // see rouge.config.json — raised from $50 to $500
+      // Per-project cap from state.json, falls back for ancient projects that
+      // predate per-project caps. The launcher's effective cap is now always
+      // state.budget_cap_usd ?? rouge.config.json.budget_cap_usd.
+      budgetCap: state.budget_cap_usd ?? state.budgetCapUsd ?? 100,
       breakdown: { llmTokens: 0, deploys: 0, other: 0 },
       lastUpdated: now,
     },

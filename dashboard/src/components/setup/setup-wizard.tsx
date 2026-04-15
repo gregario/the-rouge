@@ -9,9 +9,10 @@ import { DoctorStep } from './doctor-step'
 import { SecretsStep } from './secrets-step'
 import { SlackStep } from './slack-step'
 import { DaemonStep } from './daemon-step'
+import { DefaultsStep } from './defaults-step'
 import { FinishStep } from './finish-step'
 
-type StepId = 'prereqs' | 'secrets' | 'slack' | 'daemon' | 'finish'
+type StepId = 'prereqs' | 'secrets' | 'slack' | 'daemon' | 'defaults' | 'finish'
 
 interface Step {
   id: StepId
@@ -24,13 +25,14 @@ const steps: Step[] = [
   { id: 'secrets', label: 'Integrations (optional)' },
   { id: 'slack', label: 'Slack (optional)' },
   { id: 'daemon', label: 'Background daemon' },
+  { id: 'defaults', label: 'Defaults' },
   { id: 'finish', label: 'Finish' },
 ]
 
 export function SetupWizard() {
   const [activeIdx, setActiveIdx] = useState(0)
   const [readyMap, setReadyMap] = useState<Record<StepId, boolean>>({
-    prereqs: false, secrets: false, slack: false, daemon: false, finish: false,
+    prereqs: false, secrets: false, slack: false, daemon: false, defaults: false, finish: false,
   })
 
   const active = steps[activeIdx]
@@ -114,6 +116,7 @@ export function SetupWizard() {
         {active.id === 'secrets' && <SecretsStep onReady={(r) => markReady('secrets', r)} />}
         {active.id === 'slack' && <SlackStep onReady={(r) => markReady('slack', r)} />}
         {active.id === 'daemon' && <DaemonStep onReady={(r) => markReady('daemon', r)} />}
+        {active.id === 'defaults' && <DefaultsStep onReady={(r) => markReady('defaults', r)} />}
         {active.id === 'finish' && <FinishStep onReady={(r) => markReady('finish', r)} />}
       </div>
 
