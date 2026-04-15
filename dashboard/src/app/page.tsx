@@ -8,6 +8,7 @@ import { TopBar } from '@/components/top-bar'
 import { LiveRefresh } from '@/components/live-refresh'
 import { NewProjectButton } from '@/components/new-project-button'
 import { BudgetPanel } from '@/components/budget-panel'
+import { SpecsTable } from '@/components/specs-table'
 import { cn } from '@/lib/utils'
 
 // Render per-request so the same-origin /api/projects fetch resolves.
@@ -84,6 +85,8 @@ const buildingStates = new Set<ProjectState>([
 ])
 const specStates = new Set<ProjectState>(['seeding', 'ready'])
 
+// Card-based sections (needs-attention / building / shipped). Specs are
+// rendered as a separate table layout so they get their own section below.
 const sections: Section[] = [
   {
     id: 'needs-attention',
@@ -98,13 +101,6 @@ const sections: Section[] = [
     accentBorder: 'border-blue-500',
     accentText: 'text-blue-600',
     filter: (p) => buildingStates.has(p.state),
-  },
-  {
-    id: 'in-spec',
-    title: 'In Spec',
-    accentBorder: 'border-purple-500',
-    accentText: 'text-purple-600',
-    filter: (p) => specStates.has(p.state),
   },
   {
     id: 'shipped',
@@ -155,25 +151,51 @@ export default async function Home() {
       </div>
 
       <div className="mt-10 flex flex-col gap-12">
-        {sections.map((section) => {
-          const sectionProjects = sortByUpdated(projects.filter(section.filter))
-          if (sectionProjects.length === 0) return null
-
+        {/* Needs Attention — cards, only renders when non-empty */}
+        {(() => {
+          const section = sections[0]
+          const list = sortByUpdated(projects.filter(section.filter))
+          if (list.length === 0) return null
           return (
             <div key={section.id}>
-              {/* Section header */}
               <div className={cn('mb-6 flex items-center gap-3 border-l-4 pl-4', section.accentBorder)}>
                 <h2 className="text-xl font-bold text-foreground">{section.title}</h2>
-                <span className={cn('text-sm font-semibold tabular-nums', section.accentText)}>
-                  {sectionProjects.length}
-                </span>
+                <span className={cn('text-sm font-semibold tabular-nums', section.accentText)}>{list.length}</span>
               </div>
-
-              {/* Project cards */}
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {sectionProjects.map((project) => (
-                  <ProjectCard key={project.id} project={project} />
-                ))}
+                {list.map((project) => <ProjectCard key={project.id} project={project} />)}
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* Specs — dense table, sortable. Always visible so users can start
+            one from empty. Specs live here forever, even unbuilt. */}
+        <div>
+          <div className="mb-6 flex items-center gap-3 border-l-4 border-purple-500 pl-4">
+            <h2 className="text-xl font-bold text-foreground">Specs</h2>
+            <span className="text-sm font-semibold tabular-nums text-purple-600">
+              {projects.filter((p) => specStates.has(p.state)).length}
+            </span>
+            <span className="ml-2 text-xs text-muted-foreground">
+              Ideas in development. Sit here until you promote them to a build.
+            </span>
+          </div>
+          <SpecsTable specs={projects.filter((p) => specStates.has(p.state))} />
+        </div>
+
+        {/* Building + Shipped — cards, only render when non-empty */}
+        {sections.slice(1).map((section) => {
+          const list = sortByUpdated(projects.filter(section.filter))
+          if (list.length === 0) return null
+          return (
+            <div key={section.id}>
+              <div className={cn('mb-6 flex items-center gap-3 border-l-4 pl-4', section.accentBorder)}>
+                <h2 className="text-xl font-bold text-foreground">{section.title}</h2>
+                <span className={cn('text-sm font-semibold tabular-nums', section.accentText)}>{list.length}</span>
+              </div>
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {list.map((project) => <ProjectCard key={project.id} project={project} />)}
               </div>
             </div>
           )
