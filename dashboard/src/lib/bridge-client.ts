@@ -1,16 +1,28 @@
 // Bridge client — connects the dashboard to the Rouge API routes.
 //
 // Post-unification, the bridge runs as Next route handlers under /api/* on
-// the same origin as the frontend. BRIDGE_URL defaults to empty (relative
-// URLs hit the same host/port). NEXT_PUBLIC_BRIDGE_URL is kept as an
-// override for dev scenarios where the frontend is served from one host
-// and the API from another.
+// the same origin as the frontend. In the browser, relative URLs resolve
+// against window.location. On the server (Server Components, SSR), Node's
+// fetch requires absolute URLs — so we synthesize http://localhost:${PORT}
+// for same-process calls. NEXT_PUBLIC_BRIDGE_URL overrides both for dev
+// scenarios where frontend and API live on different hosts.
 //
 // isBridgeEnabled() now always returns true — the API routes always exist,
 // even if the backing projects directory is empty. Retained for callers
 // that still branch on it; safe to drop in a follow-up.
 
-const BRIDGE_URL = process.env.NEXT_PUBLIC_BRIDGE_URL ?? ''
+function resolveBridgeUrl(): string {
+  const override = process.env.NEXT_PUBLIC_BRIDGE_URL
+  if (override) return override
+  // Browser: relative URLs are fine.
+  if (typeof window !== 'undefined') return ''
+  // Server: Node fetch needs absolute URLs. We're in-process with the
+  // route handlers, so http://localhost:${PORT} is always correct.
+  const port = process.env.PORT ?? process.env.ROUGE_DASHBOARD_PORT ?? '3001'
+  return `http://localhost:${port}`
+}
+
+const BRIDGE_URL = resolveBridgeUrl()
 
 export function isBridgeEnabled(): boolean {
   return true

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { catalogue } from '@/data/catalogue'
+import { ShutdownButton } from '@/components/shutdown-button'
 
 const links = [
   { href: '/', label: 'Dashboard' },
@@ -87,6 +88,11 @@ export function Nav() {
           <span className="text-foreground font-medium">{catalogueEntity.name}</span>
         </div>
       )}
+
+      {/* Shutdown button — always right-aligned, never pushed off by breadcrumbs */}
+      <div className={cn('flex items-center gap-2', !(breadcrumb || catalogueEntity) && 'ml-auto', (breadcrumb || catalogueEntity) && 'ml-4')}>
+        <ShutdownButton />
+      </div>
     </nav>
   )
 }

@@ -33,6 +33,68 @@ function resolveProjectsDir() {
 const PROJECTS_DIR = resolveProjectsDir();
 
 // ---------------------------------------------------------------------------
+// Lifecycle primitives (shared by `dashboard`, top-level `status/stop/start`,
+// and `uninstall`). Kept at module scope so every command sees the same
+// PID file, port, and URL.
+// ---------------------------------------------------------------------------
+
+const ROUGE_HOME = process.env.ROUGE_HOME || path.join(require('os').homedir(), '.rouge');
+const PID_FILE = path.join(ROUGE_HOME, 'dashboard.pid');
+const DASHBOARD_PORT = parseInt(process.env.ROUGE_DASHBOARD_PORT || '3001', 10);
+const DASHBOARD_URL = `http://localhost:${DASHBOARD_PORT}`;
+
+function readDashboardPids() {
+  try { return JSON.parse(fs.readFileSync(PID_FILE, 'utf8')); } catch { return null; }
+}
+function isPidRunning(pid) {
+  if (!pid) return false;
+  try { process.kill(pid, 0); return true; } catch { return false; }
+}
+function dashboardLiveness() {
+  const pids = readDashboardPids();
+  if (!pids) return { running: false, pid: null, pids: null };
+  const pid = pids.pid || pids.bridge; // back-compat
+  return { running: isPidRunning(pid), pid, pids };
+}
+
+// Returns the first PID listening on `port` (IPv4 OR IPv6), or null.
+// Used to fail loud instead of silently binding a different address family
+// when another service holds the port — e.g. The Works on IPv6 :3001 while
+// Rouge would happily take IPv4 :3001, leaving the browser to pick one by
+// DNS resolution order.
+function findPortListener(port) {
+  try {
+    const out = execSync(`lsof -iTCP:${port} -sTCP:LISTEN -P -n`, {
+      encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    const lines = out.trim().split('\n').slice(1); // drop header
+    const entries = lines.map((l) => {
+      const [cmd, pid] = l.trim().split(/\s+/);
+      return { cmd, pid: parseInt(pid, 10) };
+    }).filter((e) => e.pid && !Number.isNaN(e.pid));
+    // Exclude our own dashboard's PID — if we just wrote the PID file and
+    // the process is already us, we shouldn't refuse to restart ourselves.
+    const ours = dashboardLiveness();
+    const foreign = entries.filter((e) => !ours.pid || e.pid !== ours.pid);
+    return foreign[0] || null;
+  } catch {
+    return null; // lsof missing, no listeners, or permission denied — don't block startup
+  }
+}
+
+// Returns true if something answers HTTP on the dashboard port — a cheap
+// way to tell "the running dashboard is actually serving" vs "PID is alive
+// but server died."
+function isDashboardResponsive(timeoutMs = 500) {
+  try {
+    execSync(`curl -s -o /dev/null --max-time ${Math.max(1, Math.ceil(timeoutMs / 1000))} ${DASHBOARD_URL}/`, { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Experimental-command warning. The dashboard is the canonical control
 // surface (see docs/plans/2026-04-15-onboarding-refactor.md). CLI verbs
 // like `seed`, `init`, `build`, and `slack start` still work but are no
@@ -124,6 +186,9 @@ function createPrompt() {
 // ---------------------------------------------------------------------------
 
 async function cmdSetup(integration) {
+  // Flags aren't integration names — `rouge setup --yes` should mean
+  // "first-run setup, accept defaults," not "integration named --yes."
+  if (integration && integration.startsWith('-')) integration = undefined;
   // First-run setup: `rouge setup` with no args installs everything
   if (!integration) {
     console.log('\n  Rouge first-time setup');
@@ -162,7 +227,51 @@ async function cmdSetup(integration) {
       console.log(`\n  Step 3: Projects directory exists at ${PROJECTS_DIR}`);
     }
 
-    // 4. Summary
+    // 4. Daemon install (macOS only for Phase 2.5a; Linux/Windows stubbed)
+    // Non-interactive flags for scripted/CI setup and for Claude Code's bash
+    // tool (which can't feed stdin to an interactive prompt):
+    //   --yes / -y      : accept defaults (install daemon)
+    //   --no-daemon     : skip daemon install
+    const cliArgs = process.argv.slice(2);
+    const autoYes = cliArgs.includes('--yes') || cliArgs.includes('-y');
+    const noDaemon = cliArgs.includes('--no-daemon');
+
+    const daemon = require('./daemon.js');
+    const daemonStatus = daemon.statusSummary();
+    if (daemonStatus.supported && !daemonStatus.installed) {
+      console.log('\n  Step 4: Background daemon');
+      let install;
+      if (noDaemon) {
+        install = false;
+        console.log('    --no-daemon: skipping launch agent install.');
+      } else if (autoYes) {
+        install = true;
+        console.log('    --yes: installing launch agent.');
+      } else {
+        const prompt = createPrompt();
+        const ans = (await prompt.ask('    Keep Rouge dashboard running at login? [Y/n]: ')).trim().toLowerCase();
+        prompt.close();
+        install = (ans === '' || ans === 'y' || ans === 'yes');
+      }
+      if (install) {
+        const r = daemon.install();
+        if (r.ok) {
+          console.log(`    Launch agent installed ✅ (${r.path})`);
+        } else {
+          console.log(`    ⚠️  ${r.reason}`);
+          console.log(`    You can still run the dashboard manually with \`rouge start\`.`);
+        }
+      } else {
+        console.log('    Skipped. Start manually anytime with `rouge start`.');
+      }
+    } else if (daemonStatus.supported && daemonStatus.installed) {
+      console.log('\n  Step 4: Launch agent already installed');
+    } else {
+      console.log(`\n  Step 4: Background daemon — not yet supported on ${daemonStatus.platform} (Phase 2.5b).`);
+      console.log(`          Start manually with \`rouge start\`.`);
+    }
+
+    // 5. Summary
     console.log('\n  ' + '-'.repeat(40));
     console.log('  Setup complete! Next step:');
     console.log('');
@@ -477,6 +586,9 @@ function cmdStatus(name) {
     return;
   }
 
+  // Multi-signal system status first, then all-projects table.
+  printSystemStatus();
+
   // All projects
   if (!fs.existsSync(PROJECTS_DIR)) {
     console.log('\n  No projects directory found.\n');
@@ -501,6 +613,118 @@ function cmdStatus(name) {
     printProjectStatus(projectName, path.join(PROJECTS_DIR, projectName));
   }
   console.log('');
+}
+
+function printSystemStatus() {
+  const daemon = require('./daemon.js');
+  const dash = dashboardLiveness();
+  const d = daemon.statusSummary();
+
+  console.log('');
+  console.log('  System');
+  console.log(`  ${'-'.repeat(60)}`);
+  if (dash.running) {
+    console.log(`  Dashboard:   ✅ running (PID ${dash.pid})   ${DASHBOARD_URL}`);
+    if (dash.pids && dash.pids.started_at) {
+      console.log(`               started ${dash.pids.started_at}${dash.pids.mode ? `, mode ${dash.pids.mode}` : ''}`);
+    }
+  } else {
+    console.log(`  Dashboard:   ❌ not running   (start: \`rouge start\`)`);
+  }
+  if (d.supported) {
+    const tag = d.installed ? (d.loaded ? '✅ installed & loaded' : '⚠️  installed but not loaded') : '○ not installed';
+    console.log(`  Daemon:      ${tag}   (${d.platform})`);
+  } else {
+    console.log(`  Daemon:      — not yet supported on ${d.platform} (Phase 2.5b)`);
+  }
+  console.log('');
+  console.log('  Projects');
+  console.log(`  ${'-'.repeat(60)}`);
+}
+
+function cmdStart() {
+  // Thin wrapper: delegates to `rouge dashboard start` so there's one code path.
+  const child = spawn(process.argv[0], [process.argv[1], 'dashboard', 'start', ...process.argv.slice(3)], {
+    stdio: 'inherit', env: process.env,
+  });
+  child.on('close', (code) => process.exit(code || 0));
+}
+
+function cmdStop() {
+  const child = spawn(process.argv[0], [process.argv[1], 'dashboard', 'stop'], {
+    stdio: 'inherit', env: process.env,
+  });
+  child.on('close', (code) => process.exit(code || 0));
+}
+
+async function cmdUninstall() {
+  const yes = process.argv.includes('--yes') || process.argv.includes('-y');
+  const keepProjects = process.argv.includes('--keep-projects');
+  const daemon = require('./daemon.js');
+
+  const rougeKeys = Object.keys(INTEGRATION_KEYS).map((k) => `rouge-${k}`).join(', ');
+  console.log('\n  This will remove Rouge from your machine:');
+  console.log(`    - Stop the dashboard if running`);
+  console.log(`    - Unload and remove the launch agent (${daemon.statusSummary().supported ? daemon.platform() : 'n/a'})`);
+  console.log(`    - Remove ${ROUGE_HOME}${keepProjects ? ' (but keep projects/)' : ''}`);
+  console.log(`    - Delete Rouge's keychain entries (${rougeKeys}).`);
+  console.log(`      Your personal keychain entries for these services are NOT touched —`);
+  console.log(`      Rouge stores its creds under the \`rouge-*\` prefix only.`);
+  console.log(`\n  It will NOT uninstall the \`rouge\` npm package — run`);
+  console.log(`  \`npm uninstall -g rouge\` yourself if you installed globally.\n`);
+
+  if (!yes) {
+    const prompt = createPrompt();
+    const ans = (await prompt.ask('  Type "uninstall" to confirm: ')).trim();
+    prompt.close();
+    if (ans !== 'uninstall') {
+      console.log('  Aborted.\n');
+      process.exit(0);
+    }
+  }
+
+  // 1. Stop dashboard
+  const live = dashboardLiveness();
+  if (live.running) {
+    process.stdout.write('  Stopping dashboard... ');
+    try { process.kill(live.pid, 'SIGTERM'); console.log('✅'); } catch (err) { console.log(`⚠️  ${err.message}`); }
+  }
+
+  // 2. Remove launch agent
+  const d = daemon.uninstall();
+  if (d.ok) {
+    console.log(`  Launch agent: ${d.removed ? 'removed ✅' : 'nothing to remove'}`);
+  } else {
+    console.log(`  Launch agent: ⚠️  ${d.reason}`);
+  }
+
+  // 3. Delete keychain entries
+  let secretCount = 0;
+  for (const [integration, keys] of Object.entries(INTEGRATION_KEYS)) {
+    for (const key of keys) {
+      try {
+        if (deleteSecret(integration, key)) secretCount++;
+      } catch { /* best-effort */ }
+    }
+  }
+  console.log(`  Keychain:    removed ${secretCount} entr${secretCount === 1 ? 'y' : 'ies'}`);
+
+  // 4. Remove ~/.rouge (or everything except projects/)
+  if (fs.existsSync(ROUGE_HOME)) {
+    if (keepProjects) {
+      const entries = fs.readdirSync(ROUGE_HOME);
+      for (const e of entries) {
+        if (e === 'projects') continue;
+        fs.rmSync(path.join(ROUGE_HOME, e), { recursive: true, force: true });
+      }
+      console.log(`  ${ROUGE_HOME}: cleared (projects/ preserved)`);
+    } else {
+      fs.rmSync(ROUGE_HOME, { recursive: true, force: true });
+      console.log(`  ${ROUGE_HOME}: removed`);
+    }
+  }
+
+  console.log('\n  Rouge uninstalled. To remove the CLI itself: `npm uninstall -g rouge`\n');
 }
 
 function printProjectStatus(name, projectPath) {
@@ -920,6 +1144,15 @@ if (command === 'doctor') {
   cmdBuild(args[1]);
 } else if (command === 'status') {
   cmdStatus(args[1]);
+} else if (command === 'start') {
+  cmdStart();
+} else if (command === 'stop') {
+  cmdStop();
+} else if (command === 'uninstall') {
+  cmdUninstall().catch((err) => {
+    console.error(err.message);
+    process.exit(1);
+  });
 } else if (command === 'cost') {
   cmdCost(args[1]);
 } else if (command === 'setup') {
@@ -985,14 +1218,13 @@ if (command === 'doctor') {
     console.log('');
   }
 } else if (command === 'dashboard') {
-  const subcommand = args[1];
+  // Flags aren't subcommands — `rouge dashboard --no-open` means "foreground
+  // with --no-open," not "unknown subcommand --no-open."
+  const subcommand = args[1] && !args[1].startsWith('-') ? args[1] : undefined;
   const dashboardDir = path.join(__dirname, '..', '..', 'dashboard');
   const standaloneServer = path.join(dashboardDir, 'dist', 'server.js');
   const standaloneMarker = path.join(dashboardDir, 'dist', 'ROUGE_STANDALONE');
-  const ROUGE_HOME = process.env.ROUGE_HOME || path.join(require('os').homedir(), '.rouge');
-  const PID_FILE = path.join(ROUGE_HOME, 'dashboard.pid');
-  const DASHBOARD_PORT = parseInt(process.env.ROUGE_DASHBOARD_PORT || '3001', 10);
-  const DASHBOARD_URL = `http://localhost:${DASHBOARD_PORT}`;
+  // ROUGE_HOME, PID_FILE, DASHBOARD_PORT, DASHBOARD_URL now at module scope.
 
   if (!fs.existsSync(dashboardDir)) {
     console.error('Dashboard not found at', dashboardDir);
@@ -1005,9 +1237,7 @@ if (command === 'doctor') {
   const hasPrebuilt = fs.existsSync(standaloneServer) && fs.existsSync(standaloneMarker);
   const hasDevDeps = fs.existsSync(path.join(dashboardDir, 'node_modules', 'next'));
 
-  function readPids() {
-    try { return JSON.parse(fs.readFileSync(PID_FILE, 'utf8')); } catch { return null; }
-  }
+  const readPids = readDashboardPids;
   function writePids(pids) {
     if (!fs.existsSync(ROUGE_HOME)) fs.mkdirSync(ROUGE_HOME, { recursive: true });
     fs.writeFileSync(PID_FILE, JSON.stringify(pids, null, 2) + '\n');
@@ -1015,9 +1245,7 @@ if (command === 'doctor') {
   function clearPids() {
     try { fs.unlinkSync(PID_FILE); } catch {}
   }
-  function isRunning(pid) {
-    try { process.kill(pid, 0); return true; } catch { return false; }
-  }
+  const isRunning = isPidRunning;
   function openBrowser(url) {
     // Cross-platform URL open. Best effort — swallow failures (headless
     // boxes, CI, users who've disabled the default handler).
@@ -1077,6 +1305,18 @@ if (command === 'doctor') {
       console.log(`  Open:      ${DASHBOARD_URL}`);
       console.log(`  Stop:      rouge dashboard stop`);
       process.exit(0);
+    }
+
+    // Port discipline: fail loud if something else holds the port. Binding
+    // only one address family silently (IPv4 while another app has IPv6,
+    // or vice versa) leaves the browser to pick by DNS resolution order —
+    // confusing when `http://localhost:PORT` reaches the other app.
+    const blocker = findPortListener(DASHBOARD_PORT);
+    if (blocker) {
+      console.error(`\n  ❌ Port ${DASHBOARD_PORT} is already in use by PID ${blocker.pid} (${blocker.cmd}).`);
+      console.error(`     Either stop that process, or run Rouge on a different port:`);
+      console.error(`       ROUGE_DASHBOARD_PORT=3101 rouge dashboard start\n`);
+      process.exit(1);
     }
 
     if (!hasPrebuilt && !hasDevDeps) {
@@ -1156,9 +1396,37 @@ if (command === 'doctor') {
 
   } else if (!subcommand) {
     assertControlPlaneAllowed('frontend');
-    console.log(`Starting dashboard in foreground (${hasPrebuilt ? 'prebuilt' : 'dev mode'}, Ctrl+C to stop)...`);
-    console.log(`  URL:       ${DASHBOARD_URL}`);
-    console.log(`  Background mode: rouge dashboard start\n`);
+
+    // Daemon-aware redirect: if a background instance is already serving,
+    // don't spin up a redundant foreground one. Open the browser and exit.
+    // This is the common case when a launch agent is installed.
+    const existing = readPids();
+    const daemonAlive = existing && existing.pid && isRunning(existing.pid) && isDashboardResponsive();
+    if (daemonAlive) {
+      console.log(`Dashboard is already running in the background (PID ${existing.pid}).`);
+      console.log(`  URL:   ${DASHBOARD_URL}`);
+      console.log(`  Stop:  rouge stop`);
+      console.log(`  For a fresh foreground instance: rouge stop, then rouge dashboard.\n`);
+      const noOpen = args.includes('--no-open');
+      if (!noOpen) openBrowser(DASHBOARD_URL);
+      process.exit(0);
+    }
+
+    // Port discipline — same logic as `dashboard start`.
+    const blocker = findPortListener(DASHBOARD_PORT);
+    if (blocker) {
+      console.error(`\n  ❌ Port ${DASHBOARD_PORT} is already in use by PID ${blocker.pid} (${blocker.cmd}).`);
+      console.error(`     Either stop that process, or run Rouge on a different port:`);
+      console.error(`       ROUGE_DASHBOARD_PORT=3101 rouge dashboard\n`);
+      process.exit(1);
+    }
+
+    console.log(`Starting dashboard in foreground (${hasPrebuilt ? 'prebuilt' : 'dev mode'}).`);
+    console.log(`  URL:             ${DASHBOARD_URL}`);
+    console.log(`  Ctrl+C or closing this terminal stops THIS instance only.`);
+    console.log(`  The launch-agent daemon (if installed) is a separate process`);
+    console.log(`  and is unaffected. Check with \`rouge status\`.`);
+    console.log(`  Background mode: rouge start\n`);
 
     if (!hasPrebuilt && !hasDevDeps) {
       console.log('Dashboard dependencies not installed. Installing...');
@@ -1221,21 +1489,20 @@ if (command === 'doctor') {
   The dashboard is the primary control surface. Most users only need the
   commands under SETUP — everything else is power-user / automation territory.
 
-  SETUP
-    rouge setup                     One-time setup (prereqs, deps, projects dir)
+  SETUP & LIFECYCLE
+    rouge setup [--yes|--no-daemon] One-time setup (prereqs, deps, projects dir, daemon)
     rouge setup <integration>       Store credentials for an integration
     rouge doctor                    Check prerequisites and dependencies
     rouge dashboard                 Open the dashboard (foreground, auto-opens browser)
-    rouge dashboard start           Start dashboard in background
-    rouge dashboard stop            Stop dashboard
-    rouge dashboard status          Check dashboard status
+    rouge start                     Start the dashboard in the background
+    rouge stop                      Stop the dashboard
+    rouge status                    Show system + project status
+    rouge uninstall                 Remove Rouge files, launch agent, and keychain entries
     rouge dashboard restart         Restart background dashboard
     rouge dashboard install         Install dev deps (source checkouts only)
-    # TODO (Phase 2.5): rouge status / stop / start / uninstall as top-level
-    # lifecycle verbs. Today only \`rouge dashboard <verb>\` is available.
 
   ADVANCED / AUTOMATION
-    rouge status [name]             Show project state summary
+    rouge status <name>             Show state for a single project
     rouge cost <name> [--actual]    Show cost estimate or actuals
     rouge secrets list              List stored secret names
     rouge secrets check <dir>       Check project against stored secrets
