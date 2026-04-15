@@ -16,6 +16,7 @@ const { migrateV2StateToV3 } = require('./state-migration.js');
 const { injectPreamble } = require('./preamble-injector.js');
 const { getMilestoneTagName } = require('./branch-strategy.js');
 const { getModelForPhase } = require('./model-selection.js');
+const { buildClaudeEnv } = require('./auth-mode.js');
 
 // Load .env from Rouge root (for ROUGE_SLACK_WEBHOOK, etc.)
 {
@@ -1598,6 +1599,13 @@ async function runPhase(projectDir) {
       path.join(ROUGE_ROOT, 'library'),
     ];
 
+    // Mode-aware env: routes Claude Code to subscription / api / bedrock / vertex.
+    const { env: claudeEnv, mode: authMode } = buildClaudeEnv({
+      state: readJson(stateFile),
+      secretsEnv,
+    });
+    log(`[${projectName}] Auth mode: ${authMode}`);
+
     // spawn (not execFile) for real-time stdout streaming
     const child = spawn('claude', [
       '-p',
@@ -1608,7 +1616,7 @@ async function runPhase(projectDir) {
       ...addDirs.flatMap(dir => ['--add-dir', dir]),
     ], {
       cwd: projectDir,
-      env: { ...process.env, ...secretsEnv },
+      env: claudeEnv,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 

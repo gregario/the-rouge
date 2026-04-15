@@ -378,6 +378,15 @@ const INTEGRATION_KEYS = {
   slack: ['ROUGE_SLACK_WEBHOOK', 'SLACK_BOT_TOKEN', 'SLACK_APP_TOKEN'],
   cloudflare: ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID'],
   vercel: ['VERCEL_TOKEN'],
+  llm: [
+    'ANTHROPIC_API_KEY',
+    'AWS_BEDROCK_ACCESS_KEY_ID',
+    'AWS_BEDROCK_SECRET_ACCESS_KEY',
+    'AWS_BEDROCK_REGION',
+    'GCP_VERTEX_PROJECT',
+    'GCP_VERTEX_REGION',
+    'GCP_VERTEX_ADC',
+  ],
 };
 
 // ---------------------------------------------------------------------------
