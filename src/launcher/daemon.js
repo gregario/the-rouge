@@ -25,24 +25,23 @@ function platform() {
   return 'unsupported';
 }
 
-function resolveRougeBin() {
-  // Prefer the globally installed `rouge` on PATH; fall back to this script's
-  // sibling rouge-cli.js so daemon works from source checkouts too.
-  try {
-    const found = execSync('command -v rouge', { encoding: 'utf8' }).trim();
-    if (found) return found;
-  } catch { /* not on PATH — fall through */ }
+function resolveRougeCliJs() {
+  // Always invoke rouge-cli.js by absolute path using the exact node binary
+  // we're running under. Launch agents run with a minimal PATH that usually
+  // doesn't include Homebrew's node, so `#!/usr/bin/env node` shebangs fail.
+  // Two candidates:
+  //   1. Our own __dirname + rouge-cli.js (works in source and global installs
+  //      — the global install's `rouge` symlink points at this same file)
   return path.resolve(__dirname, 'rouge-cli.js');
 }
 
 function buildPlist() {
-  const bin = resolveRougeBin();
-  const logDir = path.join(os.homedir(), '.rouge', 'logs');
+  const rougeCli = resolveRougeCliJs();
   const node = process.execPath;
-  // If we fell back to rouge-cli.js, we need node to launch it.
-  const programArgs = bin.endsWith('.js')
-    ? `    <string>${node}</string>\n    <string>${bin}</string>`
-    : `    <string>${bin}</string>`;
+  const logDir = path.join(os.homedir(), '.rouge', 'logs');
+  // Extend PATH so rouge-cli.js subprocesses (git, jq, claude, npm, etc.)
+  // can be found. Cover Homebrew (Apple Silicon + Intel), system dirs.
+  const daemonPath = '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin';
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -52,11 +51,19 @@ function buildPlist() {
   <string>${AGENT_LABEL}</string>
   <key>ProgramArguments</key>
   <array>
-${programArgs}
+    <string>${node}</string>
+    <string>${rougeCli}</string>
     <string>dashboard</string>
     <string>start</string>
     <string>--no-open</string>
   </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>${daemonPath}</string>
+    <key>HOME</key>
+    <string>${os.homedir()}</string>
+  </dict>
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>

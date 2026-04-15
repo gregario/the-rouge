@@ -149,6 +149,9 @@ function createPrompt() {
 // ---------------------------------------------------------------------------
 
 async function cmdSetup(integration) {
+  // Flags aren't integration names — `rouge setup --yes` should mean
+  // "first-run setup, accept defaults," not "integration named --yes."
+  if (integration && integration.startsWith('-')) integration = undefined;
   // First-run setup: `rouge setup` with no args installs everything
   if (!integration) {
     console.log('\n  Rouge first-time setup');
@@ -188,14 +191,32 @@ async function cmdSetup(integration) {
     }
 
     // 4. Daemon install (macOS only for Phase 2.5a; Linux/Windows stubbed)
+    // Non-interactive flags for scripted/CI setup and for Claude Code's bash
+    // tool (which can't feed stdin to an interactive prompt):
+    //   --yes / -y      : accept defaults (install daemon)
+    //   --no-daemon     : skip daemon install
+    const cliArgs = process.argv.slice(2);
+    const autoYes = cliArgs.includes('--yes') || cliArgs.includes('-y');
+    const noDaemon = cliArgs.includes('--no-daemon');
+
     const daemon = require('./daemon.js');
     const daemonStatus = daemon.statusSummary();
     if (daemonStatus.supported && !daemonStatus.installed) {
       console.log('\n  Step 4: Background daemon');
-      const prompt = createPrompt();
-      const ans = (await prompt.ask('    Keep Rouge dashboard running at login? [Y/n]: ')).trim().toLowerCase();
-      prompt.close();
-      if (ans === '' || ans === 'y' || ans === 'yes') {
+      let install;
+      if (noDaemon) {
+        install = false;
+        console.log('    --no-daemon: skipping launch agent install.');
+      } else if (autoYes) {
+        install = true;
+        console.log('    --yes: installing launch agent.');
+      } else {
+        const prompt = createPrompt();
+        const ans = (await prompt.ask('    Keep Rouge dashboard running at login? [Y/n]: ')).trim().toLowerCase();
+        prompt.close();
+        install = (ans === '' || ans === 'y' || ans === 'yes');
+      }
+      if (install) {
         const r = daemon.install();
         if (r.ok) {
           console.log(`    Launch agent installed ✅ (${r.path})`);
@@ -1390,7 +1411,7 @@ if (command === 'doctor') {
   commands under SETUP — everything else is power-user / automation territory.
 
   SETUP & LIFECYCLE
-    rouge setup                     One-time setup (prereqs, deps, projects dir, daemon)
+    rouge setup [--yes|--no-daemon] One-time setup (prereqs, deps, projects dir, daemon)
     rouge setup <integration>       Store credentials for an integration
     rouge doctor                    Check prerequisites and dependencies
     rouge dashboard                 Open the dashboard (foreground, auto-opens browser)
