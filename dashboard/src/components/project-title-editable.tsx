@@ -141,9 +141,9 @@ export function ProjectTitleEditable({
             // untitled keeps the edit box open so the user can come back.
             if (draft.trim() && draft.trim() !== name) save()
           }}
-          placeholder={isUntitled ? 'What are you building? (you can rename anytime)' : ''}
+          placeholder={isUntitled ? 'What are you building?' : ''}
           disabled={saving}
-          className="min-w-[20rem] rounded-md border border-border bg-background px-2 py-1 text-2xl font-bold text-gray-900 placeholder:font-normal placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring"
+          className="w-full min-w-[22rem] sm:min-w-[28rem] max-w-[40rem] rounded-md border border-border bg-background px-2 py-1 text-2xl font-bold text-gray-900 placeholder:font-normal placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring"
         />
         <button type="button" onClick={save} disabled={saving || !draft.trim()} className="rounded-md border border-border p-1.5 hover:bg-accent disabled:opacity-40" title="Save (Enter)">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 text-green-600" />}
@@ -154,6 +154,11 @@ export function ProjectTitleEditable({
           </button>
         )}
       </div>
+      {isUntitled && !draft.trim() && (
+        <p className="text-xs text-muted-foreground">
+          Optional — you can rename anytime.
+        </p>
+      )}
       {canRenameSlug && draft.trim() && (
         <label className="flex items-center gap-2 text-xs text-muted-foreground">
           <input

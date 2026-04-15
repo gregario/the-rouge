@@ -93,6 +93,8 @@ export interface BridgeProjectSummary {
   messageCount?: number
   firstMessagePreview?: string
   isPlaceholderName?: boolean
+  archived?: boolean
+  archivedAt?: string
 }
 
 // ─── Seeding chat log ────────────────────────────────────────────────

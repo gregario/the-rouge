@@ -6,6 +6,7 @@ import { ProjectStack } from '@/components/project-stack'
 import { InfrastructureStack } from '@/components/infrastructure-stack'
 import { CycleRhythm } from '@/components/cycle-rhythm'
 import { ProjectTitleEditable } from '@/components/project-title-editable'
+import { ArchiveButton } from '@/components/archive-button'
 import { ExternalLink, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
@@ -60,11 +61,23 @@ export function ProjectHeader({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Back link */}
-      <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors w-fit">
-        <ArrowLeft className="size-4" />
-        Dashboard
-      </Link>
+      {/* Back link + archive toggle */}
+      <div className="flex items-center justify-between">
+        <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors w-fit">
+          <ArrowLeft className="size-4" />
+          Dashboard
+        </Link>
+        {project.state !== 'seeding' && project.state !== 'ready' && (
+          <ArchiveButton slug={project.slug} archived={!!project.archived} />
+        )}
+      </div>
+
+      {/* Archived banner */}
+      {project.archived && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+          This project is archived. It won&apos;t appear on the main dashboard until you unarchive it.
+        </div>
+      )}
 
       {/* Title row with inline metrics */}
       <div className="flex flex-wrap items-center justify-between gap-4">

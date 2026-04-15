@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadServerConfig } from "@/lib/server-config";
-import { readChatLog } from "@/bridge/chat-reader";
 import {
   mergeSeedingProgress,
   readCheckpointSummary,
@@ -70,6 +69,7 @@ export async function PATCH(
   const body = (await request.json().catch(() => ({}))) as {
     displayName?: string;
     slug?: string;
+    archived?: boolean;
   };
 
   const state = JSON.parse(readFileSync(stateFile, "utf-8"));
@@ -102,6 +102,22 @@ export async function PATCH(
     }
   }
 
+  // Archive toggle. Soft flag on state.json — launcher-layer code ignores
+  // this field; it's purely a dashboard filter hint. Refuse while the
+  // build loop is actively running so we don't orphan a subprocess.
+  if (body.archived !== undefined) {
+    if (body.archived === true && (currentState === 'foundation' || currentState === 'foundation-eval' ||
+        currentState === 'story-building' || currentState === 'milestone-check' ||
+        currentState === 'milestone-fix' || currentState === 'story-diagnosis')) {
+      // Active building states — require the build to be paused/stopped first.
+      return NextResponse.json({
+        error: `Stop the build before archiving (current state: ${currentState}).`,
+      }, { status: 409 });
+    }
+    state.archived = body.archived;
+    state.archivedAt = body.archived ? new Date().toISOString() : undefined;
+  }
+
   // Display-name update
   if (body.displayName !== undefined) {
     const trimmed = body.displayName.trim();
@@ -113,6 +129,11 @@ export async function PATCH(
     // of which field existing seeding output already populated.
     state.name = trimmed;
     state.project = trimmed;
+  }
+
+  // Persist state.json once — covers archive toggle, display-name update,
+  // or both in the same request.
+  if (body.displayName !== undefined || body.archived !== undefined) {
     const targetDir = slugChanged ? join(projectsRoot, slugChanged) : projectDir;
     writeFileSync(join(targetDir, "state.json"), JSON.stringify(state, null, 2) + "\n");
   }
@@ -125,11 +146,10 @@ export async function PATCH(
 }
 
 // DELETE /api/projects/[name]
-// Removes the project directory from disk. Scoped narrowly to the one case
-// that matters for the new-spec UX cleanup: a spec that has never received
-// a human message AND is still in a pre-build state. Anything past that
-// has real work attached (checkpoints, git history, deploys) and deserves
-// a deliberate archival path, not a quick-delete button.
+// Hard-deletes the project directory. Scoped to pre-build states
+// (seeding / ready) — anything past that has git history, checkpoints,
+// and deploys attached and should be archived rather than deleted.
+// The client is responsible for confirming when messageCount > 0.
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ name: string }> },
@@ -154,14 +174,7 @@ export async function DELETE(
   const preBuildStates = new Set(["seeding", "ready"]);
   if (!preBuildStates.has(currentState)) {
     return NextResponse.json({
-      error: `Cannot delete a project in state "${currentState}". Only pre-build specs (seeding / ready) can be deleted from here.`,
-    }, { status: 409 });
-  }
-
-  const humanMessages = readChatLog(projectDir).filter((m) => m.role === "human").length;
-  if (humanMessages > 0) {
-    return NextResponse.json({
-      error: `Project has ${humanMessages} message${humanMessages > 1 ? "s" : ""} already. Delete is only for empty placeholder specs.`,
+      error: `Cannot delete a project in state "${currentState}". Archive it instead — only pre-build specs can be hard-deleted.`,
     }, { status: 409 });
   }
 

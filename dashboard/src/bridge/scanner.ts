@@ -245,6 +245,8 @@ function normalizeProject(
     messageCount: msg.count,
     firstMessagePreview: msg.preview,
     isPlaceholderName: placeholder,
+    archived: raw.archived === true,
+    archivedAt: typeof raw.archivedAt === 'string' ? raw.archivedAt : undefined,
     state,
     schemaVersion: version,
     health: computeHealth(state, !!pending, progress),

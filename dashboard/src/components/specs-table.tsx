@@ -71,7 +71,16 @@ export function SpecsTable({ specs }: { specs: ProjectSummary[] }) {
     }
   }
 
-  async function deleteSpec(slug: string) {
+  async function deleteSpec(slug: string, messageCount: number, name: string) {
+    // Confirm only when there's real content. Empty placeholders nuke
+    // silently — that's their whole reason for existing.
+    if (messageCount > 0) {
+      const label = name || 'this spec'
+      const ok = window.confirm(
+        `Delete "${label}"? This permanently removes ${messageCount} message${messageCount > 1 ? 's' : ''} and the project directory. This cannot be undone.`,
+      )
+      if (!ok) return
+    }
     setDeleting(slug)
     setError(null)
     try {
@@ -232,20 +241,19 @@ export function SpecsTable({ specs }: { specs: ProjectSummary[] }) {
                       Open →
                     </Link>
                   )}
-                  {/* Delete-empty button: surfaces only on empty placeholder specs */}
-                  {p.isPlaceholderName && !p.messageCount && (
-                    <button
-                      type="button"
-                      onClick={() => deleteSpec(p.slug)}
-                      disabled={deleting === p.slug}
-                      title="Delete empty spec"
-                      className="p-1 text-muted-foreground/60 hover:text-red-600 transition-colors disabled:opacity-50"
-                    >
-                      {deleting === p.slug
-                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        : <Trash2 className="h-3.5 w-3.5" />}
-                    </button>
-                  )}
+                  {/* Delete button on every spec row. Empty placeholders
+                      nuke silently; non-empty specs get a confirm. */}
+                  <button
+                    type="button"
+                    onClick={() => deleteSpec(p.slug, p.messageCount ?? 0, p.name)}
+                    disabled={deleting === p.slug}
+                    title={p.messageCount ? 'Delete spec (asks for confirmation)' : 'Delete empty spec'}
+                    className="p-1 text-muted-foreground/60 hover:text-red-600 transition-colors disabled:opacity-50"
+                  >
+                    {deleting === p.slug
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <Trash2 className="h-3.5 w-3.5" />}
+                  </button>
                 </div>
               </li>
             )

@@ -77,6 +77,8 @@ interface RougeState {
   lastCheckpointAt?: string | null
   lastPhase?: string | null
   checkpointCount?: number
+  archived?: boolean
+  archivedAt?: string
 }
 
 function mapSeedingProgress(raw: RougeState['seedingProgress']): SeedingProgress | undefined {
@@ -257,5 +259,7 @@ export function mapRougeStateToProjectDetail(raw: unknown, slug: string): Projec
     checkpointCount: state.checkpointCount,
     createdAt: now,
     updatedAt: now,
+    archived: state.archived === true,
+    archivedAt: state.archivedAt,
   }
 }
