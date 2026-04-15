@@ -41,3 +41,10 @@ export function requireLauncher(mod: string): any {
   const nodeRequire: NodeRequire = eval("require");
   return nodeRequire(full);
 }
+
+// Returns the src/ root alongside the launcher dir — e.g. for finding
+// src/slack/manifest.yaml from a route handler.
+export function rougeSrcDir(): string {
+  // resolveLauncherDir() returns .../src/launcher; parent is src/.
+  return path.resolve(resolveLauncherDir(), "..");
+}

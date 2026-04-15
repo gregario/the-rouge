@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { DoctorStep } from './doctor-step'
 import { SecretsStep } from './secrets-step'
+import { SlackStep } from './slack-step'
 import { DaemonStep } from './daemon-step'
 import { FinishStep } from './finish-step'
 
@@ -21,7 +22,7 @@ interface Step {
 const steps: Step[] = [
   { id: 'prereqs', label: 'Prerequisites' },
   { id: 'secrets', label: 'Integrations' },
-  { id: 'slack', label: 'Slack (optional)', comingSoon: true },
+  { id: 'slack', label: 'Slack (optional)' },
   { id: 'daemon', label: 'Background daemon' },
   { id: 'finish', label: 'Finish' },
 ]
@@ -111,6 +112,7 @@ export function SetupWizard() {
       <div className="rounded-xl border border-border bg-background p-6 shadow-sm">
         {active.id === 'prereqs' && <DoctorStep onReady={(r) => markReady('prereqs', r)} />}
         {active.id === 'secrets' && <SecretsStep onReady={(r) => markReady('secrets', r)} />}
+        {active.id === 'slack' && <SlackStep onReady={(r) => markReady('slack', r)} />}
         {active.id === 'daemon' && <DaemonStep onReady={(r) => markReady('daemon', r)} />}
         {active.id === 'finish' && <FinishStep onReady={(r) => markReady('finish', r)} />}
       </div>
