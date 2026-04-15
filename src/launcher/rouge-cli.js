@@ -57,6 +57,43 @@ function dashboardLiveness() {
   return { running: isPidRunning(pid), pid, pids };
 }
 
+// Returns the first PID listening on `port` (IPv4 OR IPv6), or null.
+// Used to fail loud instead of silently binding a different address family
+// when another service holds the port — e.g. The Works on IPv6 :3001 while
+// Rouge would happily take IPv4 :3001, leaving the browser to pick one by
+// DNS resolution order.
+function findPortListener(port) {
+  try {
+    const out = execSync(`lsof -iTCP:${port} -sTCP:LISTEN -P -n`, {
+      encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    const lines = out.trim().split('\n').slice(1); // drop header
+    const entries = lines.map((l) => {
+      const [cmd, pid] = l.trim().split(/\s+/);
+      return { cmd, pid: parseInt(pid, 10) };
+    }).filter((e) => e.pid && !Number.isNaN(e.pid));
+    // Exclude our own dashboard's PID — if we just wrote the PID file and
+    // the process is already us, we shouldn't refuse to restart ourselves.
+    const ours = dashboardLiveness();
+    const foreign = entries.filter((e) => !ours.pid || e.pid !== ours.pid);
+    return foreign[0] || null;
+  } catch {
+    return null; // lsof missing, no listeners, or permission denied — don't block startup
+  }
+}
+
+// Returns true if something answers HTTP on the dashboard port — a cheap
+// way to tell "the running dashboard is actually serving" vs "PID is alive
+// but server died."
+function isDashboardResponsive(timeoutMs = 500) {
+  try {
+    execSync(`curl -s -o /dev/null --max-time ${Math.max(1, Math.ceil(timeoutMs / 1000))} ${DASHBOARD_URL}/`, { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Experimental-command warning. The dashboard is the canonical control
 // surface (see docs/plans/2026-04-15-onboarding-refactor.md). CLI verbs
@@ -1181,7 +1218,9 @@ if (command === 'doctor') {
     console.log('');
   }
 } else if (command === 'dashboard') {
-  const subcommand = args[1];
+  // Flags aren't subcommands — `rouge dashboard --no-open` means "foreground
+  // with --no-open," not "unknown subcommand --no-open."
+  const subcommand = args[1] && !args[1].startsWith('-') ? args[1] : undefined;
   const dashboardDir = path.join(__dirname, '..', '..', 'dashboard');
   const standaloneServer = path.join(dashboardDir, 'dist', 'server.js');
   const standaloneMarker = path.join(dashboardDir, 'dist', 'ROUGE_STANDALONE');
@@ -1268,6 +1307,18 @@ if (command === 'doctor') {
       process.exit(0);
     }
 
+    // Port discipline: fail loud if something else holds the port. Binding
+    // only one address family silently (IPv4 while another app has IPv6,
+    // or vice versa) leaves the browser to pick by DNS resolution order —
+    // confusing when `http://localhost:PORT` reaches the other app.
+    const blocker = findPortListener(DASHBOARD_PORT);
+    if (blocker) {
+      console.error(`\n  ❌ Port ${DASHBOARD_PORT} is already in use by PID ${blocker.pid} (${blocker.cmd}).`);
+      console.error(`     Either stop that process, or run Rouge on a different port:`);
+      console.error(`       ROUGE_DASHBOARD_PORT=3101 rouge dashboard start\n`);
+      process.exit(1);
+    }
+
     if (!hasPrebuilt && !hasDevDeps) {
       console.log('Dashboard dependencies not installed. Installing...');
       execSync('npm install', { cwd: dashboardDir, stdio: 'inherit' });
@@ -1345,9 +1396,37 @@ if (command === 'doctor') {
 
   } else if (!subcommand) {
     assertControlPlaneAllowed('frontend');
-    console.log(`Starting dashboard in foreground (${hasPrebuilt ? 'prebuilt' : 'dev mode'}, Ctrl+C to stop)...`);
-    console.log(`  URL:       ${DASHBOARD_URL}`);
-    console.log(`  Background mode: rouge dashboard start\n`);
+
+    // Daemon-aware redirect: if a background instance is already serving,
+    // don't spin up a redundant foreground one. Open the browser and exit.
+    // This is the common case when a launch agent is installed.
+    const existing = readPids();
+    const daemonAlive = existing && existing.pid && isRunning(existing.pid) && isDashboardResponsive();
+    if (daemonAlive) {
+      console.log(`Dashboard is already running in the background (PID ${existing.pid}).`);
+      console.log(`  URL:   ${DASHBOARD_URL}`);
+      console.log(`  Stop:  rouge stop`);
+      console.log(`  For a fresh foreground instance: rouge stop, then rouge dashboard.\n`);
+      const noOpen = args.includes('--no-open');
+      if (!noOpen) openBrowser(DASHBOARD_URL);
+      process.exit(0);
+    }
+
+    // Port discipline — same logic as `dashboard start`.
+    const blocker = findPortListener(DASHBOARD_PORT);
+    if (blocker) {
+      console.error(`\n  ❌ Port ${DASHBOARD_PORT} is already in use by PID ${blocker.pid} (${blocker.cmd}).`);
+      console.error(`     Either stop that process, or run Rouge on a different port:`);
+      console.error(`       ROUGE_DASHBOARD_PORT=3101 rouge dashboard\n`);
+      process.exit(1);
+    }
+
+    console.log(`Starting dashboard in foreground (${hasPrebuilt ? 'prebuilt' : 'dev mode'}).`);
+    console.log(`  URL:             ${DASHBOARD_URL}`);
+    console.log(`  Ctrl+C or closing this terminal stops THIS instance only.`);
+    console.log(`  The launch-agent daemon (if installed) is a separate process`);
+    console.log(`  and is unaffected. Check with \`rouge status\`.`);
+    console.log(`  Background mode: rouge start\n`);
 
     if (!hasPrebuilt && !hasDevDeps) {
       console.log('Dashboard dependencies not installed. Installing...');
