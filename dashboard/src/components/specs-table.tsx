@@ -72,15 +72,12 @@ export function SpecsTable({ specs }: { specs: ProjectSummary[] }) {
   }
 
   async function deleteSpec(slug: string, messageCount: number, name: string) {
-    // Confirm only when there's real content. Empty placeholders nuke
-    // silently — that's their whole reason for existing.
-    if (messageCount > 0) {
-      const label = name || 'this spec'
-      const ok = window.confirm(
-        `Delete "${label}"? This permanently removes ${messageCount} message${messageCount > 1 ? 's' : ''} and the project directory. This cannot be undone.`,
-      )
-      if (!ok) return
-    }
+    // Always confirm — delete is destructive, cost of a confirm is near-zero.
+    const label = name && name.toLowerCase() !== 'untitled' ? `"${name}"` : 'this spec'
+    const prompt = messageCount > 0
+      ? `Delete ${label}? This permanently removes ${messageCount} message${messageCount > 1 ? 's' : ''} and the project directory. This cannot be undone.`
+      : `Delete ${label}? It's empty, but this cannot be undone.`
+    if (!window.confirm(prompt)) return
     setDeleting(slug)
     setError(null)
     try {
@@ -247,7 +244,7 @@ export function SpecsTable({ specs }: { specs: ProjectSummary[] }) {
                     type="button"
                     onClick={() => deleteSpec(p.slug, p.messageCount ?? 0, p.name)}
                     disabled={deleting === p.slug}
-                    title={p.messageCount ? 'Delete spec (asks for confirmation)' : 'Delete empty spec'}
+                    title="Delete spec"
                     className="p-1 text-muted-foreground/60 hover:text-red-600 transition-colors disabled:opacity-50"
                   >
                     {deleting === p.slug
