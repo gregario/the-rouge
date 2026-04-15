@@ -146,9 +146,9 @@ export default async function Home() {
           </p>
         </div>
       )}
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-6">
         <TopBar />
-        <div className="flex flex-wrap items-start gap-4">
+        <div className="flex flex-wrap items-start gap-6">
           <BudgetPanel />
           <NewProjectButton />
         </div>
