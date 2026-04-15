@@ -10,6 +10,7 @@ const links = [
   { href: '/', label: 'Dashboard' },
   { href: '/platform', label: 'Platform' },
   { href: '/catalogue', label: 'Catalogue' },
+  { href: '/setup', label: 'Setup' },
 ]
 
 function RougeLogo() {
