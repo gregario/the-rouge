@@ -2,25 +2,13 @@
 /**
  * The Rouge CLI — project management, loop execution, and secrets.
  *
- * Usage:
- *   rouge doctor                     Check prerequisites and dependencies
- *   rouge init <name>                Create a new project directory
- *   rouge seed <name>                Start interactive seeding via claude -p
- *   rouge build [name]               Start the Karpathy Loop
- *   rouge status [name]              Show project state summary
- *   rouge cost <name> [--actual]     Show cost estimate or actuals
- *   rouge setup <integration>        Interactive setup for an integration
- *   rouge slack setup                Print Slack setup guide
- *   rouge slack start                Start the Slack bot
- *   rouge slack test                 Send a test webhook message
- *   rouge secrets list               List all stored secret names
- *   rouge secrets check <project>    Check project against stored secrets
- *   rouge secrets validate <target>  Validate keys against API endpoints
- *   rouge secrets expiry [days]      Show expiring secrets
- *   rouge secrets expiry set <s/K> <date>  Set key expiry date
- *   rouge feasibility <description>  Assess feasibility of a proposed change
- *   rouge contribute <path>           Contribute a draft integration pattern via PR
- *   rouge improve [options]            Run unattended self-improvement loop
+ * Usage: run `rouge` with no args for grouped help.
+ *
+ * The dashboard is the primary control surface. CLI verbs like `seed`,
+ * `init`, `build`, and `slack start` are experimental — they still work but
+ * print a warning and are no longer the recommended path.
+ *
+ * See docs/plans/2026-04-15-onboarding-refactor.md for the full refactor plan.
  */
 
 const readline = require('readline');
@@ -43,6 +31,22 @@ function resolveProjectsDir() {
   return path.join(home, '.rouge', 'projects');
 }
 const PROJECTS_DIR = resolveProjectsDir();
+
+// ---------------------------------------------------------------------------
+// Experimental-command warning. The dashboard is the canonical control
+// surface (see docs/plans/2026-04-15-onboarding-refactor.md). CLI verbs
+// like `seed`, `init`, `build`, and `slack start` still work but are no
+// longer the recommended path. Print a one-line warning so users know.
+// Suppress with ROUGE_SUPPRESS_EXPERIMENTAL_WARNING=1 for automation.
+// ---------------------------------------------------------------------------
+
+function warnExperimental(cmd) {
+  if (process.env.ROUGE_SUPPRESS_EXPERIMENTAL_WARNING === '1') return;
+  console.error(`\n  ⚠️  \`rouge ${cmd}\` is still supported but no longer the recommended path.`);
+  console.error(`     The dashboard is now the primary control surface. Run \`rouge setup\``);
+  console.error(`     then \`rouge dashboard\` and use the New Project button.`);
+  console.error(`     Suppress this warning with ROUGE_SUPPRESS_EXPERIMENTAL_WARNING=1.\n`);
+}
 
 // ---------------------------------------------------------------------------
 // Control plane config — rouge.config.json declares which control plane
@@ -160,12 +164,12 @@ async function cmdSetup(integration) {
 
     // 4. Summary
     console.log('\n  ' + '-'.repeat(40));
-    console.log('  Setup complete! Next steps:');
+    console.log('  Setup complete! Next step:');
     console.log('');
-    console.log('    rouge setup slack       Set up Slack control plane (optional)');
-    console.log('    rouge dashboard start   Start the dashboard (optional)');
-    console.log('    rouge init my-product   Create your first project');
-    console.log('    rouge seed my-product   Start interactive design session');
+    console.log('    rouge dashboard         Open the dashboard — create your first project there');
+    console.log('');
+    console.log('  Optional:');
+    console.log('    rouge setup slack       Wire up Slack for notifications (experimental)');
     console.log('');
     return;
   }
@@ -377,6 +381,7 @@ function cmdSecretsExpiry(action, ...rest) {
 // ---------------------------------------------------------------------------
 
 function cmdInit(name) {
+  warnExperimental('init');
   if (!name) {
     console.error('Usage: rouge init <name>');
     process.exit(1);
@@ -406,6 +411,7 @@ function cmdInit(name) {
 }
 
 function cmdSeed(name) {
+  warnExperimental('seed');
   if (!name) {
     console.error('Usage: rouge seed <name>');
     process.exit(1);
@@ -436,6 +442,7 @@ function cmdSeed(name) {
 }
 
 function cmdBuild(name) {
+  warnExperimental('build');
   const env = { ...process.env };
   if (name) {
     const projectPath = path.join(PROJECTS_DIR, name);
@@ -575,6 +582,7 @@ function cmdSlackSetup() {
 }
 
 function cmdSlackStart() {
+  warnExperimental('slack start');
   assertControlPlaneAllowed('slack');
   const botToken = getSecret('slack', 'SLACK_BOT_TOKEN');
   const appToken = getSecret('slack', 'SLACK_APP_TOKEN');
@@ -1210,17 +1218,25 @@ if (command === 'doctor') {
   console.log(`
   The Rouge CLI
 
-  Commands:
+  The dashboard is the primary control surface. Most users only need the
+  commands under SETUP — everything else is power-user / automation territory.
+
+  SETUP
+    rouge setup                     One-time setup (prereqs, deps, projects dir)
+    rouge setup <integration>       Store credentials for an integration
     rouge doctor                    Check prerequisites and dependencies
-    rouge init <name>               Create a new project directory
-    rouge seed <name>               Start interactive seeding via claude -p
-    rouge build [name]              Start the Karpathy Loop
+    rouge dashboard                 Open the dashboard (foreground, auto-opens browser)
+    rouge dashboard start           Start dashboard in background
+    rouge dashboard stop            Stop dashboard
+    rouge dashboard status          Check dashboard status
+    rouge dashboard restart         Restart background dashboard
+    rouge dashboard install         Install dev deps (source checkouts only)
+    # TODO (Phase 2.5): rouge status / stop / start / uninstall as top-level
+    # lifecycle verbs. Today only \`rouge dashboard <verb>\` is available.
+
+  ADVANCED / AUTOMATION
     rouge status [name]             Show project state summary
     rouge cost <name> [--actual]    Show cost estimate or actuals
-    rouge setup <integration>       Set up integration credentials
-    rouge slack setup               Print Slack setup guide
-    rouge slack start               Start the Slack bot
-    rouge slack test                Send a test webhook message
     rouge secrets list              List stored secret names
     rouge secrets check <dir>       Check project against stored secrets
     rouge secrets validate <target> Validate keys against API endpoints
@@ -1228,18 +1244,21 @@ if (command === 'doctor') {
     rouge secrets expiry set <s/K> <date>  Set expiry for a secret
     rouge feasibility <description> Assess feasibility of a proposed change
     rouge contribute <path>         Contribute a draft integration pattern via PR
-    rouge dashboard                 Start dashboard in foreground (auto-opens browser)
-    rouge dashboard start           Start dashboard in background (persistent)
-    rouge dashboard stop            Stop dashboard
-    rouge dashboard status          Check dashboard status
-    rouge dashboard restart         Restart background dashboard
-    rouge dashboard install         Install dev deps (source checkouts only)
-    rouge dashboard --no-open       Don't auto-open the browser
     rouge improve                   Run one self-improvement iteration
     rouge improve --max-iterations 5  Run up to 5 iterations
     rouge improve --explore         Enable exploration when no issues remain
     rouge improve --dry-run         Show what would be done without doing it
 
+  EXPERIMENTAL (no longer the recommended path — use the dashboard instead)
+    rouge init <name>               Create a new project directory
+    rouge seed <name>                Start interactive seeding via claude -p
+    rouge build [name]              Start the Karpathy Loop
+    rouge slack setup               Print Slack setup guide
+    rouge slack start               Start the Slack bot
+    rouge slack test                Send a test webhook message
+
   Integrations: ${Object.keys(INTEGRATION_KEYS).join(', ')}
+
+  Suppress experimental warnings: ROUGE_SUPPRESS_EXPERIMENTAL_WARNING=1
 `);
 }
