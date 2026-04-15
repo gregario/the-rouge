@@ -894,169 +894,22 @@ function cmdSlackTest() {
 // ---------------------------------------------------------------------------
 
 function cmdDoctor() {
-  const blockers = [];
-  const warnings = [];
-  const lines = [];
+  // All check logic lives in ./doctor.js so the dashboard wizard can call it
+  // too via /api/system/doctor. Keep output formatting identical.
+  const { runDoctor, formatDoctorText } = require('./doctor.js');
+  const result = runDoctor({ ROUGE_ROOT, getSecret });
 
-  lines.push('');
-  lines.push('  Rouge Doctor');
-  lines.push(`  ${'─'.repeat(40)}`);
-  lines.push('');
-
-  // Helper: run a command and return trimmed stdout, or null on failure
-  function tryExec(cmd, timeout = 5000) {
-    try {
-      return execSync(cmd, { encoding: 'utf8', stdio: 'pipe', timeout }).trim();
-    } catch {
-      return null;
-    }
+  // JSON output for scripting and the dashboard wizard: `rouge doctor --json`
+  if (process.argv.includes('--json')) {
+    console.log(JSON.stringify(result, null, 2));
+    if (!result.allRequired) process.exit(1);
+    return;
   }
 
-  // --- Node.js version ---
-  const nodeVersion = process.version;
-  const nodeMajor = parseInt(nodeVersion.slice(1), 10);
-  if (nodeMajor >= 18) {
-    lines.push(`  \u2705 Node.js ${nodeVersion} (>= 18 required)`);
-  } else {
-    lines.push(`  \u274C Node.js ${nodeVersion} — requires >= 18 (install: https://nodejs.org/)`);
-    blockers.push('Node.js >= 18 required');
-  }
-
-  // --- Claude Code CLI ---
-  const claudeOut = tryExec('claude --version');
-  if (claudeOut) {
-    lines.push(`  \u2705 Claude Code CLI installed (${claudeOut})`);
-  } else {
-    lines.push('  \u274C Claude Code CLI not found (install: npm install -g @anthropic-ai/claude-code)');
-    blockers.push('Claude Code CLI not found');
-  }
-
-  // --- Git ---
-  const gitOut = tryExec('git --version');
-  if (gitOut) {
-    const gitVersion = gitOut.replace('git version ', '');
-    lines.push(`  \u2705 Git installed (${gitVersion})`);
-  } else {
-    lines.push('  \u274C Git not found (install: https://git-scm.com/)');
-    blockers.push('Git not found');
-  }
-
-  // --- jq ---
-  // Required by rouge-safety-check.sh (the PreToolUse hook). If missing,
-  // every Bash/Write/Edit call fails the hook → Claude Code blocks. Without
-  // this check the failure mode is "every tool call mysteriously rejected".
-  const jqOut = tryExec('jq --version');
-  if (jqOut) {
-    lines.push(`  \u2705 jq installed (${jqOut})`);
-  } else {
-    lines.push('  \u274C jq not found — required by rouge-safety-check.sh PreToolUse hook');
-    lines.push('       Install: `brew install jq` (macOS) | `apt-get install jq` (Debian/Ubuntu) | https://stedolan.github.io/jq/');
-    blockers.push('jq not found');
-  }
-
-  // --- GitHub CLI ---
-  const ghOut = tryExec('gh --version');
-  if (ghOut) {
-    const ghVersion = ghOut.split('\n')[0]; // first line only
-    lines.push(`  \u2705 GitHub CLI installed (${ghVersion})`);
-  } else {
-    lines.push('  \u274C GitHub CLI not found (install: https://cli.github.com/)');
-    blockers.push('GitHub CLI not found');
-  }
-
-  // --- Slack tokens ---
-  const slackBot = getSecret('slack', 'SLACK_BOT_TOKEN');
-  const slackApp = getSecret('slack', 'SLACK_APP_TOKEN');
-  if (slackBot && slackApp) {
-    lines.push('  \u2705 Slack tokens configured');
-  } else {
-    lines.push('  \u274C Slack tokens not configured (run: rouge setup slack)');
-    blockers.push('Slack tokens not configured');
-  }
-
-  // --- Anthropic auth ---
-  if (claudeOut) {
-    const authCheck = tryExec('claude -p "test" --max-turns 0', 10000);
-    if (authCheck !== null) {
-      lines.push('  \u2705 Anthropic auth valid');
-    } else {
-      lines.push('  \u274C Anthropic auth invalid (run: claude login)');
-      blockers.push('Anthropic auth invalid');
-    }
-  }
-
-  // --- Optional: Supabase CLI ---
-  const supabaseOut = tryExec('supabase --version');
-  if (supabaseOut) {
-    lines.push(`  \u2705 Supabase CLI installed (${supabaseOut})`);
-  } else {
-    lines.push('  \u26A0\uFE0F  Supabase CLI not installed (optional \u2014 needed for Supabase projects)');
-    warnings.push('Supabase CLI not installed');
-  }
-
-  // --- Optional: Vercel CLI ---
-  const vercelOut = tryExec('vercel --version');
-  if (vercelOut) {
-    lines.push(`  \u2705 Vercel CLI installed (${vercelOut})`);
-  } else {
-    lines.push('  \u26A0\uFE0F  Vercel CLI not installed (optional \u2014 needed for Vercel deployments)');
-    warnings.push('Vercel CLI not installed');
-  }
-
-  // --- Optional: GStack browse ---
-  const home = process.env.HOME || process.env.USERPROFILE || '/tmp';
-  const gstackSkillPath = path.join(home, '.claude', 'skills', 'gstack', 'browse', 'dist', 'browse');
-  let gstackFound = false;
-  if (fs.existsSync(gstackSkillPath)) {
-    gstackFound = true;
-  } else {
-    const whichBrowse = tryExec('which browse');
-    if (whichBrowse) gstackFound = true;
-  }
-  if (gstackFound) {
-    lines.push('  \u2705 GStack browse installed');
-  } else {
-    lines.push('  \u26A0\uFE0F  GStack browse not installed (optional \u2014 needed for web product QA)');
-    lines.push('       Install: git clone --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && (cd ~/.claude/skills/gstack && ./setup)');
-    warnings.push('GStack browse not installed');
-  }
-
-  // --- Dashboard dependencies ---
-  const dashboardModules = path.join(ROUGE_ROOT, 'dashboard', 'node_modules');
-  if (fs.existsSync(dashboardModules)) {
-    lines.push('  \u2705 Dashboard dependencies installed');
-  } else {
-    const dashboardDir = path.join(ROUGE_ROOT, 'dashboard');
-    if (fs.existsSync(dashboardDir)) {
-      lines.push('  \u274C Dashboard dependencies missing (run: npm run dashboard:install)');
-      blockers.push('Dashboard dependencies missing');
-    } else {
-      lines.push('  \u26A0\uFE0F  Dashboard not found (optional)');
-      warnings.push('Dashboard directory not found');
-    }
-  }
-
-  // --- Summary ---
-  lines.push('');
-  lines.push(`  ${'─'.repeat(40)}`);
-  if (blockers.length === 0 && warnings.length === 0) {
-    lines.push('  All checks passed. You\'re ready to build.');
-  } else if (blockers.length === 0) {
-    lines.push(`  All required checks passed. ${warnings.length} optional warning${warnings.length > 1 ? 's' : ''}.`);
-  } else {
-    lines.push(`  ${blockers.length} blocker${blockers.length > 1 ? 's' : ''} found. Fix these before running Rouge:`);
-    for (const b of blockers) {
-      lines.push(`    - ${b}`);
-    }
-  }
-  lines.push('');
-
-  console.log(lines.join('\n'));
-
-  if (blockers.length > 0) {
-    process.exit(1);
-  }
+  console.log(formatDoctorText(result));
+  if (!result.allRequired) process.exit(1);
 }
+
 
 // ---------------------------------------------------------------------------
 // Feasibility assessment
