@@ -604,11 +604,14 @@ async function cmdUninstall() {
   const keepProjects = process.argv.includes('--keep-projects');
   const daemon = require('./daemon.js');
 
+  const rougeKeys = Object.keys(INTEGRATION_KEYS).map((k) => `rouge-${k}`).join(', ');
   console.log('\n  This will remove Rouge from your machine:');
   console.log(`    - Stop the dashboard if running`);
   console.log(`    - Unload and remove the launch agent (${daemon.statusSummary().supported ? daemon.platform() : 'n/a'})`);
   console.log(`    - Remove ${ROUGE_HOME}${keepProjects ? ' (but keep projects/)' : ''}`);
-  console.log(`    - Delete keychain entries for: ${Object.keys(INTEGRATION_KEYS).join(', ')}`);
+  console.log(`    - Delete Rouge's keychain entries (${rougeKeys}).`);
+  console.log(`      Your personal keychain entries for these services are NOT touched —`);
+  console.log(`      Rouge stores its creds under the \`rouge-*\` prefix only.`);
   console.log(`\n  It will NOT uninstall the \`rouge\` npm package — run`);
   console.log(`  \`npm uninstall -g rouge\` yourself if you installed globally.\n`);
 
