@@ -83,6 +83,16 @@ describe('verifyDisciplineArtifact', () => {
     expect(verifyDisciplineArtifact(PROJECT_DIR, 'spec').ok).toBe(true)
   })
 
+  it('accepts spec via seed_spec/spec.md when agent inlines', () => {
+    writeFile('seed_spec/spec.md', LONG_BODY)
+    expect(verifyDisciplineArtifact(PROJECT_DIR, 'spec').ok).toBe(true)
+  })
+
+  it('accepts spec via docs/spec.md when agent improvises', () => {
+    writeFile('docs/spec.md', LONG_BODY)
+    expect(verifyDisciplineArtifact(PROJECT_DIR, 'spec').ok).toBe(true)
+  })
+
   it('accepts infrastructure via infrastructure_manifest.json', () => {
     writeFile('infrastructure_manifest.json', LONG_BODY)
     expect(verifyDisciplineArtifact(PROJECT_DIR, 'infrastructure').ok).toBe(true)
@@ -90,6 +100,16 @@ describe('verifyDisciplineArtifact', () => {
 
   it('accepts design when design/ has at least one file', () => {
     writeDir('design', { 'layout.yaml': 'hi' })
+    expect(verifyDisciplineArtifact(PROJECT_DIR, 'design').ok).toBe(true)
+  })
+
+  it('accepts design via seed_spec/design_artifact.md fallback (old convention)', () => {
+    writeFile('seed_spec/design_artifact.md', LONG_BODY)
+    expect(verifyDisciplineArtifact(PROJECT_DIR, 'design').ok).toBe(true)
+  })
+
+  it('accepts design via docs/design.md when agent improvises', () => {
+    writeFile('docs/design.md', LONG_BODY)
     expect(verifyDisciplineArtifact(PROJECT_DIR, 'design').ok).toBe(true)
   })
 
@@ -108,8 +128,25 @@ describe('verifyDisciplineArtifact', () => {
     expect(verifyDisciplineArtifact(PROJECT_DIR, 'legal-privacy').ok).toBe(true)
   })
 
+  it('accepts legal-privacy via docs/legal.md fallback', () => {
+    writeFile('docs/legal.md', LONG_BODY)
+    expect(verifyDisciplineArtifact(PROJECT_DIR, 'legal-privacy').ok).toBe(true)
+  })
+
   it('accepts marketing when marketing/ has a file', () => {
     writeDir('marketing', { 'landing.md': 'hi' })
     expect(verifyDisciplineArtifact(PROJECT_DIR, 'marketing').ok).toBe(true)
+  })
+
+  it('accepts marketing via seed_spec/marketing.md fallback', () => {
+    writeFile('seed_spec/marketing.md', LONG_BODY)
+    expect(verifyDisciplineArtifact(PROJECT_DIR, 'marketing').ok).toBe(true)
+  })
+
+  it('keeps infrastructure strict — only infrastructure_manifest.json wins', () => {
+    writeFile('docs/infrastructure.md', LONG_BODY)
+    expect(verifyDisciplineArtifact(PROJECT_DIR, 'infrastructure').ok).toBe(false)
+    writeFile('infrastructure_manifest.json', LONG_BODY)
+    expect(verifyDisciplineArtifact(PROJECT_DIR, 'infrastructure').ok).toBe(true)
   })
 })

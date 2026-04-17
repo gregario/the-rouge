@@ -19,14 +19,15 @@ type ArtifactSpec =
   | { kind: 'dir'; path: string; minFiles: number }
 
 // Each discipline produces at least one of these artifacts. Any hit wins.
-// Paths are relative to the project directory.
+// Paths are relative to the project directory — `join(projectDir, path)`
+// handles separators on Windows and Unix.
 //
-// For text-artifact disciplines (brainstorming, competition, taste) we
-// accept both `seed_spec/*.md` and `docs/*.md` — the sub-prompts nudge
-// toward `seed_spec/` but some runs improvise and write under `docs/`
-// with real content. The verifier's job is to recognise real work, not
-// to police the path. Hard-specified-path disciplines (spec, infra,
-// design/, legal/, marketing/) keep their canonical-only mapping.
+// Every discipline has a canonical output path pinned in its sub-prompt.
+// The verifier also accepts common alternatives agents have been seen to
+// improvise into (`docs/`, inline markdown for directory-artifacts) so
+// real work is recognised rather than rejected on a path technicality.
+// Infrastructure stays strict because `infrastructure_manifest.json` is
+// consumed by the launcher at build time — the path is load-bearing.
 const ARTIFACT_SPECS: Record<Discipline, ArtifactSpec[]> = {
   brainstorming: [
     { kind: 'file', path: 'seed_spec/brainstorming.md', minBytes: 500 },
@@ -34,22 +35,42 @@ const ARTIFACT_SPECS: Record<Discipline, ArtifactSpec[]> = {
     { kind: 'file', path: 'docs/brainstorming.md', minBytes: 500 },
   ],
   competition: [
-    { kind: 'file', path: 'seed_spec/competition_brief.md', minBytes: 500 },
     { kind: 'file', path: 'seed_spec/competition.md', minBytes: 500 },
+    { kind: 'file', path: 'seed_spec/competition_brief.md', minBytes: 500 },
     { kind: 'file', path: 'docs/competition.md', minBytes: 500 },
     { kind: 'file', path: 'docs/competition_brief.md', minBytes: 500 },
   ],
   taste: [
-    { kind: 'file', path: 'seed_spec/taste_verdict.md', minBytes: 300 },
     { kind: 'file', path: 'seed_spec/taste.md', minBytes: 300 },
+    { kind: 'file', path: 'seed_spec/taste_verdict.md', minBytes: 300 },
     { kind: 'file', path: 'docs/taste.md', minBytes: 300 },
     { kind: 'file', path: 'docs/taste_verdict.md', minBytes: 300 },
   ],
-  spec: [{ kind: 'file', path: 'seed_spec/milestones.json', minBytes: 500 }],
-  infrastructure: [{ kind: 'file', path: 'infrastructure_manifest.json', minBytes: 200 }],
-  design: [{ kind: 'dir', path: 'design', minFiles: 1 }],
-  'legal-privacy': [{ kind: 'dir', path: 'legal', minFiles: 1 }],
-  marketing: [{ kind: 'dir', path: 'marketing', minFiles: 1 }],
+  spec: [
+    { kind: 'file', path: 'seed_spec/milestones.json', minBytes: 500 },
+    { kind: 'file', path: 'seed_spec/spec.md', minBytes: 500 },
+    { kind: 'file', path: 'docs/spec.md', minBytes: 500 },
+  ],
+  infrastructure: [
+    { kind: 'file', path: 'infrastructure_manifest.json', minBytes: 200 },
+  ],
+  design: [
+    { kind: 'dir', path: 'design', minFiles: 1 },
+    { kind: 'file', path: 'seed_spec/design.md', minBytes: 500 },
+    { kind: 'file', path: 'seed_spec/design_artifact.md', minBytes: 500 },
+    { kind: 'file', path: 'seed_spec/design_artifact.yaml', minBytes: 500 },
+    { kind: 'file', path: 'docs/design.md', minBytes: 500 },
+  ],
+  'legal-privacy': [
+    { kind: 'dir', path: 'legal', minFiles: 1 },
+    { kind: 'file', path: 'seed_spec/legal.md', minBytes: 300 },
+    { kind: 'file', path: 'docs/legal.md', minBytes: 300 },
+  ],
+  marketing: [
+    { kind: 'dir', path: 'marketing', minFiles: 1 },
+    { kind: 'file', path: 'seed_spec/marketing.md', minBytes: 300 },
+    { kind: 'file', path: 'docs/marketing.md', minBytes: 300 },
+  ],
 }
 
 export interface ArtifactCheck {
