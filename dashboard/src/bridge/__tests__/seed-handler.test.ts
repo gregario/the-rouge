@@ -142,6 +142,58 @@ describe('handleSeedMessage — marker verification', () => {
     expect(state.current_discipline).toBe('competition')
   })
 
+  it('preserves pending correction when runClaude times out (no silent loss)', async () => {
+    // Stash a pending correction, then make the next turn time out.
+    // Correction must still be in state afterwards so a subsequent turn
+    // can deliver it.
+    mockRunClaude.mockResolvedValueOnce({
+      result: 'Done.\n\n[DISCIPLINE_COMPLETE: brainstorming]',
+      session_id: 'session-1',
+    })
+    await handleSeedMessage(PROJECT_DIR, 'first')
+    expect(readSeedingState(PROJECT_DIR).pending_correction).toMatch(/was rejected/)
+
+    // Now simulate a timeout on the follow-up turn.
+    mockRunClaude.mockResolvedValueOnce({
+      result: '',
+      session_id: null,
+      timeout: true,
+    })
+    const result = await handleSeedMessage(PROJECT_DIR, 'retry')
+    expect(result.ok).toBe(false)
+    expect(result.status).toBe(504)
+
+    // Correction must still be stashed — we peeked, didn't consume.
+    expect(readSeedingState(PROJECT_DIR).pending_correction).toMatch(/was rejected/)
+
+    // A subsequent turn succeeds and the correction IS delivered and cleared.
+    mockRunClaude.mockResolvedValueOnce({
+      result: 'Understood.',
+      session_id: 'session-1',
+    })
+    await handleSeedMessage(PROJECT_DIR, 'try again')
+    const lastPrompt: string = mockRunClaude.mock.calls[2][0].prompt
+    expect(lastPrompt).toMatch(/was rejected/)
+    expect(readSeedingState(PROJECT_DIR).pending_correction).toBeUndefined()
+  })
+
+  it('preserves pending correction when runClaude rate-limits', async () => {
+    mockRunClaude.mockResolvedValueOnce({
+      result: 'Done.\n\n[DISCIPLINE_COMPLETE: brainstorming]',
+      session_id: 'session-1',
+    })
+    await handleSeedMessage(PROJECT_DIR, 'first')
+
+    mockRunClaude.mockResolvedValueOnce({
+      result: 'you have hit your limit',
+      session_id: 'session-1',
+    })
+    await handleSeedMessage(PROJECT_DIR, 'retry')
+
+    // Rate-limit counts as "Claude didn't act on the correction" — keep it.
+    expect(readSeedingState(PROJECT_DIR).pending_correction).toMatch(/was rejected/)
+  })
+
   it('delivers a prior rejection to Claude on the following turn', async () => {
     // Turn 1: agent emits a marker without the artifact; handler rejects.
     mockRunClaude.mockResolvedValueOnce({

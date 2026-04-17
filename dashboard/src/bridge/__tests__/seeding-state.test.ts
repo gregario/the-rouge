@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { readSeedingState, writeSeedingState, updateSessionId, markDisciplineComplete, markSeedingComplete } from '../seeding-state'
-import { mkdirSync, rmSync } from 'fs'
+import { readSeedingState, writeSeedingState, updateSessionId, markDisciplineComplete, markSeedingComplete, appendPendingCorrection, peekPendingCorrection, clearPendingCorrection } from '../seeding-state'
+import { mkdirSync, readdirSync, rmSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
 
@@ -84,5 +84,43 @@ describe('seeding-state', () => {
     const state = readSeedingState(testDir)
     expect(state.seeding_complete).toBe(true)
     expect(state.status).toBe('complete')
+  })
+
+  it('writeSeedingState leaves no .tmp file behind on success', () => {
+    mkdirSync(testDir, { recursive: true })
+    writeSeedingState(testDir, { session_id: 'a', status: 'active' })
+    writeSeedingState(testDir, { session_id: 'b', status: 'active' })
+    writeSeedingState(testDir, { session_id: 'c', status: 'active' })
+    const stray = readdirSync(testDir).filter((f) => f.endsWith('.tmp'))
+    expect(stray).toEqual([])
+  })
+
+  it('peek returns pending correction without clearing it', () => {
+    mkdirSync(testDir, { recursive: true })
+    writeSeedingState(testDir, { session_id: 's', status: 'active' })
+    appendPendingCorrection(testDir, 'marker X rejected')
+    expect(peekPendingCorrection(testDir)).toBe('marker X rejected')
+    // Still there.
+    expect(peekPendingCorrection(testDir)).toBe('marker X rejected')
+    expect(readSeedingState(testDir).pending_correction).toBe('marker X rejected')
+  })
+
+  it('clear removes the pending correction and preserves other state', () => {
+    mkdirSync(testDir, { recursive: true })
+    writeSeedingState(testDir, { session_id: 's1', status: 'active' })
+    appendPendingCorrection(testDir, 'rejected')
+    clearPendingCorrection(testDir)
+    expect(peekPendingCorrection(testDir)).toBeNull()
+    // Other fields preserved.
+    expect(readSeedingState(testDir).session_id).toBe('s1')
+    expect(readSeedingState(testDir).status).toBe('active')
+  })
+
+  it('clear is a no-op when there is no pending correction', () => {
+    mkdirSync(testDir, { recursive: true })
+    writeSeedingState(testDir, { session_id: 's', status: 'active' })
+    // Should not throw.
+    clearPendingCorrection(testDir)
+    expect(readSeedingState(testDir).session_id).toBe('s')
   })
 })

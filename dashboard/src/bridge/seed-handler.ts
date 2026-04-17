@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'fs'
 import { resolve } from 'path'
 import { runClaude, detectRateLimit, extractMarkers } from './claude-runner'
 import { appendChatMessage } from './chat-reader'
-import { readSeedingState, updateSessionId, markDisciplineComplete, markDisciplinePrompted, markSeedingComplete, setStatus, appendPendingCorrection, consumePendingCorrection } from './seeding-state'
+import { readSeedingState, updateSessionId, markDisciplineComplete, markDisciplinePrompted, markSeedingComplete, setStatus, appendPendingCorrection, peekPendingCorrection, clearPendingCorrection } from './seeding-state'
 import { finalizeSeeding } from './seeding-finalize'
 import { maybeDeriveWorkingTitle } from './derive-title'
 import { loadDisciplinePrompt, type Discipline } from './discipline-prompts'
@@ -121,16 +121,23 @@ async function runSeedingTurn(
   // accumulate around them. Walk in sequence, mark any discipline whose
   // artifact now passes verification, and stop at the first gap so we
   // respect the orchestrator's sequential rule.
-  const reconciled = reconcileDisciplineState(projectDir)
-  if (reconciled.length > 0) {
-    console.log(`[seeding] reconciled stranded disciplines: ${reconciled.join(', ')}`)
-    const note = `[SYSTEM NOTE] Reconciled earlier discipline state: ${reconciled.join(', ')} now marked complete (artifact verified on disk). Seeding continues.`
-    appendChatMessage(projectDir, {
-      id: genId(),
-      role: 'rouge',
-      content: note,
-      timestamp: new Date().toISOString(),
-    })
+  //
+  // Skipped on auto-kickoff turns: the user-initiated turn that
+  // triggered the kickoff just reconciled, and nothing's changed on
+  // disk between that turn and this recursive one. No artifacts have
+  // been written by Claude yet in this kickoff.
+  if (!isKickoff) {
+    const reconciled = reconcileDisciplineState(projectDir)
+    if (reconciled.length > 0) {
+      console.log(`[seeding] reconciled stranded disciplines: ${reconciled.join(', ')}`)
+      const note = `[SYSTEM NOTE] Reconciled earlier discipline state: ${reconciled.join(', ')} now marked complete (artifact verified on disk). Seeding continues.`
+      appendChatMessage(projectDir, {
+        id: genId(),
+        role: 'rouge',
+        content: note,
+        timestamp: new Date().toISOString(),
+      })
+    }
   }
 
   const state = readSeedingState(projectDir)
@@ -181,7 +188,12 @@ async function runSeedingTurn(
   // we appended — its `--resume` only replays the server-side session —
   // so without this, rejections would be invisible to the agent and it
   // would either advance blindly or repeat the same mistake.
-  const pendingCorrection = consumePendingCorrection(projectDir)
+  //
+  // Peek rather than consume: if runClaude times out or errors below,
+  // the correction must stay stashed so the next turn can deliver it.
+  // We only clear after Claude returns successfully (post rate-limit
+  // check).
+  const pendingCorrection = peekPendingCorrection(projectDir)
   if (pendingCorrection) {
     sections.push('---', pendingCorrection)
   }
@@ -209,11 +221,19 @@ async function runSeedingTurn(
   }
 
   // Detect rate limit BEFORE marking the discipline prompted so a rate-
-  // limited turn retries with the same injection next time.
+  // limited turn retries with the same injection next time. Also don't
+  // clear the pending correction — a rate-limit means Claude never got
+  // to act on it.
   if (detectRateLimit(result.result)) {
     setStatus(projectDir, 'paused')
     appendMessages(projectDir, isKickoff ? null : text, result.result, activeDiscipline ?? undefined)
     return { ok: false, status: 429, error: 'Claude rate-limited', rateLimited: true }
+  }
+
+  // Claude returned a real response — the correction (if any) reached
+  // it via the prompt above. Safe to clear now.
+  if (pendingCorrection) {
+    clearPendingCorrection(projectDir)
   }
 
   // We successfully handed the discipline's sub-prompt to Claude; record
