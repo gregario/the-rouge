@@ -113,6 +113,7 @@ export type SeedingMessageKind =
   | 'gate_question'
   | 'autonomous_decision'
   | 'heartbeat'
+  | 'system_note'
 
 export interface SeedingChatMessage {
   id: string           // e.g. "msg-1712345678-abc"

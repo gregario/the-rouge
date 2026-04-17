@@ -50,6 +50,7 @@ export type ChatMessageKind =
   | 'gate_question'
   | 'autonomous_decision'
   | 'heartbeat'
+  | 'system_note'
 
 export type ActivityEventType =
   | 'deploy'
@@ -248,6 +249,13 @@ export interface ChatMessage {
    *  for gates, or a decision slug. Used by the override mechanism
    *  (PR 2) to address a specific decision. */
   markerId?: string
+  /** Optimistic send placeholder — the message is in-flight to the
+   *  bridge. UI renders with a muted "sending…" state. Cleared on
+   *  refetch once the authoritative version lands. */
+  isPending?: boolean
+  /** The optimistic send failed (rate limit, network). UI renders
+   *  the pending bubble with an error mark so the user can retry. */
+  pendingErrored?: boolean
 }
 
 // ─── Activity Feed ───────────────────────────────────────────────────

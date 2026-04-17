@@ -79,7 +79,7 @@ export function ChatPanel({
   // Build display messages with discipline tags
   const displayMessages: MessageWithDiscipline[] = useMemo(() => {
     if (bridgeActive) {
-      return seeding.messages.map((m) => ({
+      const base: MessageWithDiscipline[] = seeding.messages.map((m) => ({
         id: m.id,
         role: m.role,
         type: m.role === 'human' ? ('answer' as const) : ('question' as const),
@@ -89,13 +89,36 @@ export function ChatPanel({
         markerId: m.metadata?.markerId,
         _discipline: m.metadata?.discipline,
       }))
+      // Optimistic pending human message: append at the end so the
+      // user sees their send land in chat immediately instead of
+      // watching the input grey out with their text still in it.
+      if (seeding.pendingUserMessage) {
+        base.push({
+          id: 'pending-user',
+          role: 'human',
+          type: 'answer',
+          content: seeding.pendingUserMessage,
+          timestamp: new Date().toISOString(),
+          _discipline: currentDiscipline,
+          isPending: true,
+          pendingErrored: seeding.pendingUserMessageErrored,
+        })
+      }
+      return base
     }
     // Mock path: use message.discipline if present
     return (propMessages as MessageWithDiscipline[]).map((m) => ({
       ...m,
       _discipline: m.discipline,
     }))
-  }, [bridgeActive, seeding.messages, propMessages])
+  }, [
+    bridgeActive,
+    seeding.messages,
+    seeding.pendingUserMessage,
+    seeding.pendingUserMessageErrored,
+    currentDiscipline,
+    propMessages,
+  ])
 
   // Group messages by discipline
   const groups: DisciplineGroup[] = useMemo(() => {
@@ -189,16 +212,28 @@ export function ChatPanel({
   }
 
   const inputDisabled = disabled || (bridgeActive && seeding.isSending)
-  const placeholder = bridgeActive && seeding.isSending ? 'Rouge is thinking…' : 'Reply to Rouge…'
+  // First-turn placeholder: the user isn't replying to anything yet —
+  // they're telling Rouge what to build. Different placeholder frames
+  // this as an opening, not a reply to silence.
+  const isFirstTurn = displayMessages.length === 0
+  const placeholder =
+    bridgeActive && seeding.isSending
+      ? 'Rouge is thinking…'
+      : isFirstTurn
+        ? 'Describe what you want to build…'
+        : 'Reply to Rouge…'
 
   async function handleSend() {
     const text = inputValue.trim()
     if (!text) return
+    // Clear the input BEFORE the await so the user doesn't watch their
+    // text sit greyed-out for 30s — the optimistic pending message in
+    // seeding.messages takes over the visual feedback.
+    setInputValue('')
+    textareaRef.current?.focus()
     if (bridgeActive) {
       await seeding.sendMessage(text)
     }
-    setInputValue('')
-    textareaRef.current?.focus()
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -213,16 +248,23 @@ export function ChatPanel({
       className="flex h-full flex-col rounded-lg border border-gray-200 bg-white"
       data-testid="chat-panel"
     >
-      {/* Traffic-light: shows how fresh Rouge's last marker is. Green
-          under 45s, amber 45-120s, red 120-180s, stall above that.
-          Only shown when we have a heartbeat to track against (i.e.
-          after the first [DECISION:] or [HEARTBEAT:] lands). */}
-      {bridgeActive && seeding.status?.last_heartbeat_at && (
-        <LivenessChip
-          lastHeartbeatAt={seeding.status.last_heartbeat_at}
-          mode={seeding.status.mode}
-        />
-      )}
+      {/* Traffic-light: only shown when there's actually something
+          live to track. Otherwise the chip decays from the last
+          heartbeat into "red / stalled" just because Rouge is idle
+          between turns — misleading.
+
+          Shown when:
+          - A turn is in flight (isSending) — active work
+          - Or mode is awaiting_gate — chip explicitly says "waiting
+            on your answer" rather than a decaying timer */}
+      {bridgeActive &&
+        ((seeding.isSending && seeding.status?.last_heartbeat_at) ||
+          seeding.status?.mode === 'awaiting_gate') && (
+          <LivenessChip
+            lastHeartbeatAt={seeding.status?.last_heartbeat_at ?? new Date().toISOString()}
+            mode={seeding.status?.mode ?? 'running_autonomous'}
+          />
+        )}
 
       {/* Message list — grouped by discipline */}
       <ScrollArea className="flex-1 overflow-auto">

@@ -190,10 +190,22 @@ interface TurnOptions {
    * by user input. The `text` passed in is a system instruction, so we
    * skip logging a human message to the chat. */
   isKickoff?: boolean
-  /** Don't chain another auto-kickoff at the end of this turn. Guards
-   * against recursion — at most one kickoff per user-initiated turn. */
-  suppressKickoff?: boolean
+  /** How many recursive turns have already fired from the originating
+   *  user message. 0 means this IS the user's turn. Used to cap the
+   *  auto-continuation chain so a runaway discipline can't burn
+   *  unbounded tokens. See MAX_CHUNK_DEPTH. */
+  chunkDepth?: number
 }
+
+// Max turns we'll auto-chain from a single user message. Covers:
+//   - one discipline-advance kickoff (discipline A completes, enter B)
+//   - plus a handful of autonomous-chunk continuations within a
+//     discipline (Claude emits decisions, returns, bridge fires again)
+// At ~30-60s per turn and typical orchestrator pacing, 5 gives the
+// discipline ~2-5 min of autonomous work before the bridge stops
+// chaining and the user can nudge with a message. Tune after real
+// seedings calibrate the right budget.
+const MAX_CHUNK_DEPTH = 5
 
 export async function handleSeedMessage(
   projectDir: string,
@@ -207,7 +219,7 @@ async function runSeedingTurn(
   text: string,
   options: TurnOptions,
 ): Promise<SendMessageResult> {
-  const { isKickoff = false, suppressKickoff = false } = options
+  const { isKickoff = false, chunkDepth = 0 } = options
 
   // Gated-autonomy: a user-initiated turn IS the answer to any pending
   // gate. Clear awaiting_gate state before anything else so the rest
@@ -241,12 +253,16 @@ async function runSeedingTurn(
     const reconciled = reconcileDisciplineState(projectDir)
     if (reconciled.length > 0) {
       console.log(`[seeding] reconciled stranded disciplines: ${reconciled.join(', ')}`)
-      const note = `[SYSTEM NOTE] Reconciled earlier discipline state: ${reconciled.join(', ')} now marked complete (artifact verified on disk). Seeding continues.`
+      // Strip the [SYSTEM NOTE] prefix — the new `kind: 'system_note'`
+      // drives UI styling, making the inline bracket tag redundant and
+      // visually naff.
+      const note = `Reconciled earlier discipline state: ${reconciled.join(', ')} now marked complete (artifact verified on disk). Seeding continues.`
       appendChatMessage(projectDir, {
         id: genId(),
         role: 'rouge',
         content: note,
         timestamp: new Date().toISOString(),
+        kind: 'system_note',
       })
     }
   }
@@ -444,23 +460,34 @@ async function runSeedingTurn(
   appendSegmentedRougeMessages(projectDir, prelimSegments, activeDiscipline ?? undefined)
   applyMarkerStateEffects(projectDir, prelimSegments, activeDiscipline)
   if (rejectedDisciplines.length > 0) {
-    const note = rejectedDisciplines
+    // Claude-facing note keeps the [SYSTEM NOTE] prefix — that text is
+    // delivered via appendPendingCorrection on the next turn and the
+    // bracket tag helps the agent parse it as an instruction.
+    const claudeNote = rejectedDisciplines
       .map(
         (r) =>
           `[SYSTEM NOTE] DISCIPLINE_COMPLETE(${r.discipline}) was rejected — ${r.reason}. The discipline remains active. Continue the work on disk and emit the marker only when the artifact exists with real content.`,
       )
       .join('\n')
-    // Visible to the human in the chat log UI.
+    // Human-facing note drops the prefix — UI styling from kind=system_note
+    // conveys the meaning; raw bracket tags read as scaffolding.
+    const humanNote = rejectedDisciplines
+      .map(
+        (r) =>
+          `DISCIPLINE_COMPLETE(${r.discipline}) was rejected — ${r.reason}. The discipline remains active; Rouge will keep working and emit the marker only when the artifact is truly done.`,
+      )
+      .join('\n')
     appendChatMessage(projectDir, {
       id: genId(),
       role: 'rouge',
-      content: note,
+      content: humanNote,
       timestamp: new Date().toISOString(),
+      kind: 'system_note',
       metadata: { discipline: activeDiscipline ?? undefined },
     })
     // Delivered to Claude on the next turn (session memory alone wouldn't
     // carry this note — our chat log is separate from Claude's session).
-    appendPendingCorrection(projectDir, note)
+    appendPendingCorrection(projectDir, claudeNote)
   }
 
   // If this was the first user message and the project is still
@@ -485,26 +512,49 @@ async function runSeedingTurn(
     }
   }
 
-  // Auto-kickoff the next discipline. When a marker is accepted and
-  // seeding isn't finished, the conversation otherwise dangles until the
-  // user types something — because agent turns are triggered by user
-  // input and the agent has no way to send an unprompted message. Fire
-  // a follow-up turn here with a system-style kickoff prompt so the new
-  // discipline's sub-prompt injects (#147) and the agent asks its first
-  // question automatically. The HTTP response waits for the kickoff to
-  // complete so both agent messages arrive together in the client —
-  // elapsed-time display covers the full combined wait.
+  // Auto-continuation. Two shapes:
   //
-  // Guarded against recursion via `suppressKickoff` — at most one
-  // kickoff per user-initiated turn.
-  if (
-    !suppressKickoff &&
+  // 1. **Discipline advance** — `[DISCIPLINE_COMPLETE]` accepted, seeding
+  //    not done. Fire a new turn that injects the next discipline's
+  //    sub-prompt and asks it to start.
+  // 2. **Autonomous chunk** — turn ended in `running_autonomous` with
+  //    neither a gate nor a discipline-complete. Under the chunked-turn
+  //    contract, this means "I've emitted my chunk, the bridge fires
+  //    the next one." The orchestrator prompt promises this behaviour.
+  //    Without it, Claude stops mid-discipline whenever it returns,
+  //    and the user watches the chat sit idle — which is exactly the
+  //    "paused at end of brainstorming for 4 min" symptom.
+  //
+  // Both paths share a single cap (MAX_CHUNK_DEPTH) on the recursive
+  // chain per originating user message. Hitting the cap surfaces a
+  // chat note so the user knows to nudge with a message.
+  const atDepthLimit = chunkDepth + 1 >= MAX_CHUNK_DEPTH
+  const postContinuationState = readSeedingState(projectDir)
+  const shouldContinueForAdvance =
     acceptedDisciplines.length > 0 &&
-    !markers.seedingComplete
-  ) {
-    const postState = readSeedingState(projectDir)
-    const nextDiscipline = resolveActiveDiscipline(postState.current_discipline)
-    const alreadyKicked = postState.disciplines_prompted ?? []
+    !markers.seedingComplete &&
+    !atDepthLimit
+  // Only auto-continue a non-advancing turn if Claude actually emitted
+  // decision/heartbeat markers — that's the signal it's in the middle
+  // of autonomous work. A turn that was pure prose (no markers) is
+  // probably Claude asking the user unprompted; continuing would
+  // interrupt a question the user hasn't seen yet.
+  const emittedAutonomousMarkers = prelimSegments.some(
+    (s) => s.kind === 'decision' || s.kind === 'heartbeat',
+  )
+  const shouldContinueForAutonomous =
+    !shouldContinueForAdvance &&
+    !markers.seedingComplete &&
+    acceptedDisciplines.length === 0 &&
+    rejectedDisciplines.length === 0 &&
+    emittedAutonomousMarkers &&
+    postContinuationState.mode !== 'awaiting_gate' &&
+    postContinuationState.status === 'active' &&
+    !atDepthLimit
+
+  if (shouldContinueForAdvance) {
+    const nextDiscipline = resolveActiveDiscipline(postContinuationState.current_discipline)
+    const alreadyKicked = postContinuationState.disciplines_prompted ?? []
     if (nextDiscipline && !alreadyKicked.includes(nextDiscipline)) {
       const previous = acceptedDisciplines.join(', ')
       const kickoffText = [
@@ -512,29 +562,32 @@ async function runSeedingTurn(
         `You are now entering ${nextDiscipline.toUpperCase()}. The sub-prompt for that discipline is attached to this turn; follow its rules exactly.`,
         `Begin the new discipline by asking its first question to the human, in the format the sub-prompt specifies. Do NOT summarise the previous discipline's conclusions — the human already has them.`,
       ].join(' ')
-      try {
-        await runSeedingTurn(projectDir, kickoffText, {
-          isKickoff: true,
-          suppressKickoff: true,
-        })
-      } catch (err) {
-        // Kickoff is best-effort — the user can nudge the next discipline
-        // by sending a message, and the needs-discipline-prompt check
-        // will re-inject the sub-prompt on that turn. But silent failure
-        // was hiding the degradation: the user saw DISCIPLINE_COMPLETE
-        // in chat and then nothing, with no signal that kickoff tried
-        // and errored. Surface it in chat so the absence is visible.
-        console.error('[seeding] auto-kickoff failed:', err)
-        const msg = err instanceof Error ? err.message : String(err)
-        appendChatMessage(projectDir, {
-          id: genId(),
-          role: 'rouge',
-          content: `[SYSTEM NOTE] Auto-kickoff for ${nextDiscipline} failed (${msg}). Send any message to resume — the sub-prompt will re-inject on the next turn.`,
-          timestamp: new Date().toISOString(),
-          metadata: { discipline: nextDiscipline },
-        })
-      }
+      await runContinuationTurn(projectDir, kickoffText, chunkDepth + 1, `kickoff-${nextDiscipline}`)
     }
+  } else if (shouldContinueForAutonomous) {
+    const activeDisc = resolveActiveDiscipline(postContinuationState.current_discipline)
+    const continuationText = [
+      '[SYSTEM] Continue the autonomous chunk for the current discipline.',
+      'Emit your next 1–3 [DECISION:] markers (and any [HEARTBEAT:] while working) and return.',
+      'Return BEFORE you hit ~60s of work so the user sees progress. If the discipline artifact is on disk with full content, emit [DISCIPLINE_COMPLETE:', activeDisc ?? '<current>', '] instead of further decisions.',
+      'If you need a human decision, emit [GATE:] and stop — do NOT emit a decision and a gate in the same turn.',
+    ].join(' ')
+    await runContinuationTurn(projectDir, continuationText, chunkDepth + 1, 'autonomous-chunk')
+  } else if (
+    !markers.seedingComplete &&
+    atDepthLimit &&
+    (acceptedDisciplines.length > 0 ||
+      (postContinuationState.mode !== 'awaiting_gate' && postContinuationState.status === 'active'))
+  ) {
+    // Chain budget exhausted. Surface a note so the user can nudge.
+    appendChatMessage(projectDir, {
+      id: genId(),
+      role: 'rouge',
+      content: `Auto-continuation budget reached (${MAX_CHUNK_DEPTH} chunks). Send any message to keep going — Rouge will pick up where it left off.`,
+      timestamp: new Date().toISOString(),
+      kind: 'system_note',
+      metadata: { discipline: activeDiscipline ?? undefined },
+    })
   }
 
   return {
@@ -544,6 +597,34 @@ async function runSeedingTurn(
     seedingComplete: markers.seedingComplete,
     readyTransition,
     missingArtifacts,
+  }
+}
+
+/**
+ * Wrap a recursive kickoff/continuation turn with a single try/catch so
+ * failures don't crash the outer turn but ARE visible to the user.
+ *
+ * Label is included in the failure message for diagnosability:
+ * "kickoff-competition" vs "autonomous-chunk".
+ */
+async function runContinuationTurn(
+  projectDir: string,
+  text: string,
+  chunkDepth: number,
+  label: string,
+): Promise<void> {
+  try {
+    await runSeedingTurn(projectDir, text, { isKickoff: true, chunkDepth })
+  } catch (err) {
+    console.error(`[seeding] continuation turn (${label}) failed:`, err)
+    const msg = err instanceof Error ? err.message : String(err)
+    appendChatMessage(projectDir, {
+      id: genId(),
+      role: 'rouge',
+      content: `Auto-continuation (${label}) failed: ${msg}. Send any message to resume.`,
+      timestamp: new Date().toISOString(),
+      kind: 'system_note',
+    })
   }
 }
 

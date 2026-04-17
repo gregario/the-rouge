@@ -231,7 +231,10 @@ describe('handleSeedMessage — marker verification', () => {
     const result = await handleSeedMessage(PROJECT_DIR, 'msg')
     expect(result.disciplineComplete).toBeUndefined()
     const log = readChatLog(PROJECT_DIR)
-    const note = log.find((m) => m.content.startsWith('[SYSTEM NOTE]'))
+    // Human-facing system note is now tagged via kind: 'system_note'
+    // (prefix stripped for UI readability). Look up by kind rather than
+    // by a brittle text prefix.
+    const note = log.find((m) => m.kind === 'system_note')
     expect(note?.content).toContain('rejected')
     expect(note?.content).toContain('hallucinated-discipline')
   })
@@ -321,28 +324,50 @@ describe('handleSeedMessage — auto-kickoff on marker acceptance', () => {
     expect(mockRunClaude).toHaveBeenCalledTimes(1)
   })
 
-  it('kickoff turn does not recurse — at most one follow-up per user turn', async () => {
+  it('kickoff chain caps at MAX_CHUNK_DEPTH (5) when multiple disciplines complete in series', async () => {
     writeFileSync(join(PROMPTS_DIR, '02-competition.md'), '# COMPETITION\n\nFind competitors.')
     writeFileSync(join(PROMPTS_DIR, '03-taste.md'), '# TASTE\n\nChallenge the premise.')
+    writeFileSync(join(PROMPTS_DIR, '04-spec.md'), '# SPEC\n\nWrite specs.')
+    writeFileSync(join(PROMPTS_DIR, '05-design.md'), '# DESIGN\n\nDesign.')
+    writeFileSync(join(PROMPTS_DIR, '08-infrastructure.md'), '# INFRA\n\nInfra.')
 
-    // Turn 1: agent writes brainstorming artifact during its turn, emits marker.
-    mockRunClaude.mockImplementationOnce(async () => {
-      mkdirSync(join(PROJECT_DIR, 'seed_spec'), { recursive: true })
-      writeFileSync(join(PROJECT_DIR, 'seed_spec', 'brainstorming.md'), 'x'.repeat(1000))
-      return { result: '[DISCIPLINE_COMPLETE: brainstorming]', session_id: 's1' }
-    })
-    // Kickoff turn: the agent writes competition artifact + emits
-    // competition-complete marker too (pathological chain). We should
-    // NOT fire a second kickoff.
-    mockRunClaude.mockImplementationOnce(async () => {
-      writeFileSync(join(PROJECT_DIR, 'seed_spec', 'competition.md'), 'x'.repeat(1000))
-      return { result: 'Entering competition.\n\n[DISCIPLINE_COMPLETE: competition]', session_id: 's1' }
-    })
+    // Agent completes every discipline in sequence during successive
+    // kickoff turns. Pre-gated-autonomy, `suppressKickoff` blocked
+    // anything past depth 1; now the depth counter allows up to
+    // MAX_CHUNK_DEPTH (5) total turns, then stops and surfaces a
+    // chat note.
+    const disciplines = ['brainstorming', 'competition', 'taste', 'spec', 'infrastructure', 'design', 'legal-privacy', 'marketing']
+    const artifacts: Record<string, string> = {
+      brainstorming: 'seed_spec/brainstorming.md',
+      competition: 'seed_spec/competition.md',
+      taste: 'seed_spec/taste.md',
+      spec: 'seed_spec/milestones.json',
+      infrastructure: 'infrastructure_manifest.json',
+      design: 'design/design.yaml',
+    }
+    for (let i = 0; i < disciplines.length; i++) {
+      const d = disciplines[i]
+      mockRunClaude.mockImplementationOnce(async () => {
+        const rel = artifacts[d] ?? `seed_spec/${d}.md`
+        const full = join(PROJECT_DIR, rel)
+        mkdirSync(join(full, '..'), { recursive: true })
+        writeFileSync(full, 'x'.repeat(1000))
+        return { result: `[DISCIPLINE_COMPLETE: ${d}]`, session_id: 's1' }
+      })
+    }
 
     await handleSeedMessage(PROJECT_DIR, 'begin')
 
-    // Two calls total: user turn + ONE kickoff. No third call.
-    expect(mockRunClaude).toHaveBeenCalledTimes(2)
+    // Capped at MAX_CHUNK_DEPTH = 5 total turns (user turn counts as
+    // depth 0, so we get the user turn + 4 recursive kickoffs).
+    expect(mockRunClaude).toHaveBeenCalledTimes(5)
+
+    // Budget-exhausted note appears so the user knows to nudge.
+    const log = readChatLog(PROJECT_DIR)
+    const budgetNote = log.find((m) =>
+      m.kind === 'system_note' && m.content.includes('Auto-continuation budget'),
+    )
+    expect(budgetNote).toBeDefined()
   })
 })
 

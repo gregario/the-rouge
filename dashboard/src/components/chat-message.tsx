@@ -7,7 +7,7 @@ import type { ChatMessage as ChatMessageType } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
-import { ChevronRight, HelpCircle, CircleDot, Activity } from 'lucide-react'
+import { ChevronRight, HelpCircle, CircleDot, Activity, Info } from 'lucide-react'
 
 // Markdown renderer with tight spacing matched to the chat panel's style
 function Markdown({ content, className }: { content: string; className?: string }) {
@@ -58,11 +58,28 @@ export function ChatMessage({ message }: ChatMessageProps) {
 
   // Human messages
   if (message.role === 'human') {
+    const pending = message.isPending
+    const errored = message.pendingErrored
     return (
-      <div className="flex justify-end" data-testid="chat-message" data-role="human">
-        <div className="max-w-[80%] rounded-lg bg-primary/15 px-4 py-3 text-sm text-foreground whitespace-pre-wrap">
+      <div className="flex flex-col items-end gap-1" data-testid="chat-message" data-role="human">
+        <div
+          className={cn(
+            'max-w-[80%] rounded-lg px-4 py-3 text-sm whitespace-pre-wrap',
+            errored
+              ? 'bg-red-50 text-red-900 border border-red-200'
+              : pending
+                ? 'bg-primary/10 text-foreground/80'
+                : 'bg-primary/15 text-foreground',
+          )}
+        >
           {message.content}
         </div>
+        {pending && !errored && (
+          <span className="text-[10px] text-muted-foreground italic">sending…</span>
+        )}
+        {errored && (
+          <span className="text-[10px] text-red-600">send failed — retry by editing the last response</span>
+        )}
       </div>
     )
   }
@@ -82,6 +99,11 @@ export function ChatMessage({ message }: ChatMessageProps) {
   if (message.kind === 'heartbeat') {
     return (
       <HeartbeatMessage message={message} />
+    )
+  }
+  if (message.kind === 'system_note') {
+    return (
+      <SystemNoteMessage message={message} />
     )
   }
 
@@ -232,6 +254,27 @@ function AutonomousDecisionMessage({ message }: { message: ChatMessageType }) {
         )}
       </div>
       <Markdown content={message.content} className="text-[13px]" />
+    </div>
+  )
+}
+
+// System-level observability: reconciliation notes, marker rejections,
+// auto-continuation budget messages. Not model output — the bridge
+// explaining something to the user. Muted amber box so it reads as
+// "infrastructure speaking" without screaming like an error.
+function SystemNoteMessage({ message }: { message: ChatMessageType }) {
+  return (
+    <div
+      data-testid="chat-message"
+      data-role="rouge"
+      data-kind="system_note"
+      className="rounded-md border border-amber-200 bg-amber-50/50 px-3 py-2 text-xs text-amber-900"
+    >
+      <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+        <Info className="size-3" />
+        System note
+      </div>
+      <div className="whitespace-pre-wrap leading-relaxed">{message.content}</div>
     </div>
   )
 }
