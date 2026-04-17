@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 
 type Tab = 'spec' | 'build'
@@ -17,6 +17,17 @@ export function ProjectTabs({
   buildContent: React.ReactNode
 }) {
   const [active, setActive] = useState<Tab>(defaultTab)
+
+  // When the page recomputes defaultTab — most commonly on the 'spec' →
+  // 'build' transition after the user presses Start and the build-status
+  // poll picks up the running subprocess — sync the active tab so the
+  // user is taken to Build automatically. Depending only on defaultTab
+  // (not on every render) means a user's explicit click to Spec after
+  // that initial flip is preserved: defaultTab won't change again while
+  // the build keeps running.
+  useEffect(() => {
+    setActive(defaultTab)
+  }, [defaultTab])
 
   function tabClass(isActive: boolean, isDisabled = false) {
     if (isDisabled) return 'cursor-not-allowed pb-2 text-gray-300'
