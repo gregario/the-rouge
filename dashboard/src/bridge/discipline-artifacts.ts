@@ -17,6 +17,11 @@ import type { Discipline } from './discipline-prompts'
 type ArtifactSpec =
   | { kind: 'file'; path: string; minBytes: number }
   | { kind: 'dir'; path: string; minFiles: number }
+  // All listed files must exist with their minBytes. Used where a
+  // discipline's contract mandates multiple discrete outputs (e.g.
+  // DESIGN's three scored passes) — a single-dir existence check
+  // accepts work that only did one pass and called it done.
+  | { kind: 'files'; paths: { path: string; minBytes: number }[] }
 
 // Each discipline produces at least one of these artifacts. Any hit wins.
 // Paths are relative to the project directory — `join(projectDir, path)`
@@ -55,11 +60,28 @@ const ARTIFACT_SPECS: Record<Discipline, ArtifactSpec[]> = {
     { kind: 'file', path: 'infrastructure_manifest.json', minBytes: 200 },
   ],
   design: [
-    { kind: 'dir', path: 'design', minFiles: 1 },
-    { kind: 'file', path: 'seed_spec/design.md', minBytes: 500 },
-    { kind: 'file', path: 'seed_spec/design_artifact.md', minBytes: 500 },
-    { kind: 'file', path: 'seed_spec/design_artifact.yaml', minBytes: 500 },
-    { kind: 'file', path: 'docs/design.md', minBytes: 500 },
+    // Primary: all three scored passes must exist as discrete YAML
+    // artifacts. Prevents the phantom-complete pattern where Pass 1
+    // ran, the agent emitted DISCIPLINE_COMPLETE, and Pass 2/3 were
+    // never actually performed — observed in the Praise session.
+    {
+      kind: 'files',
+      paths: [
+        { path: 'design/pass-1-ux-architecture.yaml', minBytes: 300 },
+        { path: 'design/pass-2-component-design.yaml', minBytes: 300 },
+        { path: 'design/pass-3-visual-design.yaml', minBytes: 300 },
+      ],
+    },
+    // Fallback: combined design.yaml large enough to plausibly contain
+    // all three passes. ~2KB covers the orchestrator's scored-dimension
+    // structure for three passes.
+    { kind: 'file', path: 'design/design.yaml', minBytes: 2000 },
+    // Legacy / agent-improvised paths. Keep for backwards compat with
+    // older convention (construction-coordinator's design_artifact.md).
+    { kind: 'file', path: 'seed_spec/design.md', minBytes: 2000 },
+    { kind: 'file', path: 'seed_spec/design_artifact.md', minBytes: 2000 },
+    { kind: 'file', path: 'seed_spec/design_artifact.yaml', minBytes: 2000 },
+    { kind: 'file', path: 'docs/design.md', minBytes: 2000 },
   ],
   'legal-privacy': [
     { kind: 'dir', path: 'legal', minFiles: 1 },
@@ -91,24 +113,40 @@ export function verifyDisciplineArtifact(
 
   const checked: string[] = []
   for (const spec of specs) {
-    const full = join(projectDir, spec.path)
-    checked.push(spec.path)
-    if (!existsSync(full)) continue
-
     if (spec.kind === 'file') {
+      const full = join(projectDir, spec.path)
+      checked.push(spec.path)
+      if (!existsSync(full)) continue
       try {
-        const size = statSync(full).size
-        if (size >= spec.minBytes) return { ok: true, discipline, checkedPaths: checked }
-      } catch {
-        continue
-      }
-    } else {
+        if (statSync(full).size >= spec.minBytes) {
+          return { ok: true, discipline, checkedPaths: checked }
+        }
+      } catch { /* skip */ }
+    } else if (spec.kind === 'dir') {
+      const full = join(projectDir, spec.path)
+      checked.push(spec.path)
+      if (!existsSync(full)) continue
       try {
         const entries = readdirSync(full).filter((f) => !f.startsWith('.'))
-        if (entries.length >= spec.minFiles) return { ok: true, discipline, checkedPaths: checked }
-      } catch {
-        continue
+        if (entries.length >= spec.minFiles) {
+          return { ok: true, discipline, checkedPaths: checked }
+        }
+      } catch { /* skip */ }
+    } else {
+      // 'files' — all listed paths must exist at their floor.
+      for (const p of spec.paths) {
+        if (!checked.includes(p.path)) checked.push(p.path)
       }
+      const allOk = spec.paths.every((p) => {
+        const full = join(projectDir, p.path)
+        if (!existsSync(full)) return false
+        try {
+          return statSync(full).size >= p.minBytes
+        } catch {
+          return false
+        }
+      })
+      if (allOk) return { ok: true, discipline, checkedPaths: checked }
     }
   }
 
@@ -116,7 +154,11 @@ export function verifyDisciplineArtifact(
     ok: false,
     discipline,
     reason: `no artifact found matching ${specs
-      .map((s) => (s.kind === 'file' ? `file ${s.path} (≥${s.minBytes}B)` : `dir ${s.path}/ (≥${s.minFiles} files)`))
+      .map((s) => {
+        if (s.kind === 'file') return `file ${s.path} (≥${s.minBytes}B)`
+        if (s.kind === 'dir') return `dir ${s.path}/ (≥${s.minFiles} files)`
+        return `all of [${s.paths.map((p) => p.path).join(', ')}] (each ≥${s.paths[0]?.minBytes ?? 0}B)`
+      })
       .join(' or ')}`,
     checkedPaths: checked,
   }

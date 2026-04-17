@@ -98,27 +98,43 @@ describe('verifyDisciplineArtifact', () => {
     expect(verifyDisciplineArtifact(PROJECT_DIR, 'infrastructure').ok).toBe(true)
   })
 
-  it('accepts design when design/ has at least one file', () => {
-    writeDir('design', { 'layout.yaml': 'hi' })
+  it('accepts design when all three pass files exist', () => {
+    writeFile('design/pass-1-ux-architecture.yaml', 'x'.repeat(400))
+    writeFile('design/pass-2-component-design.yaml', 'x'.repeat(400))
+    writeFile('design/pass-3-visual-design.yaml', 'x'.repeat(400))
     expect(verifyDisciplineArtifact(PROJECT_DIR, 'design').ok).toBe(true)
   })
 
+  it('rejects design when only Pass 1 exists (phantom-complete bug from Praise session)', () => {
+    writeFile('design/pass-1-ux-architecture.yaml', 'x'.repeat(400))
+    // Pass 2 and Pass 3 missing — the exact failure mode the user
+    // flagged. Single-file design/ shouldn't satisfy the marker.
+    const r = verifyDisciplineArtifact(PROJECT_DIR, 'design')
+    expect(r.ok).toBe(false)
+    expect(r.reason).toMatch(/pass-2-component-design/)
+  })
+
+  it('accepts design via combined design/design.yaml when large enough', () => {
+    writeFile('design/design.yaml', 'x'.repeat(2500))
+    expect(verifyDisciplineArtifact(PROJECT_DIR, 'design').ok).toBe(true)
+  })
+
+  it('rejects a small design/design.yaml that likely contains only one pass', () => {
+    writeFile('design/design.yaml', 'x'.repeat(400))
+    expect(verifyDisciplineArtifact(PROJECT_DIR, 'design').ok).toBe(false)
+  })
+
   it('accepts design via seed_spec/design_artifact.md fallback (old convention)', () => {
-    writeFile('seed_spec/design_artifact.md', LONG_BODY)
+    writeFile('seed_spec/design_artifact.md', 'x'.repeat(2500))
     expect(verifyDisciplineArtifact(PROJECT_DIR, 'design').ok).toBe(true)
   })
 
   it('accepts design via docs/design.md when agent improvises', () => {
-    writeFile('docs/design.md', LONG_BODY)
+    writeFile('docs/design.md', 'x'.repeat(2500))
     expect(verifyDisciplineArtifact(PROJECT_DIR, 'design').ok).toBe(true)
   })
 
-  it('rejects design when design/ is empty', () => {
-    writeDir('design', {})
-    expect(verifyDisciplineArtifact(PROJECT_DIR, 'design').ok).toBe(false)
-  })
-
-  it('rejects design when design/ only contains dotfiles', () => {
+  it('rejects design when no artifact pattern is satisfied', () => {
     writeDir('design', { '.DS_Store': '' })
     expect(verifyDisciplineArtifact(PROJECT_DIR, 'design').ok).toBe(false)
   })
