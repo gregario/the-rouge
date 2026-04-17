@@ -27,6 +27,7 @@ export function loadServerConfig(): ServerConfig {
   const envCli = process.env.ROUGE_CLI;
 
   let fileCfg: { projects_root?: string; rouge_cli?: string } = {};
+  let fileCfgDir: string | null = null;
   // Look in cwd first (dev), then in the repo root relative to this file
   // (works when the standalone server.js is run from .next/standalone/).
   const candidates = [
@@ -37,6 +38,7 @@ export function loadServerConfig(): ServerConfig {
     if (existsSync(candidate)) {
       try {
         fileCfg = JSON.parse(readFileSync(candidate, "utf-8"));
+        fileCfgDir = path.dirname(candidate);
         break;
       } catch {
         // ignore parse error; fall through to defaults
@@ -44,15 +46,31 @@ export function loadServerConfig(): ServerConfig {
     }
   }
 
+  // Relative paths in the config file are resolved against the config
+  // file's own directory — that's what the `../src/launcher/rouge-cli.js`
+  // entry actually means. Without this, a raw relative string leaks into
+  // `build-runner.ts`, which does `join(rougeCliPath, '..', '..', '..')`
+  // to derive the subprocess cwd; the cwd comes out as ".." and the
+  // spawned `node ../src/launcher/rouge-loop.js` resolves one directory
+  // above the repo root. The error looks like:
+  //   Cannot find module '/Users/…/ClaudeCode/src/launcher/rouge-loop.js'
+  // instead of `…/ClaudeCode/The-Rouge/src/launcher/rouge-loop.js`.
+  function resolveAgainstConfig(p: string | undefined): string | undefined {
+    if (!p) return undefined;
+    if (path.isAbsolute(p)) return p;
+    if (!fileCfgDir) return p; // no file → nothing to resolve against
+    return path.resolve(fileCfgDir, p);
+  }
+
   const home = homedir();
   return {
     projectsRoot:
       envProjects ||
-      fileCfg.projects_root ||
+      resolveAgainstConfig(fileCfg.projects_root) ||
       path.join(home, ".rouge", "projects"),
     rougeCli:
       envCli ||
-      fileCfg.rouge_cli ||
+      resolveAgainstConfig(fileCfg.rouge_cli) ||
       path.join(home, ".rouge", "bin", "rouge"),
   };
 }
