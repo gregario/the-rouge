@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import { resolve } from 'path'
 import { runClaude, detectRateLimit, extractMarkers } from './claude-runner'
 import { appendChatMessage } from './chat-reader'
@@ -6,15 +6,41 @@ import { readSeedingState, updateSessionId, markDisciplineComplete, markSeedingC
 import { finalizeSeeding } from './seeding-finalize'
 import { maybeDeriveWorkingTitle } from './derive-title'
 
-// Read from rouge-dashboard.config.json if available, otherwise use relative path
-const configPath = resolve(__dirname, '../../rouge-dashboard.config.json')
-let ORCHESTRATOR_PROMPT_PATH: string
-try {
-  const config = JSON.parse(readFileSync(configPath, 'utf-8'))
-  ORCHESTRATOR_PROMPT_PATH = resolve(__dirname, '../..', config.orchestrator_prompt || '../src/prompts/seeding/00-swarm-orchestrator.md')
-} catch {
-  ORCHESTRATOR_PROMPT_PATH = resolve(__dirname, '../../../src/prompts/seeding/00-swarm-orchestrator.md')
+// Locate the seeding orchestrator prompt at startup.
+//
+// Under Turbopack (Next 16 dev) `__dirname` points at a compiled-bundle
+// path deep under `.next/`, so a `resolve(__dirname, '../..')` walk
+// blows past `/` and an absolute "/src/prompts/..." string falls out.
+// That silently broke project creation: `startSeedingSession` threw
+// ENOENT in the background, no orchestrator context ever entered the
+// session, and the agent responded to the user's first message as
+// generic Opus instead of the brainstormer.
+//
+// Try a list of plausible absolute paths and use the first that exists.
+// Same trick the budget route uses for `rouge.config.json`.
+function resolveOrchestratorPromptPath(): string {
+  const envHint = process.env.ROUGE_ORCHESTRATOR_PROMPT
+  const candidates = [
+    envHint,
+    // Dashboard invoked from repo root (most common dev case).
+    resolve(process.cwd(), 'src/prompts/seeding/00-swarm-orchestrator.md'),
+    // Dashboard invoked from its own dir (e.g. `cd dashboard && npm run dev`).
+    resolve(process.cwd(), '../src/prompts/seeding/00-swarm-orchestrator.md'),
+    // __dirname-based fallbacks — brittle under Turbopack but fine when
+    // the code is run directly via node (tests, standalone server).
+    resolve(__dirname, '../../../src/prompts/seeding/00-swarm-orchestrator.md'),
+    resolve(__dirname, '../..', '../src/prompts/seeding/00-swarm-orchestrator.md'),
+  ].filter((p): p is string => typeof p === 'string' && p.length > 0)
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return candidate
+  }
+  // Fall through to the first candidate so the caller gets a useful
+  // ENOENT message pointing at a real-looking path.
+  return candidates[0]
 }
+
+const ORCHESTRATOR_PROMPT_PATH = resolveOrchestratorPromptPath()
 
 function genId(): string {
   return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
