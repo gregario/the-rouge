@@ -90,10 +90,29 @@ export interface SendMessageResult {
   missingArtifacts?: string[]
 }
 
+interface TurnOptions {
+  /** Turn was triggered by the dashboard after a discipline completed, not
+   * by user input. The `text` passed in is a system instruction, so we
+   * skip logging a human message to the chat. */
+  isKickoff?: boolean
+  /** Don't chain another auto-kickoff at the end of this turn. Guards
+   * against recursion — at most one kickoff per user-initiated turn. */
+  suppressKickoff?: boolean
+}
+
 export async function handleSeedMessage(
   projectDir: string,
   userText: string,
 ): Promise<SendMessageResult> {
+  return runSeedingTurn(projectDir, userText, {})
+}
+
+async function runSeedingTurn(
+  projectDir: string,
+  text: string,
+  options: TurnOptions,
+): Promise<SendMessageResult> {
+  const { isKickoff = false, suppressKickoff = false } = options
   const state = readSeedingState(projectDir)
   // Note: we intentionally allow messages even when status === 'complete'.
   // The Revise mode in the dashboard uses this path to let users continue
@@ -152,7 +171,7 @@ export async function handleSeedMessage(
       'The user has described what they want to build. Their first message is below — respond in character as the active discipline.',
     )
   }
-  sections.push(userText)
+  sections.push(text)
   const prompt = sections.join('\n\n')
 
   const result = await runClaude({
@@ -173,7 +192,7 @@ export async function handleSeedMessage(
   // limited turn retries with the same injection next time.
   if (detectRateLimit(result.result)) {
     setStatus(projectDir, 'paused')
-    appendMessages(projectDir, userText, result.result, activeDiscipline ?? undefined)
+    appendMessages(projectDir, isKickoff ? null : text, result.result, activeDiscipline ?? undefined)
     return { ok: false, status: 429, error: 'Claude rate-limited', rateLimited: true }
   }
 
@@ -218,11 +237,13 @@ export async function handleSeedMessage(
   }
 
   // Append conversation (user message + rouge response) tagged with the
-  // discipline that was active BEFORE markers fired. If the agent emitted
-  // markers for disciplines whose artifacts aren't on disk, append a
-  // follow-up note so both the human (in the UI) and the agent (via
-  // session history on the next turn) see that the marker was rejected.
-  appendMessages(projectDir, userText, result.result, activeDiscipline ?? undefined)
+  // discipline that was active BEFORE markers fired. Kickoff turns skip
+  // the human entry — the `text` we sent in was a system instruction,
+  // not something the user typed. If the agent emitted markers for
+  // disciplines whose artifacts aren't on disk, append a follow-up note
+  // so both the human (in the UI) and the agent (via session history on
+  // the next turn) see that the marker was rejected.
+  appendMessages(projectDir, isKickoff ? null : text, result.result, activeDiscipline ?? undefined)
   if (rejectedDisciplines.length > 0) {
     const note = rejectedDisciplines
       .map(
@@ -245,8 +266,12 @@ export async function handleSeedMessage(
 
   // If this was the first user message and the project is still
   // placeholder-named, derive a working title in the background.
-  // Fire-and-forget: the chat response does not wait on it.
-  void maybeDeriveWorkingTitle(projectDir, userText)
+  // Fire-and-forget: the chat response does not wait on it. Skipped on
+  // kickoff turns — the `text` is a system instruction, not a real user
+  // message.
+  if (!isKickoff) {
+    void maybeDeriveWorkingTitle(projectDir, text)
+  }
 
   // Check for SEEDING_COMPLETE
   let readyTransition = false
@@ -258,6 +283,46 @@ export async function handleSeedMessage(
       readyTransition = true
     } else {
       missingArtifacts = finalizeResult.missingArtifacts
+    }
+  }
+
+  // Auto-kickoff the next discipline. When a marker is accepted and
+  // seeding isn't finished, the conversation otherwise dangles until the
+  // user types something — because agent turns are triggered by user
+  // input and the agent has no way to send an unprompted message. Fire
+  // a follow-up turn here with a system-style kickoff prompt so the new
+  // discipline's sub-prompt injects (#147) and the agent asks its first
+  // question automatically. The HTTP response waits for the kickoff to
+  // complete so both agent messages arrive together in the client —
+  // elapsed-time display covers the full combined wait.
+  //
+  // Guarded against recursion via `suppressKickoff` — at most one
+  // kickoff per user-initiated turn.
+  if (
+    !suppressKickoff &&
+    acceptedDisciplines.length > 0 &&
+    !markers.seedingComplete
+  ) {
+    const postState = readSeedingState(projectDir)
+    const nextDiscipline = resolveActiveDiscipline(postState.current_discipline)
+    const alreadyKicked = postState.disciplines_prompted ?? []
+    if (nextDiscipline && !alreadyKicked.includes(nextDiscipline)) {
+      const previous = acceptedDisciplines.join(', ')
+      const kickoffText = [
+        `[SYSTEM] Discipline(s) ${previous} accepted — artifact verified on disk. State has advanced.`,
+        `You are now entering ${nextDiscipline.toUpperCase()}. The sub-prompt for that discipline is attached to this turn; follow its rules exactly.`,
+        `Begin the new discipline by asking its first question to the human, in the format the sub-prompt specifies. Do NOT summarise the previous discipline's conclusions — the human already has them.`,
+      ].join(' ')
+      try {
+        await runSeedingTurn(projectDir, kickoffText, {
+          isKickoff: true,
+          suppressKickoff: true,
+        })
+      } catch (err) {
+        // Kickoff is best-effort. If it fails, the user can just send
+        // a message to nudge the next discipline into starting.
+        console.error('[seeding] auto-kickoff failed:', err)
+      }
     }
   }
 
