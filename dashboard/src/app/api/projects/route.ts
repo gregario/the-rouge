@@ -3,7 +3,6 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { scanProjects } from "@/bridge/scanner";
 import { writeSeedingState } from "@/bridge/seeding-state";
-import { startSeedingSession } from "@/bridge/seed-handler";
 import { statePathForWrite } from "@/bridge/state-path";
 import { loadServerConfig } from "@/lib/server-config";
 
@@ -93,9 +92,16 @@ export async function POST(request: Request) {
     started_at: new Date().toISOString(),
   });
 
-  startSeedingSession(projectDir, name).catch((err) => {
-    console.error(`[seeding] Initial call failed for ${slug}:`, err);
-  });
-
+  // We used to fire `startSeedingSession` here as a fire-and-forget so
+  // Rouge would greet the user before they typed anything. That raced
+  // with the inline title editor: the orchestrator's `claude -p` takes
+  // 15–30s, during which the auto-slug rename (#137) moves the project
+  // directory out from under it and the background call dies with
+  // ENOENT on the stale path — no orchestrator context ever reaches
+  // Claude and the first real message gets a generic response.
+  //
+  // The init now runs inside `handleSeedMessage` on the first user
+  // message instead, so any rename has already happened by the time we
+  // resolve the prompt path.
   return NextResponse.json({ ok: true, slug });
 }
