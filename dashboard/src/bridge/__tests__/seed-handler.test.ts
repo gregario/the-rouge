@@ -188,16 +188,18 @@ describe('handleSeedMessage — marker verification', () => {
 describe('handleSeedMessage — auto-kickoff on marker acceptance', () => {
   it('fires a follow-up turn after accepting a marker', async () => {
     writeFileSync(join(PROMPTS_DIR, '02-competition.md'), '# COMPETITION\n\nFind competitors.')
-    mkdirSync(join(PROJECT_DIR, 'seed_spec'), { recursive: true })
-    writeFileSync(
-      join(PROJECT_DIR, 'seed_spec', 'brainstorming.md'),
-      '# Design Doc\n\n' + 'body '.repeat(200),
-    )
 
-    // Turn 1: accepts brainstorming marker.
-    mockRunClaude.mockResolvedValueOnce({
-      result: 'Done.\n\n[DISCIPLINE_COMPLETE: brainstorming]',
-      session_id: 'session-1',
+    // Turn 1: agent writes the brainstorming artifact during its turn,
+    // then emits the marker. Using mockImplementationOnce so we can
+    // write the file between the "turn start" reconciliation pass and
+    // the marker-accept step that verifies the artifact.
+    mockRunClaude.mockImplementationOnce(async () => {
+      mkdirSync(join(PROJECT_DIR, 'seed_spec'), { recursive: true })
+      writeFileSync(
+        join(PROJECT_DIR, 'seed_spec', 'brainstorming.md'),
+        '# Design Doc\n\n' + 'body '.repeat(200),
+      )
+      return { result: 'Done.\n\n[DISCIPLINE_COMPLETE: brainstorming]', session_id: 'session-1' }
     })
     // Kickoff turn: enters competition.
     mockRunClaude.mockResolvedValueOnce({
@@ -270,32 +272,89 @@ describe('handleSeedMessage — auto-kickoff on marker acceptance', () => {
   it('kickoff turn does not recurse — at most one follow-up per user turn', async () => {
     writeFileSync(join(PROMPTS_DIR, '02-competition.md'), '# COMPETITION\n\nFind competitors.')
     writeFileSync(join(PROMPTS_DIR, '03-taste.md'), '# TASTE\n\nChallenge the premise.')
-    mkdirSync(join(PROJECT_DIR, 'seed_spec'), { recursive: true })
-    writeFileSync(
-      join(PROJECT_DIR, 'seed_spec', 'brainstorming.md'),
-      'x'.repeat(1000),
-    )
-    writeFileSync(
-      join(PROJECT_DIR, 'seed_spec', 'competition.md'),
-      'x'.repeat(1000),
-    )
 
-    // Turn 1: accepts brainstorming.
-    mockRunClaude.mockResolvedValueOnce({
-      result: '[DISCIPLINE_COMPLETE: brainstorming]',
-      session_id: 's1',
+    // Turn 1: agent writes brainstorming artifact during its turn, emits marker.
+    mockRunClaude.mockImplementationOnce(async () => {
+      mkdirSync(join(PROJECT_DIR, 'seed_spec'), { recursive: true })
+      writeFileSync(join(PROJECT_DIR, 'seed_spec', 'brainstorming.md'), 'x'.repeat(1000))
+      return { result: '[DISCIPLINE_COMPLETE: brainstorming]', session_id: 's1' }
     })
-    // Kickoff turn: the agent pathologically also emits competition complete.
-    // We should NOT fire a second kickoff.
-    mockRunClaude.mockResolvedValueOnce({
-      result: 'Entering competition.\n\n[DISCIPLINE_COMPLETE: competition]',
-      session_id: 's1',
+    // Kickoff turn: the agent writes competition artifact + emits
+    // competition-complete marker too (pathological chain). We should
+    // NOT fire a second kickoff.
+    mockRunClaude.mockImplementationOnce(async () => {
+      writeFileSync(join(PROJECT_DIR, 'seed_spec', 'competition.md'), 'x'.repeat(1000))
+      return { result: 'Entering competition.\n\n[DISCIPLINE_COMPLETE: competition]', session_id: 's1' }
     })
 
     await handleSeedMessage(PROJECT_DIR, 'begin')
 
     // Two calls total: user turn + ONE kickoff. No third call.
     expect(mockRunClaude).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('handleSeedMessage — reconciliation of stranded state', () => {
+  it('catches up a stranded earlier discipline when its artifact already exists', async () => {
+    writeFileSync(join(PROMPTS_DIR, '04-spec.md'), '# SPEC\n\nWrite milestones.')
+
+    // Stranded state: later disciplines marked complete but brainstorming
+    // was rejected historically and its marker never re-fired.
+    // brainstorming artifact is on disk, matching what happens when a
+    // user session went through the old verifier rejection path.
+    mkdirSync(join(PROJECT_DIR, 'docs'), { recursive: true })
+    writeFileSync(join(PROJECT_DIR, 'docs', 'brainstorming.md'), 'x'.repeat(1000))
+    writeSeedingState(PROJECT_DIR, {
+      session_id: 's-stranded',
+      status: 'active',
+      disciplines_complete: ['competition', 'taste'],
+      disciplines_prompted: ['brainstorming'],
+      current_discipline: 'brainstorming',
+    })
+
+    // Mock returns a plain no-marker response for this turn.
+    mockRunClaude.mockResolvedValueOnce({
+      result: 'Continuing.',
+      session_id: 's-stranded',
+    })
+
+    await handleSeedMessage(PROJECT_DIR, 'continue')
+
+    // Reconciliation pass should have marked brainstorming complete and
+    // advanced the current discipline to the next gap (spec — because
+    // competition and taste were already complete).
+    const state = readSeedingState(PROJECT_DIR)
+    expect(state.disciplines_complete).toContain('brainstorming')
+    expect(state.current_discipline).toBe('spec')
+
+    // Chat log includes the reconciliation system note.
+    const log = readChatLog(PROJECT_DIR)
+    const note = log.find((m) => m.content.includes('Reconciled earlier discipline state'))
+    expect(note?.content).toContain('brainstorming')
+  })
+
+  it('rejects an out-of-order DISCIPLINE_COMPLETE when an earlier discipline genuinely has no artifact', async () => {
+    // No brainstorming artifact. Agent tries to skip ahead and declare
+    // competition complete.
+    mkdirSync(join(PROJECT_DIR, 'seed_spec'), { recursive: true })
+    writeFileSync(join(PROJECT_DIR, 'seed_spec', 'competition.md'), 'x'.repeat(1000))
+
+    mockRunClaude.mockResolvedValueOnce({
+      result: 'Competition analysis done.\n\n[DISCIPLINE_COMPLETE: competition]',
+      session_id: 's1',
+    })
+
+    const result = await handleSeedMessage(PROJECT_DIR, 'ship it')
+
+    // Marker rejected, state did NOT advance competition.
+    expect(result.disciplineComplete).toBeUndefined()
+    const state = readSeedingState(PROJECT_DIR)
+    expect(state.disciplines_complete ?? []).not.toContain('competition')
+
+    // System note explains the sequential gap.
+    const log = readChatLog(PROJECT_DIR)
+    const note = log.find((m) => m.content.includes('was rejected'))
+    expect(note?.content).toMatch(/earlier discipline brainstorming is still pending/)
   })
 })
 

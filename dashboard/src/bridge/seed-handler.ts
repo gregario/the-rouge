@@ -113,6 +113,26 @@ async function runSeedingTurn(
   options: TurnOptions,
 ): Promise<SendMessageResult> {
   const { isKickoff = false, suppressKickoff = false } = options
+
+  // Reconcile stranded state before anything else. Earlier runs may have
+  // had markers rejected (e.g. wrong artifact path pre-#150) that later
+  // got valid artifacts on disk when the verifier widened; without this
+  // pass, those disciplines stay "pending" forever while later ones
+  // accumulate around them. Walk in sequence, mark any discipline whose
+  // artifact now passes verification, and stop at the first gap so we
+  // respect the orchestrator's sequential rule.
+  const reconciled = reconcileDisciplineState(projectDir)
+  if (reconciled.length > 0) {
+    console.log(`[seeding] reconciled stranded disciplines: ${reconciled.join(', ')}`)
+    const note = `[SYSTEM NOTE] Reconciled earlier discipline state: ${reconciled.join(', ')} now marked complete (artifact verified on disk). Seeding continues.`
+    appendChatMessage(projectDir, {
+      id: genId(),
+      role: 'rouge',
+      content: note,
+      timestamp: new Date().toISOString(),
+    })
+  }
+
   const state = readSeedingState(projectDir)
   // Note: we intentionally allow messages even when status === 'complete'.
   // The Revise mode in the dashboard uses this path to let users continue
@@ -216,12 +236,27 @@ async function runSeedingTurn(
   // artifact actually exists on disk — the orchestrator prompt forbids
   // premature markers, but the agent has been known to emit them
   // anyway (#147). Dashboard-side enforcement is the backstop.
+  //
+  // Sequential enforcement: we also reject a marker if any earlier
+  // discipline in DISCIPLINE_SEQUENCE is still pending AND has no valid
+  // artifact on disk. That prevents the out-of-order-completion bug
+  // where a later marker got accepted while an earlier one sat rejected.
+  // Reconciliation (above) already picks up earlier disciplines that DO
+  // have artifacts, so by this point the only remaining gaps are real.
   const markers = extractMarkers(result.result)
   const acceptedDisciplines: string[] = []
   const rejectedDisciplines: Array<{ discipline: string; reason: string }> = []
   for (const d of markers.disciplinesComplete) {
     if (!isKnownDiscipline(d)) {
       rejectedDisciplines.push({ discipline: d, reason: 'unknown discipline name' })
+      continue
+    }
+    const gap = firstUncompletedEarlierDiscipline(projectDir, d)
+    if (gap) {
+      rejectedDisciplines.push({
+        discipline: d,
+        reason: `cannot complete ${d} — earlier discipline ${gap} is still pending with no artifact. Complete ${gap} first.`,
+      })
       continue
     }
     const check = verifyDisciplineArtifact(projectDir, d)
@@ -343,4 +378,64 @@ function isKnownDiscipline(name: string): name is Discipline {
 function resolveActiveDiscipline(raw: string | undefined): Discipline | null {
   if (!raw) return DISCIPLINE_SEQUENCE[0] as Discipline
   return isKnownDiscipline(raw) ? raw : null
+}
+
+/**
+ * Walk disciplines in sequence; mark any not-yet-complete discipline
+ * whose artifact passes verification. Stops at the first gap so we
+ * preserve the orchestrator's sequential rule. Returns the list of
+ * disciplines newly marked complete this pass.
+ *
+ * Exists because early runs had markers rejected (artifact-path
+ * mismatches fixed in #150/#151) and the state never caught up when the
+ * verifier later accepted those paths. This pass picks up the stranded
+ * work on the next user turn automatically. See the testimonials
+ * session symptom: `disciplines_complete: ['competition','taste','spec']`
+ * while brainstorming stayed pending with a real 41KB artifact on disk.
+ */
+function reconcileDisciplineState(projectDir: string): string[] {
+  const state = readSeedingState(projectDir)
+  const complete = new Set(state.disciplines_complete ?? [])
+  const newlyComplete: string[] = []
+
+  for (const d of DISCIPLINE_SEQUENCE) {
+    if (complete.has(d)) continue
+    const check = verifyDisciplineArtifact(projectDir, d)
+    if (check.ok) {
+      markDisciplineComplete(projectDir, d)
+      complete.add(d)
+      newlyComplete.push(d)
+    } else {
+      // First real gap — don't look further. If brainstorming genuinely
+      // has no artifact, we cannot mark competition etc. as complete
+      // even if those have artifacts.
+      break
+    }
+  }
+
+  return newlyComplete
+}
+
+/**
+ * Returns the first discipline earlier than `target` in the sequence
+ * that is NOT complete and has no verifiable artifact on disk. If
+ * non-null, emitting `[DISCIPLINE_COMPLETE: target]` should be rejected
+ * because earlier work is genuinely missing.
+ */
+function firstUncompletedEarlierDiscipline(
+  projectDir: string,
+  target: Discipline,
+): string | null {
+  const state = readSeedingState(projectDir)
+  const complete = new Set(state.disciplines_complete ?? [])
+  for (const d of DISCIPLINE_SEQUENCE) {
+    if (d === target) return null
+    if (complete.has(d)) continue
+    // Artifact present but unmarked — reconciliation (called earlier in
+    // the turn) should have caught this. If it didn't, the artifact
+    // doesn't pass verification, so count this as a real gap.
+    const check = verifyDisciplineArtifact(projectDir, d)
+    if (!check.ok) return d
+  }
+  return null
 }
