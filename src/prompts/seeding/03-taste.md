@@ -242,7 +242,9 @@ You are interactive during seeding. The human is present via Slack.
 
 ## Output Format
 
-Return your output to the orchestrator as:
+**Write the taste verdict to `seed_spec/taste.md`** in the project root. Create the `seed_spec/` directory if it doesn't exist. Do not write to `docs/` or any other path — the dashboard verifies the artifact at this location before accepting the `[DISCIPLINE_COMPLETE: taste]` marker.
+
+The markdown file wraps the structured JSON block below (use a fenced code block for the JSON so the orchestrator can still parse it):
 
 ```json
 {

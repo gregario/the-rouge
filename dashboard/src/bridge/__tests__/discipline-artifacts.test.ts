@@ -42,6 +42,11 @@ describe('verifyDisciplineArtifact', () => {
     expect(verifyDisciplineArtifact(PROJECT_DIR, 'brainstorming').ok).toBe(true)
   })
 
+  it('accepts brainstorming written under docs/ when the agent improvised the path', () => {
+    writeFile('docs/brainstorming.md', LONG_BODY)
+    expect(verifyDisciplineArtifact(PROJECT_DIR, 'brainstorming').ok).toBe(true)
+  })
+
   it('rejects brainstorming when the file exists but is a stub', () => {
     writeFile('seed_spec/brainstorming.md', TINY_BODY)
     const r = verifyDisciplineArtifact(PROJECT_DIR, 'brainstorming')
@@ -58,8 +63,18 @@ describe('verifyDisciplineArtifact', () => {
     expect(verifyDisciplineArtifact(PROJECT_DIR, 'competition').ok).toBe(true)
   })
 
+  it('accepts competition written under docs/', () => {
+    writeFile('docs/competition.md', LONG_BODY)
+    expect(verifyDisciplineArtifact(PROJECT_DIR, 'competition').ok).toBe(true)
+  })
+
   it('accepts taste via seed_spec/taste_verdict.md', () => {
     writeFile('seed_spec/taste_verdict.md', LONG_BODY)
+    expect(verifyDisciplineArtifact(PROJECT_DIR, 'taste').ok).toBe(true)
+  })
+
+  it('accepts taste written under docs/', () => {
+    writeFile('docs/taste.md', LONG_BODY)
     expect(verifyDisciplineArtifact(PROJECT_DIR, 'taste').ok).toBe(true)
   })
 

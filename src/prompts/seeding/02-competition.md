@@ -16,7 +16,9 @@ You are executing the COMPETITION discipline of The Rouge's seeding swarm. You m
 
 ## Output
 
-A **competition brief** written to the project's seed artifacts. Contains:
+**Write the competition brief to `seed_spec/competition.md`** in the project root. Create the `seed_spec/` directory if it doesn't exist. Do not write to `docs/` or any other path — the dashboard verifies the artifact at this location before accepting the `[DISCIPLINE_COMPLETE: competition]` marker.
+
+The brief contains:
 1. Market landscape map (density classification + competitor table)
 2. Gap analysis (what nobody does well)
 3. Differentiation angle (where this idea wins)
