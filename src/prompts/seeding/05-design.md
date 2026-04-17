@@ -709,6 +709,8 @@ design_po_checks:
 
 ## Combined Output Artifact
 
+**Write the combined artifact to `design/design.yaml`** in the project root. Create the `design/` directory if it doesn't exist. If additional per-screen or per-pass breakout files help, put them alongside in `design/`. Do not write to `seed_spec/` or `docs/` for the combined artifact — the dashboard verifies at least one file exists in `design/` before accepting the `[DISCIPLINE_COMPLETE: design]` marker.
+
 When all three passes are approved, produce the combined design artifact for the orchestrator:
 
 ```yaml

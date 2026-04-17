@@ -58,6 +58,12 @@ openspec update --change "<product-slug>" \
 - **Loop-back from DESIGN or TASTE:** `openspec update` to revise with new context
 - **New feature area discovered during spec:** `openspec spec` for the new area, then check if existing areas need updates due to the new dependency
 
+## Seed-Level Summary Artifact
+
+In addition to the per-area spec files managed by the OpenSpec CLI, **write a seed-level summary to `seed_spec/milestones.json`** in the project root. Create the `seed_spec/` directory if it doesn't exist. Do not write it to `docs/` or any other path — the dashboard verifies the artifact at this location before accepting the `[DISCIPLINE_COMPLETE: spec]` marker, and the launcher's V3 schema migration reads it from here.
+
+The file contains the milestone and story structure derived from the per-area specs: `{ "milestones": [{ "name": ..., "stories": [{ "id": ..., "name": ..., "status": "pending", "acceptance_criteria": [...], "depends_on": [...] }] }] }`.
+
 ## What You Produce Per Feature Area
 
 Every feature area in the seed spec MUST contain all seven sections below. No section may be omitted. No section may contain placeholder text like "TBD" or "handle appropriately."
