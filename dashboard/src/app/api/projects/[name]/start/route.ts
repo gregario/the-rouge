@@ -10,7 +10,7 @@ export async function POST(
 ) {
   const { name } = await params;
   const { projectsRoot, rougeCli } = loadServerConfig();
-  const result = startBuild(projectsRoot, rougeCli, name);
+  const result = await startBuild(projectsRoot, rougeCli, name);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 409 });
   }
