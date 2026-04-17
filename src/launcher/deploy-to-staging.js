@@ -95,6 +95,8 @@ const DEPLOY_HANDLERS = {
   'cloudflare-workers': deployCloudflare, // alias used in vision.json.infrastructure
   'docker-compose': deployDockerCompose, // self-hosted containerised stack (#157)
   'docker': deployDockerCompose, // alias
+  'github-pages': deployGithubPages, // static build → gh-pages branch (requires GitHub repo)
+  'gh-pages': deployGithubPages, // alias
 };
 
 function deployVercel(projectDir) {
@@ -163,6 +165,91 @@ function deployDockerCompose(projectDir) {
 
   log(`Docker Compose stack started on ${stagingUrl}`);
   return stagingUrl;
+}
+
+/**
+ * GitHub Pages deploy.
+ *
+ * Flow: build locally → push the build output to the `gh-pages` branch
+ * on the project's `origin` remote → GitHub Pages serves that branch.
+ * The repo must already exist on GitHub and have Pages enabled for the
+ * `gh-pages` branch (Pages source = Deploy from a branch → gh-pages).
+ *
+ * Static-only. No server-side rendering, no API routes, no edge
+ * functions. Perfect for the `single-page` complexity profile.
+ *
+ * Build output directory resolution:
+ *   1. `infrastructure_manifest.json.github_pages.output_dir` if declared
+ *   2. `vision.json.infrastructure.github_pages.output_dir` if declared
+ *   3. First match from the common conventions list
+ *
+ * Why gh-pages npm package instead of raw git: handles the orphan-branch
+ * creation, CNAME preservation, and force-push semantics that Pages
+ * needs. Invoked via `npx -y gh-pages@6` so nothing needs to be in
+ * the project's package.json.
+ *
+ * No rollback: Pages deploys are atomic at the branch level —
+ * re-pushing the last-known-good build is the recovery path, but
+ * that requires the previous artifact which Rouge doesn't retain.
+ * For the static-site use case this is acceptable; if you need
+ * rollback guarantees, pick Cloudflare Pages or Vercel.
+ */
+function deployGithubPages(projectDir) {
+  const manifest = readJson(path.join(projectDir, 'infrastructure_manifest.json'));
+  const vision = readJson(path.join(projectDir, 'vision.json'));
+  const configuredOutput =
+    manifest?.github_pages?.output_dir ??
+    vision?.infrastructure?.github_pages?.output_dir;
+  const outputCandidates = configuredOutput
+    ? [configuredOutput]
+    : ['dist', 'build', 'out', 'public'];
+
+  // Build — same timeout profile as Cloudflare since a cold Vite/Next
+  // build on a fresh runner can crest 2 min.
+  run('npm run build', { cwd: projectDir, timeout: 300000 });
+
+  // Find the output dir. If the project config named one, that's the
+  // only candidate; otherwise probe the usual suspects.
+  const outputDir = outputCandidates.find((d) =>
+    fs.existsSync(path.join(projectDir, d)),
+  );
+  if (!outputDir) {
+    throw new Error(
+      `GitHub Pages: no build output directory found. Tried: ${outputCandidates.join(', ')}. ` +
+        `Set infrastructure_manifest.json.github_pages.output_dir or ensure the build produces one of these.`,
+    );
+  }
+  log(`Using build output: ${outputDir}`);
+
+  const deployMsg = `Rouge deploy ${new Date().toISOString()}`;
+  // `gh-pages` needs a dotfiles flag for CNAME / .nojekyll — include
+  // it by default so custom domains and bare HTML survive the push.
+  run(`npx -y gh-pages@6 -d ${outputDir} -b gh-pages -m "${deployMsg}" --dotfiles`, {
+    cwd: projectDir,
+    timeout: 180000,
+  });
+
+  // Derive the served URL from the origin remote. GitHub Pages URLs
+  // follow https://<owner>.github.io/<repo>/ (user/org pages at
+  // <owner>.github.io are a special case we don't try to detect).
+  let url = null;
+  try {
+    const remote = run('git config --get remote.origin.url', { cwd: projectDir }).trim();
+    const match = remote.match(/github\.com[:/]([^/]+)\/([^/.]+?)(?:\.git)?$/);
+    if (match) {
+      const [, owner, repo] = match;
+      url = `https://${owner}.github.io/${repo}/`;
+    } else {
+      log(`⚠️  Could not parse GitHub remote URL (${remote}); URL unknown`);
+    }
+  } catch (err) {
+    log(`⚠️  Could not read git remote.origin.url: ${(err.message || '').slice(0, 200)}`);
+  }
+  if (url) {
+    log(`Deployed to ${url}`);
+    log('⚠️  First-time deploy: enable GitHub Pages in repo settings (Source: gh-pages branch) if not already. Propagation takes ~1 min.');
+  }
+  return url;
 }
 
 function deployCloudflare(projectDir) {
