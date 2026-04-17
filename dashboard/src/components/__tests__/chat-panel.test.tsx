@@ -109,7 +109,7 @@ describe('ChatPanel', () => {
       },
     ]
 
-    it('renders a transition banner after a completed discipline', () => {
+    it('renders a "Complete" pill on the completed discipline section', () => {
       render(
         <ChatPanel
           messages={groupedMessages}
@@ -117,12 +117,20 @@ describe('ChatPanel', () => {
           currentDiscipline="competition"
         />,
       )
-      const banner = screen.getByTestId('discipline-transition-banner')
-      expect(banner).toHaveTextContent(/Brainstorming complete/i)
-      expect(banner).toHaveTextContent(/now in Competition/i)
+      // Transition banners were removed (they stacked between every
+      // completed discipline and produced a ladder of green noise).
+      // The status pill inside the section header carries the signal
+      // now.
+      expect(
+        screen.queryByTestId('discipline-transition-banner'),
+      ).not.toBeInTheDocument()
+      const brainstormSection = screen.getByTestId('discipline-section-brainstorming')
+      expect(brainstormSection).toHaveTextContent(/Complete/i)
+      const competitionSection = screen.getByTestId('discipline-section-competition')
+      expect(competitionSection).toHaveTextContent(/Active/i)
     })
 
-    it('does not render a transition banner when no discipline is complete', () => {
+    it('shows no "Complete" pill when no discipline has completed', () => {
       render(
         <ChatPanel
           messages={groupedMessages}
@@ -130,7 +138,8 @@ describe('ChatPanel', () => {
           currentDiscipline="brainstorming"
         />,
       )
-      expect(screen.queryByTestId('discipline-transition-banner')).not.toBeInTheDocument()
+      const brainstormSection = screen.getByTestId('discipline-section-brainstorming')
+      expect(brainstormSection).not.toHaveTextContent(/Complete/i)
     })
   })
 })

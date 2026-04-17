@@ -57,13 +57,20 @@ The id is `<discipline>/<gate_id>` — e.g. `taste/H1-mode-selection`. IDs come 
 
 Use when you make an autonomous call — anything the sub-prompt marks as autonomous (not hard- or soft-gated). The decision must be visible, not silent.
 
+**Format each decision with the section labels on their own lines and a blank line between them** — the dashboard parses these sections and renders them as a scannable block. A run-on paragraph renders as a dense wall:
+
 ```
 [DECISION: picked-cloudflare-workers]
 Going with Cloudflare Workers for deploy target.
+
 Alternatives considered: Vercel (more expensive for edge-only), static (no state support).
+
 Reason: spec calls for per-user persistence with edge latency. Cloudflare + D1 fits.
-Override: reply `redo deploy-target` or name a specific alternative.
+
+Override: reply `redo picked-cloudflare-workers` or name a specific alternative.
 ```
+
+The `Alternatives considered` / `Reason` / `Override` labels are the contract — keep them exact, one per line, body on the same line as the label (or starting on the next line if multi-line). Omit `Override` if the decision is truly not reversible in practice.
 
 Emit a `[DECISION:]` for every autonomous call with real optionality. Trivial mechanical choices (file names, variable names) don't need markers — but anything a reasonable human might want to override does.
 

@@ -199,13 +199,15 @@ interface TurnOptions {
 
 // Max turns we'll auto-chain from a single user message. Covers:
 //   - one discipline-advance kickoff (discipline A completes, enter B)
-//   - plus a handful of autonomous-chunk continuations within a
-//     discipline (Claude emits decisions, returns, bridge fires again)
-// At ~30-60s per turn and typical orchestrator pacing, 5 gives the
-// discipline ~2-5 min of autonomous work before the bridge stops
-// chaining and the user can nudge with a message. Tune after real
-// seedings calibrate the right budget.
-const MAX_CHUNK_DEPTH = 5
+//   - plus autonomous-chunk continuations within a discipline (Claude
+//     emits decisions, returns, bridge fires again)
+//
+// Initial value (5) was too tight for Spec — the colour-contrast session
+// hit the cap after writing 2 of 8 feature-area specs, forcing the user
+// to nudge mid-discipline. 10 gives each discipline ~5-10 min of
+// autonomous headroom. Revisit if real seedings still hit the cap
+// frequently.
+const MAX_CHUNK_DEPTH = 10
 
 export async function handleSeedMessage(
   projectDir: string,
@@ -222,20 +224,22 @@ async function runSeedingTurn(
   const { isKickoff = false, chunkDepth = 0 } = options
 
   // Gated-autonomy: a user-initiated turn IS the answer to any pending
-  // gate. Clear awaiting_gate state before anything else so the rest
-  // of the turn runs in running_autonomous mode and the reconciler's
-  // gate guard (added in G3) doesn't see stale state.
+  // gate. But ORDERING MATTERS: we must capture the pre-clear gate
+  // BEFORE running the reconciler, then pass that gate into the
+  // reconciler as a hint, THEN clear the gate after reconciliation
+  // completes.
   //
-  // Important: this runs BEFORE the reconciler. The gate guard in the
-  // reconciler only fires if mode === awaiting_gate for a specific
-  // discipline; once we've cleared, reconciliation behaves normally
-  // and will pick up any artifacts written in previous turns.
-  if (!isKickoff) {
-    const preGateState = readSeedingState(projectDir)
-    if (effectiveMode(preGateState) === 'awaiting_gate') {
-      clearPendingGate(projectDir)
-    }
-  }
+  // The alternative (clear first, then reconcile) is what shipped in
+  // the initial PR 1 and is a bug: reconcileDisciplineState reads
+  // state.mode fresh each call. Clearing the gate before the reconciler
+  // runs means the reconciler sees mode=running_autonomous and
+  // advances past the discipline the user was still mid-question on.
+  // That reproduced the colour-contrast bug (user's "a" tagged as spec
+  // because reconciler had already advanced taste to complete).
+  const preGatePending =
+    !isKickoff && effectiveMode(readSeedingState(projectDir)) === 'awaiting_gate'
+      ? readSeedingState(projectDir).pending_gate ?? null
+      : null
 
   // Reconcile stranded state before anything else. Earlier runs may have
   // had markers rejected (e.g. wrong artifact path pre-#150) that later
@@ -250,7 +254,7 @@ async function runSeedingTurn(
   // disk between that turn and this recursive one. No artifacts have
   // been written by Claude yet in this kickoff.
   if (!isKickoff) {
-    const reconciled = reconcileDisciplineState(projectDir)
+    const reconciled = reconcileDisciplineState(projectDir, preGatePending?.discipline ?? null)
     if (reconciled.length > 0) {
       console.log(`[seeding] reconciled stranded disciplines: ${reconciled.join(', ')}`)
       // Strip the [SYSTEM NOTE] prefix — the new `kind: 'system_note'`
@@ -264,6 +268,13 @@ async function runSeedingTurn(
         timestamp: new Date().toISOString(),
         kind: 'system_note',
       })
+    }
+    // NOW clear the pending gate — after the reconciler has had its
+    // chance to respect it. The user's message IS the gate answer,
+    // so switch back to running_autonomous mode for the rest of
+    // the turn.
+    if (preGatePending) {
+      clearPendingGate(projectDir)
     }
   }
 
@@ -650,7 +661,10 @@ function resolveActiveDiscipline(raw: string | undefined): Discipline | null {
  * session symptom: `disciplines_complete: ['competition','taste','spec']`
  * while brainstorming stayed pending with a real 41KB artifact on disk.
  */
-function reconcileDisciplineState(projectDir: string): string[] {
+function reconcileDisciplineState(
+  projectDir: string,
+  preClearGateDiscipline: string | null = null,
+): string[] {
   const state = readSeedingState(projectDir)
   const complete = new Set(state.disciplines_complete ?? [])
   const newlyComplete: string[] = []
@@ -662,10 +676,16 @@ function reconcileDisciplineState(projectDir: string): string[] {
     // artifact landed on disk. Without this, a Claude turn that wrote a
     // discipline's artifact while the user was still staring at an
     // unanswered question would advance state out from under them —
-    // exactly the colourcontrast regression that motivated gated
-    // autonomy (brainstorming Q2 open, competition.md appeared, next
-    // user turn silently skipped brainstorming AND competition).
+    // exactly the colour-contrast regression (taste gate asked, user
+    // was mid-answer, reconciler saw taste.md on disk, marked taste
+    // complete, user's answer got tagged as spec).
+    //
+    // We check BOTH the current in-memory state (in case something set
+    // awaiting_gate mid-turn) AND the pre-clear pointer the caller
+    // passed in (the human's message auto-clears awaiting_gate before
+    // this runs, so the in-memory state alone is insufficient).
     if (isAwaitingGateFor(state, d)) break
+    if (preClearGateDiscipline === d) break
     const check = verifyDisciplineArtifact(projectDir, d)
     if (check.ok) {
       markDisciplineComplete(projectDir, d)

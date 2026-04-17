@@ -6,7 +6,7 @@ import { ChatMessage } from '@/components/chat-message'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
-import { ArrowRight, Play, Send, ChevronDown, ChevronRight, Check, Circle, Loader2 } from 'lucide-react'
+import { Play, Send, ChevronDown, ChevronRight, Check, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { isBridgeEnabled } from '@/lib/bridge-client'
 import { useSeeding } from '@/lib/use-seeding'
@@ -215,10 +215,14 @@ export function ChatPanel({
   // First-turn placeholder: the user isn't replying to anything yet —
   // they're telling Rouge what to build. Different placeholder frames
   // this as an opening, not a reply to silence.
+  //
+  // Sending-state placeholder is intentionally blank — the bar above
+  // (ElapsedTimeIndicator) already says "Rouge is thinking"; duplicating
+  // it here just to fill the input was noise.
   const isFirstTurn = displayMessages.length === 0
   const placeholder =
     bridgeActive && seeding.isSending
-      ? 'Rouge is thinking…'
+      ? ''
       : isFirstTurn
         ? 'Describe what you want to build…'
         : 'Reply to Rouge…'
@@ -248,23 +252,9 @@ export function ChatPanel({
       className="flex h-full flex-col rounded-lg border border-gray-200 bg-white"
       data-testid="chat-panel"
     >
-      {/* Traffic-light: only shown when there's actually something
-          live to track. Otherwise the chip decays from the last
-          heartbeat into "red / stalled" just because Rouge is idle
-          between turns — misleading.
-
-          Shown when:
-          - A turn is in flight (isSending) — active work
-          - Or mode is awaiting_gate — chip explicitly says "waiting
-            on your answer" rather than a decaying timer */}
-      {bridgeActive &&
-        ((seeding.isSending && seeding.status?.last_heartbeat_at) ||
-          seeding.status?.mode === 'awaiting_gate') && (
-          <LivenessChip
-            lastHeartbeatAt={seeding.status?.last_heartbeat_at ?? new Date().toISOString()}
-            mode={seeding.status?.mode ?? 'running_autonomous'}
-          />
-        )}
+      {/* Top chip removed — the liveness bar above the input box
+          (ElapsedTimeIndicator) carries all the "Rouge is thinking"
+          signal. Two places saying the same thing was redundant. */}
 
       {/* Message list — grouped by discipline */}
       <ScrollArea className="flex-1 overflow-auto">
@@ -277,28 +267,20 @@ export function ChatPanel({
             // Untagged messages — render flat
             displayMessages.map((msg) => <ChatMessage key={msg.id} message={msg} />)
           ) : (
-            groups.map((group, idx) => {
-              // After a completed discipline, insert a transition banner
-              // pointing at the next one in the stream. Gives the
-              // "something changed" signal the stepper alone lacks.
-              const next = groups[idx + 1]
-              const showBanner = group.status === 'complete' && next
-              return (
-                <div key={group.discipline} className="flex flex-col gap-2">
-                  <DisciplineSection
-                    group={group}
-                    expanded={expanded.has(group.discipline)}
-                    onToggle={() => toggleExpanded(group.discipline)}
-                  />
-                  {showBanner && (
-                    <TransitionBanner
-                      from={DISCIPLINE_LABELS[group.discipline] ?? group.discipline}
-                      to={DISCIPLINE_LABELS[next.discipline] ?? next.discipline}
-                    />
-                  )}
-                </div>
-              )
-            })
+            groups.map((group) => (
+              // Transition banners between completed sections were
+              // removed — the "Complete" pill in the section header
+              // plus the left-sidebar stepper already convey handoff.
+              // Stacking both produced ladders of green between every
+              // completed discipline. See feedback from 2026-04-17 PR
+              // #164 dogfood.
+              <DisciplineSection
+                key={group.discipline}
+                group={group}
+                expanded={expanded.has(group.discipline)}
+                onToggle={() => toggleExpanded(group.discipline)}
+              />
+            ))
           )}
           {bridgeActive && seeding.isSending && seeding.sendingStartedAt !== null && (
             <ElapsedTimeIndicator
@@ -363,110 +345,6 @@ export function ChatPanel({
   )
 }
 
-// Traffic-light chip for Rouge's autonomous liveness. Thresholds are
-// provisional — we'll calibrate after the first real seedings produce
-// typical work-pause durations. Drives off last_heartbeat_at set by
-// the bridge on every [DECISION:] / [HEARTBEAT:] marker.
-function LivenessChip({
-  lastHeartbeatAt,
-  mode,
-}: {
-  lastHeartbeatAt: string
-  mode: 'awaiting_gate' | 'running_autonomous'
-}) {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(id)
-  }, [])
-
-  // Mode=awaiting_gate means Rouge isn't working — it's blocked on the
-  // human. Show a distinct "waiting on you" state instead of a fading
-  // liveness indicator; the chip would otherwise mislead as "stalled".
-  if (mode === 'awaiting_gate') {
-    return (
-      <div
-        data-testid="liveness-chip"
-        data-tone="awaiting"
-        className="flex items-center gap-2 border-b border-gray-200 bg-blue-50/60 px-4 py-1.5 text-xs text-blue-800"
-      >
-        <span className="inline-block size-2 rounded-full bg-blue-500" />
-        <span className="font-medium">Rouge is waiting on your answer</span>
-      </div>
-    )
-  }
-
-  const ageSec = Math.max(0, Math.floor((now - new Date(lastHeartbeatAt).getTime()) / 1000))
-  const { tone, label, dotClass, wrapperClass } = describeLiveness(ageSec)
-  return (
-    <div
-      data-testid="liveness-chip"
-      data-tone={tone}
-      className={cn(
-        'flex items-center gap-2 border-b px-4 py-1.5 text-xs',
-        wrapperClass,
-      )}
-    >
-      <span className={cn('inline-block size-2 rounded-full', dotClass)} />
-      <span className="font-medium">{label}</span>
-      <span className="tabular-nums text-muted-foreground">
-        last marker {formatDuration(ageSec)} ago
-      </span>
-    </div>
-  )
-}
-
-function describeLiveness(ageSec: number): {
-  tone: 'green' | 'amber' | 'red' | 'stall'
-  label: string
-  dotClass: string
-  wrapperClass: string
-} {
-  if (ageSec < 45) {
-    return {
-      tone: 'green',
-      label: 'Working',
-      dotClass: 'bg-green-500 animate-pulse',
-      wrapperClass: 'border-green-200 bg-green-50/60 text-green-900',
-    }
-  }
-  if (ageSec < 120) {
-    return {
-      tone: 'amber',
-      label: 'Still working',
-      dotClass: 'bg-amber-500',
-      wrapperClass: 'border-amber-200 bg-amber-50/60 text-amber-900',
-    }
-  }
-  if (ageSec < 180) {
-    return {
-      tone: 'red',
-      label: 'Taking longer than usual',
-      dotClass: 'bg-red-500',
-      wrapperClass: 'border-red-200 bg-red-50/60 text-red-900',
-    }
-  }
-  return {
-    tone: 'stall',
-    label: 'Stalled — may need a nudge',
-    dotClass: 'bg-gray-600',
-    wrapperClass: 'border-gray-300 bg-gray-100 text-gray-800',
-  }
-}
-
-function TransitionBanner({ from, to }: { from: string; to: string }) {
-  return (
-    <div
-      data-testid="discipline-transition-banner"
-      className="flex items-center gap-2 rounded-md border border-dashed border-green-300 bg-green-50/60 px-3 py-1.5 text-xs text-green-900"
-    >
-      <Check className="size-3.5 text-green-600" />
-      <span className="font-medium">{from} complete</span>
-      <ArrowRight className="size-3 text-green-600" />
-      <span className="text-green-800">now in {to}</span>
-    </div>
-  )
-}
 
 function ElapsedTimeIndicator({
   startedAt,
@@ -526,16 +404,23 @@ function DisciplineSection({
   expanded: boolean
   onToggle: () => void
 }) {
-  const statusIcon =
-    group.status === 'complete' ? (
-      <Check className="size-3.5 text-green-600" />
-    ) : group.status === 'current' ? (
-      <Circle className="size-3.5 fill-blue-500 text-blue-500" />
-    ) : (
-      <Circle className="size-3.5 text-gray-400" />
-    )
-
   const label = DISCIPLINE_LABELS[group.discipline] ?? group.discipline
+
+  // Status rendering as a pill next to the discipline name — replaces
+  // the icon-only status indicator. The pill is self-explanatory and
+  // removes the need for separate transition banners between sections.
+  const statusPill =
+    group.status === 'complete' ? (
+      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700">
+        <Check className="size-3" />
+        Complete
+      </span>
+    ) : group.status === 'current' ? (
+      <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+        <span className="size-1.5 rounded-full bg-blue-500" />
+        Active
+      </span>
+    ) : null
 
   return (
     <div id={`discipline-${group.discipline}`} className="scroll-mt-2">
@@ -553,9 +438,9 @@ function DisciplineSection({
         ) : (
           <ChevronRight className="size-4 text-gray-500" />
         )}
-        {statusIcon}
-        <span className="flex-1 text-sm font-medium text-gray-900">{label}</span>
-        <span className="text-xs text-gray-500">
+        <span className="text-sm font-medium text-gray-900">{label}</span>
+        {statusPill}
+        <span className="ml-auto text-xs text-gray-500">
           {group.messages.length} {group.messages.length === 1 ? 'message' : 'messages'}
         </span>
       </button>

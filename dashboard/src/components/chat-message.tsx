@@ -225,17 +225,23 @@ function GateQuestionMessage({ message }: { message: ChatMessageType }) {
 // whole point of gated autonomy — visible decisions, not silent work)
 // but visually subordinate to gates. The markerId is shown as a subtle
 // anchor so future override affordances (PR 2) have somewhere to click.
+//
+// Content is parsed into labeled sections — "Alternatives considered:",
+// "Reason:", "Override:" — so a dense run-on paragraph becomes a
+// scannable block. If the decision body doesn't match this structure,
+// it falls through to plain markdown.
 function AutonomousDecisionMessage({ message }: { message: ChatMessageType }) {
+  const sections = parseDecisionSections(message.content)
   return (
     <div
       data-testid="chat-message"
       data-role="rouge"
       data-kind="autonomous_decision"
-      className="rounded-md border border-dashed border-gray-300 bg-gray-50/60 px-3 py-2"
+      className="rounded-md border border-dashed border-gray-300 bg-gray-50/60 px-3 py-2.5"
     >
-      <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
+      <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
         <CircleDot className="size-3" />
-        <span className="font-medium">Rouge decided</span>
+        <span className="font-medium text-foreground/80">Rouge decided</span>
         {message.markerId && (
           <span className="font-mono text-[10px] text-muted-foreground/70">
             {message.markerId}
@@ -253,9 +259,96 @@ function AutonomousDecisionMessage({ message }: { message: ChatMessageType }) {
           </Badge>
         )}
       </div>
-      <Markdown content={message.content} className="text-[13px]" />
+      <div className="space-y-2 text-[13px] leading-relaxed">
+        {sections.lead && <Markdown content={sections.lead} className="text-[13px]" />}
+        {sections.alternatives && (
+          <DecisionSection label="Alternatives considered" body={sections.alternatives} />
+        )}
+        {sections.reason && (
+          <DecisionSection label="Reason" body={sections.reason} />
+        )}
+        {sections.override && (
+          <DecisionSection label="Override" body={sections.override} muted />
+        )}
+      </div>
     </div>
   )
+}
+
+function DecisionSection({
+  label,
+  body,
+  muted,
+}: {
+  label: string
+  body: string
+  muted?: boolean
+}) {
+  return (
+    <div className={cn('text-[13px]', muted && 'text-muted-foreground')}>
+      <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
+      <Markdown content={body} className="inline text-[13px]" />
+    </div>
+  )
+}
+
+// Split the decision body on `Alternatives considered:` / `Reason:` /
+// `Override:` keywords. These match the decision format the orchestrator
+// prompt teaches Claude to emit. Matching is tolerant of case and of
+// whether the section is on its own line or inline with the preceding
+// text.
+function parseDecisionSections(content: string): {
+  lead: string
+  alternatives?: string
+  reason?: string
+  override?: string
+} {
+  const labels: Array<keyof ReturnType<typeof parseDecisionSections>> = [
+    'alternatives',
+    'reason',
+    'override',
+  ]
+  const patterns: Record<string, RegExp> = {
+    alternatives: /(^|\n|\.\s+)(Alternatives considered|Alternatives):\s*/i,
+    reason: /(^|\n|\.\s+)(Reason|Why):\s*/i,
+    override: /(^|\n|\.\s+)(Override):\s*/i,
+  }
+
+  // Find the first match for each section keyword.
+  type Hit = { key: string; start: number; consumed: number }
+  const hits: Hit[] = []
+  for (const key of labels) {
+    const m = content.match(patterns[key])
+    if (m && m.index !== undefined) {
+      // Skip the separator (match[1]) but include it back at the
+      // lead's tail. `start` is where the KEYWORD starts; `consumed`
+      // is where the body begins.
+      const sepLen = m[1]?.length ?? 0
+      hits.push({
+        key,
+        start: m.index + sepLen,
+        consumed: m.index + m[0].length,
+      })
+    }
+  }
+
+  if (hits.length === 0) {
+    return { lead: content.trim() }
+  }
+
+  // Sort by position so we slice in order.
+  hits.sort((a, b) => a.start - b.start)
+  const lead = content.slice(0, hits[0].start).trim()
+  const result: ReturnType<typeof parseDecisionSections> = { lead }
+  for (let i = 0; i < hits.length; i++) {
+    const hit = hits[i]
+    const bodyEnd = i + 1 < hits.length ? hits[i + 1].start : content.length
+    const body = content.slice(hit.consumed, bodyEnd).trim()
+    if (body) (result as Record<string, string>)[hit.key] = body
+  }
+  return result
 }
 
 // System-level observability: reconciliation notes, marker rejections,
