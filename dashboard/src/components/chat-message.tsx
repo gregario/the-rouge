@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { ChevronRight, HelpCircle, CircleDot, Activity, Info, Play } from 'lucide-react'
+import { ChevronRight, HelpCircle, CircleDot, Activity, Info, Play, FileCheck2 } from 'lucide-react'
 
 // Markdown renderer with tight spacing matched to the chat panel's style
 function Markdown({ content, className }: { content: string; className?: string }) {
@@ -121,6 +121,11 @@ export function ChatMessage({ message, onResume, resumeDisabled }: ChatMessagePr
         onResume={onResume}
         disabled={resumeDisabled}
       />
+    )
+  }
+  if (message.kind === 'wrote_artifact') {
+    return (
+      <WroteArtifactMessage message={message} />
     )
   }
 
@@ -387,6 +392,136 @@ function SystemNoteMessage({ message }: { message: ChatMessageType }) {
       <div className="whitespace-pre-wrap leading-relaxed">{message.content}</div>
     </div>
   )
+}
+
+// Artifact completion report — "I wrote this file, here's what's in
+// it". Distinct from [DECISION:] because there are no alternatives or
+// fork-in-the-road — just produced work. Used heavily by spec for
+// per-FA completions.
+//
+// Content is parsed for the common pattern Claude emits for these:
+//   "FA5 Colour Picker on disk — complex tier, 31 ACs across
+//    opening/closing (5), modes and sliders (9), hex input (4), ..."
+// If the pattern matches, renders as a structured card (title, tier
+// chip, total chip, breakdown chips). Falls back to plain prose
+// when the pattern doesn't match — not every [WROTE:] is an FA spec.
+function WroteArtifactMessage({ message }: { message: ChatMessageType }) {
+  const parsed = parseWroteContent(message.content)
+  return (
+    <div
+      data-testid="chat-message"
+      data-role="rouge"
+      data-kind="wrote_artifact"
+      className="rounded-md border border-emerald-200 bg-emerald-50/40 px-3 py-2.5"
+    >
+      <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+        <FileCheck2 className="size-3.5 text-emerald-600" />
+        <span className="font-semibold text-emerald-800">
+          {parsed.title ?? 'Rouge wrote'}
+        </span>
+        {message.markerId && (
+          <span className="font-mono text-[10px] text-muted-foreground">
+            {message.markerId}
+          </span>
+        )}
+        {parsed.tier && (
+          <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+            {parsed.tier}
+          </span>
+        )}
+        {parsed.total && (
+          <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+            {parsed.total}
+          </span>
+        )}
+        {message.discipline && (
+          <Badge
+            variant="outline"
+            className={cn(
+              'ml-auto text-[10px]',
+              DISCIPLINE_COLORS[message.discipline] ?? 'bg-gray-100 text-gray-500',
+            )}
+          >
+            {message.discipline}
+          </Badge>
+        )}
+      </div>
+      {parsed.breakdown.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {parsed.breakdown.map((chip) => (
+            <span
+              key={chip.label}
+              className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-0.5 text-[11px] text-emerald-900 border border-emerald-200"
+            >
+              <span className="font-medium">{chip.label}</span>
+              <span className="tabular-nums text-emerald-700">{chip.count}</span>
+            </span>
+          ))}
+        </div>
+      )}
+      {parsed.narrative && (
+        <Markdown content={parsed.narrative} className="text-[13px]" />
+      )}
+    </div>
+  )
+}
+
+// Parse the "<FA name> on disk — <tier>, N <unit> across <breakdown>.
+// <narrative>" shape. Tolerant of variations: a missing section returns
+// undefined/empty for that field instead of throwing. When nothing
+// matches, `title` is undefined and `narrative` holds the full content
+// so rendering gracefully degrades to prose.
+function parseWroteContent(content: string): {
+  title?: string
+  tier?: string
+  total?: string
+  breakdown: Array<{ label: string; count: number }>
+  narrative?: string
+} {
+  const trimmed = content.trim()
+  // Primary pattern: "FA<n> <Name> on disk — <tier> tier, <N> ACs
+  // across <breakdown>. <rest>"
+  const primary = trimmed.match(
+    /^(FA\d+\s+[^—]+?)\s+on disk\s+[—-]{1,2}\s+([^,]+?),\s+(\d+\s+ACs?)\s+across\s+([^.]+)\.\s*([\s\S]*)$/i,
+  )
+  if (primary) {
+    const [, title, tier, total, breakdownRaw, rest] = primary
+    return {
+      title: title.trim(),
+      tier: tier.trim(),
+      total: total.trim(),
+      breakdown: parseBreakdownChips(breakdownRaw),
+      narrative: rest.trim() || undefined,
+    }
+  }
+  // Secondary pattern: "<name> complete: <N> ACs, ..."
+  const secondary = trimmed.match(
+    /^([^:]+?)\s+complete:\s+(\d+\s+ACs?)(?:,\s+([^.]+))?\.\s*([\s\S]*)$/i,
+  )
+  if (secondary) {
+    const [, title, total, breakdownRaw, rest] = secondary
+    return {
+      title: title.trim(),
+      total: total.trim(),
+      breakdown: breakdownRaw ? parseBreakdownChips(breakdownRaw) : [],
+      narrative: rest.trim() || undefined,
+    }
+  }
+  // Fallback — unstructured, render as prose.
+  return { breakdown: [], narrative: trimmed }
+}
+
+function parseBreakdownChips(raw: string): Array<{ label: string; count: number }> {
+  const chips: Array<{ label: string; count: number }> = []
+  // Matches "<label> (<count>)" groups, comma-separated.
+  const re = /([^,()]+?)\s*\((\d+)\)/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(raw)) !== null) {
+    const label = m[1].trim().replace(/^and\s+/i, '')
+    const count = parseInt(m[2], 10)
+    if (label && !Number.isNaN(count)) chips.push({ label, count })
+  }
+  return chips
 }
 
 // System note variant that includes a one-click Continue button.

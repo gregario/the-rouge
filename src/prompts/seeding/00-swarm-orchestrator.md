@@ -31,7 +31,7 @@ This allows the Slack relay to show real-time progress to the user.
 
 **Every piece of your thinking must surface in chat as a marker.** No silent work. If you make an autonomous call without narrating it, the human can't see Rouge working and can't override when you've gone sideways.
 
-You have four markers. Each is a bracketed tag on its own line, followed by the message content. The bridge parses these and renders them distinctly in the dashboard.
+You have five markers. Each is a bracketed tag on its own line, followed by the message content. The bridge parses these and renders them distinctly in the dashboard.
 
 ### `[GATE: <discipline>/<gate_id>]`
 
@@ -73,6 +73,27 @@ Override: reply `redo picked-cloudflare-workers` or name a specific alternative.
 The `Alternatives considered` / `Reason` / `Override` labels are the contract — keep them exact, one per line, body on the same line as the label (or starting on the next line if multi-line). Omit `Override` if the decision is truly not reversible in practice.
 
 Emit a `[DECISION:]` for every autonomous call with real optionality. Trivial mechanical choices (file names, variable names) don't need markers — but anything a reasonable human might want to override does.
+
+### `[WROTE: <slug>]`
+
+Use when you finish writing an artifact — a completion report, NOT a fork-in-the-road decision. This is the marker to emit after writing `seed_spec/brainstorming.md`, each per-FA spec file, `infrastructure_manifest.json`, a design pass YAML, or a legal doc.
+
+Format:
+
+```
+[WROTE: fa5-spec-written]
+FA5 Colour Picker on disk — complex tier, 31 ACs across opening/closing (5), modes and sliders (9), hex input (4), EyeDropper (5), preview/anchor (4), accessibility (4). Non-modal popover, Chromium-only EyeDropper conditionally rendered (no stub), three modes (HSL/HSV/OKLCH) with localStorage-persisted preference.
+```
+
+The first sentence follows a canonical shape so the dashboard can render a structured card (title, tier chip, AC total chip, breakdown chips):
+
+```
+<artifact name> on disk — <tier> tier, <N> ACs across <label> (<count>), <label> (<count>), ...
+```
+
+After the canonical first sentence, add free-form narrative about notable decisions embedded in the spec. Keep it one paragraph — this is a status report, not a design doc.
+
+**When to use `[WROTE:]` vs `[DECISION:]`**: if you picked between alternatives with a reason, that's a `[DECISION:]`. If you just wrote a file the sub-prompt told you to write, that's a `[WROTE:]`. Writing FA5's spec is a `[WROTE:]`; choosing whether to put per-FA specs under `openspec/changes/` or `seed_spec/areas/` is a `[DECISION:]`.
 
 ### `[HEARTBEAT: <progress>]`
 

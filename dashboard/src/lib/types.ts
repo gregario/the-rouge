@@ -52,6 +52,7 @@ export type ChatMessageKind =
   | 'heartbeat'
   | 'system_note'
   | 'resume_prompt'
+  | 'wrote_artifact'
 
 export type ActivityEventType =
   | 'deploy'

@@ -125,6 +125,7 @@ function segmentKindToMessageKind(k: MessageSegment['kind']): SeedingMessageKind
   switch (k) {
     case 'gate': return 'gate_question'
     case 'decision': return 'autonomous_decision'
+    case 'wrote': return 'wrote_artifact'
     case 'heartbeat': return 'heartbeat'
     default: return 'prose'
   }
@@ -154,7 +155,7 @@ function applyMarkerStateEffects(
   let sawTimingMarker = false
 
   for (const seg of segments) {
-    if (seg.kind === 'decision' || seg.kind === 'heartbeat') {
+    if (seg.kind === 'decision' || seg.kind === 'heartbeat' || seg.kind === 'wrote') {
       sawTimingMarker = true
     } else if (seg.kind === 'gate' && seg.id) {
       const [maybeDiscipline, ...rest] = seg.id.split('/')
@@ -551,7 +552,7 @@ async function runSeedingTurn(
   // probably Claude asking the user unprompted; continuing would
   // interrupt a question the user hasn't seen yet.
   const emittedAutonomousMarkers = prelimSegments.some(
-    (s) => s.kind === 'decision' || s.kind === 'heartbeat',
+    (s) => s.kind === 'decision' || s.kind === 'heartbeat' || s.kind === 'wrote',
   )
   const shouldContinueForAutonomous =
     !shouldContinueForAdvance &&

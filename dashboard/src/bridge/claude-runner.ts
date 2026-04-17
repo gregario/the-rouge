@@ -19,16 +19,18 @@ const SEEDING_COMPLETE_MARKER = /\bSEEDING_COMPLETE\b/
 // Unified marker detector for the gated-autonomy protocol. Matches:
 //   [GATE: <id>]        — asking the human, sets awaiting_gate
 //   [DECISION: <id>]    — autonomous call, narrates what Rouge chose
+//   [WROTE: <slug>]     — artifact completion report, not a decision
 //   [HEARTBEAT: <id>]   — still-working ping, resets the UI staleness
 //   [DISCIPLINE_COMPLETE: <name>]  — unchanged from pre-gated flow
 // The id capture is permissive — allows slashes (brainstorming/H1-...)
 // and any non-bracket characters so callers can use descriptive slugs.
-const SEGMENT_MARKER = /\[(GATE|DECISION|HEARTBEAT|DISCIPLINE_COMPLETE):\s*([^\]]+?)\]/g
+const SEGMENT_MARKER = /\[(GATE|DECISION|WROTE|HEARTBEAT|DISCIPLINE_COMPLETE):\s*([^\]]+?)\]/g
 
 export type MessageSegmentKind =
   | 'prose'
   | 'gate'
   | 'decision'
+  | 'wrote'
   | 'heartbeat'
   | 'discipline_complete'
   | 'seeding_complete'
@@ -119,6 +121,7 @@ export function segmentMarkers(text: string): MessageSegment[] {
     const kind: MessageSegmentKind =
       hit.kindStr === 'GATE' ? 'gate'
       : hit.kindStr === 'DECISION' ? 'decision'
+      : hit.kindStr === 'WROTE' ? 'wrote'
       : hit.kindStr === 'HEARTBEAT' ? 'heartbeat'
       : 'discipline_complete'
     segments.push({ kind, id: hit.id, content })

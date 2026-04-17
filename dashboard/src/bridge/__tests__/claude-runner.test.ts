@@ -99,6 +99,15 @@ describe('segmentMarkers (gated autonomy)', () => {
     expect(segs[1].id).toBe('brainstorming')
   })
 
+  it('parses [WROTE:] as a wrote segment', () => {
+    const text = '[WROTE: fa5-spec-written]\nFA5 Colour Picker on disk — complex tier, 31 ACs across opening/closing (5), modes (9).'
+    const segs = segmentMarkers(text)
+    expect(segs).toHaveLength(1)
+    expect(segs[0].kind).toBe('wrote')
+    expect(segs[0].id).toBe('fa5-spec-written')
+    expect(segs[0].content).toContain('31 ACs')
+  })
+
   it('preserves content boundaries across consecutive markers', () => {
     const text = 'intro.\n[DECISION: a] one.\n[DECISION: b] two.\n[DECISION: c] three.'
     const segs = segmentMarkers(text)

@@ -13,11 +13,18 @@ Use the `[GATE:]` / `[DECISION:]` / `[HEARTBEAT:]` vocabulary from the orchestra
 **Soft gates (only when contested):**
 - `spec/S1-paid-integration-flag` — Fires only if a required integration is paid-from-day-one (e.g. Mapbox, Stripe live keys). Human decides: accept cost, swap for alternative, or scope it out.
 
-**Autonomous (narrate via `[DECISION:]`):**
-- All per-feature-area spec sections (user journeys, AC phrasing, data model, error states, interaction patterns, security, edge cases)
-- Story grouping within a milestone
-- Integration manifest entries that are catalogue hits (free tier, no surprises)
-- NFR selections within standard bands
+**Completion reports (emit `[WROTE:]`):**
+- After writing each per-FA spec file → `[WROTE: faN-spec-written]` with the canonical first-sentence shape so the dashboard can render the structured card: `"FAN <Name> on disk — <tier> tier, <N> ACs across <label> (<count>), ...".`
+- After writing `seed_spec/milestones.json` → `[WROTE: decomposition-written]` with a summary line (e.g. `"Decomposition on disk — 4 milestones, 18 stories across <grouping-desc>."`)
+- After writing `infrastructure_manifest.json` if this discipline drafts it pre-infra → `[WROTE: integration-manifest-written]`
+
+**Autonomous decisions (emit `[DECISION:]`):**
+- Where to put per-FA spec files when the sub-prompt allows multiple layouts
+- Story grouping when more than one grouping is reasonable
+- Integration trade-offs where the spec surfaces multiple viable libraries
+- NFR picks within standard bands when the band range has real-world spread
+
+If there's no fork-in-the-road — you're just producing the file the sub-prompt prescribed — use `[WROTE:]`, not `[DECISION:]`. Writing FA5's spec is a `[WROTE:]`. Choosing between two plausible story groupings is a `[DECISION:]`.
 
 Spec is heavy work — emit frequent `[HEARTBEAT:]` markers during long stretches (e.g. `[HEARTBEAT: writing acceptance criteria for vehicle-registry (12/22)]`). Chunk turns; don't try to ship all 8 feature areas in one `claude -p` call.
 

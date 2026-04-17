@@ -118,6 +118,12 @@ export type SeedingMessageKind =
   // for the chunk-budget-exhausted case so the user can resume the
   // chain without typing anything.
   | 'resume_prompt'
+  // Artifact completion report: "I wrote this file, here's a
+  // structured summary of what's in it". Semantically distinct from
+  // [DECISION:] — no alternatives, no fork-in-the-road, just a
+  // produced-work notification. Used heavily by spec for per-FA
+  // completions.
+  | 'wrote_artifact'
 
 export interface SeedingChatMessage {
   id: string           // e.g. "msg-1712345678-abc"
