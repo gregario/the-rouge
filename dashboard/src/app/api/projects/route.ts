@@ -1,26 +1,21 @@
 import { NextResponse } from "next/server";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { scanProjects } from "@/bridge/scanner";
 import { writeSeedingState } from "@/bridge/seeding-state";
 import { statePathForWrite } from "@/bridge/state-path";
 import { loadServerConfig } from "@/lib/server-config";
+import { resolveRougeConfigPath } from "@/lib/rouge-config";
 
 // Pull the global default cap from rouge.config.json. Falls back to 100
 // if the file isn't found (matches the live default).
 function readDefaultBudgetCap(): number {
-  const candidates = [
-    join(process.cwd(), "rouge.config.json"),
-    resolve(__dirname, "../../../../../../rouge.config.json"),
-  ];
-  for (const p of candidates) {
-    try {
-      if (existsSync(p)) {
-        const cfg = JSON.parse(readFileSync(p, "utf-8")) as { budget_cap_usd?: number };
-        if (typeof cfg.budget_cap_usd === "number") return cfg.budget_cap_usd;
-      }
-    } catch { /* next candidate */ }
-  }
+  const p = resolveRougeConfigPath();
+  if (!p) return 100;
+  try {
+    const cfg = JSON.parse(readFileSync(p, "utf-8")) as { budget_cap_usd?: number };
+    if (typeof cfg.budget_cap_usd === "number") return cfg.budget_cap_usd;
+  } catch { /* fall through */ }
   return 100;
 }
 

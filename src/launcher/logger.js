@@ -41,7 +41,20 @@ function resolveLogDir() {
     cachedLogDir = path.join(home, '.rouge', 'logs');
   }
 
-  try { fs.mkdirSync(cachedLogDir, { recursive: true }); } catch {}
+  try {
+    fs.mkdirSync(cachedLogDir, { recursive: true });
+  } catch (err) {
+    // EEXIST means the directory is already there — fine, keep going.
+    // Anything else (EACCES, ENOSPC, EROFS) means we can't write logs at
+    // this location and silent-swallowing here was hiding misconfigured
+    // ROUGE_LOG_DIR. Surface to stderr; the loop's console mirror still
+    // works even when file logging doesn't.
+    if (err && err.code !== 'EEXIST') {
+      try {
+        process.stderr.write(`[rouge-logger] cannot create log dir ${cachedLogDir}: ${err.message}\n`);
+      } catch { /* stderr unavailable — give up */ }
+    }
+  }
   return cachedLogDir;
 }
 
@@ -58,10 +71,18 @@ function rotateIfNeeded(logFile) {
   try {
     // Replace any existing .1 (keep only one rotation)
     fs.renameSync(logFile, rotated);
-  } catch {
+  } catch (renameErr) {
     // Rename can fail if another process has the file open; fall back to
     // truncating in place so we at least stop growing.
-    try { fs.truncateSync(logFile, 0); } catch {}
+    try {
+      fs.truncateSync(logFile, 0);
+    } catch (truncErr) {
+      try {
+        process.stderr.write(
+          `[rouge-logger] log rotation failed (rename: ${renameErr.message}, truncate: ${truncErr.message})\n`
+        );
+      } catch { /* stderr unavailable */ }
+    }
   }
 }
 

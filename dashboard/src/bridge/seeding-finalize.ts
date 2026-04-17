@@ -1,6 +1,6 @@
-import { existsSync, readFileSync, writeFileSync, readdirSync, statSync } from 'fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'
-import { statePath as resolveStatePath } from './state-path'
+import { statePath as resolveStatePath, writeStateJson } from './state-path'
 
 export interface FinalizeResult {
   ok: boolean
@@ -63,7 +63,7 @@ export function finalizeSeeding(projectDir: string): FinalizeResult {
   if (existsSync(statePath)) {
     const state = JSON.parse(readFileSync(statePath, 'utf-8'))
     state.current_state = 'ready'
-    writeFileSync(statePath, JSON.stringify(state, null, 2))
+    writeStateJson(projectDir, state)
   }
 
   return { ok: true }

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, renameSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { loadServerConfig } from "@/lib/server-config";
-import { statePath } from "@/bridge/state-path";
+import { statePath, writeStateJson } from "@/bridge/state-path";
 import { isPlaceholderSlug, slugify, uniqueSlug } from "@/bridge/slug";
 import {
   mergeSeedingProgress,
@@ -165,7 +165,7 @@ export async function PATCH(
   // Single write — covers display-name, archive toggle, budget cap, or any combo.
   if (body.displayName !== undefined || body.archived !== undefined || body.budgetCap !== undefined) {
     const targetDir = slugChanged ? join(projectsRoot, slugChanged) : projectDir;
-    writeFileSync(statePath(targetDir), JSON.stringify(state, null, 2) + "\n");
+    writeStateJson(targetDir, state);
   }
 
   return NextResponse.json({

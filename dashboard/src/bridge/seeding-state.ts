@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, renameSync, unlinkSync, existsSync } from 'fs'
 import { join } from 'path'
 import { DISCIPLINE_SEQUENCE, type SeedingSessionState } from './types'
-import { statePath } from './state-path'
+import { statePath, writeStateJson } from './state-path'
 
 const STATE_FILE = 'seeding-state.json'
 
@@ -95,7 +95,7 @@ function updateStateJsonDiscipline(projectDir: string, discipline: string): void
     const current = DISCIPLINE_SEQUENCE.find(d => !complete.includes(d)) ?? DISCIPLINE_SEQUENCE[DISCIPLINE_SEQUENCE.length - 1]
     rawState.seedingProgress.currentDiscipline = current
 
-    writeFileSync(stateFile, JSON.stringify(rawState, null, 2))
+    writeStateJson(projectDir, rawState)
   } catch {
     // If state.json is malformed, skip
   }

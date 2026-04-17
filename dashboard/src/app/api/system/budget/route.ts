@@ -1,23 +1,12 @@
 import { NextResponse } from "next/server";
 import { assertLoopback } from "@/lib/localhost-guard";
 import { loadServerConfig } from "@/lib/server-config";
+import { resolveRougeConfigPath } from "@/lib/rouge-config";
 import { statePath } from "@/bridge/state-path";
 import { existsSync, readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
 export const dynamic = "force-dynamic";
-
-function resolveRougeConfigPath(): string | null {
-  const candidates = [
-    path.join(process.cwd(), "rouge.config.json"),
-    path.resolve(process.env.ROUGE_CLI ? path.dirname(process.env.ROUGE_CLI) : "", "..", "..", "rouge.config.json"),
-    path.resolve(__dirname, "../../../../../../rouge.config.json"),
-  ];
-  for (const c of candidates) {
-    if (c && existsSync(c)) return c;
-  }
-  return null;
-}
 
 function readTotalSpend(): { total: number; byProject: Record<string, number> } {
   // Use the shared server config — the old handcoded `~/.rouge/projects`
