@@ -32,10 +32,17 @@ const { statePath, statePathForWrite, hasStateFile } = require('./state-path.js'
 
 const ROUGE_ROOT = path.resolve(__dirname, '../..');
 
-// Detect global npm install vs cloned from source
+// Resolve the projects directory.
+//
+// Always lives OUTSIDE the Rouge repo tree (#143). Spawned phase agents
+// run with cwd set to a project dir, and Claude Code auto-loads every
+// `CLAUDE.md` walking up — so anything inside the Rouge repo picks up
+// Rouge's own developer instructions and the agent starts behaving like
+// a Rouge contributor instead of the product-building role it was given.
+// Storing projects under ~/.rouge/projects puts a clean filesystem
+// boundary between the meta-system and the products it builds.
 function resolveProjectsDir() {
   if (process.env.ROUGE_PROJECTS_DIR) return process.env.ROUGE_PROJECTS_DIR;
-  if (fs.existsSync(path.join(ROUGE_ROOT, '.git'))) return path.join(ROUGE_ROOT, 'projects');
   const home = process.env.HOME || process.env.USERPROFILE || '/tmp';
   return path.join(home, '.rouge', 'projects');
 }

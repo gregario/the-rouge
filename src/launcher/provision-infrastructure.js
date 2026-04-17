@@ -194,7 +194,8 @@ function provisionSupabase(projectDir, projectName) {
     // Slot rotation: find a project NOT actively managed by Rouge to pause.
     // Rouge-managed projects have a state.json in PROJECTS_DIR/<name>/ with state != complete.
     // Non-Rouge projects (manual, other tools) are always eligible to pause.
-    const PROJECTS_DIR = process.env.ROUGE_PROJECTS_DIR || path.join(ROUGE_ROOT, 'projects');
+    const PROJECTS_DIR = process.env.ROUGE_PROJECTS_DIR ||
+      path.join(process.env.HOME || process.env.USERPROFILE || '/tmp', '.rouge', 'projects');
 
     const isActiveRougeProject = (supabaseName) => {
       // Check all Rouge project dirs for a matching supabase ref

@@ -12,7 +12,10 @@ const app = new App({
   socketMode: true,
 });
 
-const PROJECTS_DIR = process.env.ROUGE_PROJECTS_DIR || path.join(__dirname, '../../projects');
+// Projects live outside the repo tree (#143) so spawned phase agents
+// don't auto-load Rouge's own CLAUDE.md as ancestor context.
+const PROJECTS_DIR = process.env.ROUGE_PROJECTS_DIR ||
+  path.join(process.env.HOME || process.env.USERPROFILE || '/tmp', '.rouge', 'projects');
 const KNOWN_COMMANDS = ['status', 'start', 'pause', 'resume', 'new', 'seed', 'ship', 'feedback', 'help'];
 
 function readState(projectName) {
