@@ -88,4 +88,49 @@ describe('ChatPanel', () => {
     render(<ChatPanel messages={messages} />)
     expect(screen.queryByTestId('resume-button')).not.toBeInTheDocument()
   })
+
+  describe('progression signals', () => {
+    const groupedMessages: ChatMessage[] = [
+      {
+        id: 'b-1',
+        role: 'rouge',
+        type: 'question',
+        discipline: 'brainstorming',
+        content: 'Brainstorming question.',
+        timestamp: '2026-04-01T09:00:00Z',
+      },
+      {
+        id: 'c-1',
+        role: 'rouge',
+        type: 'question',
+        discipline: 'competition',
+        content: 'Competition question.',
+        timestamp: '2026-04-01T09:05:00Z',
+      },
+    ]
+
+    it('renders a transition banner after a completed discipline', () => {
+      render(
+        <ChatPanel
+          messages={groupedMessages}
+          completedDisciplines={['brainstorming']}
+          currentDiscipline="competition"
+        />,
+      )
+      const banner = screen.getByTestId('discipline-transition-banner')
+      expect(banner).toHaveTextContent(/Brainstorming complete/i)
+      expect(banner).toHaveTextContent(/now in Competition/i)
+    })
+
+    it('does not render a transition banner when no discipline is complete', () => {
+      render(
+        <ChatPanel
+          messages={groupedMessages}
+          completedDisciplines={[]}
+          currentDiscipline="brainstorming"
+        />,
+      )
+      expect(screen.queryByTestId('discipline-transition-banner')).not.toBeInTheDocument()
+    })
+  })
 })

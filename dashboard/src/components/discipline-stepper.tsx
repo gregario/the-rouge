@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef, useState } from 'react'
 import type { DisciplineProgress, SeedingDiscipline } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { Check, Circle, Loader2 } from 'lucide-react'
@@ -26,13 +27,24 @@ const DISCIPLINE_LABELS: Record<SeedingDiscipline, string> = {
   marketing: 'Marketing',
 }
 
-function StatusIcon({ status }: { status: DisciplineProgress['status'] }) {
+function StatusIcon({
+  status,
+  justCompleted,
+}: {
+  status: DisciplineProgress['status']
+  justCompleted?: boolean
+}) {
   if (status === 'complete') {
     return (
       <div
         data-testid="discipline-icon"
         data-status="complete"
-        className="flex size-6 items-center justify-center rounded-full bg-green-100 text-green-600"
+        className={cn(
+          'flex size-6 items-center justify-center rounded-full bg-green-100 text-green-600',
+          // Pulse once when a discipline flips to complete. The `key`
+          // trick on the parent retriggers the animation reliably.
+          justCompleted && 'animate-in zoom-in-50 duration-500',
+        )}
       >
         <Check className="size-3.5" />
       </div>
@@ -79,6 +91,27 @@ export function DisciplineStepper({
     disciplines.map((d) => [d.discipline, d.status])
   )
 
+  // Track which disciplines flipped to complete this render cycle so we
+  // can retrigger the pulse animation on just those. Keyed on the
+  // StatusIcon so the animation plays cleanly.
+  const prevStatusRef = useRef<Map<SeedingDiscipline, DisciplineProgress['status']>>(new Map())
+  const [justCompleted, setJustCompleted] = useState<Set<SeedingDiscipline>>(new Set())
+  useEffect(() => {
+    const newly = new Set<SeedingDiscipline>()
+    for (const d of DISCIPLINE_ORDER) {
+      const prev = prevStatusRef.current.get(d)
+      const cur = statusMap.get(d)
+      if (cur === 'complete' && prev !== 'complete') newly.add(d)
+      if (cur) prevStatusRef.current.set(d, cur)
+    }
+    if (newly.size > 0) {
+      setJustCompleted(newly)
+      const id = setTimeout(() => setJustCompleted(new Set()), 1200)
+      return () => clearTimeout(id)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [disciplines])
+
   return (
     <nav
       className="flex flex-col gap-0.5"
@@ -107,7 +140,11 @@ export function DisciplineStepper({
           >
             {/* Vertical connector line */}
             <div className="flex flex-col items-center">
-              <StatusIcon status={status} />
+              <StatusIcon
+                key={justCompleted.has(discipline) ? `${discipline}-pulse` : discipline}
+                status={status}
+                justCompleted={justCompleted.has(discipline)}
+              />
               {!isLast && (
                 <div
                   className={cn(

@@ -6,10 +6,25 @@ import { ChatMessage } from '@/components/chat-message'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
-import { Play, Send, ChevronDown, ChevronRight, Check, Circle } from 'lucide-react'
+import { ArrowRight, Play, Send, ChevronDown, ChevronRight, Check, Circle, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { isBridgeEnabled } from '@/lib/bridge-client'
 import { useSeeding } from '@/lib/use-seeding'
+
+// Rough per-discipline expected durations for an agent turn, derived
+// from observed runs. Used to give the elapsed-time display a baseline
+// so "2 minutes" means "on track for spec" rather than "alarming".
+// Tune as we collect more data.
+const TYPICAL_DURATION_SEC: Record<string, { low: number; high: number }> = {
+  brainstorming: { low: 60, high: 180 },
+  competition: { low: 90, high: 240 },
+  taste: { low: 60, high: 150 },
+  spec: { low: 180, high: 480 },
+  infrastructure: { low: 60, high: 180 },
+  design: { low: 240, high: 600 },
+  'legal-privacy': { low: 60, high: 180 },
+  marketing: { low: 120, high: 300 },
+}
 
 interface ChatPanelProps {
   messages: ChatMessageType[]
@@ -123,6 +138,29 @@ export function ChatPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentDiscipline, groups.length])
 
+  // Auto-collapse disciplines when they flip to 'complete'. Keeps the
+  // chat focused on the current discipline instead of accumulating an
+  // ever-growing column of completed work. User's explicitly selected
+  // discipline stays expanded so they can still read through it.
+  const prevCompletedRef = useRef<Set<string>>(new Set(completedDisciplines ?? []))
+  useEffect(() => {
+    const now = new Set(completedDisciplines ?? [])
+    const newlyComplete: string[] = []
+    for (const d of now) {
+      if (!prevCompletedRef.current.has(d)) newlyComplete.push(d)
+    }
+    if (newlyComplete.length > 0) {
+      setExpanded((current) => {
+        const next = new Set(current)
+        for (const d of newlyComplete) {
+          if (d !== selectedDiscipline) next.delete(d)
+        }
+        return next
+      })
+    }
+    prevCompletedRef.current = now
+  }, [completedDisciplines, selectedDiscipline])
+
   // When user clicks a discipline in the stepper (selectedDiscipline changes),
   // expand that group and scroll to it.
   useEffect(() => {
@@ -184,14 +222,34 @@ export function ChatPanel({
             // Untagged messages — render flat
             displayMessages.map((msg) => <ChatMessage key={msg.id} message={msg} />)
           ) : (
-            groups.map((group) => (
-              <DisciplineSection
-                key={group.discipline}
-                group={group}
-                expanded={expanded.has(group.discipline)}
-                onToggle={() => toggleExpanded(group.discipline)}
-              />
-            ))
+            groups.map((group, idx) => {
+              // After a completed discipline, insert a transition banner
+              // pointing at the next one in the stream. Gives the
+              // "something changed" signal the stepper alone lacks.
+              const next = groups[idx + 1]
+              const showBanner = group.status === 'complete' && next
+              return (
+                <div key={group.discipline} className="flex flex-col gap-2">
+                  <DisciplineSection
+                    group={group}
+                    expanded={expanded.has(group.discipline)}
+                    onToggle={() => toggleExpanded(group.discipline)}
+                  />
+                  {showBanner && (
+                    <TransitionBanner
+                      from={DISCIPLINE_LABELS[group.discipline] ?? group.discipline}
+                      to={DISCIPLINE_LABELS[next.discipline] ?? next.discipline}
+                    />
+                  )}
+                </div>
+              )
+            })
+          )}
+          {bridgeActive && seeding.isSending && seeding.sendingStartedAt !== null && (
+            <ElapsedTimeIndicator
+              startedAt={seeding.sendingStartedAt}
+              discipline={currentDiscipline}
+            />
           )}
         </div>
       </ScrollArea>
@@ -248,6 +306,69 @@ export function ChatPanel({
       )}
     </div>
   )
+}
+
+function TransitionBanner({ from, to }: { from: string; to: string }) {
+  return (
+    <div
+      data-testid="discipline-transition-banner"
+      className="flex items-center gap-2 rounded-md border border-dashed border-green-300 bg-green-50/60 px-3 py-1.5 text-xs text-green-900"
+    >
+      <Check className="size-3.5 text-green-600" />
+      <span className="font-medium">{from} complete</span>
+      <ArrowRight className="size-3 text-green-600" />
+      <span className="text-green-800">now in {to}</span>
+    </div>
+  )
+}
+
+function ElapsedTimeIndicator({
+  startedAt,
+  discipline,
+}: {
+  startedAt: number
+  discipline?: string
+}) {
+  const [now, setNow] = useState<number>(Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  const elapsedSec = Math.max(0, Math.floor((now - startedAt) / 1000))
+  const typical = discipline ? TYPICAL_DURATION_SEC[discipline] : undefined
+  const overTypical = typical ? elapsedSec > typical.high : false
+
+  return (
+    <div
+      data-testid="elapsed-time-indicator"
+      className={cn(
+        'mt-2 flex items-center gap-2 rounded-md border px-3 py-2 text-xs',
+        overTypical
+          ? 'border-amber-300 bg-amber-50 text-amber-900'
+          : 'border-blue-200 bg-blue-50 text-blue-900',
+      )}
+    >
+      <Loader2 className="size-3.5 animate-spin" />
+      <span className="font-medium tabular-nums">Rouge is thinking · {formatDuration(elapsedSec)}</span>
+      {typical && (
+        <span className="text-muted-foreground">
+          · typical for {discipline}: {formatDuration(typical.low)}–{formatDuration(typical.high)}
+        </span>
+      )}
+      {overTypical && (
+        <span className="ml-auto font-medium">longer than usual — still working</span>
+      )}
+    </div>
+  )
+}
+
+function formatDuration(totalSec: number): string {
+  if (totalSec < 60) return `${totalSec}s`
+  const min = Math.floor(totalSec / 60)
+  const sec = totalSec % 60
+  if (sec === 0) return `${min}m`
+  return `${min}m ${sec}s`
 }
 
 function DisciplineSection({

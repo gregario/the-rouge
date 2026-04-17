@@ -185,6 +185,120 @@ describe('handleSeedMessage — marker verification', () => {
   })
 })
 
+describe('handleSeedMessage — auto-kickoff on marker acceptance', () => {
+  it('fires a follow-up turn after accepting a marker', async () => {
+    writeFileSync(join(PROMPTS_DIR, '02-competition.md'), '# COMPETITION\n\nFind competitors.')
+    mkdirSync(join(PROJECT_DIR, 'seed_spec'), { recursive: true })
+    writeFileSync(
+      join(PROJECT_DIR, 'seed_spec', 'brainstorming.md'),
+      '# Design Doc\n\n' + 'body '.repeat(200),
+    )
+
+    // Turn 1: accepts brainstorming marker.
+    mockRunClaude.mockResolvedValueOnce({
+      result: 'Done.\n\n[DISCIPLINE_COMPLETE: brainstorming]',
+      session_id: 'session-1',
+    })
+    // Kickoff turn: enters competition.
+    mockRunClaude.mockResolvedValueOnce({
+      result: 'Entering competition. Who are the named competitors you already know?',
+      session_id: 'session-1',
+    })
+
+    await handleSeedMessage(PROJECT_DIR, 'ship it')
+
+    // Both turns ran.
+    expect(mockRunClaude).toHaveBeenCalledTimes(2)
+
+    // Second call's prompt contains the competition sub-prompt and the
+    // kickoff framing.
+    const kickoffPrompt: string = mockRunClaude.mock.calls[1][0].prompt
+    expect(kickoffPrompt).toContain('DISCIPLINE TRANSITION — entering COMPETITION')
+    expect(kickoffPrompt).toContain('Find competitors.')
+    expect(kickoffPrompt).toContain('[SYSTEM]')
+
+    // Chat log: ONE human message (the user's), TWO rouge messages
+    // (original response + kickoff response). The kickoff's system text
+    // must NOT appear as a human message.
+    const log = readChatLog(PROJECT_DIR)
+    const humanCount = log.filter((m) => m.role === 'human').length
+    const rougeCount = log.filter((m) => m.role === 'rouge').length
+    expect(humanCount).toBe(1)
+    expect(rougeCount).toBe(2)
+
+    // Kickoff marked the new discipline as prompted.
+    const state = readSeedingState(PROJECT_DIR)
+    expect(state.disciplines_prompted).toContain('competition')
+  })
+
+  it('does NOT auto-kickoff when the marker is rejected (no artifact)', async () => {
+    mockRunClaude.mockResolvedValueOnce({
+      result: 'Done.\n\n[DISCIPLINE_COMPLETE: brainstorming]',
+      session_id: 'session-1',
+    })
+
+    await handleSeedMessage(PROJECT_DIR, 'done')
+
+    // Only the one turn — rejection means no state advance, no kickoff.
+    expect(mockRunClaude).toHaveBeenCalledTimes(1)
+  })
+
+  it('does NOT auto-kickoff when seeding is complete', async () => {
+    writeFileSync(join(PROMPTS_DIR, '07-marketing.md'), '# MARKETING\n\nWrite the README.')
+    mkdirSync(join(PROJECT_DIR, 'marketing'), { recursive: true })
+    writeFileSync(join(PROJECT_DIR, 'marketing', 'landing-page-copy.md'), 'x'.repeat(500))
+
+    writeSeedingState(PROJECT_DIR, {
+      session_id: 'session-1',
+      status: 'active',
+      disciplines_complete: ['brainstorming', 'competition', 'taste', 'spec', 'infrastructure', 'design', 'legal-privacy'],
+      disciplines_prompted: ['brainstorming', 'competition', 'taste', 'spec', 'infrastructure', 'design', 'legal-privacy', 'marketing'],
+      current_discipline: 'marketing',
+    })
+
+    mockRunClaude.mockResolvedValueOnce({
+      result: 'All done.\n\n[DISCIPLINE_COMPLETE: marketing]\n\nSEEDING_COMPLETE',
+      session_id: 'session-1',
+    })
+
+    await handleSeedMessage(PROJECT_DIR, 'wrap')
+
+    // Only the one turn — seeding done, nothing to kick off.
+    expect(mockRunClaude).toHaveBeenCalledTimes(1)
+  })
+
+  it('kickoff turn does not recurse — at most one follow-up per user turn', async () => {
+    writeFileSync(join(PROMPTS_DIR, '02-competition.md'), '# COMPETITION\n\nFind competitors.')
+    writeFileSync(join(PROMPTS_DIR, '03-taste.md'), '# TASTE\n\nChallenge the premise.')
+    mkdirSync(join(PROJECT_DIR, 'seed_spec'), { recursive: true })
+    writeFileSync(
+      join(PROJECT_DIR, 'seed_spec', 'brainstorming.md'),
+      'x'.repeat(1000),
+    )
+    writeFileSync(
+      join(PROJECT_DIR, 'seed_spec', 'competition.md'),
+      'x'.repeat(1000),
+    )
+
+    // Turn 1: accepts brainstorming.
+    mockRunClaude.mockResolvedValueOnce({
+      result: '[DISCIPLINE_COMPLETE: brainstorming]',
+      session_id: 's1',
+    })
+    // Kickoff turn: the agent pathologically also emits competition complete.
+    // We should NOT fire a second kickoff.
+    mockRunClaude.mockResolvedValueOnce({
+      result: 'Entering competition.\n\n[DISCIPLINE_COMPLETE: competition]',
+      session_id: 's1',
+    })
+
+    await handleSeedMessage(PROJECT_DIR, 'begin')
+
+    // Two calls total: user turn + ONE kickoff. No third call.
+    expect(mockRunClaude).toHaveBeenCalledTimes(2)
+  })
+})
+
 describe('handleSeedMessage — discipline transition injection', () => {
   it('injects the next discipline\'s sub-prompt after brainstorming completes', async () => {
     writeFileSync(join(PROMPTS_DIR, '02-competition.md'), '# COMPETITION\n\nFind competitors.')
