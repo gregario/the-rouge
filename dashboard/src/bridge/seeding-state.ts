@@ -98,3 +98,19 @@ export function setStatus(projectDir: string, status: SeedingSessionState['statu
   state.last_activity = new Date().toISOString()
   writeSeedingState(projectDir, state)
 }
+
+/**
+ * Mark a discipline's detailed sub-prompt as having been injected into
+ * the current session at least once. Used by the seed handler to decide
+ * whether to re-inject on the next turn (#147).
+ */
+export function markDisciplinePrompted(projectDir: string, discipline: string): void {
+  const state = readSeedingState(projectDir)
+  const prompted = state.disciplines_prompted ?? []
+  if (!prompted.includes(discipline)) {
+    prompted.push(discipline)
+    state.disciplines_prompted = prompted
+    state.last_activity = new Date().toISOString()
+    writeSeedingState(projectDir, state)
+  }
+}
