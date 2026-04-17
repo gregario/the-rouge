@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadServerConfig } from "@/lib/server-config";
-import { statePath } from "@/bridge/state-path";
+import { statePath, writeStateJson } from "@/bridge/state-path";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +18,6 @@ export async function POST(
   }
   const raw = JSON.parse(readFileSync(stateFile, "utf-8"));
   raw.current_state = "waiting-for-human";
-  writeFileSync(stateFile, JSON.stringify(raw, null, 2));
+  writeStateJson(join(projectsRoot, name), raw);
   return NextResponse.json({ ok: true });
 }

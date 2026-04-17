@@ -1,7 +1,7 @@
 import { spawn } from 'child_process'
 import { readFileSync, writeFileSync, existsSync, unlinkSync, openSync } from 'fs'
 import { join } from 'path'
-import { statePath as resolveStatePath } from './state-path'
+import { statePath as resolveStatePath, writeStateJson } from './state-path'
 
 const PID_FILE = '.build-pid'
 
@@ -9,6 +9,13 @@ interface BuildInfo {
   pid: number
   startedAt: string
 }
+
+// In-process dedupe for concurrent Start clicks. Two clicks within the
+// 800 ms settlement window race to write `.build-pid`; both succeed,
+// last-write-wins, and we leak the loser PID. Coalesce on slug so the
+// second caller waits for the first's resolution and returns the same
+// answer.
+const inFlightStarts = new Map<string, ReturnType<typeof startBuildInner>>()
 
 /**
  * Check if a PID is a live process.
@@ -62,6 +69,24 @@ export async function startBuild(
   rougeCliPath: string,
   slug: string,
 ): Promise<{ ok: true; pid: number; alreadyRunning?: boolean } | { ok: false; error: string }> {
+  const existing = inFlightStarts.get(slug)
+  if (existing) return existing
+  const promise = startBuildInner(projectsRoot, rougeCliPath, slug)
+  inFlightStarts.set(slug, promise)
+  try {
+    return await promise
+  } finally {
+    // Clear once settled so a real second start (much later) goes
+    // through the full path again.
+    inFlightStarts.delete(slug)
+  }
+}
+
+async function startBuildInner(
+  projectsRoot: string,
+  rougeCliPath: string,
+  slug: string,
+): Promise<{ ok: true; pid: number; alreadyRunning?: boolean } | { ok: false; error: string }> {
   const projectDir = join(projectsRoot, slug)
   if (!existsSync(projectDir)) {
     return { ok: false, error: 'Project not found' }
@@ -86,7 +111,7 @@ export async function startBuild(
         priorCurrentState = state.current_state
         const foundationComplete = state.foundation?.status === 'complete'
         state.current_state = foundationComplete ? 'story-building' : 'foundation'
-        writeFileSync(statePath, JSON.stringify(state, null, 2))
+        writeStateJson(projectDir, state)
       } else if (state.current_state === 'complete') {
         return { ok: false, error: `Project is complete — nothing to build` }
       }
@@ -105,7 +130,7 @@ export async function startBuild(
       const st = JSON.parse(readFileSync(statePath, 'utf-8'))
       if (st.current_state === 'foundation' || st.current_state === 'story-building') {
         st.current_state = priorCurrentState
-        writeFileSync(statePath, JSON.stringify(st, null, 2))
+        writeStateJson(projectDir, st)
       }
     } catch {
       // best effort
@@ -272,7 +297,7 @@ function rollbackZombieBuildState(projectDir: string): boolean {
     const cur = state.current_state
     if (cur === 'foundation' || cur === 'story-building') {
       state.current_state = 'ready'
-      writeFileSync(statePath, JSON.stringify(state, null, 2))
+      writeStateJson(projectDir, state)
       return true
     }
   } catch {

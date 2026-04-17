@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { stopBuild } from '../build-runner'
+import { stopBuild, startBuild } from '../build-runner'
 
 // stopBuild tests. startBuild's settlement logic spawns real child
 // processes and is harder to test hermetically — left for integration.
@@ -73,6 +73,18 @@ describe('stopBuild — idempotent (#161 followup)', () => {
     const state = JSON.parse(readFileSync(join(dir, '.rouge', 'state.json'), 'utf-8'))
     // Seeding stays seeding — Stop is not meant to retreat from seeding.
     expect(state.current_state).toBe('seeding')
+  })
+
+  it('coalesces concurrent startBuild calls for the same slug', async () => {
+    // Project doesn't exist → startBuild returns instantly with the same
+    // error. Two parallel calls should produce identical results and
+    // never crash from the in-flight dedupe path.
+    const a = startBuild(projectsRoot, '/tmp/no-such-rouge-cli.js', 'ghost')
+    const b = startBuild(projectsRoot, '/tmp/no-such-rouge-cli.js', 'ghost')
+    const [ra, rb] = await Promise.all([a, b])
+    expect(ra.ok).toBe(false)
+    expect(rb.ok).toBe(false)
+    expect(ra).toEqual(rb)
   })
 
   it('cleans up a stale PID file (dead process) via readBuildInfo', async () => {

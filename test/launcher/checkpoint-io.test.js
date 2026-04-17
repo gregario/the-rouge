@@ -97,4 +97,19 @@ describe('Checkpoint I/O', () => {
       /not found/
     );
   });
+
+  test('writeCheckpoint trims to most-recent 500 entries when over cap', () => {
+    const cpPath = path.join(tmpDir, 'checkpoints.jsonl');
+    // Pre-seed with 600 large entries so the file passes the 256 KB
+    // probe threshold and rotation kicks in on the next append.
+    const padded = { phase: 'pad', state: { x: 'x'.repeat(600) }, costs: {} };
+    for (let i = 0; i < 600; i++) writeCheckpoint(cpPath, padded);
+    // One more append — this is what should trigger trim-to-500.
+    writeCheckpoint(cpPath, { phase: 'last', state: { tag: 'last' }, costs: {} });
+
+    const all = readAllCheckpoints(cpPath);
+    assert.equal(all.length, 500);
+    // The just-appended entry must survive the trim.
+    assert.equal(all[all.length - 1].phase, 'last');
+  });
 });

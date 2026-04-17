@@ -1,4 +1,10 @@
 const fs = require('fs');
+const { rotateJsonlIfNeeded } = require('./jsonl-rotation');
+
+// Cap at 500 checkpoints — long-running builds otherwise grow this file
+// without bound. 500 covers many milestones of history while keeping the
+// file under a few MB; older entries roll off the front.
+const MAX_CHECKPOINT_ENTRIES = 500;
 
 function writeCheckpoint(filePath, { phase, state, costs }) {
   const checkpoint = {
@@ -10,6 +16,7 @@ function writeCheckpoint(filePath, { phase, state, costs }) {
   };
   const line = JSON.stringify(checkpoint) + '\n';
   fs.appendFileSync(filePath, line, 'utf8');
+  rotateJsonlIfNeeded(filePath, MAX_CHECKPOINT_ENTRIES);
   return checkpoint;
 }
 

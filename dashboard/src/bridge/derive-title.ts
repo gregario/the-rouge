@@ -1,7 +1,7 @@
-import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { readFileSync, existsSync } from 'fs'
 import { runClaude } from './claude-runner'
 import { readChatLog } from './chat-reader'
-import { statePath } from './state-path'
+import { statePath, writeStateJson } from './state-path'
 
 /**
  * One-shot working-title derivation. Called after the first user message
@@ -49,8 +49,15 @@ ${firstUserMessage.slice(0, 2000)}`
     // call (race).
     if (!isPlaceholderName(readCurrentName(projectDir))) return
     writeName(projectDir, title)
-  } catch {
-    // Silent — title derivation is best-effort.
+  } catch (err) {
+    // Best-effort: a failed title derivation must never block the
+    // conversation. But silent-swallow hid two real bugs in seeding
+    // (haiku auth failures, runClaude path errors) — log to stderr so
+    // they're at least visible in the dashboard log when something
+    // breaks.
+    console.warn(
+      `[derive-title] title derivation failed for ${projectDir}: ${err instanceof Error ? err.message : String(err)}`,
+    )
   }
 }
 
@@ -71,7 +78,7 @@ function writeName(projectDir: string, title: string): void {
   const raw = JSON.parse(readFileSync(file, 'utf-8'))
   raw.name = title
   raw.project = title
-  writeFileSync(file, JSON.stringify(raw, null, 2) + '\n')
+  writeStateJson(projectDir, raw)
 }
 
 function isPlaceholderName(n: string): boolean {

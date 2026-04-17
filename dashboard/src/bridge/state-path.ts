@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 export const ROUGE_DIR = '.rouge'
@@ -23,4 +23,31 @@ export function hasStateFile(projectDir: string): boolean {
     existsSync(join(projectDir, ROUGE_DIR, STATE_FILE)) ||
     existsSync(join(projectDir, STATE_FILE))
   )
+}
+
+/**
+ * Atomic write of a project's state.json. Writes to a per-pid tmp file
+ * first, then rename(2)s into place — POSIX atomic on same-filesystem
+ * paths. Trailing newline for consistency with the launcher's existing
+ * writeJson helper.
+ *
+ * Use this instead of `writeFileSync(statePath(dir), ...)` everywhere
+ * state.json gets mutated. Multiple endpoints used to do the plain
+ * write directly (pause, PATCH, resolve-escalation, build-runner,
+ * seeding-state's updateStateJsonDiscipline). Concurrent requests could
+ * clobber each other's updates silently. The atomic path prevents torn
+ * writes; the concurrent-update-loss at the caller level is a separate
+ * concern that needs a lock, but at minimum the file is never
+ * half-written and readers don't see partial JSON.
+ */
+export function writeStateJson(projectDir: string, state: unknown): void {
+  const target = statePathForWrite(projectDir)
+  const tmp = `${target}.${process.pid}.${Date.now()}.tmp`
+  try {
+    writeFileSync(tmp, JSON.stringify(state, null, 2) + '\n')
+    renameSync(tmp, target)
+  } catch (err) {
+    try { if (existsSync(tmp)) unlinkSync(tmp) } catch { /* ignore */ }
+    throw err
+  }
 }

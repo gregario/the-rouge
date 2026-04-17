@@ -265,7 +265,12 @@ function provisionSupabase(projectDir, projectName) {
       // Most recently created project matching our name
       const match = projects.find(p => p.name === projectName) || projects[0];
       if (match) ref = match.id;
-    } catch {}
+    } catch (err) {
+      // The fallback table-parse path below will try to recover, but log
+      // the failure so we can spot when supabase changes its CLI output
+      // shape (which has happened twice before).
+      log(`Supabase: JSON projects list failed, falling back to table parse: ${err.message}`);
+    }
 
     // Fallback: parse table output from create command
     if (!ref) {

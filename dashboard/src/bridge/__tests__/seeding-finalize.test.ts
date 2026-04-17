@@ -15,11 +15,16 @@ describe('finalizeSeeding', () => {
 
   function seedCompleteProject(): void {
     mkdirSync(join(testDir, 'seed_spec'), { recursive: true })
+    mkdirSync(join(testDir, '.rouge'), { recursive: true })
     writeFileSync(join(testDir, 'task_ledger.json'), '{}')
     writeFileSync(join(testDir, 'seed_spec', 'milestones.json'), '{}')
     writeFileSync(join(testDir, 'vision.json'), LONG)
     writeFileSync(join(testDir, 'product_standard.json'), LONG)
-    writeFileSync(join(testDir, 'state.json'), JSON.stringify({ current_state: 'seeding', name: 'test' }))
+    // state.json lives under .rouge/ (#135 / #143). Previous test
+    // seeded it at the legacy root path, which still works for reads
+    // via the fallback, but finalizeSeeding's writeStateJson writes
+    // to the new location — so tests must read from the new location too.
+    writeFileSync(join(testDir, '.rouge', 'state.json'), JSON.stringify({ current_state: 'seeding', name: 'test' }))
   }
 
   it('returns missingArtifacts when task_ledger.json is missing', () => {
@@ -67,7 +72,7 @@ describe('finalizeSeeding', () => {
     const result = finalizeSeeding(testDir)
     expect(result.ok).toBe(true)
 
-    const state = JSON.parse(readFileSync(join(testDir, 'state.json'), 'utf-8'))
+    const state = JSON.parse(readFileSync(join(testDir, '.rouge', 'state.json'), 'utf-8'))
     expect(state.current_state).toBe('ready')
     expect(state.name).toBe('test') // preserved
   })
