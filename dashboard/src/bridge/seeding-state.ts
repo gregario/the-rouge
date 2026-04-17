@@ -114,3 +114,29 @@ export function markDisciplinePrompted(projectDir: string, discipline: string): 
     writeSeedingState(projectDir, state)
   }
 }
+
+/**
+ * Stash a correction note (e.g. "your DISCIPLINE_COMPLETE was rejected —
+ * write the artifact first") for delivery on the next turn. Multiple
+ * corrections in a single turn stack. See #148.
+ */
+export function appendPendingCorrection(projectDir: string, note: string): void {
+  const state = readSeedingState(projectDir)
+  const existing = state.pending_correction
+  state.pending_correction = existing ? `${existing}\n${note}` : note
+  state.last_activity = new Date().toISOString()
+  writeSeedingState(projectDir, state)
+}
+
+/**
+ * Read and clear any pending correction. Returns null if there was none.
+ */
+export function consumePendingCorrection(projectDir: string): string | null {
+  const state = readSeedingState(projectDir)
+  const pending = state.pending_correction
+  if (!pending) return null
+  delete state.pending_correction
+  state.last_activity = new Date().toISOString()
+  writeSeedingState(projectDir, state)
+  return pending
+}

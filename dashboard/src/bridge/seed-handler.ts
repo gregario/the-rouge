@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'fs'
 import { resolve } from 'path'
 import { runClaude, detectRateLimit, extractMarkers } from './claude-runner'
 import { appendChatMessage } from './chat-reader'
-import { readSeedingState, updateSessionId, markDisciplineComplete, markDisciplinePrompted, markSeedingComplete, setStatus } from './seeding-state'
+import { readSeedingState, updateSessionId, markDisciplineComplete, markDisciplinePrompted, markSeedingComplete, setStatus, appendPendingCorrection, consumePendingCorrection } from './seeding-state'
 import { finalizeSeeding } from './seeding-finalize'
 import { maybeDeriveWorkingTitle } from './derive-title'
 import { loadDisciplinePrompt, type Discipline } from './discipline-prompts'
@@ -137,6 +137,15 @@ export async function handleSeedMessage(
       console.error(`[seeding] discipline prompt unreadable for ${activeDiscipline}`)
     }
   }
+  // Deliver any correction stashed from the previous turn (e.g. a
+  // rejected DISCIPLINE_COMPLETE). Claude doesn't see the chat-log note
+  // we appended — its `--resume` only replays the server-side session —
+  // so without this, rejections would be invisible to the agent and it
+  // would either advance blindly or repeat the same mistake.
+  const pendingCorrection = consumePendingCorrection(projectDir)
+  if (pendingCorrection) {
+    sections.push('---', pendingCorrection)
+  }
   if (isFirstTurn && sections.length > 0) {
     sections.push(
       '---',
@@ -221,6 +230,7 @@ export async function handleSeedMessage(
           `[SYSTEM NOTE] DISCIPLINE_COMPLETE(${r.discipline}) was rejected — ${r.reason}. The discipline remains active. Continue the work on disk and emit the marker only when the artifact exists with real content.`,
       )
       .join('\n')
+    // Visible to the human in the chat log UI.
     appendChatMessage(projectDir, {
       id: genId(),
       role: 'rouge',
@@ -228,6 +238,9 @@ export async function handleSeedMessage(
       timestamp: new Date().toISOString(),
       metadata: { discipline: activeDiscipline ?? undefined },
     })
+    // Delivered to Claude on the next turn (session memory alone wouldn't
+    // carry this note — our chat log is separate from Claude's session).
+    appendPendingCorrection(projectDir, note)
   }
 
   // If this was the first user message and the project is still
