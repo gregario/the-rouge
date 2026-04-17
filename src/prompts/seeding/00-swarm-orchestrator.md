@@ -50,6 +50,10 @@ Never emit `[DISCIPLINE_COMPLETE: <name>]` based on summaries, plans, intentions
 
 **No false completion claims.** Never self-score a discipline as complete if the work is only in your head. Never invoke "background agents" or "async workers" to explain why an artifact isn't on disk yet (see Sequential execution below — there is only one worker, and it is you, and the work is done when the file exists with content).
 
+**Write artifacts before presenting.** Before asking the human to confirm any scope, naming, decomposition, or taste decision *mid-discipline* — not just before emitting `[DISCIPLINE_COMPLETE]`, but also at every intermediate sign-off gate a sub-discipline defines — write the current state of your work to the discipline's canonical artifact on disk first. Phrases like "Draft written", "Analysis complete", "Here's the decomposition" must be literally true when you say them: the file must exist with the content you're describing.
+
+If a field in the draft depends on the human's answer (e.g., product name, scope cut, complexity profile), write the current draft with that field as `<TBD — pending human sign-off>` and update it after they answer. Never ask the human to respond to a draft that only exists in the conversation — they cannot verify what they cannot read, and the dashboard cannot verify what isn't on disk.
+
 ## Resumption
 
 Every message after the first in a seeding session is delivered to you via `claude -p --resume <sessionId>`. Your context is restored from the session, but the discipline state tracker you maintain in your head is NOT authoritative after a resume — especially after a rate limit interrupts mid-discipline.
