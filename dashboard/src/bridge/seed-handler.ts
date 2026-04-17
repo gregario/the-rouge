@@ -92,9 +92,31 @@ export async function handleSeedMessage(
   // the conversation after seeding completes — to amend spec, add missing
   // artifacts, or clarify decisions. Claude remembers context via session_id.
 
+  // First message from the user: inline the orchestrator prompt so the
+  // agent enters the brainstorming discipline. Previously this ran from
+  // a fire-and-forget `startSeedingSession` at project creation, which
+  // raced with the auto-slug rename (#137) and ENOENT'd on the stale
+  // project directory — leaving the session bare-bones Opus.
+  let prompt = userText
+  if (state.session_id === null) {
+    try {
+      const orchestratorPrompt = readFileSync(ORCHESTRATOR_PROMPT_PATH, 'utf-8')
+      prompt = [
+        orchestratorPrompt,
+        '---',
+        'The user has described what they want to build. Begin the seeding swarm — enter BRAINSTORMING and explore their idea per the discipline\'s rules. Their first message is below.',
+        '---',
+        userText,
+      ].join('\n\n')
+    } catch (err) {
+      console.error('[seeding] orchestrator prompt unreadable:', err)
+      // Fall through with raw userText — better than 500'ing the chat.
+    }
+  }
+
   const result = await runClaude({
     projectDir,
-    prompt: userText,
+    prompt,
     sessionId: state.session_id,
   })
 
