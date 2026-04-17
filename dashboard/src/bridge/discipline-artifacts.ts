@@ -20,18 +20,30 @@ type ArtifactSpec =
 
 // Each discipline produces at least one of these artifacts. Any hit wins.
 // Paths are relative to the project directory.
+//
+// For text-artifact disciplines (brainstorming, competition, taste) we
+// accept both `seed_spec/*.md` and `docs/*.md` — the sub-prompts nudge
+// toward `seed_spec/` but some runs improvise and write under `docs/`
+// with real content. The verifier's job is to recognise real work, not
+// to police the path. Hard-specified-path disciplines (spec, infra,
+// design/, legal/, marketing/) keep their canonical-only mapping.
 const ARTIFACT_SPECS: Record<Discipline, ArtifactSpec[]> = {
   brainstorming: [
     { kind: 'file', path: 'seed_spec/brainstorming.md', minBytes: 500 },
     { kind: 'file', path: 'seed_spec/brainstorming-design-doc.md', minBytes: 500 },
+    { kind: 'file', path: 'docs/brainstorming.md', minBytes: 500 },
   ],
   competition: [
     { kind: 'file', path: 'seed_spec/competition_brief.md', minBytes: 500 },
     { kind: 'file', path: 'seed_spec/competition.md', minBytes: 500 },
+    { kind: 'file', path: 'docs/competition.md', minBytes: 500 },
+    { kind: 'file', path: 'docs/competition_brief.md', minBytes: 500 },
   ],
   taste: [
     { kind: 'file', path: 'seed_spec/taste_verdict.md', minBytes: 300 },
     { kind: 'file', path: 'seed_spec/taste.md', minBytes: 300 },
+    { kind: 'file', path: 'docs/taste.md', minBytes: 300 },
+    { kind: 'file', path: 'docs/taste_verdict.md', minBytes: 300 },
   ],
   spec: [{ kind: 'file', path: 'seed_spec/milestones.json', minBytes: 500 }],
   infrastructure: [{ kind: 'file', path: 'infrastructure_manifest.json', minBytes: 200 }],

@@ -113,6 +113,8 @@ This reframes scope decisions around actual AI capability, not human intuition a
 
 ## Output: The Design Document
 
+**Write the document to `seed_spec/brainstorming.md`** in the project root. Create the `seed_spec/` directory if it doesn't exist. Do not write to `docs/` or any other path — the dashboard verifies the artifact at this location before accepting the `[DISCIPLINE_COMPLETE: brainstorming]` marker.
+
 Your final output is a structured design document. This is NOT a feature list. It is a product vision document that tells the story of what this product IS, who it serves, and why it matters.
 
 ### Document Structure
