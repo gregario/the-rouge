@@ -122,6 +122,11 @@ export interface SeedingSessionState {
   disciplines_complete?: string[]
   current_discipline?: string
   seeding_complete?: boolean
+  // Disciplines whose detailed sub-prompt has already been sent to Claude
+  // in this session. Used by the seed handler to inject each discipline's
+  // prompt exactly once per discipline (#147) — subsequent turns within a
+  // discipline ride on session memory.
+  disciplines_prompted?: string[]
 }
 
 // The canonical sequence of disciplines used when auto-advancing current_discipline

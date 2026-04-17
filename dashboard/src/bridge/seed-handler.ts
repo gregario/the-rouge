@@ -2,9 +2,12 @@ import { existsSync, readFileSync } from 'fs'
 import { resolve } from 'path'
 import { runClaude, detectRateLimit, extractMarkers } from './claude-runner'
 import { appendChatMessage } from './chat-reader'
-import { readSeedingState, updateSessionId, markDisciplineComplete, markSeedingComplete, setStatus } from './seeding-state'
+import { readSeedingState, updateSessionId, markDisciplineComplete, markDisciplinePrompted, markSeedingComplete, setStatus } from './seeding-state'
 import { finalizeSeeding } from './seeding-finalize'
 import { maybeDeriveWorkingTitle } from './derive-title'
+import { loadDisciplinePrompt, type Discipline } from './discipline-prompts'
+import { verifyDisciplineArtifact } from './discipline-artifacts'
+import { DISCIPLINE_SEQUENCE } from './types'
 
 // Locate the seeding orchestrator prompt at startup.
 //
@@ -40,7 +43,12 @@ function resolveOrchestratorPromptPath(): string {
   return candidates[0]
 }
 
-const ORCHESTRATOR_PROMPT_PATH = resolveOrchestratorPromptPath()
+// Resolved lazily per-call (not cached at module load) so tests can
+// point this at a fixture via `ROUGE_ORCHESTRATOR_PROMPT` after the
+// module has already imported.
+function currentOrchestratorPromptPath(): string {
+  return resolveOrchestratorPromptPath()
+}
 
 function genId(): string {
   return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -92,27 +100,51 @@ export async function handleSeedMessage(
   // the conversation after seeding completes — to amend spec, add missing
   // artifacts, or clarify decisions. Claude remembers context via session_id.
 
-  // First message from the user: inline the orchestrator prompt so the
-  // agent enters the brainstorming discipline. Previously this ran from
-  // a fire-and-forget `startSeedingSession` at project creation, which
-  // raced with the auto-slug rename (#137) and ENOENT'd on the stale
-  // project directory — leaving the session bare-bones Opus.
-  let prompt = userText
-  if (state.session_id === null) {
+  const activeDiscipline = resolveActiveDiscipline(state.current_discipline)
+  const alreadyPrompted = state.disciplines_prompted ?? []
+  const isFirstTurn = state.session_id === null
+  const needsDisciplinePrompt =
+    activeDiscipline !== null && !alreadyPrompted.includes(activeDiscipline)
+
+  // Build the prompt. Two injections can fire:
+  //
+  // 1) Orchestrator prompt on the session's very first turn — sets the
+  //    swarm context, discipline list, markers protocol (#146).
+  // 2) The ACTIVE discipline's full sub-prompt the first time we enter
+  //    that discipline in this session (#147). Without this, the agent
+  //    had been improvising each discipline from the orchestrator's
+  //    one-line summary and skipping the real rules (ask user/pain/
+  //    trigger, one question at a time, produce the Design Document, etc).
+  //    Session resume carries the prompt forward for subsequent turns in
+  //    the same discipline — we inject once per discipline, not per turn.
+  const sections: string[] = []
+  if (isFirstTurn) {
     try {
-      const orchestratorPrompt = readFileSync(ORCHESTRATOR_PROMPT_PATH, 'utf-8')
-      prompt = [
-        orchestratorPrompt,
-        '---',
-        'The user has described what they want to build. Begin the seeding swarm — enter BRAINSTORMING and explore their idea per the discipline\'s rules. Their first message is below.',
-        '---',
-        userText,
-      ].join('\n\n')
+      sections.push(readFileSync(currentOrchestratorPromptPath(), 'utf-8'))
     } catch (err) {
       console.error('[seeding] orchestrator prompt unreadable:', err)
-      // Fall through with raw userText — better than 500'ing the chat.
     }
   }
+  if (needsDisciplinePrompt && activeDiscipline) {
+    const sub = loadDisciplinePrompt(activeDiscipline)
+    if (sub) {
+      sections.push(
+        '---',
+        `DISCIPLINE TRANSITION — entering ${activeDiscipline.toUpperCase()}. Follow the rules below exactly. Ignore any temptation to shortcut into later disciplines (spec, infrastructure, deployment choice) — that is a separate phase. Complete this discipline's artifact on disk before emitting its completion marker.`,
+        sub,
+      )
+    } else {
+      console.error(`[seeding] discipline prompt unreadable for ${activeDiscipline}`)
+    }
+  }
+  if (isFirstTurn && sections.length > 0) {
+    sections.push(
+      '---',
+      'The user has described what they want to build. Their first message is below — respond in character as the active discipline.',
+    )
+  }
+  sections.push(userText)
+  const prompt = sections.join('\n\n')
 
   const result = await runClaude({
     projectDir,
@@ -128,15 +160,18 @@ export async function handleSeedMessage(
     return { ok: false, status: 500, error: result.error }
   }
 
-  // Capture the discipline that was active when this message started.
-  // We tag messages with this discipline (even if markers advance it afterwards).
-  const activeDiscipline = state.current_discipline
-
-  // Detect rate limit
+  // Detect rate limit BEFORE marking the discipline prompted so a rate-
+  // limited turn retries with the same injection next time.
   if (detectRateLimit(result.result)) {
     setStatus(projectDir, 'paused')
-    appendMessages(projectDir, userText, result.result, activeDiscipline)
+    appendMessages(projectDir, userText, result.result, activeDiscipline ?? undefined)
     return { ok: false, status: 429, error: 'Claude rate-limited', rateLimited: true }
+  }
+
+  // We successfully handed the discipline's sub-prompt to Claude; record
+  // it so we don't re-inject on every subsequent turn in the same phase.
+  if (needsDisciplinePrompt && activeDiscipline) {
+    markDisciplinePrompted(projectDir, activeDiscipline)
   }
 
   // Persist session_id if new
@@ -149,15 +184,51 @@ export async function handleSeedMessage(
     setStatus(projectDir, 'active')
   }
 
-  // Parse markers
+  // Parse markers. We only advance discipline state for markers whose
+  // artifact actually exists on disk — the orchestrator prompt forbids
+  // premature markers, but the agent has been known to emit them
+  // anyway (#147). Dashboard-side enforcement is the backstop.
   const markers = extractMarkers(result.result)
+  const acceptedDisciplines: string[] = []
+  const rejectedDisciplines: Array<{ discipline: string; reason: string }> = []
   for (const d of markers.disciplinesComplete) {
-    markDisciplineComplete(projectDir, d)
+    if (!isKnownDiscipline(d)) {
+      rejectedDisciplines.push({ discipline: d, reason: 'unknown discipline name' })
+      continue
+    }
+    const check = verifyDisciplineArtifact(projectDir, d)
+    if (check.ok) {
+      markDisciplineComplete(projectDir, d)
+      acceptedDisciplines.push(d)
+    } else {
+      console.warn(
+        `[seeding] rejecting DISCIPLINE_COMPLETE(${d}) — ${check.reason}`,
+      )
+      rejectedDisciplines.push({ discipline: d, reason: check.reason ?? 'artifact missing' })
+    }
   }
 
   // Append conversation (user message + rouge response) tagged with the
-  // discipline that was active BEFORE markers fired.
-  appendMessages(projectDir, userText, result.result, activeDiscipline)
+  // discipline that was active BEFORE markers fired. If the agent emitted
+  // markers for disciplines whose artifacts aren't on disk, append a
+  // follow-up note so both the human (in the UI) and the agent (via
+  // session history on the next turn) see that the marker was rejected.
+  appendMessages(projectDir, userText, result.result, activeDiscipline ?? undefined)
+  if (rejectedDisciplines.length > 0) {
+    const note = rejectedDisciplines
+      .map(
+        (r) =>
+          `[SYSTEM NOTE] DISCIPLINE_COMPLETE(${r.discipline}) was rejected — ${r.reason}. The discipline remains active. Continue the work on disk and emit the marker only when the artifact exists with real content.`,
+      )
+      .join('\n')
+    appendChatMessage(projectDir, {
+      id: genId(),
+      role: 'rouge',
+      content: note,
+      timestamp: new Date().toISOString(),
+      metadata: { discipline: activeDiscipline ?? undefined },
+    })
+  }
 
   // If this was the first user message and the project is still
   // placeholder-named, derive a working title in the background.
@@ -180,59 +251,18 @@ export async function handleSeedMessage(
   return {
     ok: true,
     status: 200,
-    disciplineComplete: markers.disciplinesComplete.length > 0 ? markers.disciplinesComplete : undefined,
+    disciplineComplete: acceptedDisciplines.length > 0 ? acceptedDisciplines : undefined,
     seedingComplete: markers.seedingComplete,
     readyTransition,
     missingArtifacts,
   }
 }
 
-export async function startSeedingSession(
-  projectDir: string,
-  projectName: string,
-): Promise<SendMessageResult> {
-  const orchestratorPrompt = readFileSync(ORCHESTRATOR_PROMPT_PATH, 'utf-8')
-  const initialPrompt = orchestratorPrompt +
-    '\n\n---\n\nThe user wants to build a product called "' + projectName + '". Start the seeding swarm. Ask the first question.'
+function isKnownDiscipline(name: string): name is Discipline {
+  return (DISCIPLINE_SEQUENCE as readonly string[]).includes(name)
+}
 
-  const result = await runClaude({
-    projectDir,
-    prompt: initialPrompt,
-    sessionId: null,
-  })
-
-  if (result.timeout) {
-    return { ok: false, status: 504, error: 'Claude timed out' }
-  }
-  if (result.error) {
-    return { ok: false, status: 500, error: result.error }
-  }
-
-  // First-ever message always starts with brainstorming
-  const activeDiscipline = 'brainstorming'
-
-  if (detectRateLimit(result.result)) {
-    setStatus(projectDir, 'paused')
-    appendMessages(projectDir, null, result.result, activeDiscipline)
-    return { ok: false, status: 429, error: 'Claude rate-limited', rateLimited: true }
-  }
-
-  if (result.session_id) {
-    updateSessionId(projectDir, result.session_id)
-  }
-  setStatus(projectDir, 'active')
-
-  const markers = extractMarkers(result.result)
-  for (const d of markers.disciplinesComplete) {
-    markDisciplineComplete(projectDir, d)
-  }
-
-  // Only Rouge's message (no user input initiated this)
-  appendMessages(projectDir, null, result.result, activeDiscipline)
-
-  return {
-    ok: true,
-    status: 200,
-    disciplineComplete: markers.disciplinesComplete.length > 0 ? markers.disciplinesComplete : undefined,
-  }
+function resolveActiveDiscipline(raw: string | undefined): Discipline | null {
+  if (!raw) return DISCIPLINE_SEQUENCE[0] as Discipline
+  return isKnownDiscipline(raw) ? raw : null
 }
