@@ -127,6 +127,13 @@ export interface SeedingSessionState {
   // prompt exactly once per discipline (#147) — subsequent turns within a
   // discipline ride on session memory.
   disciplines_prompted?: string[]
+  // A correction note that needs to be delivered to Claude on the next
+  // turn. Populated when the dashboard rejects a `[DISCIPLINE_COMPLETE]`
+  // marker because the artifact isn't on disk (#148). Appending to the
+  // chat log alone isn't enough: Claude Code's `--resume` replays the
+  // server-side session, not our jsonl, so Claude wouldn't see the
+  // rejection otherwise. Consumed (and cleared) on the next message.
+  pending_correction?: string
 }
 
 // The canonical sequence of disciplines used when auto-advancing current_discipline

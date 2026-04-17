@@ -142,6 +142,34 @@ describe('handleSeedMessage — marker verification', () => {
     expect(state.current_discipline).toBe('competition')
   })
 
+  it('delivers a prior rejection to Claude on the following turn', async () => {
+    // Turn 1: agent emits a marker without the artifact; handler rejects.
+    mockRunClaude.mockResolvedValueOnce({
+      result: 'Done.\n\n[DISCIPLINE_COMPLETE: brainstorming]',
+      session_id: 'session-1',
+    })
+    await handleSeedMessage(PROJECT_DIR, 'first message')
+
+    // Pending correction should be stashed in state.
+    const afterReject = readSeedingState(PROJECT_DIR)
+    expect(afterReject.pending_correction).toMatch(/was rejected/)
+
+    // Turn 2: user sends a follow-up; the rejection note must be in the
+    // prompt sent to Claude, and cleared from state afterwards.
+    mockRunClaude.mockResolvedValueOnce({
+      result: 'Understood — writing the artifact.',
+      session_id: 'session-1',
+    })
+    await handleSeedMessage(PROJECT_DIR, 'continue')
+
+    const turn2Prompt: string = mockRunClaude.mock.calls[1][0].prompt
+    expect(turn2Prompt).toMatch(/was rejected/)
+    expect(turn2Prompt).toContain('continue')
+
+    const afterTurn2 = readSeedingState(PROJECT_DIR)
+    expect(afterTurn2.pending_correction).toBeUndefined()
+  })
+
   it('silently ignores unknown discipline names in markers', async () => {
     mockRunClaude.mockResolvedValueOnce({
       result: '[DISCIPLINE_COMPLETE: hallucinated-discipline]',
