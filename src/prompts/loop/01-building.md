@@ -423,10 +423,50 @@ If `pending-action.json` is not available or you need more control, you can depl
 
 - **Cloudflare Workers** (`cloudflare` or `cloudflare-workers`): `npx @opennextjs/cloudflare build && npx wrangler deploy --env staging`
 - **Vercel** (`vercel`): `npx vercel deploy --yes --prod` (use `--prod` because Vercel Hobby plan preview URLs return 401)
-- **Docker Compose** (`docker-compose`): `docker compose up -d --build`
+- **Docker Compose** (`docker-compose` or `docker`): `docker compose up -d --build`. Staging URL is `http://localhost:<port>`; port comes from `infrastructure_manifest.json.staging.port` (default 3000). Rouge's deploy handler (#157) runs `docker compose down --remove-orphans` before `up` to guarantee a fresh image. Direct `docker push` to a registry is blocked by the safety hook — publishing is a ship-phase CI concern (see below), not something the build loop does.
 - **Other**: read the deploy pattern from `library/integrations/` for the declared target. If no pattern exists, ESCALATE.
 
 Capture the staging URL from the deploy output. You will need it for `cycle_context.json`.
+
+### Multi-arch image publishing CI (containerised products)
+
+For `docker-compose` / `docker` targets, write a GitHub Actions workflow at `.github/workflows/publish-image.yml` that publishes multi-arch images to GHCR on release-tag push. This runs in the product's own CI, not in Rouge's execution — Rouge's safety hook blocks direct `docker push`.
+
+Minimum shape:
+
+```yaml
+name: Publish image
+on:
+  push:
+    tags: ['v*.*.*']
+permissions:
+  contents: read
+  packages: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+            ghcr.io/${{ github.repository }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+```
+
+Write this file during foundation or the first story that touches deployment; the actual publish fires when a human cuts a release tag (outside Rouge's loop).
 
 ### Other infrastructure actions via intent
 

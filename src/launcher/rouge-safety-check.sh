@@ -186,6 +186,18 @@ pre_bash() {
     fi
   fi
 
+  # --- Docker registry pushes (#157) ---
+  # docker compose / docker build / docker run etc. are implicitly allowed
+  # — self-hosted products run their stack locally for staging. But
+  # `docker push` publishes an image to a remote registry, which is a
+  # ship-phase concern that should go through the product's CI (GitHub
+  # Actions on tag), not a direct Rouge agent invocation. Block direct
+  # pushes from the agent so a runaway loop can't accidentally publish
+  # a broken build to GHCR or DockerHub.
+  if echo "$cmd" | grep -qE '(^|[[:space:]]|;|&&|\|\|)docker[[:space:]]+push(\s|$)'; then
+    block "pre-bash" "$summary" "Blocked: direct 'docker push' — registry publishing must go through the product's CI (e.g. GitHub Actions on release tag), not a direct agent call"
+  fi
+
   # --- Custom blocked commands from config ---
   local custom_blocked
   custom_blocked=$(load_custom_blocked)

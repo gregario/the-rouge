@@ -93,6 +93,8 @@ const DEPLOY_HANDLERS = {
   'vercel': deployVercel,
   'cloudflare': deployCloudflare,
   'cloudflare-workers': deployCloudflare, // alias used in vision.json.infrastructure
+  'docker-compose': deployDockerCompose, // self-hosted containerised stack (#157)
+  'docker': deployDockerCompose, // alias
 };
 
 function deployVercel(projectDir) {
@@ -110,6 +112,56 @@ function deployVercel(projectDir) {
   const projectName = projectJson?.projectName || path.basename(projectDir);
   const stagingUrl = `https://${projectName}.vercel.app`;
   log(`Deployed to ${stagingUrl}`);
+  return stagingUrl;
+}
+
+/**
+ * Docker-compose staging deploy (#157).
+ *
+ * The product ships as its own stack — Dockerfile + compose file live in
+ * the project repo. Rouge's staging job is to run that stack on
+ * localhost, smoke-test it, and hand back a URL the health check can
+ * hit. Multi-arch image builds and GHCR publishing are the product's
+ * own CI responsibility (the loop's build prompt writes a GitHub Actions
+ * workflow for that).
+ *
+ * Staging port resolution:
+ *   1. `infrastructure_manifest.json.staging.port` if declared
+ *   2. `vision.json.infrastructure.staging_port` if declared
+ *   3. Default to 3000 (Node convention)
+ *
+ * There is no rollback. A previous compose run is torn down before the
+ * new one starts; if the new one fails the health check, the stack is
+ * just left stopped — there's no deploy-specific "previous version" to
+ * roll forward to like Cloudflare has.
+ */
+function deployDockerCompose(projectDir) {
+  const manifest = readJson(path.join(projectDir, 'infrastructure_manifest.json'));
+  const vision = readJson(path.join(projectDir, 'vision.json'));
+  const port =
+    manifest?.staging?.port ??
+    manifest?.staging_port ??
+    vision?.infrastructure?.staging_port ??
+    3000;
+  const stagingUrl = `http://localhost:${port}`;
+
+  // Tear down any prior stack so we don't accidentally "deploy" by
+  // leaving the previous image running. --remove-orphans catches
+  // services that were removed from compose between runs. Failure is
+  // benign (nothing was running).
+  try {
+    run('docker compose down --remove-orphans', { cwd: projectDir, timeout: 60000 });
+  } catch {
+    // ignore
+  }
+
+  // `--build` forces an image rebuild so subsequent deploys don't
+  // silently run against a stale image cached from the first run.
+  // Timeout is 10 min: multi-arch or large-base-image builds (alpine+
+  // ffmpeg, for instance) routinely exceed the 5-min Cloudflare timeout.
+  run('docker compose up -d --build', { cwd: projectDir, timeout: 600000 });
+
+  log(`Docker Compose stack started on ${stagingUrl}`);
   return stagingUrl;
 }
 

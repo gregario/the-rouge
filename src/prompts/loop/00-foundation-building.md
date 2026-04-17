@@ -78,6 +78,28 @@ Read `foundation_spec` from `cycle_context.json`. Your scope is EXACTLY what's l
 - Environment variable documentation
 - Health check endpoint
 
+#### Containerised deployments (`deployment_target: docker-compose` / `docker`)
+
+When `infrastructure_manifest.json.deployment_target` is `docker-compose` or `docker`, foundation also writes:
+
+**`Dockerfile`** — production image for the app. Use a multi-stage build:
+
+1. **Build stage** — `node:alpine` (or language-equivalent). Install build deps, run the production build, prune dev dependencies.
+2. **Runtime stage** — `node:alpine` again, or `distroless` if the app has no shell needs. Copy only the built artifacts. Declare a non-root `USER`. `EXPOSE` the HTTP port. Define `HEALTHCHECK` against the health endpoint from this section.
+
+System dependencies (ffmpeg, imagemagick, sharp native bindings, etc.) go in the runtime stage only — don't ship the full build toolchain. Alpine's apk index is your friend; pin versions where available. For `ffmpeg` specifically, prefer the LGPL build (`apk add ffmpeg`) unless the product's licence explicitly allows GPL — most MIT/Apache products should NOT ship the GPL build.
+
+**`docker-compose.yml`** — the local staging stack. Minimum services:
+- `app` — builds from the Dockerfile, mounts nothing that the image should own (code is baked in), exposes the app port.
+- `db` (if `infrastructure.database_mode === "compose-bundled"`) — Postgres or MySQL service, named volume for persistence, health check so `app` waits for it.
+- Any other bundled services declared in the manifest (e.g. MinIO for S3-compat, Redis, Mailhog).
+
+Rouge's staging deploy handler runs `docker compose up -d --build` from the project root (#157) and hits `http://localhost:<port>` for the health check. The port default is 3000; override via `infrastructure_manifest.json.staging.port`.
+
+**`.dockerignore`** — aggressive. Exclude `node_modules`, `.next`, `.git`, `coverage`, `.env*`, test fixtures, dev-only docs. Image size scales with layer size; lazy ignores add megabytes.
+
+**CI workflow** — a GitHub Actions workflow at `.github/workflows/publish-image.yml` that builds multi-arch images (`linux/amd64`, `linux/arm64`) and publishes to GHCR on release-tag push. Template in `01-building.md` step for ship preparation; foundation just needs the Dockerfile + compose file present so the staging deploy can run during the build loop.
+
 ### Test Fixtures
 - Seed data for every entity in the schema
 - Data generators for testing at scale

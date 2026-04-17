@@ -144,6 +144,31 @@ describe('deploy-to-staging', () => {
       assert.ok(logs.join('\n').includes('target: cloudflare-workers)'));
     });
 
+    test('docker-compose target passes handler lookup (#157)', () => {
+      projectDir = makeTempProject({
+        infrastructure: { deployment_target: 'docker-compose' },
+      });
+      const { result, logs } = captureLogs(() => deploy(projectDir));
+      // Actual docker compose call fails (no compose file, no docker
+      // running in test). What we care about is the handler WAS found
+      // and attempted — no "no handler is registered" error.
+      assert.strictEqual(result, null);
+      const logText = logs.join('\n');
+      assert.ok(logText.includes('target: docker-compose)'), 'should log target');
+      assert.ok(!logText.includes('no handler is registered'), 'handler must be registered');
+    });
+
+    test('docker alias passes handler lookup (#157)', () => {
+      projectDir = makeTempProject({
+        infrastructure: { deployment_target: 'docker' },
+      });
+      const { result, logs } = captureLogs(() => deploy(projectDir));
+      assert.strictEqual(result, null);
+      const logText = logs.join('\n');
+      assert.ok(logText.includes('target: docker)'), 'should log target');
+      assert.ok(!logText.includes('no handler is registered'), 'alias must resolve to docker-compose handler');
+    });
+
     test('unknown target logs "no handler" message', () => {
       projectDir = makeTempProject({
         infrastructure: { deployment_target: 'heroku' },
