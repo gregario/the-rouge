@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { ProjectSummary } from '@/lib/types'
 import { SpecDepthPill, depthForProject } from './spec-depth-pill'
+import { NewProjectButton } from './new-project-button'
 
 type SortKey = 'touched' | 'depth' | 'name' | 'cost'
 
@@ -146,8 +147,11 @@ export function SpecsTable({ specs }: { specs: ProjectSummary[] }) {
 
   if (specs.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-border bg-muted/20 p-8 text-center text-sm text-muted-foreground">
-        No specs yet. Click <strong>+ New Project</strong> to start one.
+      <div className="rounded-lg border border-dashed border-border bg-muted/20 p-10 text-center">
+        <p className="text-sm text-muted-foreground">No specs yet.</p>
+        <div className="mt-4 inline-flex">
+          <NewProjectButton />
+        </div>
       </div>
     )
   }
