@@ -114,6 +114,10 @@ export type SeedingMessageKind =
   | 'autonomous_decision'
   | 'heartbeat'
   | 'system_note'
+  // System note variant with a one-click Continue affordance. Used
+  // for the chunk-budget-exhausted case so the user can resume the
+  // chain without typing anything.
+  | 'resume_prompt'
 
 export interface SeedingChatMessage {
   id: string           // e.g. "msg-1712345678-abc"

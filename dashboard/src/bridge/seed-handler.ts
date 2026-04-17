@@ -590,13 +590,14 @@ async function runSeedingTurn(
     (acceptedDisciplines.length > 0 ||
       (postContinuationState.mode !== 'awaiting_gate' && postContinuationState.status === 'active'))
   ) {
-    // Chain budget exhausted. Surface a note so the user can nudge.
+    // Chain budget exhausted. Surface a note with a one-click Continue
+    // affordance so the user doesn't have to type to resume.
     appendChatMessage(projectDir, {
       id: genId(),
       role: 'rouge',
-      content: `Auto-continuation budget reached (${MAX_CHUNK_DEPTH} chunks). Send any message to keep going — Rouge will pick up where it left off.`,
+      content: `Auto-continuation budget reached (${MAX_CHUNK_DEPTH} chunks). Click Continue to resume — Rouge will pick up where it left off.`,
       timestamp: new Date().toISOString(),
-      kind: 'system_note',
+      kind: 'resume_prompt',
       metadata: { discipline: activeDiscipline ?? undefined },
     })
   }

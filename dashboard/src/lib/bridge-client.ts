@@ -155,7 +155,7 @@ export interface SeedingChatMessage {
   timestamp: string
   // Marker kind for gated-autonomy messages — undefined on legacy
   // or plain prose. Drives distinct rendering in the chat UI.
-  kind?: 'prose' | 'gate_question' | 'autonomous_decision' | 'heartbeat' | 'system_note'
+  kind?: 'prose' | 'gate_question' | 'autonomous_decision' | 'heartbeat' | 'system_note' | 'resume_prompt'
   metadata?: {
     discipline?: string
     // Gate id ('brainstorming/H2-north-star') or decision slug —

@@ -212,6 +212,13 @@ export function ChatPanel({
   }
 
   const inputDisabled = disabled || (bridgeActive && seeding.isSending)
+  // The last-message id drives resume_prompt button staleness: only the
+  // tail message's button is actionable. Anything older has been
+  // superseded (user answered, Claude responded, next chunk ran, etc.)
+  // and should render inert so clicking it can't fire a rogue "continue"
+  // into a now-irrelevant context.
+  const lastMessageId =
+    displayMessages.length > 0 ? displayMessages[displayMessages.length - 1].id : null
   // First-turn placeholder: the user isn't replying to anything yet —
   // they're telling Rouge what to build. Different placeholder frames
   // this as an opening, not a reply to silence.
@@ -240,6 +247,14 @@ export function ChatPanel({
     }
   }
 
+  // Callback for the Continue button on resume_prompt messages. Routes
+  // through the same sendMessage path as typed input so the chain
+  // resumes with a fresh auto-continuation budget.
+  async function handleResume() {
+    if (!bridgeActive || seeding.isSending) return
+    await seeding.sendMessage('continue')
+  }
+
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -265,7 +280,19 @@ export function ChatPanel({
             </p>
           ) : groups.length === 0 ? (
             // Untagged messages — render flat
-            displayMessages.map((msg) => <ChatMessage key={msg.id} message={msg} />)
+            displayMessages.map((msg) => (
+              <ChatMessage
+                key={msg.id}
+                message={msg}
+                // Resume button is only live on the last message — a
+                // resume_prompt buried in history is stale (the user
+                // either resumed it manually or Rouge has since moved
+                // on). Non-last resume_prompts render with a disabled
+                // button.
+                onResume={msg.id === lastMessageId ? handleResume : undefined}
+                resumeDisabled={bridgeActive && seeding.isSending}
+              />
+            ))
           ) : (
             groups.map((group) => (
               // Transition banners between completed sections were
@@ -279,6 +306,9 @@ export function ChatPanel({
                 group={group}
                 expanded={expanded.has(group.discipline)}
                 onToggle={() => toggleExpanded(group.discipline)}
+                onResume={handleResume}
+                resumeDisabled={bridgeActive && seeding.isSending}
+                lastMessageId={lastMessageId}
               />
             ))
           )}
@@ -399,10 +429,16 @@ function DisciplineSection({
   group,
   expanded,
   onToggle,
+  onResume,
+  resumeDisabled,
+  lastMessageId,
 }: {
   group: DisciplineGroup
   expanded: boolean
   onToggle: () => void
+  onResume?: () => void
+  resumeDisabled?: boolean
+  lastMessageId?: string | null
 }) {
   const label = DISCIPLINE_LABELS[group.discipline] ?? group.discipline
 
@@ -448,7 +484,12 @@ function DisciplineSection({
       {expanded && (
         <div className="mt-2 flex flex-col gap-4 border-l-2 border-gray-200 pl-4">
           {group.messages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} />
+            <ChatMessage
+              key={msg.id}
+              message={msg}
+              onResume={msg.id === lastMessageId ? onResume : undefined}
+              resumeDisabled={resumeDisabled}
+            />
           ))}
         </div>
       )}

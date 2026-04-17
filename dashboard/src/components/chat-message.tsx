@@ -7,7 +7,8 @@ import type { ChatMessage as ChatMessageType } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
-import { ChevronRight, HelpCircle, CircleDot, Activity, Info } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { ChevronRight, HelpCircle, CircleDot, Activity, Info, Play } from 'lucide-react'
 
 // Markdown renderer with tight spacing matched to the chat panel's style
 function Markdown({ content, className }: { content: string; className?: string }) {
@@ -51,9 +52,16 @@ const DISCIPLINE_COLORS: Record<string, string> = {
 
 interface ChatMessageProps {
   message: ChatMessageType
+  /** Called when a `resume_prompt` message's Continue button is clicked.
+   *  Plumbed through from ChatPanel so the nudge uses the same
+   *  sendMessage path as typing into the input. */
+  onResume?: () => void
+  /** True while a send is in flight — disables the Continue button on
+   *  resume prompts so it doesn't fire twice. */
+  resumeDisabled?: boolean
 }
 
-export function ChatMessage({ message }: ChatMessageProps) {
+export function ChatMessage({ message, onResume, resumeDisabled }: ChatMessageProps) {
   const [reasoningOpen, setReasoningOpen] = useState(false)
 
   // Human messages
@@ -104,6 +112,15 @@ export function ChatMessage({ message }: ChatMessageProps) {
   if (message.kind === 'system_note') {
     return (
       <SystemNoteMessage message={message} />
+    )
+  }
+  if (message.kind === 'resume_prompt') {
+    return (
+      <ResumePromptMessage
+        message={message}
+        onResume={onResume}
+        disabled={resumeDisabled}
+      />
     )
   }
 
@@ -368,6 +385,44 @@ function SystemNoteMessage({ message }: { message: ChatMessageType }) {
         System note
       </div>
       <div className="whitespace-pre-wrap leading-relaxed">{message.content}</div>
+    </div>
+  )
+}
+
+// System note variant that includes a one-click Continue button.
+// Emitted by the bridge when the auto-continuation chunk budget is
+// reached — user shouldn't have to type "continue" to resume.
+function ResumePromptMessage({
+  message,
+  onResume,
+  disabled,
+}: {
+  message: ChatMessageType
+  onResume?: () => void
+  disabled?: boolean
+}) {
+  return (
+    <div
+      data-testid="chat-message"
+      data-role="rouge"
+      data-kind="resume_prompt"
+      className="rounded-md border border-amber-200 bg-amber-50/50 px-3 py-2.5 text-xs text-amber-900"
+    >
+      <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+        <Info className="size-3" />
+        System note
+      </div>
+      <div className="mb-2 whitespace-pre-wrap leading-relaxed">{message.content}</div>
+      <Button
+        size="sm"
+        onClick={onResume}
+        disabled={disabled || !onResume}
+        className="h-7 gap-1.5 text-xs"
+        data-testid="resume-continue-button"
+      >
+        <Play className="size-3" />
+        Continue
+      </Button>
     </div>
   )
 }

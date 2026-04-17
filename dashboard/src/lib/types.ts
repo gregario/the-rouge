@@ -51,6 +51,7 @@ export type ChatMessageKind =
   | 'autonomous_decision'
   | 'heartbeat'
   | 'system_note'
+  | 'resume_prompt'
 
 export type ActivityEventType =
   | 'deploy'
