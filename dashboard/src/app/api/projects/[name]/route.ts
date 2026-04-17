@@ -3,6 +3,7 @@ import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "nod
 import { join } from "node:path";
 import { loadServerConfig } from "@/lib/server-config";
 import { statePath } from "@/bridge/state-path";
+import { isPlaceholderSlug, slugify, uniqueSlug } from "@/bridge/slug";
 import {
   mergeSeedingProgress,
   readCheckpointSummary,
@@ -16,10 +17,6 @@ export const dynamic = "force-dynamic";
 const SLUG_RENAMEABLE_STATES = new Set([
   "seeding", "ready",
 ]);
-
-function slugify(v: string): string {
-  return v.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 64);
-}
 
 export async function GET(
   _request: Request,
@@ -78,6 +75,26 @@ export async function PATCH(
   const currentState = state.current_state ?? state.state ?? "unknown";
 
   let slugChanged: string | null = null;
+
+  // Auto-slugify when promoting a placeholder-slugged project. If the
+  // client is setting a real display name on a project whose URL is still
+  // `untitled-*`, derive the URL from the new name so it doesn't silently
+  // keep the placeholder (#137). Caller can still opt out by sending an
+  // explicit body.slug (including the current slug, to keep it).
+  if (
+    body.displayName !== undefined &&
+    body.slug === undefined &&
+    isPlaceholderSlug(name) &&
+    SLUG_RENAMEABLE_STATES.has(currentState)
+  ) {
+    const derived = slugify(body.displayName);
+    if (derived && /^[a-z][a-z0-9-]*$/.test(derived)) {
+      const unique = uniqueSlug(derived, projectsRoot, name);
+      if (unique && unique !== name) {
+        body.slug = unique;
+      }
+    }
+  }
 
   // Slug rename (filesystem mv)
   if (body.slug && body.slug !== name) {
