@@ -1,6 +1,7 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowUpDown, Loader2, Rocket, Search, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -29,6 +30,7 @@ function timeAgo(iso?: string): string {
 }
 
 export function SpecsTable({ specs }: { specs: ProjectSummary[] }) {
+  const router = useRouter()
   const [query, setQuery] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('touched')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
@@ -211,7 +213,8 @@ export function SpecsTable({ specs }: { specs: ProjectSummary[] }) {
             return (
               <li
                 key={p.id}
-                className="grid items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-muted/40"
+                onClick={() => router.push(`/projects/${p.slug}`)}
+                className="grid cursor-pointer items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-muted/40"
                 style={{ gridTemplateColumns: '1fr 140px 100px 100px 110px' }}
               >
                 <Link
@@ -245,7 +248,7 @@ export function SpecsTable({ specs }: { specs: ProjectSummary[] }) {
                 <div className="text-right tabular-nums text-muted-foreground">
                   {timeAgo(p.updatedAt ?? p.lastCheckpointAt)}
                 </div>
-                <div className="flex items-center justify-end gap-2">
+                <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                   {isReady ? (
                     <Button
                       size="sm"
@@ -256,16 +259,7 @@ export function SpecsTable({ specs }: { specs: ProjectSummary[] }) {
                       {isPromoting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Rocket className="h-3 w-3" />}
                       <span className="ml-1.5 text-xs">Build this</span>
                     </Button>
-                  ) : (
-                    <Link
-                      href={`/projects/${p.slug}`}
-                      className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
-                    >
-                      Open →
-                    </Link>
-                  )}
-                  {/* Delete button on every spec row. Empty placeholders
-                      nuke silently; non-empty specs get a confirm. */}
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => deleteSpec(p.slug, p.messageCount ?? 0, p.name)}
