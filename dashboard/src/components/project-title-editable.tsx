@@ -37,6 +37,7 @@ export function ProjectTitleEditable({
   const inputRef = useRef<HTMLInputElement>(null)
 
   const canRenameSlug = state === 'seeding' || state === 'ready'
+  const slugIsPlaceholder = slug === 'untitled' || slug.startsWith('untitled-')
 
   // When the name arrives late via bridge (e.g., auto-derive writes a
   // working title after first message), slide out of editing mode so the
@@ -159,7 +160,12 @@ export function ProjectTitleEditable({
           Optional — you can rename anytime.
         </p>
       )}
-      {canRenameSlug && draft.trim() && (
+      {canRenameSlug && draft.trim() && slugIsPlaceholder && (
+        <p className="text-xs text-muted-foreground">
+          URL will update to match the new name.
+        </p>
+      )}
+      {canRenameSlug && draft.trim() && !slugIsPlaceholder && (
         <label className="flex items-center gap-2 text-xs text-muted-foreground">
           <input
             type="checkbox"

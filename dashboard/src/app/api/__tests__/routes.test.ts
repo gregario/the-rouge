@@ -3,8 +3,9 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+import { existsSync } from 'node:fs'
 import { GET as getProjects } from '../projects/route'
-import { GET as getProjectByName } from '../projects/[name]/route'
+import { GET as getProjectByName, PATCH as patchProjectByName } from '../projects/[name]/route'
 import { GET as getSpec } from '../projects/[name]/spec/route'
 import { GET as getBuildLog } from '../projects/[name]/build-log/route'
 import { GET as getBuildStatus } from '../projects/[name]/build-status/route'
@@ -91,6 +92,113 @@ describe('GET /api/projects/[name]', () => {
       params: makeParams({ name: 'nope' }),
     })
     expect(response.status).toBe(404)
+  })
+})
+
+describe('PATCH /api/projects/[name] — auto-slugify placeholder projects', () => {
+  beforeEach(() => {
+    rmSync(PROJECTS_ROOT, { recursive: true, force: true })
+    mkdirSync(PROJECTS_ROOT, { recursive: true })
+  })
+
+  it('renames untitled-* slug to match new displayName', async () => {
+    writeProject('untitled-mo0c46fx', {
+      project: 'Untitled',
+      current_state: 'seeding',
+    })
+    const response = await patchProjectByName(
+      new Request('http://localhost', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ displayName: 'Testimonials' }),
+      }),
+      { params: makeParams({ name: 'untitled-mo0c46fx' }) },
+    )
+    expect(response.status).toBe(200)
+    const data = await response.json()
+    expect(data.slugChanged).toBe(true)
+    expect(data.slug).toBe('testimonials')
+    expect(existsSync(join(PROJECTS_ROOT, 'testimonials'))).toBe(true)
+    expect(existsSync(join(PROJECTS_ROOT, 'untitled-mo0c46fx'))).toBe(false)
+  })
+
+  it('does NOT rename a non-placeholder slug when displayName changes', async () => {
+    writeProject('testimonials', {
+      project: 'Testimonials',
+      current_state: 'seeding',
+    })
+    const response = await patchProjectByName(
+      new Request('http://localhost', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ displayName: 'Customer Stories' }),
+      }),
+      { params: makeParams({ name: 'testimonials' }) },
+    )
+    expect(response.status).toBe(200)
+    const data = await response.json()
+    expect(data.slugChanged).toBe(false)
+    expect(data.slug).toBe('testimonials')
+  })
+
+  it('refuses auto-rename once the build loop has started', async () => {
+    writeProject('untitled-abc', {
+      project: 'Untitled',
+      current_state: 'story-building',
+    })
+    const response = await patchProjectByName(
+      new Request('http://localhost', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ displayName: 'Testimonials' }),
+      }),
+      { params: makeParams({ name: 'untitled-abc' }) },
+    )
+    expect(response.status).toBe(200)
+    const data = await response.json()
+    // Display name updated, but slug preserved because the build started.
+    expect(data.slugChanged).toBe(false)
+    expect(data.slug).toBe('untitled-abc')
+  })
+
+  it('honours an explicit slug override sent alongside displayName', async () => {
+    writeProject('untitled-def', {
+      project: 'Untitled',
+      current_state: 'seeding',
+    })
+    const response = await patchProjectByName(
+      new Request('http://localhost', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ displayName: 'Testimonials', slug: 'reviews' }),
+      }),
+      { params: makeParams({ name: 'untitled-def' }) },
+    )
+    expect(response.status).toBe(200)
+    const data = await response.json()
+    expect(data.slug).toBe('reviews')
+  })
+
+  it('falls back to -2 suffix when the derived slug collides', async () => {
+    writeProject('testimonials', {
+      project: 'Testimonials',
+      current_state: 'seeding',
+    })
+    writeProject('untitled-ghi', {
+      project: 'Untitled',
+      current_state: 'seeding',
+    })
+    const response = await patchProjectByName(
+      new Request('http://localhost', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ displayName: 'Testimonials' }),
+      }),
+      { params: makeParams({ name: 'untitled-ghi' }) },
+    )
+    expect(response.status).toBe(200)
+    const data = await response.json()
+    expect(data.slug).toBe('testimonials-2')
   })
 })
 
