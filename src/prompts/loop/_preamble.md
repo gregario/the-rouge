@@ -17,7 +17,7 @@ MODEL: {{model_name}}
 ### NEVER write
 - checkpoints.jsonl (launcher-only)
 - infrastructure_manifest.json (seeding-only)
-- state.json (V2 legacy — launcher manages this, prompts must not touch it)
+- .rouge/state.json (launcher-only — prompts must not touch it)
 
 ### Required output keys in cycle_context.json
 {{required_output_keys}}

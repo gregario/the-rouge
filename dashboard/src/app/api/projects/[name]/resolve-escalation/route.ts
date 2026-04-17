@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadServerConfig } from "@/lib/server-config";
+import { statePath } from "@/bridge/state-path";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ export async function POST(
 ) {
   const { name } = await params;
   const { projectsRoot } = loadServerConfig();
-  const stateFile = join(projectsRoot, name, "state.json");
+  const stateFile = statePath(join(projectsRoot, name));
   if (!existsSync(stateFile)) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }

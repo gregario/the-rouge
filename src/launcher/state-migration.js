@@ -7,9 +7,10 @@
 const fs = require('fs');
 const path = require('path');
 const { writeCheckpoint } = require('./checkpoint.js');
+const { statePath } = require('./state-path.js');
 
 function migrateV2StateToV3(projectDir) {
-  const stateFile = path.join(projectDir, 'state.json');
+  const stateFile = statePath(projectDir);
   const ledgerFile = path.join(projectDir, 'task_ledger.json');
   const checkpointsFile = path.join(projectDir, 'checkpoints.jsonl');
 

@@ -17,6 +17,7 @@ const { injectPreamble } = require('./preamble-injector.js');
 const { getMilestoneTagName } = require('./branch-strategy.js');
 const { getModelForPhase } = require('./model-selection.js');
 const { buildClaudeEnv } = require('./auth-mode.js');
+const { statePath, statePathForWrite, hasStateFile } = require('./state-path.js');
 
 // Load .env from Rouge root (for ROUGE_SLACK_WEBHOOK, etc.)
 {
@@ -174,11 +175,13 @@ function snapshotState(projectDir, phase) {
   const snapshotDir = path.join(projectDir, '.snapshots', `${Date.now()}-${phase}`);
   try {
     fs.mkdirSync(snapshotDir, { recursive: true });
-    for (const file of ['state.json', 'cycle_context.json']) {
-      const src = path.join(projectDir, file);
-      if (fs.existsSync(src)) {
-        fs.copyFileSync(src, path.join(snapshotDir, file));
-      }
+    const stateSrc = statePath(projectDir);
+    if (fs.existsSync(stateSrc)) {
+      fs.copyFileSync(stateSrc, path.join(snapshotDir, 'state.json'));
+    }
+    const ctxSrc = path.join(projectDir, 'cycle_context.json');
+    if (fs.existsSync(ctxSrc)) {
+      fs.copyFileSync(ctxSrc, path.join(snapshotDir, 'cycle_context.json'));
     }
     // Keep only last 20 snapshots to prevent disk bloat
     const snapshots = fs.readdirSync(path.join(projectDir, '.snapshots')).sort();
@@ -506,7 +509,7 @@ function processInfraAction(projectDir, state) {
 
 async function advanceState(projectDir) {
   const projectName = path.basename(projectDir);
-  const stateFile = path.join(projectDir, 'state.json');
+  const stateFile = statePath(projectDir);
   const contextFile = path.join(projectDir, 'cycle_context.json');
   const checkpointsFile = path.join(projectDir, 'checkpoints.jsonl');
   const state = readJson(stateFile);
@@ -1380,7 +1383,7 @@ async function runPhase(projectDir) {
     log(`[${projectName}] V2 → V3 state migration complete`);
   }
 
-  const stateFile = path.join(projectDir, 'state.json');
+  const stateFile = statePath(projectDir);
   const contextFile = path.join(projectDir, 'cycle_context.json');
   const state = readJson(stateFile);
   if (!state) return { success: true }; // no state file = skip
@@ -1909,7 +1912,7 @@ function checkBriefing() {
   fs.unlinkSync(triggerFile);
 
   const projects = listProjects().map(name => {
-    const state = readJson(path.join(PROJECTS_DIR, name, 'state.json'));
+    const state = readJson(statePath(path.join(PROJECTS_DIR, name)));
     return { name, state: state?.current_state || '?', cycle: state?.cycle_number || 0 };
   });
 
@@ -1921,7 +1924,7 @@ function checkBriefing() {
 function listProjects() {
   if (!fs.existsSync(PROJECTS_DIR)) return [];
   return fs.readdirSync(PROJECTS_DIR).filter(d =>
-    fs.existsSync(path.join(PROJECTS_DIR, d, 'state.json'))
+    hasStateFile(path.join(PROJECTS_DIR, d))
   );
 }
 
@@ -1966,7 +1969,7 @@ async function main() {
           // Parse reset time from phase log — sleep until actual reset instead of short retry loops
           let backoff = 60000 * (retries + 1); // fallback: escalating backoff
           try {
-            const phaseState = readJson(path.join(projectDir, 'state.json'));
+            const phaseState = readJson(statePath(projectDir));
             const logFile = path.join(LOG_DIR, `${projectName}-${phaseState?.current_state || 'unknown'}.log`);
             const logContent = fs.readFileSync(logFile, 'utf8').slice(-2000);
             const resetMatch = logContent.match(/resets?\s+(?:at\s+)?(\d{1,2}(?::\d{2})?\s*(?:am|pm))/i);
@@ -1991,7 +1994,7 @@ async function main() {
 
         if (retries >= MAX_RETRIES) {
           log(`[${projectName}] Max retries reached. Transitioning to waiting-for-human.`);
-          const stateFile = path.join(projectDir, 'state.json');
+          const stateFile = statePath(projectDir);
           const contextFile = path.join(projectDir, 'cycle_context.json');
           const state = readJson(stateFile);
           const ctx = readJson(contextFile);

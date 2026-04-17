@@ -10,6 +10,7 @@ const { execSync, execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { log: logLine } = require('./logger.js');
+const { statePath, hasStateFile } = require('./state-path.js');
 
 function readJson(filePath) {
   try { return JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch { return null; }
@@ -199,11 +200,12 @@ function provisionSupabase(projectDir, projectName) {
       // Check all Rouge project dirs for a matching supabase ref
       if (!fs.existsSync(PROJECTS_DIR)) return false;
       const rougeDirs = fs.readdirSync(PROJECTS_DIR).filter(d =>
-        fs.existsSync(path.join(PROJECTS_DIR, d, 'state.json'))
+        hasStateFile(path.join(PROJECTS_DIR, d))
       );
       for (const dir of rougeDirs) {
-        const ctx = readJson(path.join(PROJECTS_DIR, dir, 'cycle_context.json'));
-        const state = readJson(path.join(PROJECTS_DIR, dir, 'state.json'));
+        const projectDir = path.join(PROJECTS_DIR, dir);
+        const ctx = readJson(path.join(projectDir, 'cycle_context.json'));
+        const state = readJson(statePath(projectDir));
         if (ctx?.supabase?.project_ref && state?.current_state !== 'complete') {
           // This Rouge project is actively using a Supabase slot
           if (supabaseName.includes(dir) || dir.includes(supabaseName)) return true;

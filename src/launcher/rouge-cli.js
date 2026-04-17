@@ -160,6 +160,7 @@ const {
   INTEGRATION_KEYS,
 } = require('./secrets.js');
 const { buildClaudeEnv } = require('./auth-mode.js');
+const { statePath: resolveStatePath } = require('./state-path.js');
 
 // ---------------------------------------------------------------------------
 // Interactive input helper
@@ -541,7 +542,7 @@ function cmdSeed(name) {
 
   const promptContent = fs.readFileSync(promptFile, 'utf8');
   // Route seeding through the same provider the project will use for build.
-  const statePath = path.join(projectPath, 'state.json');
+  const statePath = resolveStatePath(projectPath);
   let state = null;
   try { state = JSON.parse(fs.readFileSync(statePath, 'utf8')); } catch {}
   const { env: claudeEnv } = buildClaudeEnv({ state });
@@ -735,7 +736,7 @@ async function cmdUninstall() {
 }
 
 function printProjectStatus(name, projectPath) {
-  const statePath = path.join(projectPath, 'state.json');
+  const statePath = resolveStatePath(projectPath);
   if (!fs.existsSync(statePath)) {
     console.log(`  ${name.padEnd(22)} ${'not seeded'.padEnd(22)}`);
     return;

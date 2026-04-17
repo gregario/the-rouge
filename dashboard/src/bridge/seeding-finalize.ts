@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync, readdirSync } from 'fs'
 import { join } from 'path'
+import { statePath as resolveStatePath } from './state-path'
 
 export interface FinalizeResult {
   ok: boolean
@@ -30,7 +31,7 @@ export function finalizeSeeding(projectDir: string): FinalizeResult {
   }
 
   // Transition state.json to ready
-  const statePath = join(projectDir, 'state.json')
+  const statePath = resolveStatePath(projectDir)
   if (existsSync(statePath)) {
     const state = JSON.parse(readFileSync(statePath, 'utf-8'))
     state.current_state = 'ready'

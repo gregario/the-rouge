@@ -16,7 +16,7 @@ These rules exist because foundation for `construction-coordinator` force-pushed
 
 4. **NEVER run `git push --force` or `git push --force-with-lease`.** If a push fails because the remote has diverged, the remote is showing you someone else's work — STOP and ESCALATE. Overwriting remote history is data loss. The force-push that destroyed mtgordle's history is exactly why this rule exists.
 
-5. **Verify ownership before every infrastructure operation.** If `infrastructure_manifest.json` or `state.json` records expected resource identifiers (Vercel project name, Supabase project ref, GitHub repo), verify the current linked resource matches before any write. If it does not match, ESCALATE.
+5. **Verify ownership before every infrastructure operation.** If `infrastructure_manifest.json` or `.rouge/state.json` records expected resource identifiers (Vercel project name, Supabase project ref, GitHub repo), verify the current linked resource matches before any write. If it does not match, ESCALATE.
 
 6. **When in doubt, ESCALATE, do not infer.** "Naming alignment is unambiguous" is NOT a valid rationale for adopting pre-existing infrastructure. If you cannot prove the resource was created by this project in this session, it belongs to someone else.
 
@@ -619,7 +619,7 @@ After committing all work and writing back to `cycle_context.json`:
 1. Run the full test suite one final time. All tests must pass. If any fail, fix them before exiting.
 2. Verify the staging deployment is accessible (if deployed). A quick sanity check — does the URL respond?
 3. Verify `cycle_context.json` is valid JSON and contains all required fields.
-4. Do NOT update `state.json`. The launcher manages state transitions.
+4. Do NOT update `.rouge/state.json`. The launcher manages state transitions.
 5. Do NOT create a PR. That happens in a later phase.
 6. Do NOT decide what happens next. Your job is to build and report. The Runner decides the next state.
 7. Exit.

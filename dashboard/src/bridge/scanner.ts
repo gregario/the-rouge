@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, existsSync, statSync } from 'fs'
 import { join } from 'path'
 import type { BridgeProjectSummary } from './types'
 import { readChatLog } from './chat-reader'
+import { statePath } from './state-path'
 
 /**
  * Scan a Rouge projects directory and return normalized summaries
@@ -19,7 +20,7 @@ export function scanProjects(projectsRoot: string): BridgeProjectSummary[] {
       continue
     }
 
-    const stateFile = join(dir, 'state.json')
+    const stateFile = statePath(dir)
     if (!existsSync(stateFile)) continue
 
     try {

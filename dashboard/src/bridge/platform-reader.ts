@@ -1,5 +1,6 @@
 import { readFileSync, existsSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'
+import { statePath, hasStateFile } from './state-path'
 
 export interface ProviderProject {
   slug: string
@@ -76,13 +77,13 @@ export function readPlatformData(projectsRoot: string): PlatformData {
       continue
     }
 
-    const statePath = join(projectDir, 'state.json')
+    const stateFile = statePath(projectDir)
     const contextPath = join(projectDir, 'cycle_context.json')
-    if (!existsSync(statePath)) continue
+    if (!existsSync(stateFile)) continue
 
     let state: Record<string, unknown> = {}
     try {
-      state = JSON.parse(readFileSync(statePath, 'utf-8'))
+      state = JSON.parse(readFileSync(stateFile, 'utf-8'))
     } catch {
       // ignore
     }
@@ -172,7 +173,7 @@ export function readPlatformData(projectsRoot: string): PlatformData {
     try {
       return (
         statSync(join(projectsRoot, e)).isDirectory() &&
-        existsSync(join(projectsRoot, e, 'state.json'))
+        hasStateFile(join(projectsRoot, e))
       )
     } catch {
       return false

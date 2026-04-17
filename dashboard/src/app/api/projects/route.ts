@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { scanProjects } from "@/bridge/scanner";
 import { writeSeedingState } from "@/bridge/seeding-state";
 import { startSeedingSession } from "@/bridge/seed-handler";
+import { statePathForWrite } from "@/bridge/state-path";
 import { loadServerConfig } from "@/lib/server-config";
 
 // Pull the global default cap from rouge.config.json. Falls back to 100
@@ -83,7 +84,7 @@ export async function POST(request: Request) {
     createdAt: new Date().toISOString(),
   };
   writeFileSync(
-    join(projectDir, "state.json"),
+    statePathForWrite(projectDir),
     JSON.stringify(initialState, null, 2),
   );
   writeSeedingState(projectDir, {

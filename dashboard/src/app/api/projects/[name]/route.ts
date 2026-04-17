@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadServerConfig } from "@/lib/server-config";
+import { statePath } from "@/bridge/state-path";
 import {
   mergeSeedingProgress,
   readCheckpointSummary,
@@ -27,7 +28,7 @@ export async function GET(
   const { name } = await params;
   const { projectsRoot } = loadServerConfig();
   const projectDir = join(projectsRoot, name);
-  const stateFile = join(projectDir, "state.json");
+  const stateFile = statePath(projectDir);
 
   if (!existsSync(stateFile)) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
@@ -60,7 +61,7 @@ export async function PATCH(
   const { name } = await params;
   const { projectsRoot } = loadServerConfig();
   const projectDir = join(projectsRoot, name);
-  const stateFile = join(projectDir, "state.json");
+  const stateFile = statePath(projectDir);
 
   if (!existsSync(stateFile)) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
@@ -147,7 +148,7 @@ export async function PATCH(
   // Single write — covers display-name, archive toggle, budget cap, or any combo.
   if (body.displayName !== undefined || body.archived !== undefined || body.budgetCap !== undefined) {
     const targetDir = slugChanged ? join(projectsRoot, slugChanged) : projectDir;
-    writeFileSync(join(targetDir, "state.json"), JSON.stringify(state, null, 2) + "\n");
+    writeFileSync(statePath(targetDir), JSON.stringify(state, null, 2) + "\n");
   }
 
   return NextResponse.json({
@@ -169,7 +170,7 @@ export async function DELETE(
   const { name } = await params;
   const { projectsRoot } = loadServerConfig();
   const projectDir = join(projectsRoot, name);
-  const stateFile = join(projectDir, "state.json");
+  const stateFile = statePath(projectDir);
 
   if (!existsSync(stateFile)) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });

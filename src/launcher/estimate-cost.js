@@ -15,6 +15,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { statePath } = require('./state-path.js');
 
 const PROJECT_DIR = process.argv[2];
 const ACTUAL_MODE = process.argv.includes('--actual');
@@ -243,7 +244,7 @@ if (ACTUAL_MODE) {
 }
 
 const ctx = readJson(path.join(PROJECT_DIR, 'cycle_context.json'));
-const state = readJson(path.join(PROJECT_DIR, 'state.json'));
+const state = readJson(statePath(PROJECT_DIR));
 
 if (!ctx && !state) {
   console.error('No cycle_context.json or state.json found');

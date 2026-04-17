@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { markdownToSlack } = require('./format');
 const blockKit = require('./block-kit');
+const { statePath: resolveStatePath, hasStateFile } = require('../launcher/state-path.js');
 
 const app = new App({
   token: process.env.SLACK_BOT_TOKEN,
@@ -15,13 +16,13 @@ const PROJECTS_DIR = process.env.ROUGE_PROJECTS_DIR || path.join(__dirname, '../
 const KNOWN_COMMANDS = ['status', 'start', 'pause', 'resume', 'new', 'seed', 'ship', 'feedback', 'help'];
 
 function readState(projectName) {
-  const statePath = path.join(PROJECTS_DIR, projectName, 'state.json');
+  const statePath = resolveStatePath(path.join(PROJECTS_DIR, projectName));
   if (!fs.existsSync(statePath)) return null;
   return JSON.parse(fs.readFileSync(statePath, 'utf8'));
 }
 
 function writeState(projectName, state) {
-  const statePath = path.join(PROJECTS_DIR, projectName, 'state.json');
+  const statePath = resolveStatePath(path.join(PROJECTS_DIR, projectName));
   state.timestamp = new Date().toISOString();
   const tmp = statePath + '.tmp';
   fs.writeFileSync(tmp, JSON.stringify(state, null, 2) + '\n');
@@ -31,10 +32,7 @@ function writeState(projectName, state) {
 function listProjects() {
   if (!fs.existsSync(PROJECTS_DIR)) return [];
   return fs.readdirSync(PROJECTS_DIR)
-    .filter(d => {
-      const p = path.join(PROJECTS_DIR, d, 'state.json');
-      return fs.existsSync(p);
-    });
+    .filter(d => hasStateFile(path.join(PROJECTS_DIR, d)));
 }
 
 function writeFeedback(projectName, text) {

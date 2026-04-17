@@ -46,7 +46,7 @@ Never emit `[DISCIPLINE_COMPLETE: <name>]` based on summaries, plans, intentions
 
 **Pre-emission check.** Before writing `[DISCIPLINE_COMPLETE: <name>]`, verify the artifact(s) above exist on disk with full content. If you are tempted to say "here is a summary of the acceptance criteria" — instead, write the criteria to the file. If you are tempted to emit the marker and "flesh out the file later" — don't. Write the file now, then emit the marker.
 
-**SEEDING_COMPLETE pre-check.** Before presenting the SEED SUMMARY or writing `state.json` to `ready`, verify every discipline's expected artifact exists on disk with content beyond stubs. If any are missing or placeholder-only, do NOT declare seeding complete — return to the missing discipline and do the work properly.
+**SEEDING_COMPLETE pre-check.** Before presenting the SEED SUMMARY or writing `.rouge/state.json` to `ready`, verify every discipline's expected artifact exists on disk with content beyond stubs. If any are missing or placeholder-only, do NOT declare seeding complete — return to the missing discipline and do the work properly.
 
 **No false completion claims.** Never self-score a discipline as complete if the work is only in your head. Never invoke "background agents" or "async workers" to explain why an artifact isn't on disk yet (see Sequential execution below — there is only one worker, and it is you, and the work is done when the file exists with content).
 
@@ -149,7 +149,7 @@ There are no background agents, no async workers, and no parallel subprocesses. 
    - `seed_spec/` — milestones with stories, each story with acceptance criteria, PO checks, dependencies, affected entities/screens
    - `legal/` — T&Cs, privacy policy, cookie policy (if generated)
    - `marketing/` — landing page copy
-   - Set `state.json` to `ready` using the **V2 schema** (see `docs/design/state-schema-v2.md`):
+   - Set `.rouge/state.json` to `ready` using the **V2 schema** (see `docs/design/state-schema-v2.md`):
      - Write `milestones[]` with nested `stories[]` (NOT `feature_areas[]`)
      - Each story has: `id`, `name`, `status: "pending"`, `depends_on`, `affected_entities`, `affected_screens`
      - Each milestone has: `name`, `status: "pending"`, `stories[]`
