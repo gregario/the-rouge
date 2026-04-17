@@ -6,6 +6,7 @@ import { ProjectStack } from '@/components/project-stack'
 import { InfrastructureStack } from '@/components/infrastructure-stack'
 import { CycleRhythm } from '@/components/cycle-rhythm'
 import { ProjectTitleEditable } from '@/components/project-title-editable'
+import { ProjectSettingsMenu } from '@/components/project-settings-menu'
 import { ArchiveButton } from '@/components/archive-button'
 import { ProjectBudgetCapInline } from '@/components/project-budget-cap-inline'
 import { ExternalLink, ArrowLeft } from 'lucide-react'
@@ -77,6 +78,7 @@ export function ProjectHeader({
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-4">
           <ProjectTitleEditable slug={project.slug} name={project.name} state={project.state} />
+          <ProjectSettingsMenu slug={project.slug} state={project.state} />
           <StateBadge state={project.state} size="lg" />
         </div>
 
