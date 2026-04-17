@@ -72,6 +72,19 @@ const ARTIFACT_SPECS: Record<Discipline, ArtifactSpec[]> = {
         { path: 'design/pass-3-visual-design.yaml', minBytes: 300 },
       ],
     },
+    // Underscore variant of the three-pass set. Observed in the
+    // testimonial session: the agent wrote `pass_1_ux_architecture.yaml`
+    // rather than `pass-1-...`, even with the hyphenated names pinned
+    // in the sub-prompt. Recognise the work rather than reject 80KB of
+    // real content over a typographic detail.
+    {
+      kind: 'files',
+      paths: [
+        { path: 'design/pass_1_ux_architecture.yaml', minBytes: 300 },
+        { path: 'design/pass_2_component_design.yaml', minBytes: 300 },
+        { path: 'design/pass_3_visual_design.yaml', minBytes: 300 },
+      ],
+    },
     // Fallback: combined design.yaml large enough to plausibly contain
     // all three passes. ~2KB covers the orchestrator's scored-dimension
     // structure for three passes.

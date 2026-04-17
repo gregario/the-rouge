@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, renameSync, unlinkSync, existsSync } from 'fs'
 import { join } from 'path'
 import { DISCIPLINE_SEQUENCE, type SeedingSessionState } from './types'
 import { statePath } from './state-path'
@@ -21,9 +21,26 @@ export function readSeedingState(projectDir: string): SeedingSessionState {
   }
 }
 
+/**
+ * Atomic write via tmp + rename. `rename(2)` is atomic on POSIX for
+ * paths on the same filesystem, so a concurrent reader never sees a
+ * torn write. Two concurrent *writers* still race (last finished
+ * renames wins) — that's a read-modify-write concern at the caller
+ * level — but at least neither leaves a half-written JSON on disk.
+ * Matches the launcher's existing `writeJson` helper pattern.
+ */
 export function writeSeedingState(projectDir: string, state: SeedingSessionState): void {
   const path = join(projectDir, STATE_FILE)
-  writeFileSync(path, JSON.stringify(state, null, 2))
+  const tmp = `${path}.${process.pid}.${Date.now()}.tmp`
+  try {
+    writeFileSync(tmp, JSON.stringify(state, null, 2))
+    renameSync(tmp, path)
+  } catch (err) {
+    // If tmp exists but rename failed, clean it up so we don't leak
+    // per-turn .tmp files on every failure.
+    try { if (existsSync(tmp)) unlinkSync(tmp) } catch { /* ignore */ }
+    throw err
+  }
 }
 
 export function updateSessionId(projectDir: string, sessionId: string): void {
@@ -129,14 +146,35 @@ export function appendPendingCorrection(projectDir: string, note: string): void 
 }
 
 /**
- * Read and clear any pending correction. Returns null if there was none.
+ * Read any pending correction without clearing it. Use this before
+ * runClaude so that if the turn times out or errors we don't silently
+ * drop the rejection context — the next turn can still deliver it.
  */
-export function consumePendingCorrection(projectDir: string): string | null {
+export function peekPendingCorrection(projectDir: string): string | null {
   const state = readSeedingState(projectDir)
-  const pending = state.pending_correction
-  if (!pending) return null
+  return state.pending_correction ?? null
+}
+
+/**
+ * Clear any pending correction. Call AFTER the correction has been
+ * successfully delivered to Claude (i.e., after runClaude returned
+ * without timeout or error).
+ */
+export function clearPendingCorrection(projectDir: string): void {
+  const state = readSeedingState(projectDir)
+  if (!state.pending_correction) return
   delete state.pending_correction
   state.last_activity = new Date().toISOString()
   writeSeedingState(projectDir, state)
+}
+
+/**
+ * Read and clear any pending correction in one step. Deprecated for
+ * handleSeedMessage (use peek + clear to survive Claude failures), but
+ * retained for paths that atomically need the text now.
+ */
+export function consumePendingCorrection(projectDir: string): string | null {
+  const pending = peekPendingCorrection(projectDir)
+  if (pending) clearPendingCorrection(projectDir)
   return pending
 }

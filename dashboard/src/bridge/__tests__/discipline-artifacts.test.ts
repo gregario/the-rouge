@@ -105,6 +105,20 @@ describe('verifyDisciplineArtifact', () => {
     expect(verifyDisciplineArtifact(PROJECT_DIR, 'design').ok).toBe(true)
   })
 
+  it('accepts design when the three pass files use underscore names (testimonial session shape)', () => {
+    // Agent wrote pass_1_ux_architecture.yaml etc. even with hyphens
+    // pinned in the sub-prompt. Recognise the work.
+    writeFile('design/pass_1_ux_architecture.yaml', 'x'.repeat(400))
+    writeFile('design/pass_2_component_design.yaml', 'x'.repeat(400))
+    writeFile('design/pass_3_visual_design.yaml', 'x'.repeat(400))
+    expect(verifyDisciplineArtifact(PROJECT_DIR, 'design').ok).toBe(true)
+  })
+
+  it('still rejects when only one underscore-named pass exists (incomplete design)', () => {
+    writeFile('design/pass_1_ux_architecture.yaml', 'x'.repeat(400))
+    expect(verifyDisciplineArtifact(PROJECT_DIR, 'design').ok).toBe(false)
+  })
+
   it('rejects design when only Pass 1 exists (phantom-complete bug from Praise session)', () => {
     writeFile('design/pass-1-ux-architecture.yaml', 'x'.repeat(400))
     // Pass 2 and Pass 3 missing — the exact failure mode the user
