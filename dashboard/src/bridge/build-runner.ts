@@ -57,11 +57,11 @@ export function readBuildInfo(projectDir: string): BuildInfo | null {
  * rouge-cli.js's `build` command just sets ROUGE_PROJECT_FILTER and spawns the
  * same file — we skip the wrapper to avoid an extra process layer.
  */
-export function startBuild(
+export async function startBuild(
   projectsRoot: string,
   rougeCliPath: string,
   slug: string,
-): { ok: true; pid: number; alreadyRunning?: boolean } | { ok: false; error: string } {
+): Promise<{ ok: true; pid: number; alreadyRunning?: boolean } | { ok: false; error: string }> {
   const projectDir = join(projectsRoot, slug)
   if (!existsSync(projectDir)) {
     return { ok: false, error: 'Project not found' }
@@ -71,11 +71,19 @@ export function startBuild(
   // 'story-building' if foundation is already complete). The Rouge loop
   // skips projects in 'ready' state — it's waiting for a human trigger.
   // This matches what the Slack bot does in its `start` command.
+  //
+  // We remember the prior state so we can roll back if the subprocess
+  // fails to launch — otherwise a failed Start leaves the project
+  // looking like it's building when no process exists, and the UI shows
+  // Stop against a zombie (the exact symptom from the earlier ENOENT
+  // crash; see audit finding A in #161 followup).
   const statePath = resolveStatePath(projectDir)
+  let priorCurrentState: string | null = null
   if (existsSync(statePath)) {
     try {
       const state = JSON.parse(readFileSync(statePath, 'utf-8'))
       if (state.current_state === 'ready' || state.current_state === 'seeding') {
+        priorCurrentState = state.current_state
         const foundationComplete = state.foundation?.status === 'complete'
         state.current_state = foundationComplete ? 'story-building' : 'foundation'
         writeFileSync(statePath, JSON.stringify(state, null, 2))
@@ -91,6 +99,19 @@ export function startBuild(
     }
   }
 
+  const rollbackState = () => {
+    if (priorCurrentState === null) return
+    try {
+      const st = JSON.parse(readFileSync(statePath, 'utf-8'))
+      if (st.current_state === 'foundation' || st.current_state === 'story-building') {
+        st.current_state = priorCurrentState
+        writeFileSync(statePath, JSON.stringify(st, null, 2))
+      }
+    } catch {
+      // best effort
+    }
+  }
+
   // Check if a build is already running — if so, the state transition above
   // is enough to kick it into gear on the next loop tick.
   const existing = readBuildInfo(projectDir)
@@ -101,9 +122,11 @@ export function startBuild(
   // Derive rouge-loop.js path from the CLI path (they're in the same dir)
   const loopScript = join(rougeCliPath, '..', 'rouge-loop.js')
   if (!existsSync(loopScript)) {
+    rollbackState()
     return { ok: false, error: `rouge-loop.js not found at ${loopScript}` }
   }
 
+  let child: ReturnType<typeof spawn>
   try {
     // Redirect stdout/stderr to a log file so the loop's output is captured
     // (and user can diagnose hangs). Must open files first because the child
@@ -111,7 +134,7 @@ export function startBuild(
     const logPath = join(projectDir, 'build.log')
     const logFd = openSync(logPath, 'a') // append mode
     // Leave stdin as 'ignore' — the loop reads from files, not stdin.
-    const child = spawn('node', [loopScript], {
+    child = spawn('node', [loopScript], {
       detached: true,
       stdio: ['ignore', logFd, logFd],
       // Run from the Rouge repo root (parent of src/launcher/), matching the
@@ -122,42 +145,85 @@ export function startBuild(
         ROUGE_PROJECT_FILTER: slug,
       },
     })
-    // Detach: don't keep parent event loop alive on child's account
-    child.unref()
-
-    if (!child.pid) {
-      return { ok: false, error: 'Failed to spawn process' }
-    }
-
-    const info: BuildInfo = {
-      pid: child.pid,
-      startedAt: new Date().toISOString(),
-    }
-    writeFileSync(join(projectDir, PID_FILE), JSON.stringify(info, null, 2))
-    return { ok: true, pid: child.pid }
   } catch (err) {
+    rollbackState()
     return {
       ok: false,
       error: err instanceof Error ? err.message : String(err),
     }
   }
+
+  child.unref()
+
+  if (!child.pid) {
+    rollbackState()
+    return { ok: false, error: 'Failed to spawn process' }
+  }
+
+  // Wait briefly for settlement. spawn() can succeed with a valid PID
+  // but the child may immediately crash (node can't find the script,
+  // module load throws, etc.) — see the ENOENT incident that prompted
+  // this rollback logic. If the subprocess exits within the settlement
+  // window, we roll state back so the user doesn't see a zombie Stop
+  // button against a project that was never really building.
+  const SETTLEMENT_MS = 800
+  const settled = await new Promise<{ exited: boolean; code: number | null }>((resolve) => {
+    const t = setTimeout(() => resolve({ exited: false, code: null }), SETTLEMENT_MS)
+    child.once('exit', (code) => {
+      clearTimeout(t)
+      resolve({ exited: true, code })
+    })
+  })
+
+  if (settled.exited) {
+    rollbackState()
+    return {
+      ok: false,
+      error: `build subprocess exited immediately (code ${settled.code ?? '?'}) — check build.log`,
+    }
+  }
+
+  // Still alive after settlement — consider the launch successful.
+  const info: BuildInfo = {
+    pid: child.pid,
+    startedAt: new Date().toISOString(),
+  }
+  writeFileSync(join(projectDir, PID_FILE), JSON.stringify(info, null, 2))
+  return { ok: true, pid: child.pid }
 }
+
+type StopResult =
+  | { ok: true; killed: 'sigint' | 'sigkill' }
+  | { ok: true; alreadyStopped: true; stateRolledBack?: boolean }
+  | { ok: false; error: string }
 
 /**
  * Stop a running build. Sends SIGINT first (clean shutdown — the Rouge launcher
  * exits with code 130 on SIGINT). If the process is still alive after `graceMs`,
  * escalate to SIGKILL. Note: the launcher deliberately ignores SIGTERM as a
  * daemon-resilience feature, so we don't use it.
+ *
+ * Idempotent: if no PID exists, returns `{ok: true, alreadyStopped: true}`
+ * rather than an error. Stop is semantically "ensure stopped" — if nothing
+ * is running, that's already the case, so pressing Stop twice or pressing
+ * Stop on a zombie shouldn't pop an error overlay.
+ *
+ * Zombie-state recovery: if the build PID is gone but
+ * `state.current_state` is still a building state (`foundation` /
+ * `story-building`), roll the state back to `ready`. This repairs the
+ * inconsistency left behind by earlier failed Starts (pre-rollback
+ * logic) so the user can press Start again without hand-editing state.
  */
 export async function stopBuild(
   projectsRoot: string,
   slug: string,
   graceMs = 5000,
-): Promise<{ ok: true; killed: 'sigint' | 'sigkill' } | { ok: false; error: string }> {
+): Promise<StopResult> {
   const projectDir = join(projectsRoot, slug)
   const info = readBuildInfo(projectDir)
   if (!info) {
-    return { ok: false, error: 'No build running for this project' }
+    const stateRolledBack = rollbackZombieBuildState(projectDir)
+    return { ok: true, alreadyStopped: true, ...(stateRolledBack ? { stateRolledBack: true } : {}) }
   }
 
   const { pid } = info
@@ -190,6 +256,29 @@ export async function stopBuild(
   await sleep(200)
   cleanupPidFile(projectDir)
   return { ok: true, killed: 'sigkill' }
+}
+
+/**
+ * If state.current_state claims the project is building but no PID file
+ * exists, flip it back to `ready`. Returns true if a rollback was
+ * performed. Caller uses this on the idempotent-stop path to recover
+ * from a half-started session.
+ */
+function rollbackZombieBuildState(projectDir: string): boolean {
+  const statePath = resolveStatePath(projectDir)
+  if (!existsSync(statePath)) return false
+  try {
+    const state = JSON.parse(readFileSync(statePath, 'utf-8'))
+    const cur = state.current_state
+    if (cur === 'foundation' || cur === 'story-building') {
+      state.current_state = 'ready'
+      writeFileSync(statePath, JSON.stringify(state, null, 2))
+      return true
+    }
+  } catch {
+    // best effort
+  }
+  return false
 }
 
 function cleanupPidFile(projectDir: string): void {

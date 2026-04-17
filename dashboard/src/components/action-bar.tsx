@@ -21,6 +21,8 @@ export function ActionBar({ state, slug, productionUrl, escalation }: ActionBarP
   const [buildRunning, setBuildRunning] = useState(false)
   const [confirmAction, setConfirmAction] = useState<'start' | 'stop' | null>(null)
   const [buildStartedAt, setBuildStartedAt] = useState<string | null>(null)
+  const [commandError, setCommandError] = useState<string | null>(null)
+  const [commandNotice, setCommandNotice] = useState<string | null>(null)
 
   // Poll build status every 5s so the button reflects subprocess state
   // even before the Rouge loop has written its first checkpoint.
@@ -49,8 +51,19 @@ export function ActionBar({ state, slug, productionUrl, escalation }: ActionBarP
   const runCommand = useCallback(async (command: string) => {
     if (!slug || !isBridgeEnabled()) return
     setLoading(command)
+    setCommandError(null)
+    setCommandNotice(null)
     try {
-      await sendCommand(slug, command)
+      const result = await sendCommand(slug, command)
+      // Idempotent stop: surface a brief notice so the user sees the
+      // action had a useful effect even though nothing was running.
+      if (command === 'stop' && result?.alreadyStopped) {
+        if (result.stateRolledBack) {
+          setCommandNotice('Build was not running. Cleared stale state — project is back to Ready.')
+        } else {
+          setCommandNotice('Build was already stopped.')
+        }
+      }
       // Refresh build status after start/stop
       if (command === 'start' || command === 'stop') {
         try {
@@ -60,7 +73,11 @@ export function ActionBar({ state, slug, productionUrl, escalation }: ActionBarP
         } catch {}
       }
     } catch (err) {
-      console.error(`[bridge] Command "${command}" failed:`, err)
+      // Caught errors used to go through console.error, which Next.js's
+      // dev-mode overlay hooks. Show them inline next to the button
+      // instead — same information reaches the user without the red box.
+      const msg = err instanceof Error ? err.message : String(err)
+      setCommandError(`${command} failed: ${msg}`)
     } finally {
       setLoading(null)
     }
@@ -104,9 +121,25 @@ export function ActionBar({ state, slug, productionUrl, escalation }: ActionBarP
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 sm:px-6 lg:px-8">
           <span className="text-xs text-muted-foreground">
-            {stateHint(state)}
+            {stateHint(state, buildRunning)}
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {commandError && (
+              <span
+                className="text-xs text-red-700"
+                data-testid="action-bar-error"
+              >
+                {commandError}
+              </span>
+            )}
+            {commandNotice && !commandError && (
+              <span
+                className="text-xs text-muted-foreground"
+                data-testid="action-bar-notice"
+              >
+                {commandNotice}
+              </span>
+            )}
             {(state === 'escalation' || state === 'waiting-for-human') && escalation && (
               <Button
                 variant="outline"
@@ -197,7 +230,7 @@ function formatElapsed(startedAt: string): string {
   return `${hrs}h ${mins % 60}m`
 }
 
-function stateHint(state: ProjectState): string {
+function stateHint(state: ProjectState, buildRunning: boolean): string {
   switch (state) {
     case 'ready':
       return 'Project is specced and ready to build'
@@ -211,7 +244,12 @@ function stateHint(state: ProjectState): string {
     case 'generating-change-spec':
     case 'vision-check':
     case 'shipping':
-      return 'Build in progress'
+      // state.json says building, but no subprocess is polling as alive
+      // → half-started session. The Stop button's idempotent path will
+      // roll this back to Ready when clicked.
+      return buildRunning
+        ? 'Build in progress'
+        : 'State says building but no process detected — press Stop to clean up'
     case 'waiting-for-human':
       return 'Waiting for your input'
     case 'escalation':
