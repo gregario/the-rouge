@@ -711,6 +711,8 @@ design_po_checks:
 
 **Write the combined artifact to `design/design.yaml`** in the project root. Create the `design/` directory if it doesn't exist. If additional per-screen or per-pass breakout files help, put them alongside in `design/`. Do not write to `seed_spec/` or `docs/` for the combined artifact — the dashboard verifies at least one file exists in `design/` before accepting the `[DISCIPLINE_COMPLETE: design]` marker.
 
+**Write before presenting scores or asking for pass sign-off.** Each pass produces scored dimensions; each pass has a natural "here are the scores, approve?" checkpoint. Write the pass's portion of `design/design.yaml` (or a pass-specific breakout file in `design/`) *before* asking the human to approve scores. Never present scores or slop-flags that exist only in your reply — the human cannot cross-check a YAML they cannot read.
+
 When all three passes are approved, produce the combined design artifact for the orchestrator:
 
 ```yaml

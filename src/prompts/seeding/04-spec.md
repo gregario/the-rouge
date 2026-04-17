@@ -341,7 +341,11 @@ Group stories into milestones. A milestone is a batch that gets evaluated togeth
 
 ### Present decomposition to human
 
-After decomposition, present:
+**Before presenting, write the decomposition to `seed_spec/milestones.json`.** Do not summarise a decomposition that only exists in your reply — the human cannot sight-verify it and the dashboard cannot recognise progress until the file exists. If the human's answer might alter scope (carousel cut, importer narrowing, naming change), write the current best-guess decomposition first, then ask for the adjustments, then update the file.
+
+Common failure to avoid: saying "Draft written. Three decisions for you to sign off…" when `seed_spec/milestones.json` does not exist on disk. That is a false claim — don't make it.
+
+After the file is on disk, present:
 ```
 DECOMPOSITION for <product-name>:
 
@@ -362,7 +366,7 @@ Average stories per milestone: <X>
 Longest dependency chain: <N> stories
 ```
 
-The human may adjust milestone grouping or story boundaries. Update accordingly.
+The human may adjust milestone grouping or story boundaries. Update `seed_spec/milestones.json` accordingly.
 
 ## Cross-Feature Consistency Check
 
