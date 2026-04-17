@@ -7,7 +7,7 @@ import type { ChatMessage as ChatMessageType } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, HelpCircle, CircleDot, Activity } from 'lucide-react'
 
 // Markdown renderer with tight spacing matched to the chat panel's style
 function Markdown({ content, className }: { content: string; className?: string }) {
@@ -64,6 +64,24 @@ export function ChatMessage({ message }: ChatMessageProps) {
           {message.content}
         </div>
       </div>
+    )
+  }
+
+  // Gated-autonomy kinds — render distinctly so decisions don't blend
+  // into prose and gates visually demand an answer.
+  if (message.kind === 'gate_question') {
+    return (
+      <GateQuestionMessage message={message} />
+    )
+  }
+  if (message.kind === 'autonomous_decision') {
+    return (
+      <AutonomousDecisionMessage message={message} />
+    )
+  }
+  if (message.kind === 'heartbeat') {
+    return (
+      <HeartbeatMessage message={message} />
     )
   }
 
@@ -144,6 +162,92 @@ export function ChatMessage({ message }: ChatMessageProps) {
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+// A hard or soft gate — Rouge is waiting on the user. Render
+// prominently so it's visually distinct from prose/decisions and the
+// user knows this is the thing blocking progress.
+function GateQuestionMessage({ message }: { message: ChatMessageType }) {
+  return (
+    <div
+      data-testid="chat-message"
+      data-role="rouge"
+      data-kind="gate_question"
+      className="rounded-md border-2 border-blue-300 bg-blue-50/60 px-4 py-3"
+    >
+      <div className="mb-1.5 flex items-center gap-2">
+        <HelpCircle className="size-3.5 text-blue-600" />
+        <span className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+          Rouge needs your answer
+        </span>
+        {message.discipline && (
+          <Badge
+            variant="outline"
+            className={cn(
+              'ml-auto text-xs',
+              DISCIPLINE_COLORS[message.discipline] ?? 'bg-gray-100 text-gray-500',
+            )}
+          >
+            {message.discipline}
+          </Badge>
+        )}
+      </div>
+      <Markdown content={message.content} />
+    </div>
+  )
+}
+
+// An autonomous decision Rouge just made. Still visible (that's the
+// whole point of gated autonomy — visible decisions, not silent work)
+// but visually subordinate to gates. The markerId is shown as a subtle
+// anchor so future override affordances (PR 2) have somewhere to click.
+function AutonomousDecisionMessage({ message }: { message: ChatMessageType }) {
+  return (
+    <div
+      data-testid="chat-message"
+      data-role="rouge"
+      data-kind="autonomous_decision"
+      className="rounded-md border border-dashed border-gray-300 bg-gray-50/60 px-3 py-2"
+    >
+      <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
+        <CircleDot className="size-3" />
+        <span className="font-medium">Rouge decided</span>
+        {message.markerId && (
+          <span className="font-mono text-[10px] text-muted-foreground/70">
+            {message.markerId}
+          </span>
+        )}
+        {message.discipline && (
+          <Badge
+            variant="outline"
+            className={cn(
+              'ml-auto text-[10px]',
+              DISCIPLINE_COLORS[message.discipline] ?? 'bg-gray-100 text-gray-500',
+            )}
+          >
+            {message.discipline}
+          </Badge>
+        )}
+      </div>
+      <Markdown content={message.content} className="text-[13px]" />
+    </div>
+  )
+}
+
+// A still-working ping during autonomous stretches. Tiny, muted — the
+// presence of a recent heartbeat is the signal, the content is context.
+function HeartbeatMessage({ message }: { message: ChatMessageType }) {
+  return (
+    <div
+      data-testid="chat-message"
+      data-role="rouge"
+      data-kind="heartbeat"
+      className="flex items-center gap-2 px-3 py-1 text-xs text-muted-foreground/80"
+    >
+      <Activity className="size-3" />
+      <span className="italic">{message.content}</span>
     </div>
   )
 }

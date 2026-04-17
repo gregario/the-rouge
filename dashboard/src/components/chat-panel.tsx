@@ -85,6 +85,8 @@ export function ChatPanel({
         type: m.role === 'human' ? ('answer' as const) : ('question' as const),
         content: m.content,
         timestamp: m.timestamp,
+        kind: m.kind,
+        markerId: m.metadata?.markerId,
         _discipline: m.metadata?.discipline,
       }))
     }
@@ -211,6 +213,17 @@ export function ChatPanel({
       className="flex h-full flex-col rounded-lg border border-gray-200 bg-white"
       data-testid="chat-panel"
     >
+      {/* Traffic-light: shows how fresh Rouge's last marker is. Green
+          under 45s, amber 45-120s, red 120-180s, stall above that.
+          Only shown when we have a heartbeat to track against (i.e.
+          after the first [DECISION:] or [HEARTBEAT:] lands). */}
+      {bridgeActive && seeding.status?.last_heartbeat_at && (
+        <LivenessChip
+          lastHeartbeatAt={seeding.status.last_heartbeat_at}
+          mode={seeding.status.mode}
+        />
+      )}
+
       {/* Message list — grouped by discipline */}
       <ScrollArea className="flex-1 overflow-auto">
         <div className="flex flex-col gap-2 p-4">
@@ -306,6 +319,97 @@ export function ChatPanel({
       )}
     </div>
   )
+}
+
+// Traffic-light chip for Rouge's autonomous liveness. Thresholds are
+// provisional — we'll calibrate after the first real seedings produce
+// typical work-pause durations. Drives off last_heartbeat_at set by
+// the bridge on every [DECISION:] / [HEARTBEAT:] marker.
+function LivenessChip({
+  lastHeartbeatAt,
+  mode,
+}: {
+  lastHeartbeatAt: string
+  mode: 'awaiting_gate' | 'running_autonomous'
+}) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  // Mode=awaiting_gate means Rouge isn't working — it's blocked on the
+  // human. Show a distinct "waiting on you" state instead of a fading
+  // liveness indicator; the chip would otherwise mislead as "stalled".
+  if (mode === 'awaiting_gate') {
+    return (
+      <div
+        data-testid="liveness-chip"
+        data-tone="awaiting"
+        className="flex items-center gap-2 border-b border-gray-200 bg-blue-50/60 px-4 py-1.5 text-xs text-blue-800"
+      >
+        <span className="inline-block size-2 rounded-full bg-blue-500" />
+        <span className="font-medium">Rouge is waiting on your answer</span>
+      </div>
+    )
+  }
+
+  const ageSec = Math.max(0, Math.floor((now - new Date(lastHeartbeatAt).getTime()) / 1000))
+  const { tone, label, dotClass, wrapperClass } = describeLiveness(ageSec)
+  return (
+    <div
+      data-testid="liveness-chip"
+      data-tone={tone}
+      className={cn(
+        'flex items-center gap-2 border-b px-4 py-1.5 text-xs',
+        wrapperClass,
+      )}
+    >
+      <span className={cn('inline-block size-2 rounded-full', dotClass)} />
+      <span className="font-medium">{label}</span>
+      <span className="tabular-nums text-muted-foreground">
+        last marker {formatDuration(ageSec)} ago
+      </span>
+    </div>
+  )
+}
+
+function describeLiveness(ageSec: number): {
+  tone: 'green' | 'amber' | 'red' | 'stall'
+  label: string
+  dotClass: string
+  wrapperClass: string
+} {
+  if (ageSec < 45) {
+    return {
+      tone: 'green',
+      label: 'Working',
+      dotClass: 'bg-green-500 animate-pulse',
+      wrapperClass: 'border-green-200 bg-green-50/60 text-green-900',
+    }
+  }
+  if (ageSec < 120) {
+    return {
+      tone: 'amber',
+      label: 'Still working',
+      dotClass: 'bg-amber-500',
+      wrapperClass: 'border-amber-200 bg-amber-50/60 text-amber-900',
+    }
+  }
+  if (ageSec < 180) {
+    return {
+      tone: 'red',
+      label: 'Taking longer than usual',
+      dotClass: 'bg-red-500',
+      wrapperClass: 'border-red-200 bg-red-50/60 text-red-900',
+    }
+  }
+  return {
+    tone: 'stall',
+    label: 'Stalled — may need a nudge',
+    dotClass: 'bg-gray-600',
+    wrapperClass: 'border-gray-300 bg-gray-100 text-gray-800',
+  }
 }
 
 function TransitionBanner({ from, to }: { from: string; to: string }) {

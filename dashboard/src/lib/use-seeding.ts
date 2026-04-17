@@ -1,11 +1,15 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { fetchSeedingMessages, sendSeedMessage, type SeedingChatMessage } from './bridge-client'
+import { fetchSeedingMessages, fetchSeedingStatus, sendSeedMessage, type SeedingChatMessage, type SeedingLivenessStatus } from './bridge-client'
 import { useBridgeEvents } from './use-bridge-events'
 
 interface UseSeedingResult {
   messages: SeedingChatMessage[]
+  /** Liveness snapshot (mode, pending_gate, last_heartbeat_at). Null
+   *  until the first fetch completes. Drives the traffic-light chip
+   *  and awaiting-gate affordances in the UI. */
+  status: SeedingLivenessStatus | null
   isSending: boolean
   /** Wall-clock timestamp (ms) when the current send started, or null
    * when no send is in flight. Lets the UI render an elapsed-time signal
@@ -19,6 +23,7 @@ interface UseSeedingResult {
 
 export function useSeeding(slug: string): UseSeedingResult {
   const [messages, setMessages] = useState<SeedingChatMessage[]>([])
+  const [status, setStatus] = useState<SeedingLivenessStatus | null>(null)
   const [isSending, setIsSending] = useState(false)
   const [sendingStartedAt, setSendingStartedAt] = useState<number | null>(null)
   const [isPaused, setIsPaused] = useState(false)
@@ -27,8 +32,14 @@ export function useSeeding(slug: string): UseSeedingResult {
   const refetch = useCallback(async () => {
     if (!slug) return
     try {
-      const fetched = await fetchSeedingMessages(slug)
+      // Fire both in parallel — one Claude turn can mutate both, and
+      // polling them sequentially would make the chip lag the chat.
+      const [fetched, st] = await Promise.all([
+        fetchSeedingMessages(slug),
+        fetchSeedingStatus(slug).catch(() => null),
+      ])
       setMessages(fetched)
+      if (st) setStatus(st)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     }
@@ -69,5 +80,5 @@ export function useSeeding(slug: string): UseSeedingResult {
     }
   }, [slug, isSending, refetch])
 
-  return { messages, isSending, sendingStartedAt, isPaused, error, sendMessage, refetch }
+  return { messages, status, isSending, sendingStartedAt, isPaused, error, sendMessage, refetch }
 }

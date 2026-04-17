@@ -178,3 +178,69 @@ export function consumePendingCorrection(projectDir: string): string | null {
   if (pending) clearPendingCorrection(projectDir)
   return pending
 }
+
+// ─── Gated autonomy (PR 1) ─────────────────────────────────────────
+
+/**
+ * Flip the session into `awaiting_gate` for a specific discipline/gate.
+ * Call this right before surfacing a [GATE:] message to the chat.
+ *
+ * The reconciliation path in seed-handler uses `mode === 'awaiting_gate'`
+ * to refuse to advance the discipline sequence while a question is
+ * pending — that's how we fix the "user answers Q1, Rouge silently
+ * moves to competition" regression.
+ */
+export function setAwaitingGate(projectDir: string, discipline: string, gateId: string): void {
+  const state = readSeedingState(projectDir)
+  state.mode = 'awaiting_gate'
+  state.pending_gate = {
+    discipline,
+    gate_id: gateId,
+    asked_at: new Date().toISOString(),
+  }
+  state.last_activity = new Date().toISOString()
+  writeSeedingState(projectDir, state)
+}
+
+/**
+ * Clear the awaiting-gate state. Called when the human's next message
+ * arrives and is routed to the pending gate as its answer.
+ */
+export function clearPendingGate(projectDir: string): void {
+  const state = readSeedingState(projectDir)
+  if (!state.pending_gate && state.mode !== 'awaiting_gate') return
+  state.mode = 'running_autonomous'
+  delete state.pending_gate
+  state.last_activity = new Date().toISOString()
+  writeSeedingState(projectDir, state)
+}
+
+/**
+ * Bump `last_heartbeat_at` to "now". Called on every [DECISION:] or
+ * [HEARTBEAT:] marker so the UI traffic-light can decay from the
+ * latest signal. See types.ts for the threshold ladder.
+ */
+export function updateHeartbeat(projectDir: string): void {
+  const state = readSeedingState(projectDir)
+  state.last_heartbeat_at = new Date().toISOString()
+  state.last_activity = state.last_heartbeat_at
+  writeSeedingState(projectDir, state)
+}
+
+/**
+ * Effective mode for legacy state files. Undefined `mode` on disk is
+ * treated as `running_autonomous` — matches pre-gated-autonomy behaviour
+ * and keeps old projects reconciling the way they used to.
+ */
+export function effectiveMode(state: SeedingSessionState): 'awaiting_gate' | 'running_autonomous' {
+  return state.mode ?? 'running_autonomous'
+}
+
+/**
+ * True iff Rouge is waiting on the user for the given discipline.
+ * Used by the reconciliation guard: if we're awaiting a gate in the
+ * current discipline, the next turn must not be allowed to skip it.
+ */
+export function isAwaitingGateFor(state: SeedingSessionState, discipline: string): boolean {
+  return effectiveMode(state) === 'awaiting_gate' && state.pending_gate?.discipline === discipline
+}

@@ -40,6 +40,17 @@ export type Provider = 'vercel' | 'cloudflare' | 'supabase' | 'sentry' | 'postho
 export type ChatRole = 'rouge' | 'human'
 export type ChatMessageType = 'question' | 'answer' | 'transition' | 'summary'
 
+// Marker kind for gated-autonomy messages (parallels
+// `SeedingMessageKind` in bridge/types.ts). Determines how the UI
+// renders the message — gates look different from decisions look
+// different from heartbeats. Undefined falls back to the message's
+// `type` for legacy paths.
+export type ChatMessageKind =
+  | 'prose'
+  | 'gate_question'
+  | 'autonomous_decision'
+  | 'heartbeat'
+
 export type ActivityEventType =
   | 'deploy'
   | 'phase-transition'
@@ -229,6 +240,14 @@ export interface ChatMessage {
   reasoning?: string
   options?: ChatOption[]
   timestamp: string
+  /** Marker kind when the message came from the gated-autonomy
+   *  protocol — drives distinct rendering (gates vs decisions vs
+   *  heartbeats). Undefined on legacy messages. */
+  kind?: ChatMessageKind
+  /** Marker id from the orchestrator — e.g. `brainstorming/H2-north-star`
+   *  for gates, or a decision slug. Used by the override mechanism
+   *  (PR 2) to address a specific decision. */
+  markerId?: string
 }
 
 // ─── Activity Feed ───────────────────────────────────────────────────

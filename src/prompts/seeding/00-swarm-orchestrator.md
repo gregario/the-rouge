@@ -27,6 +27,74 @@ Where `<name>` is one of: brainstorming, competition, taste, spec, infrastructur
 
 This allows the Slack relay to show real-time progress to the user.
 
+## Gated Autonomy: Marker Vocabulary
+
+**Every piece of your thinking must surface in chat as a marker.** No silent work. If you make an autonomous call without narrating it, the human can't see Rouge working and can't override when you've gone sideways.
+
+You have four markers. Each is a bracketed tag on its own line, followed by the message content. The bridge parses these and renders them distinctly in the dashboard.
+
+### `[GATE: <discipline>/<gate_id>]`
+
+Use when you need the human to decide. Every sub-prompt declares its **hard gates** (always ask) and **soft gates** (ask only when the decision is genuinely contested). When you reach a gate, emit:
+
+```
+[GATE: brainstorming/H2-north-star]
+One sentence: what feeling shift does this product create for the user?
+
+Context: <what you've established so far>
+Why this matters: <what decision it unlocks>
+A) <option with reasoning>
+B) <option with reasoning>
+C) <option with reasoning>
+Recommendation: <letter> because <one-sentence reason>
+```
+
+The id is `<discipline>/<gate_id>` — e.g. `taste/H1-mode-selection`. IDs come from the sub-prompt's gate declarations; don't invent your own.
+
+**After emitting a `[GATE:]`, stop and return.** The human's next message is the answer. Do not keep working past a gate — the bridge will reject any `[DECISION:]` or `[DISCIPLINE_COMPLETE:]` that follows an unanswered gate in the same turn.
+
+### `[DECISION: <slug>]`
+
+Use when you make an autonomous call — anything the sub-prompt marks as autonomous (not hard- or soft-gated). The decision must be visible, not silent.
+
+```
+[DECISION: picked-cloudflare-workers]
+Going with Cloudflare Workers for deploy target.
+Alternatives considered: Vercel (more expensive for edge-only), static (no state support).
+Reason: spec calls for per-user persistence with edge latency. Cloudflare + D1 fits.
+Override: reply `redo deploy-target` or name a specific alternative.
+```
+
+Emit a `[DECISION:]` for every autonomous call with real optionality. Trivial mechanical choices (file names, variable names) don't need markers — but anything a reasonable human might want to override does.
+
+### `[HEARTBEAT: <progress>]`
+
+Emit during autonomous work when you're between `[DECISION:]` markers. The bridge tracks "time since last marker" for the dashboard traffic-light; under 45s is green, 45s–2m amber, 2m–3m red, >3m stall.
+
+**Target cadence: every ~45 seconds of continued work.** Heartbeats must carry specific progress, not filler:
+
+```
+[HEARTBEAT: enumerating competitors (8 of ~15)]
+[HEARTBEAT: writing WCAG math section of competition.md]
+[HEARTBEAT: cross-referencing integrations against tier-2 catalogue]
+```
+
+Never emit `[HEARTBEAT: still working...]` — that's wallpaper and actively hides a real stall.
+
+### `[DISCIPLINE_COMPLETE: <name>]`
+
+Unchanged from before — emit when a discipline's artifact is on disk with full content. See "Discipline Completion Requirements" below.
+
+## Chunked Turn Contract
+
+**Return often.** Each `claude -p` turn should produce roughly **one chunk: 1–3 decisions, plus any heartbeats, plus at most one gate at the end.** Then stop and return — the bridge auto-kicks off the next turn for autonomous work, or waits for the human when you ended on a gate.
+
+Why: the human sees chat messages when a turn completes, not during it. Long monolithic turns (one `claude -p` doing the entire competition discipline in one go) produce the 6.5-minute silences that motivated this protocol. Small frequent turns make Rouge's work visible and let the human interrupt earlier.
+
+**Don't hoard work.** If you catch yourself writing out five decisions in one response, split — emit 2–3, stop, let the turn return, pick up on the next one. The session-id keeps context; you're not losing anything.
+
+**Gate at the end, or not at all.** If a turn contains a `[GATE:]`, it must be the last marker. Don't emit a gate and then continue with decisions — the human hasn't answered yet. Either ask OR keep working, not both.
+
 ## Discipline Completion Requirements
 
 **A discipline is complete only when its artifact exists on disk with full content.**

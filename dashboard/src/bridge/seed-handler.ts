@@ -1,8 +1,9 @@
 import { existsSync, readFileSync } from 'fs'
 import { resolve } from 'path'
-import { runClaude, detectRateLimit, extractMarkers } from './claude-runner'
+import { runClaude, detectRateLimit, extractMarkers, segmentMarkers, type MessageSegment } from './claude-runner'
 import { appendChatMessage } from './chat-reader'
-import { readSeedingState, updateSessionId, markDisciplineComplete, markDisciplinePrompted, markSeedingComplete, setStatus, appendPendingCorrection, peekPendingCorrection, clearPendingCorrection } from './seeding-state'
+import { readSeedingState, updateSessionId, markDisciplineComplete, markDisciplinePrompted, markSeedingComplete, setStatus, appendPendingCorrection, peekPendingCorrection, clearPendingCorrection, isAwaitingGateFor, setAwaitingGate, clearPendingGate, updateHeartbeat, effectiveMode } from './seeding-state'
+import type { SeedingMessageKind } from './types'
 import { finalizeSeeding } from './seeding-finalize'
 import { maybeDeriveWorkingTitle } from './derive-title'
 import { loadDisciplinePrompt, type Discipline } from './discipline-prompts'
@@ -79,6 +80,100 @@ function appendMessages(
   })
 }
 
+/**
+ * Append a human message (if any) followed by one chat message per
+ * marker segment from Claude's response. Each segment is tagged with
+ * its `kind` (prose/gate/decision/heartbeat/...) so the UI can render
+ * distinctly and the traffic-light can reset on every marker.
+ *
+ * Why segmented: the pre-gated-autonomy path wrote the full Claude
+ * response as one chat message tagged only with a discipline name.
+ * That's what produced the colourcontrast symptom — a single wall-of-
+ * text arrived after 6.5 minutes of silence, and no visible structure
+ * told the user what Rouge actually decided. Splitting on markers
+ * makes decisions and gates first-class chat entities.
+ */
+function appendSegmentedRougeMessages(
+  projectDir: string,
+  segments: MessageSegment[],
+  discipline?: string,
+): void {
+  for (const seg of segments) {
+    // discipline_complete and seeding_complete are state-machine
+    // signals — the marker itself isn't shown to the user as its own
+    // chat bubble; the acceptance/rejection SYSTEM NOTEs downstream
+    // cover the UX. Skip here so we don't double-post.
+    if (seg.kind === 'discipline_complete' || seg.kind === 'seeding_complete') {
+      continue
+    }
+    const kind = segmentKindToMessageKind(seg.kind)
+    appendChatMessage(projectDir, {
+      id: genId(),
+      role: 'rouge',
+      content: seg.content,
+      timestamp: new Date().toISOString(),
+      kind,
+      metadata: {
+        ...(discipline ? { discipline } : {}),
+        ...(seg.id ? { markerId: seg.id } : {}),
+      },
+    })
+  }
+}
+
+function segmentKindToMessageKind(k: MessageSegment['kind']): SeedingMessageKind {
+  switch (k) {
+    case 'gate': return 'gate_question'
+    case 'decision': return 'autonomous_decision'
+    case 'heartbeat': return 'heartbeat'
+    default: return 'prose'
+  }
+}
+
+/**
+ * Walk the parsed segments and update session state accordingly.
+ *
+ * Rules:
+ *  - [DECISION:] / [HEARTBEAT:] → bump last_heartbeat_at so the UI
+ *    traffic-light resets.
+ *  - [GATE:] → flip to awaiting_gate with the gate id. Only the LAST
+ *    gate in the response is the one Rouge is currently waiting on;
+ *    earlier gates in the same turn were answered-by-context as Claude
+ *    produced the response.
+ *
+ * Discipline derivation for gates: the gate id is expected to be
+ * `<discipline>/<slug>` (e.g. `brainstorming/H2-north-star`). If the
+ * id doesn't contain a slash, fall back to activeDiscipline.
+ */
+function applyMarkerStateEffects(
+  projectDir: string,
+  segments: MessageSegment[],
+  activeDiscipline: string | null,
+): void {
+  let lastGate: { discipline: string; id: string } | null = null
+  let sawTimingMarker = false
+
+  for (const seg of segments) {
+    if (seg.kind === 'decision' || seg.kind === 'heartbeat') {
+      sawTimingMarker = true
+    } else if (seg.kind === 'gate' && seg.id) {
+      const [maybeDiscipline, ...rest] = seg.id.split('/')
+      if (rest.length > 0) {
+        lastGate = { discipline: maybeDiscipline, id: seg.id }
+      } else if (activeDiscipline) {
+        lastGate = { discipline: activeDiscipline, id: seg.id }
+      }
+    }
+  }
+
+  if (sawTimingMarker) {
+    updateHeartbeat(projectDir)
+  }
+  if (lastGate) {
+    setAwaitingGate(projectDir, lastGate.discipline, lastGate.id)
+  }
+}
+
 export interface SendMessageResult {
   ok: boolean
   error?: string
@@ -113,6 +208,22 @@ async function runSeedingTurn(
   options: TurnOptions,
 ): Promise<SendMessageResult> {
   const { isKickoff = false, suppressKickoff = false } = options
+
+  // Gated-autonomy: a user-initiated turn IS the answer to any pending
+  // gate. Clear awaiting_gate state before anything else so the rest
+  // of the turn runs in running_autonomous mode and the reconciler's
+  // gate guard (added in G3) doesn't see stale state.
+  //
+  // Important: this runs BEFORE the reconciler. The gate guard in the
+  // reconciler only fires if mode === awaiting_gate for a specific
+  // discipline; once we've cleared, reconciliation behaves normally
+  // and will pick up any artifacts written in previous turns.
+  if (!isKickoff) {
+    const preGateState = readSeedingState(projectDir)
+    if (effectiveMode(preGateState) === 'awaiting_gate') {
+      clearPendingGate(projectDir)
+    }
+  }
 
   // Reconcile stranded state before anything else. Earlier runs may have
   // had markers rejected (e.g. wrong artifact path pre-#150) that later
@@ -264,11 +375,29 @@ async function runSeedingTurn(
   // Reconciliation (above) already picks up earlier disciplines that DO
   // have artifacts, so by this point the only remaining gaps are real.
   const markers = extractMarkers(result.result)
+  // Parse segments once here so we can enforce the "gate at the end,
+  // or not at all" rule from the orchestrator prompt: if the response
+  // contains a [GATE:], no [DISCIPLINE_COMPLETE:] from the same turn
+  // is acceptable — Claude is asking AND declaring done, which means
+  // the user couldn't possibly have answered before the declaration.
+  // Without this, the colourcontrast-class bug reappears at the
+  // prompt layer: Claude writes a discipline artifact autonomously,
+  // emits COMPLETE, and asks the next gate all in one turn.
+  const prelimSegments = segmentMarkers(result.result)
+  const turnHasGate = prelimSegments.some((s) => s.kind === 'gate')
+
   const acceptedDisciplines: string[] = []
   const rejectedDisciplines: Array<{ discipline: string; reason: string }> = []
   for (const d of markers.disciplinesComplete) {
     if (!isKnownDiscipline(d)) {
       rejectedDisciplines.push({ discipline: d, reason: 'unknown discipline name' })
+      continue
+    }
+    if (turnHasGate) {
+      rejectedDisciplines.push({
+        discipline: d,
+        reason: `cannot emit DISCIPLINE_COMPLETE and a [GATE:] in the same turn — end the turn after the gate, wait for the human answer, then complete on a later turn.`,
+      })
       continue
     }
     const gap = firstUncompletedEarlierDiscipline(projectDir, d)
@@ -291,14 +420,29 @@ async function runSeedingTurn(
     }
   }
 
-  // Append conversation (user message + rouge response) tagged with the
-  // discipline that was active BEFORE markers fired. Kickoff turns skip
-  // the human entry — the `text` we sent in was a system instruction,
-  // not something the user typed. If the agent emitted markers for
-  // disciplines whose artifacts aren't on disk, append a follow-up note
-  // so both the human (in the UI) and the agent (via session history on
-  // the next turn) see that the marker was rejected.
-  appendMessages(projectDir, isKickoff ? null : text, result.result, activeDiscipline ?? undefined)
+  // Append conversation. Human entry first (skipped on kickoff — the
+  // `text` was a system instruction, not user input), then the rouge
+  // response split on markers into one chat message per segment. Each
+  // segment carries its kind (gate/decision/heartbeat/prose) so the UI
+  // renders distinctly and the traffic-light chip can reset on each
+  // marker arrival.
+  //
+  // If the agent emitted markers for disciplines whose artifacts aren't
+  // on disk, append a follow-up SYSTEM NOTE so both the human (in the
+  // chat UI) and the agent (via session history on the next turn) see
+  // that the marker was rejected.
+  if (!isKickoff) {
+    appendChatMessage(projectDir, {
+      id: genId(),
+      role: 'human',
+      content: text,
+      timestamp: new Date().toISOString(),
+      metadata: activeDiscipline ? { discipline: activeDiscipline } : undefined,
+    })
+  }
+  // Reuse the segments parsed above for the gate-and-complete guard.
+  appendSegmentedRougeMessages(projectDir, prelimSegments, activeDiscipline ?? undefined)
+  applyMarkerStateEffects(projectDir, prelimSegments, activeDiscipline)
   if (rejectedDisciplines.length > 0) {
     const note = rejectedDisciplines
       .map(
@@ -374,9 +518,21 @@ async function runSeedingTurn(
           suppressKickoff: true,
         })
       } catch (err) {
-        // Kickoff is best-effort. If it fails, the user can just send
-        // a message to nudge the next discipline into starting.
+        // Kickoff is best-effort — the user can nudge the next discipline
+        // by sending a message, and the needs-discipline-prompt check
+        // will re-inject the sub-prompt on that turn. But silent failure
+        // was hiding the degradation: the user saw DISCIPLINE_COMPLETE
+        // in chat and then nothing, with no signal that kickoff tried
+        // and errored. Surface it in chat so the absence is visible.
         console.error('[seeding] auto-kickoff failed:', err)
+        const msg = err instanceof Error ? err.message : String(err)
+        appendChatMessage(projectDir, {
+          id: genId(),
+          role: 'rouge',
+          content: `[SYSTEM NOTE] Auto-kickoff for ${nextDiscipline} failed (${msg}). Send any message to resume — the sub-prompt will re-inject on the next turn.`,
+          timestamp: new Date().toISOString(),
+          metadata: { discipline: nextDiscipline },
+        })
       }
     }
   }
@@ -420,6 +576,15 @@ function reconcileDisciplineState(projectDir: string): string[] {
 
   for (const d of DISCIPLINE_SEQUENCE) {
     if (complete.has(d)) continue
+    // Gated-autonomy guard: if Rouge has asked a gate in this discipline
+    // and the human hasn't answered, treat it as a gap even if an
+    // artifact landed on disk. Without this, a Claude turn that wrote a
+    // discipline's artifact while the user was still staring at an
+    // unanswered question would advance state out from under them —
+    // exactly the colourcontrast regression that motivated gated
+    // autonomy (brainstorming Q2 open, competition.md appeared, next
+    // user turn silently skipped brainstorming AND competition).
+    if (isAwaitingGateFor(state, d)) break
     const check = verifyDisciplineArtifact(projectDir, d)
     if (check.ok) {
       markDisciplineComplete(projectDir, d)
