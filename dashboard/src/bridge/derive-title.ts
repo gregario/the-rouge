@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'fs'
-import { join } from 'path'
 import { runClaude } from './claude-runner'
 import { readChatLog } from './chat-reader'
+import { statePath } from './state-path'
 
 /**
  * One-shot working-title derivation. Called after the first user message
@@ -55,7 +55,7 @@ ${firstUserMessage.slice(0, 2000)}`
 }
 
 function readCurrentName(projectDir: string): string {
-  const file = join(projectDir, 'state.json')
+  const file = statePath(projectDir)
   if (!existsSync(file)) return ''
   try {
     const raw = JSON.parse(readFileSync(file, 'utf-8')) as { name?: string; project?: string }
@@ -66,7 +66,7 @@ function readCurrentName(projectDir: string): string {
 }
 
 function writeName(projectDir: string, title: string): void {
-  const file = join(projectDir, 'state.json')
+  const file = statePath(projectDir)
   if (!existsSync(file)) return
   const raw = JSON.parse(readFileSync(file, 'utf-8'))
   raw.name = title

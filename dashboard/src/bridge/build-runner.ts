@@ -1,6 +1,7 @@
 import { spawn } from 'child_process'
 import { readFileSync, writeFileSync, existsSync, unlinkSync, openSync } from 'fs'
 import { join } from 'path'
+import { statePath as resolveStatePath } from './state-path'
 
 const PID_FILE = '.build-pid'
 
@@ -70,7 +71,7 @@ export function startBuild(
   // 'story-building' if foundation is already complete). The Rouge loop
   // skips projects in 'ready' state — it's waiting for a human trigger.
   // This matches what the Slack bot does in its `start` command.
-  const statePath = join(projectDir, 'state.json')
+  const statePath = resolveStatePath(projectDir)
   if (existsSync(statePath)) {
     try {
       const state = JSON.parse(readFileSync(statePath, 'utf-8'))

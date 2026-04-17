@@ -3,6 +3,7 @@ import { watch, readFileSync, readdirSync, existsSync, statSync } from 'fs'
 import { join, basename } from 'path'
 import type { FSWatcher } from 'fs'
 import type { BridgeEvent } from './types'
+import { statePath } from './state-path'
 
 /**
  * Watches Rouge project directories for state.json changes.
@@ -90,7 +91,7 @@ export class ProjectWatcher extends EventEmitter {
   }
 
   private initProject(projectDir: string): void {
-    const stateFile = join(projectDir, 'state.json')
+    const stateFile = statePath(projectDir)
     if (!existsSync(stateFile)) return
 
     // Cache initial state
@@ -105,12 +106,11 @@ export class ProjectWatcher extends EventEmitter {
   }
 
   private discoverProject(projectDir: string): void {
-    const stateFile = join(projectDir, 'state.json')
-
     // Check periodically for state.json (it may arrive slightly after the dir)
     const checkForState = (attempts: number) => {
       if (attempts <= 0) return
 
+      const stateFile = statePath(projectDir)
       if (existsSync(stateFile)) {
         try {
           const content = readFileSync(stateFile, 'utf-8')
@@ -139,7 +139,7 @@ export class ProjectWatcher extends EventEmitter {
   }
 
   private watchProject(projectDir: string): void {
-    const stateFile = join(projectDir, 'state.json')
+    const stateFile = statePath(projectDir)
     const projectName = basename(projectDir)
 
     try {
@@ -156,7 +156,7 @@ export class ProjectWatcher extends EventEmitter {
   }
 
   private handleStateChange(projectDir: string, projectName: string): void {
-    const stateFile = join(projectDir, 'state.json')
+    const stateFile = statePath(projectDir)
 
     let content: string
     try {

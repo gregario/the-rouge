@@ -16,7 +16,7 @@ These rules exist because foundation for `construction-coordinator` force-pushed
 
 4. **NEVER run `git push --force` or `git push --force-with-lease`.** If a push fails because the remote has diverged, the remote is showing you someone else's work — STOP and ESCALATE. Overwriting remote history is data loss. The force-push that destroyed mtgordle's history is exactly why this rule exists.
 
-5. **Verify ownership before every infrastructure operation.** If `infrastructure_manifest.json` or `state.json` records expected resource identifiers (Vercel project name, Supabase project ref, GitHub repo), verify the current linked resource matches before any write. If it does not match, ESCALATE.
+5. **Verify ownership before every infrastructure operation.** If `infrastructure_manifest.json` or `.rouge/state.json` records expected resource identifiers (Vercel project name, Supabase project ref, GitHub repo), verify the current linked resource matches before any write. If it does not match, ESCALATE.
 
 6. **When in doubt, ESCALATE, do not infer.** "Naming alignment is unambiguous" is NOT a valid rationale for adopting pre-existing infrastructure. If you cannot prove the resource was created by this project in this session, it belongs to someone else.
 

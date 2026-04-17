@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { assertLoopback } from "@/lib/localhost-guard";
 import { loadServerConfig } from "@/lib/server-config";
+import { statePath } from "@/bridge/state-path";
 import { existsSync, readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
@@ -31,10 +32,10 @@ function readTotalSpend(): { total: number; byProject: Record<string, number> } 
       const dir = path.join(root, name);
       if (!statSync(dir).isDirectory()) continue;
       // Rouge writes cumulative spend into state.json.costs.cumulative_cost_usd
-      const statePath = path.join(dir, "state.json");
-      if (!existsSync(statePath)) continue;
+      const stateFile = statePath(dir);
+      if (!existsSync(stateFile)) continue;
       try {
-        const state = JSON.parse(readFileSync(statePath, "utf-8")) as { costs?: { cumulative_cost_usd?: number } };
+        const state = JSON.parse(readFileSync(stateFile, "utf-8")) as { costs?: { cumulative_cost_usd?: number } };
         const n = Number(state.costs?.cumulative_cost_usd ?? 0);
         if (n > 0) {
           byProject[name] = n;

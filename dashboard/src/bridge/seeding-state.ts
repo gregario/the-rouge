@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { join } from 'path'
 import { DISCIPLINE_SEQUENCE, type SeedingSessionState } from './types'
+import { statePath } from './state-path'
 
 const STATE_FILE = 'seeding-state.json'
 
@@ -59,10 +60,10 @@ function nextDiscipline(complete: string[]): string {
 }
 
 function updateStateJsonDiscipline(projectDir: string, discipline: string): void {
-  const statePath = join(projectDir, 'state.json')
-  if (!existsSync(statePath)) return
+  const stateFile = statePath(projectDir)
+  if (!existsSync(stateFile)) return
   try {
-    const rawState = JSON.parse(readFileSync(statePath, 'utf-8'))
+    const rawState = JSON.parse(readFileSync(stateFile, 'utf-8'))
     if (!rawState.seedingProgress?.disciplines) return
 
     const disciplines = rawState.seedingProgress.disciplines as Array<{ discipline: string; status: string }>
@@ -77,7 +78,7 @@ function updateStateJsonDiscipline(projectDir: string, discipline: string): void
     const current = DISCIPLINE_SEQUENCE.find(d => !complete.includes(d)) ?? DISCIPLINE_SEQUENCE[DISCIPLINE_SEQUENCE.length - 1]
     rawState.seedingProgress.currentDiscipline = current
 
-    writeFileSync(statePath, JSON.stringify(rawState, null, 2))
+    writeFileSync(stateFile, JSON.stringify(rawState, null, 2))
   } catch {
     // If state.json is malformed, skip
   }

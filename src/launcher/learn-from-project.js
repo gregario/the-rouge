@@ -18,6 +18,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { getLogDir } = require('./logger.js');
+const { statePath } = require('./state-path.js');
 
 const ROUGE_ROOT = path.resolve(__dirname, '../..');
 const PERSONAL_DIR = path.join(ROUGE_ROOT, 'library', 'personal');
@@ -41,7 +42,7 @@ if (!PROJECT_DIR) {
 
 const projectName = path.basename(PROJECT_DIR);
 const ctx = readJson(path.join(PROJECT_DIR, 'cycle_context.json'));
-const state = readJson(path.join(PROJECT_DIR, 'state.json'));
+const state = readJson(statePath(PROJECT_DIR));
 
 if (!ctx || !state) {
   console.error('No cycle_context.json or state.json found');
