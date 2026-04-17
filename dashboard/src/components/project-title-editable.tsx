@@ -31,13 +31,17 @@ export function ProjectTitleEditable({
   const isUntitled = isUntitledName(name) || slug.startsWith('untitled-')
   const [editing, setEditing] = useState(isUntitled)
   const [draft, setDraft] = useState(isUntitled ? '' : name)
-  const [alsoRenameSlug, setAlsoRenameSlug] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const canRenameSlug = state === 'seeding' || state === 'ready'
   const slugIsPlaceholder = slug === 'untitled' || slug.startsWith('untitled-')
+  // During seeding/ready, the PATCH handler auto-renames placeholder slugs
+  // to match the new display name (#137). After that, explicit slug edits
+  // happen through the project settings menu — we no longer expose a
+  // checkbox inline alongside the title editor (#138).
+  const willAutoRenameSlug =
+    slugIsPlaceholder && (state === 'seeding' || state === 'ready')
 
   // When the name arrives late via bridge (e.g., auto-derive writes a
   // working title after first message), slide out of editing mode so the
@@ -61,7 +65,6 @@ export function ProjectTitleEditable({
 
   function startEdit() {
     setDraft(isUntitled ? '' : name)
-    setAlsoRenameSlug(canRenameSlug && isUntitled)
     setError(null)
     setEditing(true)
   }
@@ -83,10 +86,10 @@ export function ProjectTitleEditable({
     setSaving(true)
     setError(null)
     try {
-      const payload: { displayName: string; slug?: string } = { displayName: trimmed }
-      if (alsoRenameSlug && canRenameSlug) {
-        payload.slug = trimmed
-      }
+      // Let the server decide whether to rename the slug: it auto-renames
+      // placeholder slugs to match the new display name (#137). Explicit
+      // slug edits happen through the project settings menu.
+      const payload = { displayName: trimmed }
       const res = await fetch(`/api/projects/${encodeURIComponent(slug)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -160,25 +163,9 @@ export function ProjectTitleEditable({
           Optional — you can rename anytime.
         </p>
       )}
-      {canRenameSlug && draft.trim() && slugIsPlaceholder && (
+      {willAutoRenameSlug && draft.trim() && (
         <p className="text-xs text-muted-foreground">
           URL will update to match the new name.
-        </p>
-      )}
-      {canRenameSlug && draft.trim() && !slugIsPlaceholder && (
-        <label className="flex items-center gap-2 text-xs text-muted-foreground">
-          <input
-            type="checkbox"
-            checked={alsoRenameSlug}
-            onChange={(e) => setAlsoRenameSlug(e.target.checked)}
-            disabled={saving}
-          />
-          Also rename the project directory (URL will change)
-        </label>
-      )}
-      {!canRenameSlug && (
-        <p className="text-xs text-muted-foreground">
-          Directory slug is locked once the build loop starts — only the display name will change.
         </p>
       )}
       {error && (
