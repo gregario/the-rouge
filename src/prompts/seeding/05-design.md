@@ -707,11 +707,21 @@ design_po_checks:
 
 ---
 
+## Output Artifacts — three passes, three files
+
+**Each of the three passes writes a discrete YAML artifact in `design/`:**
+
+- Pass 1 (UX architecture) → `design/pass-1-ux-architecture.yaml`
+- Pass 2 (component design) → `design/pass-2-component-design.yaml`
+- Pass 3 (visual design) → `design/pass-3-visual-design.yaml`
+
+Plus a combined rollup: `design/design.yaml` — the structure in the "Combined Output Artifact" section below, which references the three pass files.
+
+**The dashboard verifies all three pass files exist at ≥300 bytes each before accepting `[DISCIPLINE_COMPLETE: design]`.** Writing only Pass 1 and emitting the marker (observed in the Praise session) is rejected — Pass 2 and Pass 3 are not optional; they're how component and visual quality get scored for PO review. If the combined `design/design.yaml` exists at ≥2000 bytes as a single-file rollup, that is also accepted — but the three-pass structure must be present within it.
+
+**Write before presenting scores or asking for pass sign-off.** Each pass has a natural "here are the scores, approve?" checkpoint. Write the pass's YAML to disk *before* asking the human to approve. Never present scores or slop-flags that exist only in your reply — the human cannot cross-check a YAML they cannot read, and a conversation-only score does not satisfy the verifier.
+
 ## Combined Output Artifact
-
-**Write the combined artifact to `design/design.yaml`** in the project root. Create the `design/` directory if it doesn't exist. If additional per-screen or per-pass breakout files help, put them alongside in `design/`. Do not write to `seed_spec/` or `docs/` for the combined artifact — the dashboard verifies at least one file exists in `design/` before accepting the `[DISCIPLINE_COMPLETE: design]` marker.
-
-**Write before presenting scores or asking for pass sign-off.** Each pass produces scored dimensions; each pass has a natural "here are the scores, approve?" checkpoint. Write the pass's portion of `design/design.yaml` (or a pass-specific breakout file in `design/`) *before* asking the human to approve scores. Never present scores or slop-flags that exist only in your reply — the human cannot cross-check a YAML they cannot read.
 
 When all three passes are approved, produce the combined design artifact for the orchestrator:
 
