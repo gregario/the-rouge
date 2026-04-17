@@ -206,7 +206,8 @@ function workOnIssue(issue, opts = {}) {
 
     // Spawn claude -p
     console.log(`  Working on #${issue.number}: ${issue.title}`);
-    const result = spawnSync('claude', ['-p', '--max-turns', '50'], {
+    const { args: denyArgs } = require('./tool-permissions').buildDenylistArgs();
+    const result = spawnSync('claude', ['-p', '--max-turns', '50', ...denyArgs], {
       input: prompt,
       cwd: ROUGE_ROOT,
       encoding: 'utf8',

@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://the-rouge.dev/schemas/vendor-manifest.json",
   "title": "Vendor Manifest",
-  "description": "Declarative contract for an infrastructure vendor (Vercel, Supabase, Cloudflare, Fly, etc.). The launcher auto-discovers every library/vendors/<name>/manifest.yaml at startup, validates against this schema, and wires the declared intents into INFRA_ACTION_HANDLERS plus the declared deny_patterns into --allowedTools.",
+  "description": "Declarative contract for an infrastructure vendor (Vercel, Supabase, Cloudflare, Fly, etc.). The launcher auto-discovers every library/vendors/<name>/manifest.json at startup, validates against this schema, and merges deny_patterns into --disallowedTools at spawn time. Auto-wiring of declared intents into INFRA_ACTION_HANDLERS is a follow-up to PR (b).",
   "type": "object",
   "required": ["name", "version", "intents", "ownership_fence"],
   "additionalProperties": false,
