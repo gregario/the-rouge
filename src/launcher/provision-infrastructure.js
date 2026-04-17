@@ -336,14 +336,26 @@ function main() {
   } else if (target === 'vercel') {
     log('Vercel: project must be linked via `vercel link` before deploy. Skipping Cloudflare provisioning.');
     log('Vercel: the deploy handler in deploy-to-staging.js handles `vercel deploy --yes --prod`.');
-  } else if (target === 'docker-compose' || target === 'none') {
+  } else if (target === 'docker-compose' || target === 'docker' || target === 'none') {
     log(`${target}: no cloud provisioning needed.`);
   } else {
     log(`❌ Unknown deployment_target "${target}" — no provisioner registered. Supported: cloudflare, cloudflare-workers, vercel, docker-compose, none`);
   }
 
-  // Supabase (if needed)
-  if (infra.needs_database || infra.needs_auth) {
+  // Supabase (if needed).
+  //
+  // Self-hosted targets (docker-compose, docker) ship their own database
+  // service in the compose stack — claiming a Supabase cloud slot for
+  // them would waste a slot on a product that doesn't route any traffic
+  // there. Record that the DB is compose-bundled in cycle_context so
+  // downstream phases (deploy, migrations) know not to expect a cloud
+  // `ctx.supabase.project_ref`. See #157.
+  const isSelfHosted = target === 'docker-compose' || target === 'docker';
+  if ((infra.needs_database || infra.needs_auth) && isSelfHosted) {
+    log('Self-hosted target: database/auth shipped inside the compose stack — skipping Supabase cloud provisioning.');
+    ctx.infrastructure = ctx.infrastructure || {};
+    ctx.infrastructure.database_mode = 'compose-bundled';
+  } else if (infra.needs_database || infra.needs_auth) {
     const supaResult = provisionSupabase(projectDir, projectName);
     if (supaResult) {
       ctx.supabase = ctx.supabase || {};

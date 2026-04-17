@@ -105,6 +105,13 @@ assert_blocked "supabase db drop" \
 assert_blocked "supabase DROP TABLE" \
   "$SAFETY_CHECK" pre-bash '{"command": "supabase db execute \"DROP TABLE users\""}'
 
+# docker push — registry publishing must go through product CI (#157)
+assert_blocked "docker push to ghcr.io" \
+  "$SAFETY_CHECK" pre-bash '{"command": "docker push ghcr.io/myorg/app:latest"}'
+
+assert_blocked "docker push with multiple words before" \
+  "$SAFETY_CHECK" pre-bash '{"command": "cd /tmp && docker push myorg/app:v1.0.0"}'
+
 echo ""
 echo "=== pre-bash: safe commands allowed ==="
 
@@ -143,6 +150,19 @@ assert_allowed "rm in project (no root)" \
 
 assert_allowed "supabase status" \
   "$SAFETY_CHECK" pre-bash '{"command": "supabase status"}'
+
+# docker build / compose / run — local staging commands are allowed (#157)
+assert_allowed "docker compose up" \
+  "$SAFETY_CHECK" pre-bash '{"command": "docker compose up -d --build"}'
+
+assert_allowed "docker compose down" \
+  "$SAFETY_CHECK" pre-bash '{"command": "docker compose down --remove-orphans"}'
+
+assert_allowed "docker build local image" \
+  "$SAFETY_CHECK" pre-bash '{"command": "docker build -t myapp:dev ."}'
+
+assert_allowed "docker run locally" \
+  "$SAFETY_CHECK" pre-bash '{"command": "docker run --rm myapp:dev node --version"}'
 
 # ---------------------------------------------------------------------------
 # PRE-WRITE TESTS
