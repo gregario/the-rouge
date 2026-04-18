@@ -1,6 +1,10 @@
 # Slack Setup Guide
 
-> 🧪 **Experimental.** Slack as a full control plane is no longer the recommended path. The dashboard is now the primary control surface; Slack is being repositioned as notifications + lightweight remote commands. See `docs/plans/2026-04-15-onboarding-refactor.md`. This guide still works if you want it, but expect the setup flow to move into a dashboard wizard in an upcoming phase.
+> ⚠️ **Retired.** The Slack control plane is no longer recommended and is not covered by ongoing maintenance. The dashboard at `http://localhost:3000` is the supported control surface for seeding, monitoring, and responding to escalations. The Slack integration code remains in `src/slack/` for users who had it wired up before this change, but expect feature parity with the dashboard to drift. New features land in the dashboard only.
+>
+> If you're setting up Rouge for the first time, skip this document and use the dashboard — `rouge init` then open the URL it prints.
+>
+> If you had the Slack bot running and want to keep it, the original setup instructions remain below for reference. Report issues, but don't expect active development.
 
 Connect Rouge to Slack so you can seed products via conversation, monitor autonomous builds, and control everything with slash commands.
 

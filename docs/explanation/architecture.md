@@ -1,6 +1,6 @@
 # The Rouge — Technical Architecture
 
-> ⚠️ **Onboarding sections are being refactored.** The canonical user-facing path is now dashboard-first: run `rouge setup`, open the dashboard, click **New Project**. Sections below describing Slack-based seeding as the primary entry point are out of date. See `docs/plans/2026-04-15-onboarding-refactor.md`.
+> ⚠️ **V2 document retained as architectural record.** This describes the V2 state machine (qa-gate, po-reviewing, feature_areas, etc). V3 replaced those states with a richer evaluation sub-phase chain (02a test-integrity → 02c code-review → 02d product-walk → 02e evaluation), dual-ledger task tracking (`task_ledger.json` + `checkpoints.jsonl`), and dashboard-first onboarding. Cross-reference `src/launcher/rouge-loop.js` `STATE_TO_PROMPT` for the live state map and `CLAUDE.md` for the current loop-phase contract. This doc is NOT updated as the state machine evolves; treat it as an explanatory snapshot of the original design.
 
 **Date:** 2026-03-17
 **Status:** Approved (explore session complete, pending spec update)
