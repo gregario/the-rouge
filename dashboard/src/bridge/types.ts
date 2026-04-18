@@ -93,6 +93,14 @@ export interface BridgeProjectSummary {
   costUsd?: number
   budgetCapUsd?: number
   lastCheckpointAt?: string
+  // Most recent activity signal for the project. Max of:
+  //   - seeding-state.json.last_activity (turn timestamps during seed)
+  //   - checkpoints.jsonl latest entry (build loop)
+  //   - state.json file mtime (fallback when neither exists)
+  // Drives the specs-table "Last touched" column. Previously the table
+  // fell back to `new Date()` at render time, which made every row say
+  // "just now".
+  lastActivityAt?: string
   hasStateFile: boolean
   providers: string[]
   deploymentUrl?: string

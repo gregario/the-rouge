@@ -50,7 +50,11 @@ function mapBridgeProjects(data: Record<string, unknown>[]): ProjectSummary[] {
       stagingUrl: p.deploymentUrl as string | undefined,
       productionUrl: undefined,
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      // Real last-activity signal from the scanner (seeding-state
+      // last_activity, then latest checkpoint, then state.json mtime).
+      // Falls back to now() only if the scanner returned nothing, which
+      // shouldn't happen for a project that has a state file.
+      updatedAt: (p.lastActivityAt as string | undefined) ?? new Date().toISOString(),
       isPlaceholderName: Boolean(p.isPlaceholderName),
       messageCount: typeof p.messageCount === 'number' ? p.messageCount : undefined,
       firstMessagePreview: typeof p.firstMessagePreview === 'string' ? p.firstMessagePreview : undefined,

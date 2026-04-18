@@ -165,6 +165,56 @@ function deriveProviders(projectDir: string): {
   }
 }
 
+/**
+ * Compute the project's "last activity" timestamp for the specs-table
+ * "Last touched" column. Takes the max of:
+ *   - seeding-state.json.last_activity (bumped on every user turn in
+ *     seeding)
+ *   - the provided lastCheckpointTs (from checkpoints.jsonl, covers
+ *     the build loop)
+ *   - state.json file mtime (fallback when neither has been written)
+ * Returns undefined if nothing readable exists — the UI falls back to
+ * "—" in that case.
+ */
+function computeLastActivity(
+  projectDir: string,
+  lastCheckpointTs: string | undefined,
+): string | undefined {
+  const candidates: number[] = []
+
+  // Seeding-state last_activity — set every user turn during seeding.
+  try {
+    const sp = join(projectDir, 'seeding-state.json')
+    if (existsSync(sp)) {
+      const raw = JSON.parse(readFileSync(sp, 'utf-8')) as { last_activity?: string }
+      if (raw.last_activity) {
+        const t = new Date(raw.last_activity).getTime()
+        if (!Number.isNaN(t)) candidates.push(t)
+      }
+    }
+  } catch {
+    // malformed — skip
+  }
+
+  if (lastCheckpointTs) {
+    const t = new Date(lastCheckpointTs).getTime()
+    if (!Number.isNaN(t)) candidates.push(t)
+  }
+
+  // state.json mtime as a floor — always present when this function runs
+  // (we only call it on projects that passed the state-file existence
+  // check upstream).
+  try {
+    const st = statSync(statePath(projectDir))
+    candidates.push(st.mtimeMs)
+  } catch {
+    // ignore
+  }
+
+  if (candidates.length === 0) return undefined
+  return new Date(Math.max(...candidates)).toISOString()
+}
+
 function readLastCheckpoint(projectDir: string): { costUsd?: number; timestamp?: string } {
   const path = join(projectDir, 'checkpoints.jsonl')
   if (!existsSync(path)) return {}
@@ -240,6 +290,13 @@ function normalizeProject(
   // named projects, but we read it for everyone — it's trivially cheap).
   const msg = firstMessageSummary(projectDir)
 
+  // Last-activity computation for the specs table. Seeding-state's
+  // `last_activity` gets bumped on every user turn and is the freshest
+  // signal during seeding. Checkpoints cover the build loop. File mtime
+  // is the fallback when neither exists yet (e.g. a brand-new spec with
+  // no turns).
+  const lastActivityAt = computeLastActivity(projectDir, lastCheckpoint.timestamp)
+
   return {
     name,
     slug,
@@ -259,6 +316,7 @@ function normalizeProject(
     costUsd: lastCheckpoint.costUsd,
     budgetCapUsd: typeof raw.budget_cap_usd === 'number' ? (raw.budget_cap_usd as number) : undefined,
     lastCheckpointAt: lastCheckpoint.timestamp,
+    lastActivityAt,
     hasStateFile: true,
     providers,
     deploymentUrl,
