@@ -90,13 +90,26 @@ export function ProjectCard({ project }: { project: ProjectSummary }) {
   const age = formatAge(project.lastCheckpointAt)
   const cost = formatCost(project.cost.totalSpend)
 
+  // Can't wrap in <Link> because the card contains a nested deploy-URL
+  // anchor with stopPropagation — that would be invalid nested
+  // interactive content. The role="link" fallback gets the card in
+  // the tab order and readable to screen readers; keyboard handler
+  // also responds to Space, not just Enter, to match native link
+  // activation. Proper refactor (extract URL strip outside the card
+  // surface) deferred to a follow-up.
   return (
     <div
       onClick={() => router.push(`/projects/${project.slug}`)}
       className="block cursor-pointer group/link"
       role="link"
       tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter') router.push(`/projects/${project.slug}`) }}
+      aria-label={`Open project ${project.name}`}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          router.push(`/projects/${project.slug}`)
+        }
+      }}
     >
       <Card className="h-full border border-gray-200 bg-gray-50 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
         <CardContent className="flex flex-col gap-4 p-6">

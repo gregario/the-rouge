@@ -148,7 +148,10 @@ export function SpecsTable({ specs }: { specs: ProjectSummary[] }) {
   if (specs.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border bg-muted/20 p-10 text-center">
-        <p className="text-sm text-muted-foreground">No specs yet.</p>
+        <p className="text-sm font-medium">No specs yet</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Start a spec to describe what you want to build, then hand it to Rouge.
+        </p>
         <div className="mt-4 inline-flex">
           <NewProjectButton />
         </div>
