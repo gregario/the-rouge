@@ -69,14 +69,19 @@ export interface EscalationHumanResponse {
 export interface RougeEscalation {
   id: string
   tier: number
-  classification: string
-  summary: string
+  classification?: string
+  summary?: string
   story_id?: string
   status: string
   created_at: string
   resolution?: string
   resolved_at?: string
   human_response?: EscalationHumanResponse
+  // Legacy fallbacks read by the bridge-mapper for state.json shapes
+  // from earlier Rouge versions that populated these fields. Canonical
+  // emitters (04-analyzing, 07-ship-promote) use `summary` + `classification`.
+  reason?: string
+  state?: string
 }
 
 // V2 project state (legacy — countdowntimer, fruit-and-veg)
