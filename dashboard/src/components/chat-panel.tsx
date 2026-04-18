@@ -10,6 +10,7 @@ import { Play, Send, ChevronDown, ChevronRight, Check, Loader2 } from 'lucide-re
 import { cn } from '@/lib/utils'
 import { isBridgeEnabled } from '@/lib/bridge-client'
 import { useSeeding } from '@/lib/use-seeding'
+import { SeedingProgressIndicator } from '@/components/seeding-progress-indicator'
 
 // Rough per-discipline expected durations for an agent turn, derived
 // from observed runs. Used to give the elapsed-time display a baseline
@@ -324,6 +325,13 @@ export function ChatPanel({
       {/* Input area */}
       {!disabled && (
         <div className="border-t border-gray-200 p-3">
+          {bridgeActive && (
+            <SeedingProgressIndicator
+              messages={seeding.messages}
+              currentDiscipline={currentDiscipline}
+              isActive={seeding.isSending}
+            />
+          )}
           {bridgeActive && seeding.error && (
             <div className="mx-3 mb-2 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800">
               {seeding.error}
