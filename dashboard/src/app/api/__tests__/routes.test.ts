@@ -332,6 +332,13 @@ describe('POST /api/projects/[name]/pause', () => {
     })
     expect(response.status).toBe(404)
   })
+
+  it('rejects an invalid slug with 400', async () => {
+    const response = await postPause(new Request('http://localhost', { method: 'POST' }), {
+      params: makeParams({ name: '../etc/passwd' }),
+    })
+    expect(response.status).toBe(400)
+  })
 })
 
 describe('POST /api/projects/[name]/resolve-escalation', () => {

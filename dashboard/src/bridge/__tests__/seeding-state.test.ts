@@ -39,41 +39,41 @@ describe('seeding-state', () => {
     expect(state.status).toBe('active')
   })
 
-  it('marks discipline complete appending to array', () => {
+  it('marks discipline complete appending to array', async () => {
     mkdirSync(testDir, { recursive: true })
     writeSeedingState(testDir, { session_id: null, status: 'active' })
-    markDisciplineComplete(testDir, 'brainstorming')
-    markDisciplineComplete(testDir, 'competition')
+    await markDisciplineComplete(testDir, 'brainstorming')
+    await markDisciplineComplete(testDir, 'competition')
     const state = readSeedingState(testDir)
     expect(state.disciplines_complete).toEqual(['brainstorming', 'competition'])
   })
 
-  it('does not duplicate discipline entries', () => {
+  it('does not duplicate discipline entries', async () => {
     mkdirSync(testDir, { recursive: true })
     writeSeedingState(testDir, { session_id: null, status: 'active' })
-    markDisciplineComplete(testDir, 'brainstorming')
-    markDisciplineComplete(testDir, 'brainstorming')
+    await markDisciplineComplete(testDir, 'brainstorming')
+    await markDisciplineComplete(testDir, 'brainstorming')
     const state = readSeedingState(testDir)
     expect(state.disciplines_complete).toEqual(['brainstorming'])
   })
 
-  it('advances current_discipline to next in sequence', () => {
+  it('advances current_discipline to next in sequence', async () => {
     mkdirSync(testDir, { recursive: true })
     writeSeedingState(testDir, { session_id: null, status: 'active' })
-    markDisciplineComplete(testDir, 'brainstorming')
+    await markDisciplineComplete(testDir, 'brainstorming')
     expect(readSeedingState(testDir).current_discipline).toBe('competition')
-    markDisciplineComplete(testDir, 'competition')
+    await markDisciplineComplete(testDir, 'competition')
     expect(readSeedingState(testDir).current_discipline).toBe('taste')
   })
 
-  it('skips completed disciplines when advancing', () => {
+  it('skips completed disciplines when advancing', async () => {
     mkdirSync(testDir, { recursive: true })
     writeSeedingState(testDir, {
       session_id: null,
       status: 'active',
       disciplines_complete: ['brainstorming', 'competition', 'taste'],
     })
-    markDisciplineComplete(testDir, 'spec')
+    await markDisciplineComplete(testDir, 'spec')
     expect(readSeedingState(testDir).current_discipline).toBe('infrastructure')
   })
 

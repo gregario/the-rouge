@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 import { statePath, writeStateJson } from './state-path'
+import { withStateLock } from './state-lock'
 import { finalizeSeeding } from './seeding-finalize'
 import { markSeedingComplete, readSeedingState } from './seeding-state'
 import { DISCIPLINE_SEQUENCE } from './types'
@@ -36,7 +37,7 @@ export interface RepairReport {
  * Returns a report describing what was fixed (if anything). Empty
  * `fixes` array means the project was already healthy.
  */
-export function repairProjectState(projectDir: string): RepairReport {
+export async function repairProjectState(projectDir: string): Promise<RepairReport> {
   const slug = projectDir.split('/').pop() ?? '<unknown>'
   const fixes: string[] = []
   const sp = statePath(projectDir)
@@ -51,11 +52,12 @@ export function repairProjectState(projectDir: string): RepairReport {
   }
 
   // Shape 1: stuck in seeding with all disciplines complete.
+  // finalizeSeeding / markSeedingComplete take the state-lock internally.
   if (state.current_state === 'seeding') {
     const seeding = readSeedingState(projectDir)
     const allDone = (seeding.disciplines_complete?.length ?? 0) >= DISCIPLINE_SEQUENCE.length
     if (allDone && !seeding.seeding_complete) {
-      const result = finalizeSeeding(projectDir)
+      const result = await finalizeSeeding(projectDir)
       if (result.ok) {
         markSeedingComplete(projectDir)
         fixes.push('stuck-seeding: all 8 disciplines complete but seeding_complete was null → finalized')
@@ -65,18 +67,23 @@ export function repairProjectState(projectDir: string): RepairReport {
     }
   }
 
-  // Re-read state in case the seeding finalize above mutated it.
-  let current: Record<string, unknown>
-  try {
-    current = JSON.parse(readFileSync(sp, 'utf-8'))
-  } catch {
-    return { slug, fixes }
-  }
-
   // Shape 2: in foundation but foundation object is null/undefined.
-  if (current.current_state === 'foundation' && !current.foundation) {
-    current.foundation = { status: 'pending' }
-    writeStateJson(projectDir, current)
+  // Re-read and fix inside the lock so an in-flight build-runner
+  // transition can't clobber us.
+  const shape2Fixed = await withStateLock(projectDir, () => {
+    try {
+      const current = JSON.parse(readFileSync(sp, 'utf-8')) as Record<string, unknown>
+      if (current.current_state === 'foundation' && !current.foundation) {
+        current.foundation = { status: 'pending' }
+        writeStateJson(projectDir, current)
+        return true
+      }
+    } catch {
+      /* swallow — already reported above */
+    }
+    return false
+  })
+  if (shape2Fixed) {
     fixes.push('null-foundation: current_state=foundation with null foundation → set { status: "pending" }')
   }
 
@@ -92,12 +99,12 @@ export function repairProjectState(projectDir: string): RepairReport {
  * startup so existing stuck projects heal the first time the dashboard
  * comes up with the new code.
  */
-export function repairAllProjects(projectsRoot: string, slugs: string[]): RepairReport[] {
+export async function repairAllProjects(projectsRoot: string, slugs: string[]): Promise<RepairReport[]> {
   const reports: RepairReport[] = []
   for (const slug of slugs) {
     const dir = join(projectsRoot, slug)
     try {
-      const report = repairProjectState(dir)
+      const report = await repairProjectState(dir)
       if (report.fixes.length > 0) {
         console.log(`[state-repair] ${slug}: ${report.fixes.join('; ')}`)
       }

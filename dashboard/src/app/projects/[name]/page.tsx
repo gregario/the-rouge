@@ -67,29 +67,12 @@ export default function ProjectPage({
   const [storyEnrichment, setStoryEnrichment] = useState<StoryEnrichmentMap | null>(null)
   const [bridgeActivity, setBridgeActivity] = useState<ActivityEvent[] | null>(null)
   const [verboseActivity, setVerboseActivity] = useState(false)
-  const [buildRunning, setBuildRunning] = useState(false)
-
-  // Poll build status so the Build tab enables as soon as a build subprocess
-  // starts, even before the loop has written its first checkpoint.
-  useEffect(() => {
-    if (!isBridgeEnabled()) return
-    let cancelled = false
-    const check = async () => {
-      try {
-        const res = await fetch(`/api/projects/${name}/build-status`)
-        const data = await res.json()
-        if (!cancelled) setBuildRunning(!!data.running)
-      } catch {
-        // silent
-      }
-    }
-    check()
-    const interval = setInterval(check, 5000)
-    return () => {
-      cancelled = true
-      clearInterval(interval)
-    }
-  }, [name])
+  // buildRunning used to be a separate 5s poll to /api/projects/[name]/build-status
+  // that could drift from the main project fetch and produce a Stop
+  // button against a dead project (or vice versa). Audit E9 folded the
+  // PID info into the main detail response so we read both from the
+  // same snapshot. Falls back to `false` for the pre-bridge mock.
+  const buildRunning = !!project?.buildRunning
 
   // Fetch from bridge when enabled — surface errors instead of silently falling back
   useEffect(() => {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { assertLoopback } from "@/lib/localhost-guard";
 import { requireLauncher } from "@/lib/launcher-bridge";
+import { sanitizedErrorResponse } from "@/lib/error-response";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,6 @@ export async function GET() {
     });
     return NextResponse.json(result);
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return sanitizedErrorResponse(err, "system/doctor GET");
   }
 }

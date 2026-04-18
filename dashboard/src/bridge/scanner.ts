@@ -4,6 +4,7 @@ import type { BridgeProjectSummary } from './types'
 import { readChatLog } from './chat-reader'
 import { statePath } from './state-path'
 import { repairProjectState } from './state-repair'
+import { safeReadJson } from '@/lib/safe-read-json'
 
 /**
  * Scan a Rouge projects directory and return normalized summaries
@@ -14,7 +15,7 @@ import { repairProjectState } from './state-repair'
  * and null-foundation) that the build/seeding flow has historically
  * produced on crash paths.
  */
-export function scanProjects(projectsRoot: string): BridgeProjectSummary[] {
+export async function scanProjects(projectsRoot: string): Promise<BridgeProjectSummary[]> {
   const entries = readdirSync(projectsRoot)
   const projects: BridgeProjectSummary[] = []
 
@@ -33,7 +34,7 @@ export function scanProjects(projectsRoot: string): BridgeProjectSummary[] {
     // normalised summary reflects the healed values. Idempotent —
     // healthy projects are a no-op.
     try {
-      const report = repairProjectState(dir)
+      const report = await repairProjectState(dir)
       if (report.fixes.length > 0) {
         console.log(`[state-repair] ${entry}: ${report.fixes.join('; ')}`)
       }
@@ -41,8 +42,16 @@ export function scanProjects(projectsRoot: string): BridgeProjectSummary[] {
       console.warn(`[state-repair] ${entry} threw:`, err instanceof Error ? err.message : err)
     }
 
+    const raw = safeReadJson<Record<string, unknown> | null>(stateFile, null, {
+      context: `scanner:${entry}`,
+    })
+    if (!raw) {
+      // Either missing (shouldn't happen — we just checked) or
+      // malformed (logged by safeReadJson). Skip so the scan completes
+      // for healthy siblings.
+      continue
+    }
     try {
-      const raw = JSON.parse(readFileSync(stateFile, 'utf-8'))
       // Fall back to task_ledger.json for milestones if state.json's
       // field is empty — V3 canonical source of truth (see README
       // "dual ledger"). Keeps milestone counts in the specs table
@@ -51,8 +60,8 @@ export function scanProjects(projectsRoot: string): BridgeProjectSummary[] {
       const withMilestones = mergeRawMilestonesFromLedger(dir, raw)
       const { providers, deploymentUrl } = deriveProviders(dir)
       projects.push(normalizeProject(entry, withMilestones, providers, deploymentUrl, dir))
-    } catch {
-      // Skip projects with malformed state.json
+    } catch (err) {
+      console.warn(`[scanner] ${entry} normalise failed:`, err instanceof Error ? err.message : err)
       continue
     }
   }
@@ -167,25 +176,24 @@ function deriveProviders(projectDir: string): {
 } {
   const contextPath = join(projectDir, 'cycle_context.json')
   if (!existsSync(contextPath)) return { providers: [] }
-  try {
-    const ctx: CycleContext = JSON.parse(readFileSync(contextPath, 'utf-8'))
-    const infra = ctx.infrastructure ?? {}
-    const urls = [infra.staging_url, infra.production_url]
-      .filter(Boolean)
-      .join(' ')
-    const providers: string[] = []
-    if (urls.includes('.vercel.app')) providers.push('vercel')
-    if (urls.includes('.pages.dev') || urls.includes('.workers.dev'))
-      providers.push('cloudflare')
-    if (infra.supabase_url && infra.supabase_ref) providers.push('supabase')
-    if (infra.sentry_dsn) providers.push('sentry')
-    if (infra.readiness?.posthog === true) providers.push('posthog')
-    return {
-      providers,
-      deploymentUrl: infra.production_url || infra.staging_url || undefined,
-    }
-  } catch {
-    return { providers: [] }
+  const ctx = safeReadJson<CycleContext | null>(contextPath, null, {
+    context: `scanner:deriveProviders:${projectDir.split('/').pop()}`,
+  })
+  if (!ctx) return { providers: [] }
+  const infra = ctx.infrastructure ?? {}
+  const urls = [infra.staging_url, infra.production_url]
+    .filter(Boolean)
+    .join(' ')
+  const providers: string[] = []
+  if (urls.includes('.vercel.app')) providers.push('vercel')
+  if (urls.includes('.pages.dev') || urls.includes('.workers.dev'))
+    providers.push('cloudflare')
+  if (infra.supabase_url && infra.supabase_ref) providers.push('supabase')
+  if (infra.sentry_dsn) providers.push('sentry')
+  if (infra.readiness?.posthog === true) providers.push('posthog')
+  return {
+    providers,
+    deploymentUrl: infra.production_url || infra.staging_url || undefined,
   }
 }
 
@@ -207,17 +215,13 @@ function computeLastActivity(
   const candidates: number[] = []
 
   // Seeding-state last_activity — set every user turn during seeding.
-  try {
-    const sp = join(projectDir, 'seeding-state.json')
-    if (existsSync(sp)) {
-      const raw = JSON.parse(readFileSync(sp, 'utf-8')) as { last_activity?: string }
-      if (raw.last_activity) {
-        const t = new Date(raw.last_activity).getTime()
-        if (!Number.isNaN(t)) candidates.push(t)
-      }
-    }
-  } catch {
-    // malformed — skip
+  const sp = join(projectDir, 'seeding-state.json')
+  const seedingRaw = safeReadJson<{ last_activity?: string } | null>(sp, null, {
+    context: `scanner:lastActivity:${projectDir.split('/').pop()}`,
+  })
+  if (seedingRaw?.last_activity) {
+    const t = new Date(seedingRaw.last_activity).getTime()
+    if (!Number.isNaN(t)) candidates.push(t)
   }
 
   if (lastCheckpointTs) {
@@ -253,17 +257,13 @@ function mergeRawMilestonesFromLedger(
   if (Array.isArray(existing) && existing.length > 0) return raw
   const ledgerPath = join(projectDir, 'task_ledger.json')
   if (!existsSync(ledgerPath)) return raw
-  try {
-    const ledger = JSON.parse(readFileSync(ledgerPath, 'utf-8')) as {
-      milestones?: unknown[]
-    }
-    if (!Array.isArray(ledger.milestones) || ledger.milestones.length === 0) {
-      return raw
-    }
-    return { ...raw, milestones: ledger.milestones }
-  } catch {
+  const ledger = safeReadJson<{ milestones?: unknown[] } | null>(ledgerPath, null, {
+    context: `scanner:ledger:${projectDir.split('/').pop()}`,
+  })
+  if (!ledger || !Array.isArray(ledger.milestones) || ledger.milestones.length === 0) {
     return raw
   }
+  return { ...raw, milestones: ledger.milestones }
 }
 
 function readLastCheckpoint(projectDir: string): { costUsd?: number; timestamp?: string } {

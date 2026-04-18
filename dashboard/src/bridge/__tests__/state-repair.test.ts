@@ -26,7 +26,7 @@ function seedArtifacts(): void {
 }
 
 describe('repairProjectState', () => {
-  it('heals stuck-seeding: all 8 disciplines complete but seeding_complete null', () => {
+  it('heals stuck-seeding: all 8 disciplines complete but seeding_complete null', async () => {
     dir = mkdtempSync(join(tmpdir(), 'repair-'))
     seedArtifacts()
     seedProject(
@@ -56,7 +56,7 @@ describe('repairProjectState', () => {
       },
     )
 
-    const report = repairProjectState(dir)
+    const report = await repairProjectState(dir)
     expect(report.fixes.length).toBeGreaterThan(0)
     expect(report.fixes.join(' ')).toContain('stuck-seeding')
 
@@ -68,14 +68,14 @@ describe('repairProjectState', () => {
     expect(seeding.seeding_complete).toBe(true)
   })
 
-  it('heals null-foundation: current_state=foundation with foundation=null', () => {
+  it('heals null-foundation: current_state=foundation with foundation=null', async () => {
     dir = mkdtempSync(join(tmpdir(), 'repair-'))
     seedProject(
       { current_state: 'foundation', name: 'testimonial', foundation: null },
       { session_id: 's', status: 'active' },
     )
 
-    const report = repairProjectState(dir)
+    const report = await repairProjectState(dir)
     expect(report.fixes.length).toBe(1)
     expect(report.fixes[0]).toContain('null-foundation')
 
@@ -84,7 +84,7 @@ describe('repairProjectState', () => {
     expect(state.current_state).toBe('foundation') // unchanged
   })
 
-  it('is a no-op on a healthy project', () => {
+  it('is a no-op on a healthy project', async () => {
     dir = mkdtempSync(join(tmpdir(), 'repair-'))
     seedProject(
       { current_state: 'ready', name: 'healthy', foundation: { status: 'pending' } },
@@ -92,31 +92,31 @@ describe('repairProjectState', () => {
     )
     const before = readFileSync(join(dir, '.rouge', 'state.json'), 'utf-8')
 
-    const report = repairProjectState(dir)
+    const report = await repairProjectState(dir)
     expect(report.fixes).toEqual([])
 
     const after = readFileSync(join(dir, '.rouge', 'state.json'), 'utf-8')
     expect(after).toBe(before)
   })
 
-  it('handles missing state.json gracefully', () => {
+  it('handles missing state.json gracefully', async () => {
     dir = mkdtempSync(join(tmpdir(), 'repair-'))
     // No state files written.
-    const report = repairProjectState(dir)
+    const report = await repairProjectState(dir)
     expect(report.fixes).toEqual([])
   })
 
-  it('is idempotent — running twice produces no additional fixes', () => {
+  it('is idempotent — running twice produces no additional fixes', async () => {
     dir = mkdtempSync(join(tmpdir(), 'repair-'))
     seedProject(
       { current_state: 'foundation', name: 'x', foundation: null },
       { session_id: 's', status: 'active' },
     )
 
-    const first = repairProjectState(dir)
+    const first = await repairProjectState(dir)
     expect(first.fixes.length).toBe(1)
 
-    const second = repairProjectState(dir)
+    const second = await repairProjectState(dir)
     expect(second.fixes).toEqual([])
   })
 })

@@ -1,5 +1,6 @@
 import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
+import { safeReadJson } from '@/lib/safe-read-json'
 
 export type BridgeActivityEventType =
   | 'phase-transition'
@@ -203,54 +204,60 @@ export function readProjectActivity(
 
   // Deploys from cycle_context.json
   const contextPath = join(projectDir, 'cycle_context.json')
-  if (existsSync(contextPath)) {
-    try {
-      const ctx: CycleContext = JSON.parse(readFileSync(contextPath, 'utf-8'))
-      const deploys = ctx.infrastructure?.deploy_history ?? []
-      for (const deploy of deploys) {
-        if (!deploy.timestamp) continue
-        events.push({
-          id: `deploy-${deploy.timestamp}`,
-          type: 'deploy',
-          timestamp: deploy.timestamp,
-          title: 'Deploy',
-          description: deploy.url,
-          metadata: { url: deploy.url, cycle: deploy.cycle },
-        })
-      }
-    } catch {
-      // Ignore malformed cycle_context
+  const ctx = safeReadJson<CycleContext | null>(contextPath, null, {
+    context: `activity:deploys:${projectDir.split('/').pop()}`,
+  })
+  if (ctx) {
+    const deploys = ctx.infrastructure?.deploy_history ?? []
+    for (const deploy of deploys) {
+      if (!deploy.timestamp) continue
+      events.push({
+        id: `deploy-${deploy.timestamp}`,
+        type: 'deploy',
+        timestamp: deploy.timestamp,
+        title: 'Deploy',
+        description: deploy.url,
+        metadata: { url: deploy.url, cycle: deploy.cycle },
+      })
     }
   }
 
   // Manual interventions from interventions.jsonl (human/Socrates edits to state.json)
   const interventionsPath = join(projectDir, 'interventions.jsonl')
   if (existsSync(interventionsPath)) {
+    let iRaw = ''
     try {
-      const iRaw = readFileSync(interventionsPath, 'utf-8').trim()
-      const iLines = iRaw ? iRaw.split('\n').filter(Boolean) : []
-      for (const line of iLines) {
-        try {
-          const entry = JSON.parse(line) as {
-            id: string
-            timestamp: string
-            title: string
-            description?: string
-          }
-          events.push({
-            id: entry.id,
-            type: 'manual-intervention',
-            timestamp: entry.timestamp,
-            title: entry.title,
-            description: entry.description,
-            metadata: { source: 'manual' },
-          })
-        } catch {
-          // Ignore malformed lines
+      iRaw = readFileSync(interventionsPath, 'utf-8').trim()
+    } catch (err) {
+      console.warn(
+        `[activity] interventions read failed for ${interventionsPath}: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+    const iLines = iRaw ? iRaw.split('\n').filter(Boolean) : []
+    for (const line of iLines) {
+      try {
+        const entry = JSON.parse(line) as {
+          id: string
+          timestamp: string
+          title: string
+          description?: string
         }
+        events.push({
+          id: entry.id,
+          type: 'manual-intervention',
+          timestamp: entry.timestamp,
+          title: entry.title,
+          description: entry.description,
+          metadata: { source: 'manual' },
+        })
+      } catch (err) {
+        // Log malformed lines rather than silently swallowing. One
+        // corrupt line shouldn't drop the whole intervention stream,
+        // but it should leave a trace.
+        console.warn(
+          `[activity] malformed interventions line in ${interventionsPath}: ${err instanceof Error ? err.message : String(err)}`,
+        )
       }
-    } catch {
-      // Ignore missing/unreadable file
     }
   }
 

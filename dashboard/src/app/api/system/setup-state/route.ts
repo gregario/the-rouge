@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { assertLoopback } from "@/lib/localhost-guard";
+import { sanitizedErrorResponse } from "@/lib/error-response";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
@@ -56,8 +57,7 @@ export async function POST(request: Request) {
     writeFileSync(p, JSON.stringify(content, null, 2) + "\n", { mode: 0o644 });
     return NextResponse.json({ ok: true, marker: content });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return sanitizedErrorResponse(err, "system/setup-state");
   }
 }
 
@@ -76,7 +76,6 @@ export async function DELETE() {
     }
     return NextResponse.json({ ok: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return sanitizedErrorResponse(err, "system/setup-state");
   }
 }

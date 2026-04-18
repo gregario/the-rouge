@@ -255,7 +255,7 @@ async function runSeedingTurn(
   // disk between that turn and this recursive one. No artifacts have
   // been written by Claude yet in this kickoff.
   if (!isKickoff) {
-    const reconciled = reconcileDisciplineState(projectDir, preGatePending?.discipline ?? null)
+    const reconciled = await reconcileDisciplineState(projectDir, preGatePending?.discipline ?? null)
     if (reconciled.length > 0) {
       console.log(`[seeding] reconciled stranded disciplines: ${reconciled.join(', ')}`)
       // Strip the [SYSTEM NOTE] prefix — the new `kind: 'system_note'`
@@ -288,7 +288,7 @@ async function runSeedingTurn(
     const allDone =
       (postReconcileState.disciplines_complete?.length ?? 0) >= DISCIPLINE_SEQUENCE.length
     if (allDone && !postReconcileState.seeding_complete) {
-      const finalizeResult = finalizeSeeding(projectDir)
+      const finalizeResult = await finalizeSeeding(projectDir)
       if (finalizeResult.ok) {
         markSeedingComplete(projectDir)
         appendChatMessage(projectDir, {
@@ -466,7 +466,7 @@ async function runSeedingTurn(
     }
     const check = verifyDisciplineArtifact(projectDir, d)
     if (check.ok) {
-      markDisciplineComplete(projectDir, d)
+      await markDisciplineComplete(projectDir, d)
       acceptedDisciplines.push(d)
     } else {
       console.warn(
@@ -543,7 +543,7 @@ async function runSeedingTurn(
   let readyTransition = false
   let missingArtifacts: string[] | undefined
   if (markers.seedingComplete) {
-    const finalizeResult = finalizeSeeding(projectDir)
+    const finalizeResult = await finalizeSeeding(projectDir)
     if (finalizeResult.ok) {
       markSeedingComplete(projectDir)
       readyTransition = true
@@ -691,10 +691,10 @@ function resolveActiveDiscipline(raw: string | undefined): Discipline | null {
  * session symptom: `disciplines_complete: ['competition','taste','spec']`
  * while brainstorming stayed pending with a real 41KB artifact on disk.
  */
-function reconcileDisciplineState(
+async function reconcileDisciplineState(
   projectDir: string,
   preClearGateDiscipline: string | null = null,
-): string[] {
+): Promise<string[]> {
   const state = readSeedingState(projectDir)
   const complete = new Set(state.disciplines_complete ?? [])
   const newlyComplete: string[] = []
@@ -718,7 +718,7 @@ function reconcileDisciplineState(
     if (preClearGateDiscipline === d) break
     const check = verifyDisciplineArtifact(projectDir, d)
     if (check.ok) {
-      markDisciplineComplete(projectDir, d)
+      await markDisciplineComplete(projectDir, d)
       complete.add(d)
       newlyComplete.push(d)
     } else {

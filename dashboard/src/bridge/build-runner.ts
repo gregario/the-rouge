@@ -2,6 +2,7 @@ import { spawn } from 'child_process'
 import { readFileSync, writeFileSync, existsSync, unlinkSync, openSync, statSync } from 'fs'
 import { join } from 'path'
 import { statePath as resolveStatePath, writeStateJson } from './state-path'
+import { withStateLock } from './state-lock'
 
 const PID_FILE = '.build-pid'
 
@@ -105,45 +106,55 @@ async function startBuildInner(
   const statePath = resolveStatePath(projectDir)
   let priorCurrentState: string | null = null
   if (existsSync(statePath)) {
-    try {
-      const state = JSON.parse(readFileSync(statePath, 'utf-8'))
-      if (state.current_state === 'ready' || state.current_state === 'seeding') {
-        priorCurrentState = state.current_state
-        const foundationComplete = state.foundation?.status === 'complete'
-        state.current_state = foundationComplete ? 'story-building' : 'foundation'
-        // Defence-in-depth: the seeding-finalize path is supposed to
-        // initialise `foundation: { status: "pending" }` when promoting
-        // to ready, but testimonial reached `current_state: "foundation"`
-        // with `foundation: null` and the loop crashed on
-        // `state.foundation.status`. Guard here so the shape is always
-        // sound by the time rouge-loop reads it.
-        if (!state.foundation) {
-          state.foundation = { status: 'pending' }
+    const transition = await withStateLock(projectDir, () => {
+      try {
+        const state = JSON.parse(readFileSync(statePath, 'utf-8'))
+        if (state.current_state === 'ready' || state.current_state === 'seeding') {
+          const prior = state.current_state as string
+          const foundationComplete = state.foundation?.status === 'complete'
+          state.current_state = foundationComplete ? 'story-building' : 'foundation'
+          // Defence-in-depth: the seeding-finalize path is supposed to
+          // initialise `foundation: { status: "pending" }` when promoting
+          // to ready, but testimonial reached `current_state: "foundation"`
+          // with `foundation: null` and the loop crashed on
+          // `state.foundation.status`. Guard here so the shape is always
+          // sound by the time rouge-loop reads it.
+          if (!state.foundation) {
+            state.foundation = { status: 'pending' }
+          }
+          writeStateJson(projectDir, state)
+          return { prior, error: null }
+        } else if (state.current_state === 'complete') {
+          return { prior: null, error: `Project is complete — nothing to build` }
         }
-        writeStateJson(projectDir, state)
-      } else if (state.current_state === 'complete') {
-        return { ok: false, error: `Project is complete — nothing to build` }
+        // Otherwise the loop is already past ready (e.g., already building) — leave state alone
+        return { prior: null, error: null }
+      } catch (err) {
+        return {
+          prior: null,
+          error: `Failed to read/update state.json: ${err instanceof Error ? err.message : String(err)}`,
+        }
       }
-      // Otherwise the loop is already past ready (e.g., already building) — leave state alone
-    } catch (err) {
-      return {
-        ok: false,
-        error: `Failed to read/update state.json: ${err instanceof Error ? err.message : String(err)}`,
-      }
+    })
+    if (transition.error) {
+      return { ok: false, error: transition.error }
     }
+    priorCurrentState = transition.prior
   }
 
-  const rollbackState = () => {
+  const rollbackState = async () => {
     if (priorCurrentState === null) return
-    try {
-      const st = JSON.parse(readFileSync(statePath, 'utf-8'))
-      if (st.current_state === 'foundation' || st.current_state === 'story-building') {
-        st.current_state = priorCurrentState
-        writeStateJson(projectDir, st)
+    await withStateLock(projectDir, () => {
+      try {
+        const st = JSON.parse(readFileSync(statePath, 'utf-8'))
+        if (st.current_state === 'foundation' || st.current_state === 'story-building') {
+          st.current_state = priorCurrentState
+          writeStateJson(projectDir, st)
+        }
+      } catch {
+        // best effort
       }
-    } catch {
-      // best effort
-    }
+    })
   }
 
   // Check if a build is already running — if so, the state transition above
@@ -156,7 +167,7 @@ async function startBuildInner(
   // Derive rouge-loop.js path from the CLI path (they're in the same dir)
   const loopScript = join(rougeCliPath, '..', 'rouge-loop.js')
   if (!existsSync(loopScript)) {
-    rollbackState()
+    await rollbackState()
     return { ok: false, error: `rouge-loop.js not found at ${loopScript}` }
   }
 
@@ -180,7 +191,7 @@ async function startBuildInner(
       },
     })
   } catch (err) {
-    rollbackState()
+    await rollbackState()
     return {
       ok: false,
       error: err instanceof Error ? err.message : String(err),
@@ -190,7 +201,7 @@ async function startBuildInner(
   child.unref()
 
   if (!child.pid) {
-    rollbackState()
+    await rollbackState()
     return { ok: false, error: 'Failed to spawn process' }
   }
 
@@ -210,7 +221,7 @@ async function startBuildInner(
   })
 
   if (settled.exited) {
-    rollbackState()
+    await rollbackState()
     return {
       ok: false,
       error: `build subprocess exited immediately (code ${settled.code ?? '?'}) — check build.log`,
@@ -237,7 +248,7 @@ async function startBuildInner(
     if (logSize > 0) break // loop is talking, we're fine
     if (!alive) {
       // Silent crash — process is dead and wrote nothing.
-      rollbackState()
+      await rollbackState()
       return {
         ok: false,
         error: 'build subprocess crashed silently (no log output). Check rouge-loop startup path.',
@@ -285,7 +296,7 @@ export async function stopBuild(
   const projectDir = join(projectsRoot, slug)
   const info = readBuildInfo(projectDir)
   if (!info) {
-    const stateRolledBack = rollbackZombieBuildState(projectDir)
+    const stateRolledBack = await rollbackZombieBuildState(projectDir)
     return { ok: true, alreadyStopped: true, ...(stateRolledBack ? { stateRolledBack: true } : {}) }
   }
 
@@ -327,21 +338,23 @@ export async function stopBuild(
  * performed. Caller uses this on the idempotent-stop path to recover
  * from a half-started session.
  */
-function rollbackZombieBuildState(projectDir: string): boolean {
+async function rollbackZombieBuildState(projectDir: string): Promise<boolean> {
   const statePath = resolveStatePath(projectDir)
   if (!existsSync(statePath)) return false
-  try {
-    const state = JSON.parse(readFileSync(statePath, 'utf-8'))
-    const cur = state.current_state
-    if (cur === 'foundation' || cur === 'story-building') {
-      state.current_state = 'ready'
-      writeStateJson(projectDir, state)
-      return true
+  return withStateLock(projectDir, () => {
+    try {
+      const state = JSON.parse(readFileSync(statePath, 'utf-8'))
+      const cur = state.current_state
+      if (cur === 'foundation' || cur === 'story-building') {
+        state.current_state = 'ready'
+        writeStateJson(projectDir, state)
+        return true
+      }
+    } catch {
+      // best effort
     }
-  } catch {
-    // best effort
-  }
-  return false
+    return false
+  })
 }
 
 function cleanupPidFile(projectDir: string): void {

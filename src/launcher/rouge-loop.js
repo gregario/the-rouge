@@ -186,6 +186,48 @@ function writeJson(filePath, data) {
   fs.renameSync(tmp, filePath);
 }
 
+// Valid response types the dashboard emits. Kept here in sync with
+// dashboard/src/app/api/projects/[name]/resolve-escalation/route.ts —
+// if you add one, update both sides.
+const VALID_HUMAN_RESPONSE_TYPES = new Set([
+  'guidance',
+  'manual-fix-applied',
+  'dismiss-false-positive',
+  'abort-story',
+]);
+
+/**
+ * Validate a human_response object against the bidirectional contract.
+ * Returns { ok: true } on valid shape, or
+ * { ok: false, reason } describing the first failure.
+ *
+ * Anything that reaches here and fails validation should be treated as
+ * malformed (see escalation case in runPhase): the field is removed so
+ * the next loop tick doesn't spin on the same corrupt value, and an
+ * escalation with tier=999/malformed_response is raised so the user
+ * can see what happened.
+ */
+function validateHumanResponse(hr) {
+  if (!hr || typeof hr !== 'object' || Array.isArray(hr)) {
+    return { ok: false, reason: 'human_response must be an object' };
+  }
+  if (typeof hr.type !== 'string') {
+    return { ok: false, reason: 'human_response.type must be a string' };
+  }
+  if (!VALID_HUMAN_RESPONSE_TYPES.has(hr.type)) {
+    return { ok: false, reason: `human_response.type "${hr.type}" is not one of: ${[...VALID_HUMAN_RESPONSE_TYPES].join(', ')}` };
+  }
+  if (hr.submitted_at !== undefined) {
+    if (typeof hr.submitted_at !== 'string' || Number.isNaN(Date.parse(hr.submitted_at))) {
+      return { ok: false, reason: 'human_response.submitted_at must be an ISO-8601 string when present' };
+    }
+  }
+  if (hr.text !== undefined && typeof hr.text !== 'string') {
+    return { ok: false, reason: 'human_response.text must be a string when present' };
+  }
+  return { ok: true };
+}
+
 /**
  * Snapshot state.json and cycle_context.json before a phase runs.
  * Snapshots go to {project}/.snapshots/{timestamp}-{phase}/
@@ -1237,6 +1279,34 @@ async function advanceState(projectDir) {
       // Check for human_response on any pending escalation (bidirectional contract)
       const pendingEsc = (state.escalations || []).find(e => e.status === 'pending' && e.human_response);
       if (pendingEsc) {
+        // Validate the response shape before dispatching. Malformed
+        // responses (missing type, wrong enum value, bad timestamp) used
+        // to either throw deep in the dispatch or get swallowed by the
+        // "Unrecognised" branch, which re-marked the escalation as
+        // pending with human_response still attached — a perpetual loop
+        // of the same log line and no forward progress. Now: drop the
+        // corrupt response, raise a flagging escalation so the user
+        // sees *why* their input was rejected, and keep the original
+        // escalation pending for a re-submission.
+        const validation = validateHumanResponse(pendingEsc.human_response);
+        if (!validation.ok) {
+          log(`[${projectName}] Rejecting malformed human_response on escalation ${pendingEsc.id}: ${validation.reason}`);
+          delete pendingEsc.human_response;
+          state.escalations = state.escalations || [];
+          state.escalations.push({
+            id: `malformed-${Date.now()}`,
+            tier: 999,
+            kind: 'malformed-human-response',
+            story_id: pendingEsc.story_id || null,
+            raised_at: new Date().toISOString(),
+            status: 'pending',
+            reason: validation.reason,
+            hint: 'Re-submit the escalation resolution from the dashboard. If you wrote the response directly to state.json, check your schema.',
+          });
+          writeJson(stateFile, state);
+          break;
+        }
+
         const hrType = pendingEsc.human_response.type;
         pendingEsc.status = 'resolved';
         pendingEsc.resolved_at = new Date().toISOString();
@@ -2104,6 +2174,8 @@ module.exports = {
   processInfraAction,
   readJson,
   writeJson,
+  validateHumanResponse,
+  VALID_HUMAN_RESPONSE_TYPES,
 };
 
 // Only start the main loop when run directly (not when required for testing)

@@ -220,6 +220,13 @@ export interface ProjectDetail {
   stagingUrl?: string
   productionUrl?: string
   repoUrl?: string
+  // Subprocess state from the build-runner. Previously fetched via a
+  // separate /build-status poll that could drift from the main detail
+  // fetch; audit E9 folded it in so Stop/Start buttons always match
+  // the same read.
+  buildRunning?: boolean
+  buildPid?: number
+  buildStartedAt?: string
   createdAt: string
   updatedAt: string
   archived?: boolean
