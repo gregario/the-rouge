@@ -1010,10 +1010,23 @@ async function advanceState(projectDir) {
     case 'milestone-check': {
       const ctx = readJson(contextFile);
       const qaVerdict = ctx?.evaluation_report?.qa?.verdict || 'PASS';
+      const designVerdict = ctx?.evaluation_report?.design?.verdict || 'PASS';
+      const poVerdict = ctx?.evaluation_report?.po?.verdict || 'READY';
 
-      if (qaVerdict === 'FAIL') {
+      // Route to milestone-fix when any lens fails hard. Prior version
+      // only checked QA; PO NEEDS_IMPROVEMENT and Design FAIL silently
+      // advanced to analyzing, dropping real quality signal. Audit
+      // prompt-regression finding #1. Soft verdicts (PO NOT_READY,
+      // Design NEEDS_IMPROVEMENT) also loop back to fixing — they're
+      // intentionally distinct from "ready".
+      const lensFail =
+        qaVerdict === 'FAIL' ||
+        designVerdict === 'FAIL' || designVerdict === 'NEEDS_IMPROVEMENT' ||
+        poVerdict === 'NOT_READY' || poVerdict === 'NEEDS_IMPROVEMENT';
+
+      if (lensFail) {
         next = 'milestone-fix';
-        log(`[${projectName}] Milestone QA FAIL — fixing`);
+        log(`[${projectName}] Milestone evaluation FAIL (qa=${qaVerdict}, design=${designVerdict}, po=${poVerdict}) — fixing`);
       } else {
         // V3: Capture screenshots after milestone evaluation passes
         try {
@@ -1222,6 +1235,17 @@ async function advanceState(projectDir) {
     case 'vision-check': {
       const ctx = readJson(contextFile);
       const results = ctx?.vision_check_results || {};
+
+      // Mirror confidence_history from cycle_context to state.json so
+      // downstream readers (learn-from-project.js, slack/bot.js) keep
+      // working. The vision-check prompt writes to cycle_context
+      // (per CLAUDE.md contract), but legacy readers still expect
+      // `state.confidence_history`. Audit prompt-regression #4.
+      if (Array.isArray(ctx?.confidence_history)) {
+        state.confidence_history = ctx.confidence_history;
+        writeJson(stateFile, state);
+      }
+
       if (results.trajectory === 'diverging' || results.pivot_proposal) {
         next = 'escalation';
         log(`[${projectName}] Vision drift — escalating`);
@@ -1444,16 +1468,49 @@ async function advanceState(projectDir) {
         log(`[${projectName}] Learning extraction failed: ${(err.message || '').slice(0, 100)}`);
       }
 
-      // Create prompt improvement proposals from learnings
+      // Append journey entry if the cycle-retrospective phase wrote one
+      // to cycle_context.journey_entry. See audit F-series prompt
+      // regression finding #2 — helper existed but was never invoked,
+      // so journey.json stayed empty. No-op when no entry present.
+      try {
+        const { appendJourneyEntry } = require('./journey-log.js');
+        const result = appendJourneyEntry(projectDir);
+        if (result.appended) {
+          log(`[${projectName}] Journey entry appended to journey.json`);
+        }
+      } catch (err) {
+        log(`[${projectName}] Journey append failed: ${(err.message || '').slice(0, 100)}`);
+      }
+
+      // Create prompt improvement proposals from learnings. Each
+      // proposal that ships with `files_touched` is validated against
+      // self-improve-safety's allowlist/blocklist — out-of-scope files
+      // surface as a warning on the resulting issue so the human
+      // reviewer sees them. See audit F17.
       try {
         const ctx = readJson(path.join(projectDir, 'cycle_context.json'));
         const proposals = ctx?.prompt_improvement_proposals || [];
         if (proposals.length > 0) {
+          const rougeConfig = readJson(path.join(ROUGE_ROOT, 'rouge.config.json')) || {};
+          const selfImproveConfig = rougeConfig.self_improvement || {
+            allowlist: [], blocklist: [],
+          };
+          const { validateImprovementScope } = require('./self-improve-safety.js');
+
           log(`[${projectName}] ${proposals.length} prompt improvement proposal(s) — creating issues`);
           for (const proposal of proposals) {
+            let scopeWarning = '';
+            const filesTouched = Array.isArray(proposal.files_touched) ? proposal.files_touched : [];
+            if (filesTouched.length > 0 && selfImproveConfig.allowlist.length > 0) {
+              const validation = validateImprovementScope(filesTouched, selfImproveConfig);
+              if (!validation.valid) {
+                scopeWarning = `\n\n⚠️ **Self-improve-safety: out-of-scope files**\nThese files fall outside Rouge's self-modification allowlist and must be changed by a human reviewer, not by an automated improvement PR:\n${validation.rejected.map((f) => `- \`${f}\``).join('\n')}`;
+              }
+            }
             try {
+              const body = ((proposal.description || '') + scopeWarning).replace(/"/g, '\\"');
               execSync(
-                `gh issue create --title "${proposal.title || 'Prompt improvement'}" --body "${(proposal.description || '').replace(/"/g, '\\"')}" --label self-improvement`,
+                `gh issue create --title "${proposal.title || 'Prompt improvement'}" --body "${body}" --label self-improvement`,
                 { cwd: ROUGE_ROOT, encoding: 'utf8', timeout: 15000, stdio: 'pipe' }
               );
             } catch {}

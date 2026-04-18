@@ -231,7 +231,15 @@ If any check fails, revise the spec before writing it.
 ### Step 5: Write Change Specs to Disk and Update Context
 
 1. Write each change spec to the project's OpenSpec changes directory via the CLI
-2. Update `cycle_context.json` with:
+2. **Append fix stories to `task_ledger.json`** (this phase is the only loop phase permitted to write `task_ledger.json` — see CLAUDE.md). Load the file, append each new fix story to `stories[]` under the appropriate milestone, and write atomically. Never overwrite; always append. Each fix story has:
+   - `id` (e.g. `fix-sidebar-collapse-cycle-3`)
+   - `milestone_name` (the milestone this belongs to; use `current_milestone` from state)
+   - `status: "pending"`
+   - `acceptance_criteria` (2-6 items; WHEN/THEN with MEASUREMENT)
+   - `scope_boundary` (files to touch, files to leave alone)
+   - `root_cause_context` (why it broke, what was tried, what not to repeat)
+   - `spec_path` (relative path to the change spec from step 1)
+3. Update `cycle_context.json` with:
 
 ```json
 {
