@@ -40,16 +40,9 @@ Get from zero to your first Rouge-built product in 5 minutes.
    rouge dashboard start   # Background mode — survives terminal close
    ```
 
-   The dashboard is your primary control plane: real-time project visibility, escalation responses, build logs, and milestone progress. Open [http://localhost:3001](http://localhost:3001) after starting.
+   The dashboard is your control plane: real-time project visibility, escalation responses, build logs, seeding chat, milestone progress, and aggregate spend. It auto-opens in your browser at [http://localhost:3000](http://localhost:3000) on first start. Pass `--no-open` to skip the auto-open.
 
-5. (Optional) Set up Slack:
-
-   ```bash
-   rouge setup slack       # Interactive — stores tokens in OS keychain
-   rouge slack start       # Start the Slack bot
-   ```
-
-   Slack is an alternative control plane for teams that already live there. The dashboard provides richer visibility and doesn't require external tokens.
+5. (Optional, legacy) Slack bot setup is retired — `src/slack/` remains for pre-existing installs but isn't recommended. Use the dashboard.
 
 ## Your First Product
 

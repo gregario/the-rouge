@@ -21,8 +21,8 @@ PolyForm Noncommercial for personal use. [$100/month Commercial tier](https://gi
 **How do I contribute?**
 See [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
-**Can I use Rouge without Slack?**
-Yes. You lose notifications and the control plane (start, pause, feedback from your phone). Without Slack, you monitor via `rouge status` and stop/start from the terminal.
+**Do I need Slack?**
+No — it's retired and no longer recommended. The dashboard (`rouge dashboard start`, opens at `http://localhost:3000`) is the supported control surface: start/stop, pause, seeding chat, escalation responses, build logs, aggregate spend. Slack code remains in `src/slack/` for pre-existing setups; new features land in the dashboard.
 
 ---
 

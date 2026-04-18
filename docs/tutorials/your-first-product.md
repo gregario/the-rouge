@@ -15,7 +15,7 @@ Run `rouge doctor` and make sure everything is green. If anything is red, fix it
 
 **Start simple.** Your first Rouge product should not be a fleet management SaaS with 5 feature areas and a map integration. Pick something with 2-3 features. A recipe organiser. A habit tracker. A reading list. You want to learn the loop, not stress-test it.
 
-**Set up Slack.** Seriously. The whole point of autonomous building is that you walk away and check your phone. If Slack isn't set up, you're staring at a terminal. See [slack-setup.md](../how-to/slack-setup.md).
+**Start the dashboard.** `rouge dashboard start` opens a browser window at `http://localhost:3000`. That's your cockpit: live build logs, escalation responses, seeding chat, and project status. The whole point of autonomous building is that you walk away and check back — the dashboard keeps the state visible without needing you at a terminal.
 
 ## Initialise
 
@@ -67,9 +67,9 @@ In Slack, you'll see:
 
 > **Rouge:** Building my-first-app — story "add-task-list" (milestone: core-features)
 
-You can walk away now. Check `rouge status` whenever you're curious. Or watch the Slack channel from your phone. The loop runs until it's done or it needs you.
+You can walk away now. Check `rouge status` whenever you're curious, or watch the dashboard at `http://localhost:3000`. The loop runs until it's done or it hits an escalation that needs you.
 
-How long? For a simple product, expect 2-4 hours of session time. Most stories take 20-40 minutes. The per-phase model selection uses Opus for building and reasoning, Sonnet for mechanical evaluation work — so costs are lower than you'd expect.
+How long? For a simple product, expect 2-4 hours of session time. Most stories take 20-40 minutes. Rouge runs on Opus for every phase by default except `milestone-check` (a boolean "are all stories done?" bookkeeping step, which uses Sonnet).
 
 ## What happens during the loop
 
