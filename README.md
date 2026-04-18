@@ -111,7 +111,7 @@ Taste encoded as testable signals: "page load under 2 seconds," "core tasks in 3
 
 Rouge runs on your Claude Code subscription. Each phase consumes session time (roughly 10-20 minutes of model time). A simple product takes a few hours. A complex product might take a day or more across sessions.
 
-Rouge uses per-phase model selection: Opus for reasoning-heavy phases (analyse, architecture, backwards flow), Sonnet for mechanical phases (formatting, catalogue entry drafting, status updates). In practice this delivers a 40-50% cost reduction versus running everything on Opus.
+Rouge runs on Opus by default for every phase. One exception: `milestone-check` is a boolean "are all stories done?" bookkeeping step that runs on Sonnet. Prior versions split work more aggressively between the two models to chase cost savings, but the "mechanical" phases (foundation, shipping, story-diagnosis) turned out to be judgement-heavy in practice and the quality delta wasn't worth the 30-40% cost dip. Override per-phase via `rouge.config.json.model_overrides`.
 
 If you run via API keys, token costs apply. These are rough estimates — actual costs depend on product complexity, evaluation cycles, and how many fix stories the loop generates:
 

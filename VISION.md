@@ -59,7 +59,7 @@ Rouge itself should:
 - CLI and developer experience improvements
 - The Library (new heuristics, better calibration)
 - Decomposition improvements (better complexity detection, smarter dependency ordering)
-- Slack control plane improvements
+- Dashboard improvements (live event streaming, richer project detail, onboarding wizard, cost forecasting)
 
 ### Out of scope (for now)
 
@@ -84,6 +84,6 @@ Rouge itself should:
 | **Composable decomposition** | Complexity profiles, foundation cycles, dependency ordering, backwards flow | Can it handle complex products without wasting cycles on rework? |
 | **Integration catalogue** | Tier 1-3 entries, validation, self-growing mechanism | Are patterns practical, tested, and honest about trade-offs? |
 | **The Library** | Global heuristics, domain-specific taste, learned judgment | Does the quality bar produce good products? Does it learn? |
-| **CLI** | init, seed, build, status, cost, doctor, slack, setup | Can a new developer go from install to first build without friction? |
-| **Slack control plane** | Bot, notifications, commands, feedback ingestion | Can you monitor and control Rouge from your phone? |
-| **Safety** | Hooks, deploy restrictions, secret handling | Does Rouge prevent itself from doing damage? |
+| **CLI** | init, seed, build, status, cost, doctor, setup | Can a new developer go from install to first build without friction? |
+| **Dashboard** | Real-time visibility, escalation responses, build logs, seeding chat, aggregate spend, catalogue browser | Can you monitor and control Rouge from a browser? |
+| **Safety** | Hooks, deploy restrictions, secret handling, state locks, loopback guards, schema validation | Does Rouge prevent itself from doing damage? |
