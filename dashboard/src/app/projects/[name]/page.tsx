@@ -278,7 +278,11 @@ export default function ProjectPage({
       {/* Escalation response area — visible for escalation projects */}
       {isEscalation && project.escalations[0] && (
         <div className="mt-6">
-          <EscalationResponse escalation={project.escalations[0]} slug={project.slug} />
+          <EscalationResponse
+            escalation={project.escalations[0]}
+            slug={project.slug}
+            onResolved={refetch}
+          />
         </div>
       )}
 

@@ -218,6 +218,30 @@ export class ProjectWatcher extends EventEmitter {
       this.emit('event', event)
     }
 
+    // Build progress: mirror of seeding-progress for build phases.
+    // Fires when current_milestone or current_story changes.
+    // Escalations are handled separately in checkEscalations which
+    // already emits dedicated 'escalation' events — no need to
+    // double-fire here.
+    const prevMilestone = previousParsed?.current_milestone ?? null
+    const curMilestone = parsed?.current_milestone ?? null
+    const prevStory = previousParsed?.current_story ?? null
+    const curStory = parsed?.current_story ?? null
+    if (curMilestone !== prevMilestone || curStory !== prevStory) {
+      const event: BridgeEvent = {
+        type: 'build-progress',
+        project: projectName,
+        timestamp: new Date().toISOString(),
+        data: {
+          milestone_from: prevMilestone,
+          milestone_to: curMilestone,
+          story_from: prevStory,
+          story_to: curStory,
+        },
+      }
+      this.emit('event', event)
+    }
+
     // Check for new escalations
     this.checkEscalations(projectName, parsed, previousParsed)
   }

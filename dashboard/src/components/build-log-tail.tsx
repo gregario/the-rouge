@@ -40,7 +40,10 @@ export function BuildLogTail({ slug, live = false, tail = 50 }: BuildLogTailProp
     }
     load()
     if (live) {
-      const i = setInterval(load, 5000)
+      // 1.5s while live — fast enough to feel continuous without
+      // hammering the filesystem. Previous 5s polling meant users
+      // waited up to 5s to see new output during active builds.
+      const i = setInterval(load, 1500)
       return () => { cancelled = true; clearInterval(i) }
     }
     return () => { cancelled = true }

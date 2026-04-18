@@ -78,6 +78,69 @@ export function mergeSeedingProgress(
   };
 }
 
+/**
+ * Resolve the project's staging and production URLs from the two
+ * sources Rouge writes them to:
+ *   - `cycle_context.json.infrastructure.deploy_history[-1].url` —
+ *     per-cycle deploy endpoints appended by deploy-to-staging.js
+ *   - `infrastructure_manifest.json.staging_url` /
+ *     `infrastructure_manifest.json.production_url` — declared
+ *     targets from the infrastructure seeding discipline
+ *
+ * Preference order: cycle_context's latest successful deploy wins
+ * (it's the freshest truth about where the build is actually
+ * reachable). Falls back to the manifest for projects that haven't
+ * deployed yet.
+ */
+export function readDeployUrls(projectDir: string): {
+  stagingUrl?: string
+  productionUrl?: string
+} {
+  let stagingUrl: string | undefined
+  let productionUrl: string | undefined
+
+  try {
+    const ctxPath = join(projectDir, 'cycle_context.json')
+    if (existsSync(ctxPath)) {
+      const ctx = JSON.parse(readFileSync(ctxPath, 'utf-8')) as {
+        infrastructure?: {
+          staging_url?: string
+          production_url?: string
+          deploy_history?: Array<{ url?: string; timestamp?: string }>
+        }
+      }
+      stagingUrl = ctx.infrastructure?.staging_url
+      productionUrl = ctx.infrastructure?.production_url
+      if (!stagingUrl && ctx.infrastructure?.deploy_history?.length) {
+        const latest = ctx.infrastructure.deploy_history[
+          ctx.infrastructure.deploy_history.length - 1
+        ]
+        stagingUrl = latest?.url
+      }
+    }
+  } catch {
+    // malformed — fall through to manifest
+  }
+
+  if (!stagingUrl || !productionUrl) {
+    try {
+      const manifestPath = join(projectDir, 'infrastructure_manifest.json')
+      if (existsSync(manifestPath)) {
+        const m = JSON.parse(readFileSync(manifestPath, 'utf-8')) as {
+          staging_url?: string
+          production_url?: string
+        }
+        if (!stagingUrl) stagingUrl = m.staging_url
+        if (!productionUrl) productionUrl = m.production_url
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return { stagingUrl, productionUrl }
+}
+
 export interface CheckpointSummary {
   costUsd: number | null;
   lastCheckpointAt: string | null;

@@ -16,6 +16,14 @@ export type BridgeEventType =
   // stepper / section UI that would otherwise keep showing the old
   // current discipline.
   | 'seeding-progress'
+  // Fires during build phases (foundation / story-building / etc.)
+  // when current_milestone, current_story, or the escalations array
+  // changes in state.json. Same rationale as seeding-progress:
+  // current_state often stays at "foundation" or "story-building"
+  // for many minutes while the story pointer advances inside it —
+  // without this event the milestone timeline, current-story card,
+  // and escalation panel would all lag behind reality.
+  | 'build-progress'
 
 export interface BridgeEvent {
   type: BridgeEventType

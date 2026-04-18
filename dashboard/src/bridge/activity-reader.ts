@@ -96,6 +96,26 @@ export function readProjectActivity(
   let lastFailures = 0
   const crossedThresholds = new Set<number>()
 
+  // Synthesize a "Build started" event from the very first checkpoint.
+  // Without this, fresh projects show a fully-empty Activity feed for
+  // minutes while foundation works — confusing because you can't tell
+  // whether the loop is running or dead. The phase-transition logic
+  // below intentionally skips the first checkpoint (no `from` phase),
+  // so we emit a loop-start marker here.
+  if (checkpoints.length > 0) {
+    const first = checkpoints[0]
+    events.push({
+      id: `${first.id}-start`,
+      type: 'phase-transition',
+      timestamp: first.timestamp,
+      title: `Build loop started — ${first.phase}`,
+      metadata: {
+        phase: first.phase,
+        checkpoint_id: first.id,
+      },
+    })
+  }
+
   for (const cp of checkpoints) {
     const phaseChanged = cp.phase !== lastPhase && lastPhase !== ''
 

@@ -91,6 +91,46 @@ describe('ProjectWatcher', () => {
     expect(stateChanges.length).toBe(0)
   })
 
+  it('emits build-progress when current_story advances within story-building', async () => {
+    mkdirSync(projectDir, { recursive: true })
+    const stateFile = join(projectDir, 'state.json')
+    writeFileSync(
+      stateFile,
+      JSON.stringify({
+        current_state: 'story-building',
+        current_milestone: 'M1',
+        current_story: 'S1.1',
+      }),
+    )
+
+    watcher = new ProjectWatcher(testDir)
+    const events: unknown[] = []
+    watcher.on('event', (e) => events.push(e))
+    watcher.start()
+    await new Promise((r) => setTimeout(r, 200))
+
+    // current_story changes S1.1 → S1.2; current_state stays
+    // 'story-building' so no state-change event would fire. Without
+    // build-progress the dashboard would not refetch.
+    writeFileSync(
+      stateFile,
+      JSON.stringify({
+        current_state: 'story-building',
+        current_milestone: 'M1',
+        current_story: 'S1.2',
+      }),
+    )
+    await new Promise((r) => setTimeout(r, 600))
+    watcher.stop()
+
+    const buildProgress = events.filter((e: any) => e.type === 'build-progress')
+    expect(buildProgress.length).toBeGreaterThan(0)
+    expect((buildProgress[0] as any).data.story_from).toBe('S1.1')
+    expect((buildProgress[0] as any).data.story_to).toBe('S1.2')
+    const stateChanges = events.filter((e: any) => e.type === 'state-change')
+    expect(stateChanges.length).toBe(0)
+  })
+
   it('detects new project directories', async () => {
     mkdirSync(testDir, { recursive: true })
 

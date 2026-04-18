@@ -81,6 +81,11 @@ interface RougeState {
   archived?: boolean
   archivedAt?: string
   budget_cap_usd?: number
+  // Deploy URLs — populated by the project-detail API route from
+  // infrastructure_manifest.json + cycle_context.json.deploy_history
+  // before reaching this mapper.
+  stagingUrl?: string
+  productionUrl?: string
 }
 
 function mapSeedingProgress(raw: RougeState['seedingProgress']): SeedingProgress | undefined {
@@ -262,6 +267,12 @@ export function mapRougeStateToProjectDetail(raw: unknown, slug: string): Projec
     lastCheckpointAt: state.lastCheckpointAt ?? undefined,
     lastPhase: state.lastPhase ?? undefined,
     checkpointCount: state.checkpointCount,
+    // Deploy URLs — the project-detail API route splices these in
+    // from infrastructure_manifest.json + cycle_context.json so the
+    // mapper sees them on `state`. Expose in the mapped project so
+    // the page header can render an "Open staging" affordance.
+    stagingUrl: state.stagingUrl ?? undefined,
+    productionUrl: state.productionUrl ?? undefined,
     createdAt: now,
     updatedAt: now,
     archived: state.archived === true,

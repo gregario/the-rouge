@@ -11,7 +11,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion'
 import { cn } from '@/lib/utils'
-import { Check, Circle, Loader2, SkipForward, X, ChevronDown, ChevronRight, FileCode, TestTube2, AlertTriangle } from 'lucide-react'
+import { Check, Circle, Loader2, SkipForward, X, ChevronDown, ChevronRight, FileCode, TestTube2, AlertTriangle, ListChecks } from 'lucide-react'
 
 function storyStatusStyle(status: StoryStatus): string {
   switch (status) {
@@ -66,12 +66,42 @@ function confidenceColor(c?: string): string {
 function StoryDetails({ enrichment }: { enrichment: StoryEnrichment }) {
   const [decisionsOpen, setDecisionsOpen] = useState(false)
   const [questionsOpen, setQuestionsOpen] = useState(false)
+  const [acsOpen, setAcsOpen] = useState(false)
 
   return (
     <div className="mt-3 flex flex-col gap-3 border-t border-gray-200 pt-3">
       {/* Summary line */}
       {enrichment.details && (
         <p className="text-xs leading-relaxed text-gray-700">{enrichment.details.slice(0, 500)}{enrichment.details.length > 500 ? '…' : ''}</p>
+      )}
+
+      {/* Acceptance criteria — shown for stories with ACs on file. Falls
+          back to task_ledger.json when the story hasn't completed a
+          cycle yet (story-enrichment-reader seeds these pre-build). */}
+      {enrichment.acceptanceCriteria && enrichment.acceptanceCriteria.length > 0 && (
+        <div>
+          <button
+            onClick={() => setAcsOpen((v) => !v)}
+            className="flex items-center gap-1.5 text-left hover:opacity-80"
+            data-testid="acceptance-criteria-toggle"
+          >
+            {acsOpen
+              ? <ChevronDown className="size-3 text-gray-500" />
+              : <ChevronRight className="size-3 text-gray-500" />
+            }
+            <ListChecks className="size-3 text-gray-500" />
+            <span className="text-[11px] font-semibold text-gray-600">
+              Acceptance criteria ({enrichment.acceptanceCriteria.length})
+            </span>
+          </button>
+          {acsOpen && (
+            <ul className="mt-1.5 ml-5 flex list-disc flex-col gap-1.5 pl-2 text-[11px] leading-relaxed text-gray-700">
+              {enrichment.acceptanceCriteria.map((ac, i) => (
+                <li key={i}>{ac}</li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
 
       {/* Files + tests row */}

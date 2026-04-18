@@ -8,6 +8,7 @@ import {
   mergeSeedingProgress,
   mergeMilestonesFromLedger,
   readCheckpointSummary,
+  readDeployUrls,
 } from "@/lib/project-details";
 
 export const dynamic = "force-dynamic";
@@ -41,6 +42,7 @@ export async function GET(
   const withMilestones = mergeMilestonesFromLedger(projectDir, raw);
   const merged = mergeSeedingProgress(projectDir, withMilestones);
   const checkpoint = readCheckpointSummary(projectDir);
+  const deploy = readDeployUrls(projectDir);
 
   return NextResponse.json({
     slug: name,
@@ -49,6 +51,8 @@ export async function GET(
     lastCheckpointAt: checkpoint.lastCheckpointAt,
     lastPhase: checkpoint.lastPhase,
     checkpointCount: checkpoint.checkpointCount,
+    stagingUrl: deploy.stagingUrl,
+    productionUrl: deploy.productionUrl,
   });
 }
 
