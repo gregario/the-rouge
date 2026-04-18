@@ -1,68 +1,128 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Rouge Project State",
-  "description": "State machine position for a Rouge-managed project. Read by launcher, written by phase prompts.",
+  "title": "Rouge Project State (V3)",
+  "description": "State machine position for a Rouge-managed project. Read by launcher, written by phase prompts. V3 shape (supersedes V2 state.json schema which enumerated qa-gate / po-reviewing / feature_areas). Validated warn-only — unknown fields are tolerated to keep legacy projects readable.",
   "type": "object",
-  "required": ["current_state", "cycle_number", "timestamp"],
+  "additionalProperties": true,
+  "required": ["current_state"],
   "properties": {
     "current_state": {
       "type": "string",
       "enum": [
-        "seeding", "ready",
-        "foundation-building", "foundation-evaluating",
-        "building", "test-integrity",
-        "code-review", "product-walk", "evaluation", "re-walk",
-        "qa-fixing", "analyzing", "generating-change-spec",
-        "vision-checking", "promoting", "rolling-back",
-        "waiting-for-human", "complete"
+        "seeding",
+        "ready",
+        "foundation",
+        "foundation-eval",
+        "story-building",
+        "story-diagnosis",
+        "milestone-check",
+        "milestone-fix",
+        "analyzing",
+        "generating-change-spec",
+        "vision-check",
+        "shipping",
+        "final-review",
+        "escalation",
+        "waiting-for-human",
+        "paused",
+        "complete"
       ]
     },
     "cycle_number": { "type": "integer", "minimum": 0 },
-    "feature_areas": {
+    "timestamp": { "type": "string" },
+    "project": { "type": "string" },
+    "name": { "type": "string" },
+    "slug": { "type": "string" },
+    "archived": { "type": "boolean" },
+    "archivedAt": { "type": ["string", "null"] },
+    "paused_from_state": { "type": "string" },
+    "foundation": {
+      "type": ["object", "null"],
+      "additionalProperties": true,
+      "properties": {
+        "status": { "type": "string", "enum": ["pending", "not-needed", "in-progress", "complete"] },
+        "scope": { "type": "array", "items": { "type": "string" } },
+        "completed_at": { "type": "string" }
+      }
+    },
+    "milestones": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["name", "status"],
+        "additionalProperties": true,
+        "required": ["name"],
         "properties": {
           "name": { "type": "string" },
-          "status": { "type": "string", "enum": ["pending", "in-progress", "complete"] }
+          "status": { "type": "string" },
+          "stories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true,
+              "required": ["id"],
+              "properties": {
+                "id": { "type": "string" },
+                "name": { "type": "string" },
+                "status": { "type": "string" }
+              }
+            }
+          }
         }
       }
     },
-    "current_feature_area": { "type": ["string", "null"] },
-    "qa_fix_attempts": { "type": "integer", "minimum": 0, "default": 0 },
-    "po_review_cycles": { "type": "integer", "minimum": 0, "default": 0 },
-    "change_specs_pending": { "type": "array", "items": { "type": "string" } },
-    "confidence_history": { "type": "array", "items": { "type": "number", "minimum": 0, "maximum": 1 } },
-    "paused_from_state": { "type": "string" },
-    "foundation": {
-      "type": "object",
-      "properties": {
-        "status": { "type": "string", "enum": ["pending", "not-needed", "in-progress", "complete"] },
-        "scope": { "type": "array", "items": { "type": "string" }, "description": "What foundation builds: shared-schema, auth, stripe-integration, app-shell, etc." },
-        "completed_at": { "type": "string", "format": "date-time" }
+    "current_milestone": { "type": ["string", "null"] },
+    "current_story": { "type": ["string", "null"] },
+    "promoted_milestones": { "type": "array", "items": { "type": "string" } },
+    "escalations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["id", "status"],
+        "properties": {
+          "id": { "type": "string" },
+          "tier": { "type": "integer", "minimum": 0 },
+          "classification": { "type": "string" },
+          "summary": { "type": "string" },
+          "reason": { "type": "string" },
+          "state": { "type": "string" },
+          "story_id": { "type": ["string", "null"] },
+          "status": { "type": "string" },
+          "created_at": { "type": "string" },
+          "resolution": { "type": "string" },
+          "resolved_at": { "type": "string" },
+          "human_response": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "type": { "type": "string" },
+              "text": { "type": "string" },
+              "submitted_at": { "type": "string" }
+            }
+          }
+        }
       }
     },
-    "detected_profile": {
+    "stories_executed": { "type": "array" },
+    "consecutive_failures": { "type": "integer", "minimum": 0 },
+    "costs": {
       "type": "object",
+      "additionalProperties": true,
       "properties": {
-        "primary": { "type": "string", "enum": ["single-page", "multi-route", "stateful", "api-first", "full-stack"] },
-        "secondary": { "type": "array", "items": { "type": "string", "enum": ["single-page", "multi-route", "stateful", "api-first", "full-stack"] }, "maxItems": 1 },
-        "detection_method": { "type": "string", "enum": ["explicit", "stack-inferred", "feature-analysis"] },
-        "capabilities_activated": { "type": "array", "items": { "type": "string", "enum": ["foundation-cycle", "dependency-ordering", "parallel-building", "integration-pass", "integration-escalation", "foundation-evaluation"] } }
+        "phase_tokens": { "type": "number" },
+        "phase_cost_usd": { "type": "number" },
+        "cumulative_tokens": { "type": "number" },
+        "cumulative_cost_usd": { "type": "number" },
+        "phase_cost_source": { "type": "string", "enum": ["parsed", "heuristic"] }
       }
     },
-    "budget_cap_usd": {
-      "type": "number",
-      "minimum": 0,
-      "description": "Per-project spend cap in USD. Overrides rouge.config.json's global default. Launcher pauses the loop when cumulative spend exceeds this."
+    "budget_cap_usd": { "type": "number", "minimum": 0 },
+    "confidence_history": {
+      "type": "array",
+      "items": { "type": "number", "minimum": 0, "maximum": 1 }
     },
-    "authMode": {
-      "type": "string",
-      "enum": ["subscription", "api", "bedrock", "vertex"],
-      "default": "subscription",
-      "description": "Which Anthropic auth path the Claude subprocess uses. Set per-spec. Default subscription."
-    },
-    "timestamp": { "type": "string", "format": "date-time" }
+    "seedingProgress": { "type": "object", "additionalProperties": true },
+    "last_checkpoint_at": { "type": "string" },
+    "last_meaningful_progress_at": { "type": ["number", "string"] }
   }
 }

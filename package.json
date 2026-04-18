@@ -26,7 +26,8 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@slack/bolt": "^4.6.0"
+    "@slack/bolt": "^4.6.0",
+    "ajv": "^8.18.0"
   },
   "scripts": {
     "test": "node tests/secrets.test.js && node tests/cli.test.js && node tests/self-improve.test.js && node tests/auth-mode.test.js && node --test test/launcher/*.test.js test/prompts/*.test.js test/integration/*.test.js",
