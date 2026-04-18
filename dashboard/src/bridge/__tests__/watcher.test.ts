@@ -43,6 +43,54 @@ describe('ProjectWatcher', () => {
     expect((stateChanges[0] as any).project).toBe('test-project')
   })
 
+  it('emits seeding-progress when currentDiscipline advances during seeding', async () => {
+    mkdirSync(projectDir, { recursive: true })
+    const stateFile = join(projectDir, 'state.json')
+    writeFileSync(
+      stateFile,
+      JSON.stringify({
+        current_state: 'seeding',
+        seedingProgress: {
+          disciplines: [{ discipline: 'spec', status: 'complete' }],
+          completedCount: 4,
+          totalCount: 8,
+          currentDiscipline: 'spec',
+        },
+      }),
+    )
+
+    watcher = new ProjectWatcher(testDir)
+    const events: unknown[] = []
+    watcher.on('event', (e) => events.push(e))
+    watcher.start()
+    await new Promise((r) => setTimeout(r, 200))
+
+    // Advance discipline spec → design, current_state stays 'seeding'
+    // so this would have been invisible to the old watcher.
+    writeFileSync(
+      stateFile,
+      JSON.stringify({
+        current_state: 'seeding',
+        seedingProgress: {
+          disciplines: [{ discipline: 'design', status: 'pending' }],
+          completedCount: 5,
+          totalCount: 8,
+          currentDiscipline: 'design',
+        },
+      }),
+    )
+    await new Promise((r) => setTimeout(r, 600))
+    watcher.stop()
+
+    const progress = events.filter((e: any) => e.type === 'seeding-progress')
+    expect(progress.length).toBeGreaterThan(0)
+    expect((progress[0] as any).data.from).toBe('spec')
+    expect((progress[0] as any).data.to).toBe('design')
+    // current_state didn't change — no state-change event should have fired.
+    const stateChanges = events.filter((e: any) => e.type === 'state-change')
+    expect(stateChanges.length).toBe(0)
+  })
+
   it('detects new project directories', async () => {
     mkdirSync(testDir, { recursive: true })
 

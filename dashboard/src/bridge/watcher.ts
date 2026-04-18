@@ -196,6 +196,28 @@ export class ProjectWatcher extends EventEmitter {
       this.emit('event', event)
     }
 
+    // Seeding progress: fires when the current discipline advances
+    // during seeding. Without this the dashboard's stepper stays stuck
+    // showing the previous discipline as active even though state.json
+    // has moved on — because nothing else triggers a project refetch
+    // during seeding (current_state stays 'seeding' the whole time).
+    const prevDiscipline = previousParsed?.seedingProgress?.currentDiscipline ?? null
+    const curDiscipline = parsed?.seedingProgress?.currentDiscipline ?? null
+    if (curDiscipline && curDiscipline !== prevDiscipline) {
+      const event: BridgeEvent = {
+        type: 'seeding-progress',
+        project: projectName,
+        timestamp: new Date().toISOString(),
+        data: {
+          from: prevDiscipline,
+          to: curDiscipline,
+          completedCount: parsed?.seedingProgress?.completedCount ?? 0,
+          totalCount: parsed?.seedingProgress?.totalCount ?? 8,
+        },
+      }
+      this.emit('event', event)
+    }
+
     // Check for new escalations
     this.checkEscalations(projectName, parsed, previousParsed)
   }

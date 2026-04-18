@@ -8,6 +8,14 @@ export type BridgeEventType =
   | 'milestone-promoted'
   | 'log-line'
   | 'project-discovered'
+  // Fires when seedingProgress.currentDiscipline changes during seeding.
+  // Distinct from state-change (which is about current_state) so
+  // listeners can differentiate discipline advance from state-machine
+  // state transitions. Page-level refetch hook treats any bridge event
+  // as a trigger to pull fresh data, so emitting this unsticks stale
+  // stepper / section UI that would otherwise keep showing the old
+  // current discipline.
+  | 'seeding-progress'
 
 export interface BridgeEvent {
   type: BridgeEventType
