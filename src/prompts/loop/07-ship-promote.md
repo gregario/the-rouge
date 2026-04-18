@@ -31,7 +31,36 @@ From the project root:
 
 ## Pre-checks
 
-Before doing ANYTHING, verify all review gates passed. Read `review_readiness_dashboard` and confirm:
+Before doing ANYTHING, run two independent gates. If either blocks, stop — do not attempt partial promotion.
+
+### Gate 1 — escalation / human-review short-circuit
+
+The analyzing phase (04-analyzing.md) writes `analysis_recommendation` to `cycle_context.json`. If it's `notify-human`, `rollback`, OR if `cycle_context.escalation_needed === true`, the product is NOT ready for autonomous shipment regardless of what the review dashboard says. Read these fields first and refuse if any are set:
+
+```
+escalation_needed === true
+OR analysis_recommendation === "notify-human"
+OR analysis_recommendation === "rollback"
+OR evaluation_report.po.verdict === "NOT_READY"
+```
+
+On block, write:
+
+```json
+{
+  "ship_blocked": true,
+  "ship_blocked_reason": "Analysis flagged for human review — cannot autonomously promote.",
+  "blocked_by_escalation": true,
+  "analysis_recommendation": "<the value>",
+  "escalation_needed": true
+}
+```
+
+Exit. Do not evaluate Gate 2. The analyzing phase saw something the gate dashboard didn't, and that signal is authoritative — gates are per-cycle quality checks, escalation is a higher-level "don't ship this" decision.
+
+### Gate 2 — review readiness dashboard
+
+Read `review_readiness_dashboard` and confirm every required gate passed:
 
 1. `test_integrity.passed === true`
 2. `qa_gate.passed === true`

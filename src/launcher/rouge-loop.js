@@ -24,7 +24,7 @@ const path = require('path');
 const { loadProjectSecrets } = require('./secrets.js');
 const { writeCheckpoint, readLatestCheckpoint, readAllCheckpoints } = require('./checkpoint.js');
 const { checkMilestoneLock, promoteMilestone, shouldEscalateForSpin, getCompletedStoryNames, isStoryDuplicate } = require('./safety.js');
-const { trackPhaseCost, checkBudgetCap } = require('./cost-tracker.js');
+const { trackPhaseCost, trackPhaseCostFromLog, checkBudgetCap } = require('./cost-tracker.js');
 const { deployWithRetry, shouldBlockMilestoneCheck } = require('./deploy-blocking.js');
 const { migrateV2StateToV3 } = require('./state-migration.js');
 const { injectPreamble } = require('./preamble-injector.js');
@@ -1823,13 +1823,18 @@ async function runPhase(projectDir) {
       const delta = filesAfter - filesBefore;
       log(`[${projectName}] Phase ${currentState} completed (files: ${filesBefore} → ${filesAfter}, delta: +${delta})`);
 
-      // V3: Track phase cost (estimate from log file size as token proxy)
+      // V3: Track phase cost. Prefer parsing Claude's real cost/tokens
+      // from the log (total_cost_usd / token-count markers); fall back
+      // to the log-size heuristic only when parsing yields nothing.
+      // Previously this was heuristic-only — meaningful for trend but
+      // cannot be trusted for budget cap decisions.
       try {
         const logSize = fs.statSync(phaseLog).size;
-        const estimatedTokens = Math.max(logSize * 2, 10000); // rough estimate
-        trackPhaseCost(state, estimatedTokens, model);
+        const fallbackTokens = Math.max(logSize * 2, 10000);
+        trackPhaseCostFromLog(state, phaseLog, fallbackTokens, model);
         writeJson(stateFile, state);
-        log(`[${projectName}] Cost: ~${state.costs.phase_cost_usd.toFixed(2)} USD this phase, ~${state.costs.cumulative_cost_usd.toFixed(2)} USD cumulative`);
+        const src = state.costs.phase_cost_source === 'parsed' ? ' (parsed)' : state.costs.phase_cost_source === 'parsed-tokens' ? ' (parsed tokens)' : ' (estimated)';
+        log(`[${projectName}] Cost: ~${state.costs.phase_cost_usd.toFixed(2)} USD this phase${src}, ~${state.costs.cumulative_cost_usd.toFixed(2)} USD cumulative`);
 
         // V3: Cost milestone notifications (per-project cap wins over global)
         const alertCap = state.budget_cap_usd ?? config.budget_cap_usd;

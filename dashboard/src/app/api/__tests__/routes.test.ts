@@ -1,7 +1,14 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest'
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+
+// assertLoopback() reads next/server `headers()` which only exists
+// inside a Next request scope. Unit tests run outside that scope, so
+// we stub the guard to always allow.
+vi.mock('@/lib/localhost-guard', () => ({
+  assertLoopback: async () => null,
+}))
 
 import { existsSync } from 'node:fs'
 import { GET as getProjects } from '../projects/route'
@@ -290,7 +297,12 @@ describe('POST /api/projects/[name]/feedback', () => {
     const response = await postFeedback(
       new Request('http://localhost', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        // Loopback guard now protects this route (PR-D D3). Tests run
+        // without the Next middleware, so we set the header explicitly.
+        headers: {
+          'Content-Type': 'application/json',
+          'x-forwarded-for': '127.0.0.1',
+        },
         body: JSON.stringify({ rating: 5, notes: 'nice' }),
       }),
       { params: makeParams({ name: 'alpha' }) },
