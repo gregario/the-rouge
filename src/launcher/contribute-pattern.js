@@ -153,6 +153,30 @@ function validateDraft(filePath) {
     errors.push(`Missing 'description' field`);
   }
 
+  // Schema-level validation (G7) — ajv against schemas/catalogue-entry.json.
+  // Catches shape drift that the hand-rolled checks above miss: missing
+  // required fields beyond the critical trio, enum violations on
+  // cost_tier, bad description length, malformed code_patterns[] entries.
+  // Warn-only in spirit (we return errors but also pass data through
+  // so the caller can decide to proceed) — but here in the contribute
+  // flow we let the errors block promotion. That's correct: drafts
+  // land via PR and should meet the bar before being promoted.
+  try {
+    const { validate } = require('./schema-validator.js');
+    // Normalise tier to a number before schema check — YAML may have
+    // left it as a string.
+    const forSchema = { ...data, tier: parseInt(data.tier, 10) };
+    const result = validate('catalogue-entry.json', forSchema, `contribute-pattern validate ${path.basename(filePath)}`);
+    if (!result.valid) {
+      for (const err of result.errors) {
+        errors.push(`schema: ${err}`);
+      }
+    }
+  } catch {
+    // schema-validator unavailable — skip. The hand-rolled checks
+    // above already cover the critical must-haves.
+  }
+
   return { valid: errors.length === 0, errors, data };
 }
 
