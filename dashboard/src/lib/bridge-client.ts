@@ -153,13 +153,33 @@ export interface SeedingChatMessage {
   role: 'rouge' | 'human'
   content: string
   timestamp: string
+  // Marker kind for gated-autonomy messages — undefined on legacy
+  // or plain prose. Drives distinct rendering in the chat UI.
+  kind?: 'prose' | 'gate_question' | 'autonomous_decision' | 'heartbeat' | 'system_note' | 'resume_prompt' | 'wrote_artifact'
   metadata?: {
     discipline?: string
+    // Gate id ('brainstorming/H2-north-star') or decision slug —
+    // lets the override mechanism address specific decisions.
+    markerId?: string
   }
 }
 
 export async function fetchSeedingMessages(slug: string): Promise<SeedingChatMessage[]> {
   const res = await fetch(`${BRIDGE_URL}/api/projects/${slug}/seed/messages`)
+  if (!res.ok) throw new Error(`Bridge error: ${res.status}`)
+  return res.json()
+}
+
+export interface SeedingLivenessStatus {
+  mode: 'awaiting_gate' | 'running_autonomous'
+  pending_gate: { discipline: string; gate_id: string; asked_at: string } | null
+  last_heartbeat_at: string | null
+  current_discipline: string | null
+  status: 'not-started' | 'active' | 'paused' | 'complete'
+}
+
+export async function fetchSeedingStatus(slug: string): Promise<SeedingLivenessStatus> {
+  const res = await fetch(`${BRIDGE_URL}/api/projects/${slug}/seed/status`)
   if (!res.ok) throw new Error(`Bridge error: ${res.status}`)
   return res.json()
 }

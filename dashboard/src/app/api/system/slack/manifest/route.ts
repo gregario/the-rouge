@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { assertLoopback } from "@/lib/localhost-guard";
+import { sanitizedErrorResponse } from "@/lib/error-response";
 import { rougeSrcDir } from "@/lib/launcher-bridge";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
@@ -21,7 +22,6 @@ export async function GET() {
     const yaml = readFileSync(manifestPath, "utf-8");
     return NextResponse.json({ yaml, path: manifestPath });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return sanitizedErrorResponse(err, "system/slack/manifest");
   }
 }

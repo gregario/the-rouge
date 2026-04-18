@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { assertLoopback } from "@/lib/localhost-guard";
+import { sanitizedErrorResponse } from "@/lib/error-response";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,6 @@ export async function POST(request: Request) {
     const errorText = await res.text();
     return NextResponse.json({ ok: false, error: errorText || `HTTP ${res.status}` }, { status: 400 });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return sanitizedErrorResponse(err, "system/slack/test-webhook");
   }
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { assertLoopback } from "@/lib/localhost-guard";
 import { requireLauncher } from "@/lib/launcher-bridge";
+import { sanitizedErrorResponse } from "@/lib/error-response";
 
 export const dynamic = "force-dynamic";
 
@@ -22,8 +23,7 @@ export async function GET() {
     }
     return NextResponse.json({ integrations });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return sanitizedErrorResponse(err, "system/secrets GET");
   }
 }
 
@@ -51,8 +51,7 @@ export async function POST(request: Request) {
     secrets.storeSecret(body.integration, body.key, body.value);
     return NextResponse.json({ ok: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return sanitizedErrorResponse(err, "system/secrets POST");
   }
 }
 
@@ -73,7 +72,6 @@ export async function DELETE(request: Request) {
     const removed = secrets.deleteSecret(integration, key);
     return NextResponse.json({ ok: true, removed });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return sanitizedErrorResponse(err, "system/secrets DELETE");
   }
 }

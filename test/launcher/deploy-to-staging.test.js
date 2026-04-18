@@ -177,6 +177,31 @@ describe('deploy-to-staging', () => {
       assert.strictEqual(result, null);
       assert.ok(logs.join('\n').includes('no handler is registered'));
     });
+
+    test('github-pages target passes handler lookup', () => {
+      projectDir = makeTempProject({
+        infrastructure: { deployment_target: 'github-pages' },
+      });
+      const { result, logs } = captureLogs(() => deploy(projectDir));
+      // The handler will fail (no build script, no git remote in the
+      // temp dir) — the assertion is that the target is KNOWN and
+      // attempted, not that it succeeds.
+      assert.strictEqual(result, null);
+      const logText = logs.join('\n');
+      assert.ok(logText.includes('target: github-pages)'), 'should log target');
+      assert.ok(!logText.includes('no handler is registered'), 'handler must be registered');
+    });
+
+    test('gh-pages alias passes handler lookup', () => {
+      projectDir = makeTempProject({
+        infrastructure: { deployment_target: 'gh-pages' },
+      });
+      const { result, logs } = captureLogs(() => deploy(projectDir));
+      assert.strictEqual(result, null);
+      const logText = logs.join('\n');
+      assert.ok(logText.includes('target: gh-pages)'), 'should log target');
+      assert.ok(!logText.includes('no handler is registered'), 'alias must resolve to github-pages handler');
+    });
   });
 
   // ── detectDeployTarget in isolation ──

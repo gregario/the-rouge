@@ -2,6 +2,8 @@ import { readFileSync, writeFileSync, renameSync, unlinkSync, existsSync } from 
 import { join } from 'path'
 import { DISCIPLINE_SEQUENCE, type SeedingSessionState } from './types'
 import { statePath, writeStateJson } from './state-path'
+import { withStateLock } from './state-lock'
+import { safeReadJson } from '@/lib/safe-read-json'
 
 const STATE_FILE = 'seeding-state.json'
 
@@ -13,12 +15,9 @@ const DEFAULT_STATE: SeedingSessionState = {
 
 export function readSeedingState(projectDir: string): SeedingSessionState {
   const path = join(projectDir, STATE_FILE)
-  if (!existsSync(path)) return { ...DEFAULT_STATE }
-  try {
-    return JSON.parse(readFileSync(path, 'utf-8'))
-  } catch {
-    return { ...DEFAULT_STATE }
-  }
+  return safeReadJson<SeedingSessionState>(path, { ...DEFAULT_STATE }, {
+    context: `seeding-state:${projectDir.split('/').pop()}`,
+  })
 }
 
 /**
@@ -50,7 +49,7 @@ export function updateSessionId(projectDir: string, sessionId: string): void {
   writeSeedingState(projectDir, state)
 }
 
-export function markDisciplineComplete(projectDir: string, discipline: string): void {
+export async function markDisciplineComplete(projectDir: string, discipline: string): Promise<void> {
   // Update seeding-state.json (internal tracking)
   const state = readSeedingState(projectDir)
   const complete = state.disciplines_complete ?? []
@@ -64,7 +63,7 @@ export function markDisciplineComplete(projectDir: string, discipline: string): 
   writeSeedingState(projectDir, state)
 
   // Also update state.json.seedingProgress so the dashboard sees progress
-  updateStateJsonDiscipline(projectDir, discipline)
+  await updateStateJsonDiscipline(projectDir, discipline)
 }
 
 function nextDiscipline(complete: string[]): string {
@@ -76,29 +75,31 @@ function nextDiscipline(complete: string[]): string {
   return DISCIPLINE_SEQUENCE[DISCIPLINE_SEQUENCE.length - 1]
 }
 
-function updateStateJsonDiscipline(projectDir: string, discipline: string): void {
+async function updateStateJsonDiscipline(projectDir: string, discipline: string): Promise<void> {
   const stateFile = statePath(projectDir)
   if (!existsSync(stateFile)) return
-  try {
-    const rawState = JSON.parse(readFileSync(stateFile, 'utf-8'))
-    if (!rawState.seedingProgress?.disciplines) return
+  await withStateLock(projectDir, () => {
+    try {
+      const rawState = JSON.parse(readFileSync(stateFile, 'utf-8'))
+      if (!rawState.seedingProgress?.disciplines) return
 
-    const disciplines = rawState.seedingProgress.disciplines as Array<{ discipline: string; status: string }>
-    const entry = disciplines.find(d => d.discipline === discipline)
-    if (entry && entry.status !== 'complete') {
-      entry.status = 'complete'
+      const disciplines = rawState.seedingProgress.disciplines as Array<{ discipline: string; status: string }>
+      const entry = disciplines.find(d => d.discipline === discipline)
+      if (entry && entry.status !== 'complete') {
+        entry.status = 'complete'
+      }
+      rawState.seedingProgress.completedCount = disciplines.filter(d => d.status === 'complete').length
+
+      // Also update currentDiscipline to the next one in sequence
+      const complete = disciplines.filter(d => d.status === 'complete').map(d => d.discipline)
+      const current = DISCIPLINE_SEQUENCE.find(d => !complete.includes(d)) ?? DISCIPLINE_SEQUENCE[DISCIPLINE_SEQUENCE.length - 1]
+      rawState.seedingProgress.currentDiscipline = current
+
+      writeStateJson(projectDir, rawState)
+    } catch {
+      // If state.json is malformed, skip
     }
-    rawState.seedingProgress.completedCount = disciplines.filter(d => d.status === 'complete').length
-
-    // Also update currentDiscipline to the next one in sequence
-    const complete = disciplines.filter(d => d.status === 'complete').map(d => d.discipline)
-    const current = DISCIPLINE_SEQUENCE.find(d => !complete.includes(d)) ?? DISCIPLINE_SEQUENCE[DISCIPLINE_SEQUENCE.length - 1]
-    rawState.seedingProgress.currentDiscipline = current
-
-    writeStateJson(projectDir, rawState)
-  } catch {
-    // If state.json is malformed, skip
-  }
+  })
 }
 
 export function markSeedingComplete(projectDir: string): void {
@@ -177,4 +178,70 @@ export function consumePendingCorrection(projectDir: string): string | null {
   const pending = peekPendingCorrection(projectDir)
   if (pending) clearPendingCorrection(projectDir)
   return pending
+}
+
+// ─── Gated autonomy (PR 1) ─────────────────────────────────────────
+
+/**
+ * Flip the session into `awaiting_gate` for a specific discipline/gate.
+ * Call this right before surfacing a [GATE:] message to the chat.
+ *
+ * The reconciliation path in seed-handler uses `mode === 'awaiting_gate'`
+ * to refuse to advance the discipline sequence while a question is
+ * pending — that's how we fix the "user answers Q1, Rouge silently
+ * moves to competition" regression.
+ */
+export function setAwaitingGate(projectDir: string, discipline: string, gateId: string): void {
+  const state = readSeedingState(projectDir)
+  state.mode = 'awaiting_gate'
+  state.pending_gate = {
+    discipline,
+    gate_id: gateId,
+    asked_at: new Date().toISOString(),
+  }
+  state.last_activity = new Date().toISOString()
+  writeSeedingState(projectDir, state)
+}
+
+/**
+ * Clear the awaiting-gate state. Called when the human's next message
+ * arrives and is routed to the pending gate as its answer.
+ */
+export function clearPendingGate(projectDir: string): void {
+  const state = readSeedingState(projectDir)
+  if (!state.pending_gate && state.mode !== 'awaiting_gate') return
+  state.mode = 'running_autonomous'
+  delete state.pending_gate
+  state.last_activity = new Date().toISOString()
+  writeSeedingState(projectDir, state)
+}
+
+/**
+ * Bump `last_heartbeat_at` to "now". Called on every [DECISION:] or
+ * [HEARTBEAT:] marker so the UI traffic-light can decay from the
+ * latest signal. See types.ts for the threshold ladder.
+ */
+export function updateHeartbeat(projectDir: string): void {
+  const state = readSeedingState(projectDir)
+  state.last_heartbeat_at = new Date().toISOString()
+  state.last_activity = state.last_heartbeat_at
+  writeSeedingState(projectDir, state)
+}
+
+/**
+ * Effective mode for legacy state files. Undefined `mode` on disk is
+ * treated as `running_autonomous` — matches pre-gated-autonomy behaviour
+ * and keeps old projects reconciling the way they used to.
+ */
+export function effectiveMode(state: SeedingSessionState): 'awaiting_gate' | 'running_autonomous' {
+  return state.mode ?? 'running_autonomous'
+}
+
+/**
+ * True iff Rouge is waiting on the user for the given discipline.
+ * Used by the reconciliation guard: if we're awaiting a gate in the
+ * current discipline, the next turn must not be allowed to skip it.
+ */
+export function isAwaitingGateFor(state: SeedingSessionState, discipline: string): boolean {
+  return effectiveMode(state) === 'awaiting_gate' && state.pending_gate?.discipline === discipline
 }

@@ -119,8 +119,15 @@ export function DisciplineStepper({
       aria-label="Seeding disciplines"
     >
       {DISCIPLINE_ORDER.map((discipline, i) => {
-        const status = statusMap.get(discipline) ?? 'pending'
+        const rawStatus = statusMap.get(discipline) ?? 'pending'
         const isCurrent = discipline === currentDiscipline
+        // The launcher only writes 'pending' / 'complete' to state.json —
+        // it never sets 'in-progress' explicitly. So a discipline that's
+        // currently active shows up as 'pending' in the raw data and the
+        // stepper greyed it out. Derive the effective status here:
+        // current + pending = in-progress.
+        const status: DisciplineProgress['status'] =
+          isCurrent && rawStatus === 'pending' ? 'in-progress' : rawStatus
         const isSelected = discipline === (selectedDiscipline ?? currentDiscipline)
         const isClickable = status === 'complete' || status === 'in-progress'
         const isLast = i === DISCIPLINE_ORDER.length - 1

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { assertLoopback } from "@/lib/localhost-guard";
+import { sanitizedErrorResponse } from "@/lib/error-response";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,8 @@ export async function POST(request: Request) {
             result.bot = { ok: false, error: body.error ?? "auth.test returned ok=false" };
           }
         } catch (err) {
-          result.bot = { ok: false, error: err instanceof Error ? err.message : String(err) };
+          console.error('[system/slack/validate] bot token fetch failed:', err);
+          result.bot = { ok: false, error: 'Slack API request failed. Check network connectivity and dashboard logs.' };
         }
       }
     }
@@ -58,7 +60,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result);
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return sanitizedErrorResponse(err, "system/slack/validate");
   }
 }

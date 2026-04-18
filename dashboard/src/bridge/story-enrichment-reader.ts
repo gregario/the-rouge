@@ -27,6 +27,10 @@ export interface StoryEnrichment {
   filesChanged?: string[]
   testsAdded?: number
   testsPassing?: number
+  /** Acceptance criteria for the story. Read from cycle_context.json's
+   *  implemented[] entries and falls back to task_ledger.json when
+   *  the story hasn't been through a completed build cycle yet. */
+  acceptanceCriteria?: string[]
   envLimitations?: string[]
   issuesEncountered?: string[]
   decisions: StoryDecision[]
@@ -74,10 +78,36 @@ export function readStoryEnrichment(projectDir: string): StoryEnrichmentMap {
       filesChanged: impl.files_changed,
       testsAdded: impl.tests_added,
       testsPassing: impl.tests_passing,
+      acceptanceCriteria: impl.acceptance_criteria,
       envLimitations: impl.env_limitations,
       issuesEncountered: impl.issues_encountered,
       decisions: [],
       questions: [],
+    }
+  }
+
+  // Fallback for stories that haven't completed a build cycle yet
+  // (no implemented[] entry). Pull acceptance criteria from
+  // task_ledger.json so the StoryList can show them even before the
+  // story is built. V3 spec discipline writes per-story ACs here.
+  const ledger = safeReadJson(join(projectDir, 'task_ledger.json')) as
+    | { milestones?: Array<{ stories?: Array<{ id?: string; acceptance_criteria?: string[] }> }> }
+    | null
+  if (ledger?.milestones) {
+    for (const m of ledger.milestones) {
+      for (const s of m.stories ?? []) {
+        if (!s.id || !s.acceptance_criteria?.length) continue
+        if (!result[s.id]) {
+          result[s.id] = {
+            storyId: s.id,
+            acceptanceCriteria: s.acceptance_criteria,
+            decisions: [],
+            questions: [],
+          }
+        } else if (!result[s.id].acceptanceCriteria?.length) {
+          result[s.id].acceptanceCriteria = s.acceptance_criteria
+        }
+      }
     }
   }
 

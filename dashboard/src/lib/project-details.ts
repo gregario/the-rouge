@@ -7,6 +7,50 @@ import { join } from "node:path";
 import { DISCIPLINE_SEQUENCE } from "@/bridge/types";
 import { readSeedingState } from "@/bridge/seeding-state";
 
+/**
+ * Merge milestones from `task_ledger.json` into the raw state when
+ * `state.json.milestones` is empty or missing.
+ *
+ * Background: V3 architecture uses `task_ledger.json` as the canonical
+ * task-tracking ledger (per README + CLAUDE.md). `state.json.milestones`
+ * is a legacy field that the orchestrator is supposed to populate on
+ * seeding approval — but during a seeding crash or an interrupted
+ * approval step, state.json can end up in states like "foundation"
+ * with an empty milestones array while task_ledger.json holds the
+ * full 7-milestone, 33-story decomposition. The dashboard UI's Build
+ * tab renders nothing when `state.milestones` is empty, so this
+ * fallback keeps the tab functional for V3 projects that completed
+ * spec decomposition but never made it through the approval
+ * handshake cleanly.
+ *
+ * Idempotent — a no-op when state.milestones is already populated.
+ */
+export function mergeMilestonesFromLedger(
+  projectDir: string,
+  rawState: Record<string, unknown>,
+): Record<string, unknown> {
+  const existing = rawState.milestones
+  if (Array.isArray(existing) && existing.length > 0) return rawState
+
+  const ledgerPath = join(projectDir, "task_ledger.json")
+  if (!existsSync(ledgerPath)) return rawState
+
+  try {
+    const ledger = JSON.parse(readFileSync(ledgerPath, "utf-8")) as {
+      milestones?: unknown[]
+    }
+    if (!Array.isArray(ledger.milestones) || ledger.milestones.length === 0) {
+      return rawState
+    }
+    return { ...rawState, milestones: ledger.milestones }
+  } catch {
+    // Malformed ledger — leave state as-is rather than crashing the
+    // dashboard; UI will render empty milestones which surfaces the
+    // symptom without breaking other tabs.
+    return rawState
+  }
+}
+
 export function mergeSeedingProgress(
   projectDir: string,
   rawState: Record<string, unknown>,
@@ -32,6 +76,69 @@ export function mergeSeedingProgress(
       currentDiscipline: seedState.current_discipline,
     },
   };
+}
+
+/**
+ * Resolve the project's staging and production URLs from the two
+ * sources Rouge writes them to:
+ *   - `cycle_context.json.infrastructure.deploy_history[-1].url` —
+ *     per-cycle deploy endpoints appended by deploy-to-staging.js
+ *   - `infrastructure_manifest.json.staging_url` /
+ *     `infrastructure_manifest.json.production_url` — declared
+ *     targets from the infrastructure seeding discipline
+ *
+ * Preference order: cycle_context's latest successful deploy wins
+ * (it's the freshest truth about where the build is actually
+ * reachable). Falls back to the manifest for projects that haven't
+ * deployed yet.
+ */
+export function readDeployUrls(projectDir: string): {
+  stagingUrl?: string
+  productionUrl?: string
+} {
+  let stagingUrl: string | undefined
+  let productionUrl: string | undefined
+
+  try {
+    const ctxPath = join(projectDir, 'cycle_context.json')
+    if (existsSync(ctxPath)) {
+      const ctx = JSON.parse(readFileSync(ctxPath, 'utf-8')) as {
+        infrastructure?: {
+          staging_url?: string
+          production_url?: string
+          deploy_history?: Array<{ url?: string; timestamp?: string }>
+        }
+      }
+      stagingUrl = ctx.infrastructure?.staging_url
+      productionUrl = ctx.infrastructure?.production_url
+      if (!stagingUrl && ctx.infrastructure?.deploy_history?.length) {
+        const latest = ctx.infrastructure.deploy_history[
+          ctx.infrastructure.deploy_history.length - 1
+        ]
+        stagingUrl = latest?.url
+      }
+    }
+  } catch {
+    // malformed — fall through to manifest
+  }
+
+  if (!stagingUrl || !productionUrl) {
+    try {
+      const manifestPath = join(projectDir, 'infrastructure_manifest.json')
+      if (existsSync(manifestPath)) {
+        const m = JSON.parse(readFileSync(manifestPath, 'utf-8')) as {
+          staging_url?: string
+          production_url?: string
+        }
+        if (!stagingUrl) stagingUrl = m.staging_url
+        if (!productionUrl) productionUrl = m.production_url
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return { stagingUrl, productionUrl }
 }
 
 export interface CheckpointSummary {

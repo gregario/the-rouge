@@ -2,6 +2,7 @@ import { readFileSync, existsSync } from 'fs'
 import { runClaude } from './claude-runner'
 import { readChatLog } from './chat-reader'
 import { statePath, writeStateJson } from './state-path'
+import { withStateLock } from './state-lock'
 
 /**
  * One-shot working-title derivation. Called after the first user message
@@ -45,10 +46,12 @@ ${firstUserMessage.slice(0, 2000)}`
     const title = cleanTitle(result.result)
     if (!title) return
 
-    // Final check: don't overwrite if the user renamed during the derive
-    // call (race).
-    if (!isPlaceholderName(readCurrentName(projectDir))) return
-    writeName(projectDir, title)
+    // Final check + write under the lock so a concurrent PATCH renaming
+    // can't be silently overwritten by our title derivation.
+    await withStateLock(projectDir, () => {
+      if (!isPlaceholderName(readCurrentName(projectDir))) return
+      writeName(projectDir, title)
+    })
   } catch (err) {
     // Best-effort: a failed title derivation must never block the
     // conversation. But silent-swallow hid two real bugs in seeding

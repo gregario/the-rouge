@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { assertLoopback } from "@/lib/localhost-guard";
 import { requireLauncher } from "@/lib/launcher-bridge";
+import { sanitizedErrorResponse } from "@/lib/error-response";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,6 @@ export async function POST(request: Request) {
     const results = await Promise.resolve(secrets.validateIntegration(integration));
     return NextResponse.json({ integration, results });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
+    return sanitizedErrorResponse(err, "system/secrets/validate");
   }
 }

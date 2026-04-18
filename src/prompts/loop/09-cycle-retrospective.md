@@ -174,7 +174,9 @@ List the top 5 most-changed files. For any file changed in 3+ separate phases, f
 
 ### Step 6 — Journey Entry
 
-Compose the definitive record for this cycle and append it to `journey.json`:
+> **Contract note:** Per CLAUDE.md, loop-phase prompts only write to `cycle_context.json`. `journey.json` is owned by the launcher, not by this prompt. Write the entry below to `cycle_context.json` under `journey_entry`; the launcher's post-retrospective hook will append it to `journey.json`.
+
+Compose the definitive record for this cycle and write it to `cycle_context.json.journey_entry`:
 
 ```json
 {
@@ -308,7 +310,7 @@ Bad insights (too vague to act on):
 
 #### Write the Trend Snapshot
 
-Write `trend_snapshot` to `cycle_context.json` alongside `retro_metrics`. Also append a summary to `journey.json` under the current cycle's entry as `trend_at_this_point`.
+Write `trend_snapshot` to `cycle_context.json` alongside `retro_metrics`. Attach a summary under `journey_entry.trend_at_this_point` in the same file — the launcher's post-retrospective hook copies this through when it persists the journey entry to `journey.json`.
 
 The launcher reads `trend_snapshot` to make macro decisions:
 - If `quality_trajectory.direction` is `declining` for 3+ cycles: trigger human notification
@@ -351,18 +353,15 @@ The launcher reads these on project completion and creates GitHub issues tagged 
 
 ## What You Write
 
-To `cycle_context.json`:
+To `cycle_context.json` (the only file this prompt writes):
 - `retro_metrics` — the aggregate metrics object from Step 7
 - `trend_snapshot` — the cross-cycle trend analysis from Step 7.5
 - `prompt_improvement_proposals` — Level 3 learning proposals from Step 8 (may be empty)
+- `journey_entry` — the full journey entry from Step 6 (with `trend_at_this_point` attached from Step 7.5). The launcher's post-retrospective hook appends this to `journey.json` and commits both files together.
 - Append to `previous_cycles` — a summary of this cycle for future reference
 
-To `journey.json`:
-- Append the journey entry from Step 6
-- Add `trend_at_this_point` to the current cycle's entry from Step 7.5
-
 Git:
-- Commit the updated `journey.json` and `cycle_context.json`
+- The launcher commits `cycle_context.json` + `journey.json` after its post-retrospective hook runs. Do NOT commit from inside this prompt.
 
 ---
 

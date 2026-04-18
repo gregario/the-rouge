@@ -36,7 +36,7 @@ function mapBridgeProjects(data: Record<string, unknown>[]): ProjectSummary[] {
       stagingUrl: p.deploymentUrl as string | undefined,
       productionUrl: undefined,
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      updatedAt: (p.lastActivityAt as string | undefined) ?? new Date().toISOString(),
       archived: Boolean(p.archived),
       archivedAt: typeof p.archivedAt === 'string' ? p.archivedAt : undefined,
       isPlaceholderName: Boolean(p.isPlaceholderName),

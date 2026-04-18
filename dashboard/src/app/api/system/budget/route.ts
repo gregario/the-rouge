@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { assertLoopback } from "@/lib/localhost-guard";
+import { sanitizedErrorResponse } from "@/lib/error-response";
 import { loadServerConfig } from "@/lib/server-config";
 import { resolveRougeConfigPath } from "@/lib/rouge-config";
 import { statePath } from "@/bridge/state-path";
@@ -66,6 +67,6 @@ export async function PUT(request: Request) {
     writeFileSync(cfgPath, JSON.stringify(cfg, null, 2) + "\n");
     return NextResponse.json({ ok: true, cap: n });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
+    return sanitizedErrorResponse(err, "system/budget PUT");
   }
 }

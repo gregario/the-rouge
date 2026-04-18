@@ -40,8 +40,13 @@ export function loadServerConfig(): ServerConfig {
         fileCfg = JSON.parse(readFileSync(candidate, "utf-8"));
         fileCfgDir = path.dirname(candidate);
         break;
-      } catch {
-        // ignore parse error; fall through to defaults
+      } catch (err) {
+        // Log parse error so corruption doesn't silently fall through
+        // to defaults — that masked a real bug once (bad JSON → the
+        // dashboard used wrong paths without any indication why).
+        console.warn(
+          `[server-config] JSON.parse failed for ${candidate}: ${err instanceof Error ? err.message : String(err)} — falling back to env/defaults`,
+        );
       }
     }
   }

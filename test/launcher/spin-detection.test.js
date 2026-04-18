@@ -136,5 +136,55 @@ describe('Spin Detection', () => {
       });
       assert.equal(result, null);
     });
+
+    test('initialises stories_executed when missing entirely (not just empty)', () => {
+      // `in` semantics: this state has NO stories_executed key at all.
+      // Spin detection should not throw, and should not fire on the
+      // other spin heuristics (nothing to detect). It should also
+      // mutate the state to set stories_executed = [] so subsequent
+      // loop ticks don't trip on undefined either.
+      const state = { last_meaningful_progress_at: Date.now() };
+      const originalWarn = console.warn;
+      let warned = false;
+      console.warn = () => { warned = true; };
+      try {
+        const result = shouldEscalateForSpin(state);
+        assert.equal(result, null);
+        assert.ok('stories_executed' in state);
+        assert.deepEqual(state.stories_executed, []);
+        assert.equal(warned, true, 'expected a warn log about missing stories_executed');
+      } finally {
+        console.warn = originalWarn;
+      }
+    });
+
+    test('wall-clock fallback fires when last checkpoint is >24h old', () => {
+      const oldTs = Date.now() - 25 * 60 * 60 * 1000;
+      const result = shouldEscalateForSpin({
+        stories_executed: [],
+        last_checkpoint_at: new Date(oldTs).toISOString(),
+        // No last_meaningful_progress_at — so time-stall can't fire.
+      });
+      assert.ok(result);
+      assert.match(result, /24h|wall-clock/i);
+    });
+
+    test('wall-clock fallback does NOT fire within 24h', () => {
+      const recentTs = Date.now() - 2 * 60 * 60 * 1000;
+      const result = shouldEscalateForSpin({
+        stories_executed: [],
+        last_checkpoint_at: new Date(recentTs).toISOString(),
+      });
+      assert.equal(result, null);
+    });
+
+    test('wall-clock fallback ignores unparseable timestamps', () => {
+      const result = shouldEscalateForSpin({
+        stories_executed: [],
+        last_checkpoint_at: 'not a date',
+      });
+      // Should not throw or fire spuriously.
+      assert.equal(result, null);
+    });
   });
 });

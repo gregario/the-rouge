@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { assertLoopback } from "@/lib/localhost-guard";
 import { requireLauncher } from "@/lib/launcher-bridge";
+import { sanitizedErrorResponse } from "@/lib/error-response";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +15,7 @@ export async function GET() {
     const daemon = requireLauncher("daemon.js");
     return NextResponse.json(daemon.statusSummary());
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return sanitizedErrorResponse(err, "system/daemon GET");
   }
 }
 
@@ -32,8 +32,7 @@ export async function POST() {
     const status = result.ok ? 200 : 400;
     return NextResponse.json(result, { status });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return sanitizedErrorResponse(err, "system/daemon POST");
   }
 }
 
@@ -49,7 +48,6 @@ export async function DELETE() {
     const status = result.ok ? 200 : 400;
     return NextResponse.json(result, { status });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return sanitizedErrorResponse(err, "system/daemon DELETE");
   }
 }

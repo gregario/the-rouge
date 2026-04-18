@@ -196,6 +196,52 @@ export class ProjectWatcher extends EventEmitter {
       this.emit('event', event)
     }
 
+    // Seeding progress: fires when the current discipline advances
+    // during seeding. Without this the dashboard's stepper stays stuck
+    // showing the previous discipline as active even though state.json
+    // has moved on — because nothing else triggers a project refetch
+    // during seeding (current_state stays 'seeding' the whole time).
+    const prevDiscipline = previousParsed?.seedingProgress?.currentDiscipline ?? null
+    const curDiscipline = parsed?.seedingProgress?.currentDiscipline ?? null
+    if (curDiscipline && curDiscipline !== prevDiscipline) {
+      const event: BridgeEvent = {
+        type: 'seeding-progress',
+        project: projectName,
+        timestamp: new Date().toISOString(),
+        data: {
+          from: prevDiscipline,
+          to: curDiscipline,
+          completedCount: parsed?.seedingProgress?.completedCount ?? 0,
+          totalCount: parsed?.seedingProgress?.totalCount ?? 8,
+        },
+      }
+      this.emit('event', event)
+    }
+
+    // Build progress: mirror of seeding-progress for build phases.
+    // Fires when current_milestone or current_story changes.
+    // Escalations are handled separately in checkEscalations which
+    // already emits dedicated 'escalation' events — no need to
+    // double-fire here.
+    const prevMilestone = previousParsed?.current_milestone ?? null
+    const curMilestone = parsed?.current_milestone ?? null
+    const prevStory = previousParsed?.current_story ?? null
+    const curStory = parsed?.current_story ?? null
+    if (curMilestone !== prevMilestone || curStory !== prevStory) {
+      const event: BridgeEvent = {
+        type: 'build-progress',
+        project: projectName,
+        timestamp: new Date().toISOString(),
+        data: {
+          milestone_from: prevMilestone,
+          milestone_to: curMilestone,
+          story_from: prevStory,
+          story_to: curStory,
+        },
+      }
+      this.emit('event', event)
+    }
+
     // Check for new escalations
     this.checkEscalations(projectName, parsed, previousParsed)
   }

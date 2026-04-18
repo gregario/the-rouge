@@ -1,7 +1,19 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert');
 
-const { estimatePhaseCost, trackPhaseCost, checkBudgetCap, getCostSummary } = require('../../src/launcher/cost-tracker.js');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
+const {
+  estimatePhaseCost,
+  trackPhaseCost,
+  trackPhaseCostFromLog,
+  parseRealCostFromLog,
+  checkBudgetCap,
+  isOverBudget,
+  getCostSummary,
+} = require('../../src/launcher/cost-tracker.js');
 
 describe('Cost Tracking', () => {
   describe('estimatePhaseCost', () => {
@@ -78,6 +90,92 @@ describe('Cost Tracking', () => {
     test('returns false when no costs tracked', () => {
       const state = {};
       assert.equal(checkBudgetCap(state, 50), false);
+    });
+
+    test('safety margin: fires before overrun on a typical cap', () => {
+      // cap=$100, margin = max(10, 2) = 10. State at $91 should block.
+      // Old behaviour would have required $100 to block.
+      const state = { costs: { cumulative_cost_usd: 91 } };
+      assert.equal(checkBudgetCap(state, 100), true);
+    });
+
+    test('safety margin: minimum absolute floor on small caps', () => {
+      // cap=$5, margin = max(0.50, 2) = 2. State at $3 should block.
+      const state = { costs: { cumulative_cost_usd: 3 } };
+      assert.equal(checkBudgetCap(state, 5), true);
+    });
+
+    test('isOverBudget: strict over-cap check (no margin)', () => {
+      // Strict check used for logging / alerting — only true after
+      // actual overrun.
+      assert.equal(isOverBudget({ costs: { cumulative_cost_usd: 99 } }, 100), false);
+      assert.equal(isOverBudget({ costs: { cumulative_cost_usd: 100 } }, 100), true);
+      assert.equal(isOverBudget({ costs: { cumulative_cost_usd: 105 } }, 100), true);
+    });
+  });
+
+  describe('parseRealCostFromLog', () => {
+    function writeTmp(content) {
+      const tmp = path.join(os.tmpdir(), `cost-log-${Date.now()}-${Math.random()}.log`);
+      fs.writeFileSync(tmp, content);
+      return tmp;
+    }
+
+    test('parses Total cost line from Claude output', () => {
+      const log = writeTmp('Some output\nTotal cost: $1.23\nMore output');
+      const result = parseRealCostFromLog(log);
+      fs.unlinkSync(log);
+      assert.equal(result.costUsd, 1.23);
+    });
+
+    test('parses total_cost_usd JSON field', () => {
+      const log = writeTmp('{"total_cost_usd":4.56,"other":1}');
+      const result = parseRealCostFromLog(log);
+      fs.unlinkSync(log);
+      assert.equal(result.costUsd, 4.56);
+    });
+
+    test('uses the last cost line when multiple exist', () => {
+      const log = writeTmp('Total cost: $1.00\nTotal cost: $2.50\nTotal cost: $5.00');
+      const result = parseRealCostFromLog(log);
+      fs.unlinkSync(log);
+      assert.equal(result.costUsd, 5.00);
+    });
+
+    test('returns null when nothing parseable', () => {
+      const log = writeTmp('just some text, no cost markers');
+      const result = parseRealCostFromLog(log);
+      fs.unlinkSync(log);
+      assert.equal(result, null);
+    });
+
+    test('parses token counts from JSON fields', () => {
+      const log = writeTmp('{"input_tokens":1000,"output_tokens":500}');
+      const result = parseRealCostFromLog(log);
+      fs.unlinkSync(log);
+      assert.equal(result.tokens, 1500);
+    });
+  });
+
+  describe('trackPhaseCostFromLog', () => {
+    test('uses parsed cost when available, marks source=parsed', () => {
+      const tmp = path.join(os.tmpdir(), `tpcfl-${Date.now()}.log`);
+      fs.writeFileSync(tmp, 'Total cost: $3.50');
+      const state = {};
+      trackPhaseCostFromLog(state, tmp, 50000, 'opus');
+      fs.unlinkSync(tmp);
+      assert.equal(state.costs.phase_cost_usd, 3.50);
+      assert.equal(state.costs.phase_cost_source, 'parsed');
+    });
+
+    test('falls back to heuristic when log unparseable, marks source=heuristic', () => {
+      const tmp = path.join(os.tmpdir(), `tpcfl-${Date.now()}.log`);
+      fs.writeFileSync(tmp, 'no markers here');
+      const state = {};
+      trackPhaseCostFromLog(state, tmp, 50000, 'opus');
+      fs.unlinkSync(tmp);
+      assert.ok(state.costs.phase_cost_usd > 0);
+      assert.equal(state.costs.phase_cost_source, 'heuristic');
     });
   });
 

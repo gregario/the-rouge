@@ -3,6 +3,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadServerConfig } from "@/lib/server-config";
 import { statePath, writeStateJson } from "@/bridge/state-path";
+import { withStateLock } from "@/bridge/state-lock";
+import { guardMutation } from "@/lib/route-guards";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +20,9 @@ export async function POST(
   { params }: { params: Promise<{ name: string }> },
 ) {
   const { name } = await params;
+  const guard = await guardMutation(name);
+  if (!guard.ok) return guard.response;
+
   const { projectsRoot } = loadServerConfig();
   const stateFile = statePath(join(projectsRoot, name));
   if (!existsSync(stateFile)) {
@@ -43,29 +48,37 @@ export async function POST(
     );
   }
 
-  const raw = JSON.parse(readFileSync(stateFile, "utf-8"));
-  const escalation = (raw.escalations || []).find(
-    (e: { id: string; status: string }) =>
-      e.id === body.escalation_id && e.status === "pending",
-  );
-  if (!escalation) {
+  const projectDir = join(projectsRoot, name);
+  const result = await withStateLock(projectDir, () => {
+    const raw = JSON.parse(readFileSync(stateFile, "utf-8"));
+    const escalation = (raw.escalations || []).find(
+      (e: { id: string; status: string }) =>
+        e.id === body.escalation_id && e.status === "pending",
+    );
+    if (!escalation) {
+      return { notFound: true, raw: null };
+    }
+
+    escalation.human_response = {
+      type: body.response_type,
+      text: body.text || "",
+      submitted_at: new Date().toISOString(),
+    };
+    raw.consecutive_failures = 0;
+    if (raw.paused_from_state) {
+      raw.current_state = raw.paused_from_state;
+      delete raw.paused_from_state;
+    }
+
+    writeStateJson(projectDir, raw);
+    return { notFound: false, raw };
+  });
+
+  if (result.notFound) {
     return NextResponse.json(
       { error: `No pending escalation found with id "${body.escalation_id}"` },
       { status: 404 },
     );
   }
-
-  escalation.human_response = {
-    type: body.response_type,
-    text: body.text || "",
-    submitted_at: new Date().toISOString(),
-  };
-  raw.consecutive_failures = 0;
-  if (raw.paused_from_state) {
-    raw.current_state = raw.paused_from_state;
-    delete raw.paused_from_state;
-  }
-
-  writeStateJson(join(projectsRoot, name), raw);
-  return NextResponse.json(raw);
+  return NextResponse.json(result.raw);
 }

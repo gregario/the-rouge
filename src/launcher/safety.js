@@ -43,11 +43,31 @@ function detectTimeStall(lastProgressTimestamp, now, thresholdMinutes = 30) {
   return elapsed > thresholdMinutes * 60 * 1000;
 }
 
+// Hard ceiling: even if every other signal looks fine, a project that
+// hasn't checkpointed in more than this many hours is effectively
+// stuck. Kicks in for legacy states where stories_executed is absent
+// entirely and all we have is last_checkpoint_at. 24 h matches the
+// audit recommendation (E5).
+const WALL_CLOCK_ESCALATION_HOURS = 24;
+
 function shouldEscalateForSpin(state, config = {}) {
   const threshold = config.zero_delta_threshold || 3;
   const stallMinutes = config.time_stall_minutes || 30;
-  const stories = state.stories_executed || [];
   const now = Date.now();
+
+  // `stories_executed` missing entirely is suspicious — it means either
+  // a corrupted state.json or a project that pre-dates V3 spin tracking.
+  // We can't meaningfully check delta/duplicate spin without it, so
+  // initialise it (side-effect) and warn; caller is expected to persist
+  // state afterwards. Using `in` instead of `||` distinguishes "missing"
+  // from "empty array".
+  if (!('stories_executed' in state) || state.stories_executed == null) {
+    state.stories_executed = [];
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('[safety] stories_executed missing on state — initialised to []. Spin detection will rely on wall-clock fallback until stories are recorded.');
+    }
+  }
+  const stories = state.stories_executed;
 
   if (detectZeroDeltaSpin(stories, threshold)) {
     return `${threshold}+ stories with zero code delta`;
@@ -60,6 +80,19 @@ function shouldEscalateForSpin(state, config = {}) {
 
   if (state.last_meaningful_progress_at && detectTimeStall(state.last_meaningful_progress_at, now, stallMinutes)) {
     return `No progress for ${stallMinutes}+ minutes`;
+  }
+
+  // Wall-clock fallback: if nothing else fired and the last checkpoint
+  // is more than WALL_CLOCK_ESCALATION_HOURS old, force escalation.
+  // Covers the class of bug where stories_executed was dropped/emptied
+  // and other spin checks can't see anything to fire on — without this,
+  // a corrupted state could stall indefinitely.
+  const lastCheckpointTs = state.last_checkpoint_at || state.last_meaningful_progress_at || null;
+  if (lastCheckpointTs) {
+    const parsed = typeof lastCheckpointTs === 'number' ? lastCheckpointTs : Date.parse(lastCheckpointTs);
+    if (!Number.isNaN(parsed) && now - parsed > WALL_CLOCK_ESCALATION_HOURS * 60 * 60 * 1000) {
+      return `No checkpoint recorded in the last ${WALL_CLOCK_ESCALATION_HOURS}h — wall-clock stall`;
+    }
   }
 
   return null;
@@ -86,4 +119,5 @@ module.exports = {
   checkMilestoneLock, promoteMilestone,
   detectZeroDeltaSpin, detectDuplicateStories, detectTimeStall, shouldEscalateForSpin,
   getCompletedStoryNames, isStoryDuplicate,
+  WALL_CLOCK_ESCALATION_HOURS,
 };

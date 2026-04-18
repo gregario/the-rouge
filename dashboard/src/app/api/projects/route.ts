@@ -6,6 +6,7 @@ import { writeSeedingState } from "@/bridge/seeding-state";
 import { statePathForWrite } from "@/bridge/state-path";
 import { loadServerConfig } from "@/lib/server-config";
 import { resolveRougeConfigPath } from "@/lib/rouge-config";
+import { assertLoopback } from "@/lib/localhost-guard";
 
 // Pull the global default cap from rouge.config.json. Falls back to 100
 // if the file isn't found (matches the live default).
@@ -23,10 +24,13 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const { projectsRoot } = loadServerConfig();
-  return NextResponse.json(scanProjects(projectsRoot));
+  return NextResponse.json(await scanProjects(projectsRoot));
 }
 
 export async function POST(request: Request) {
+  const forbidden = await assertLoopback();
+  if (forbidden) return forbidden;
+
   const { projectsRoot } = loadServerConfig();
   const body = (await request.json().catch(() => ({}))) as {
     slug?: string;

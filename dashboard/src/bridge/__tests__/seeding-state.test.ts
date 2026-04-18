@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { readSeedingState, writeSeedingState, updateSessionId, markDisciplineComplete, markSeedingComplete, appendPendingCorrection, peekPendingCorrection, clearPendingCorrection } from '../seeding-state'
+import { readSeedingState, writeSeedingState, updateSessionId, markDisciplineComplete, markSeedingComplete, appendPendingCorrection, peekPendingCorrection, clearPendingCorrection, setAwaitingGate, clearPendingGate, updateHeartbeat, isAwaitingGateFor, effectiveMode } from '../seeding-state'
 import { mkdirSync, readdirSync, rmSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
@@ -39,41 +39,41 @@ describe('seeding-state', () => {
     expect(state.status).toBe('active')
   })
 
-  it('marks discipline complete appending to array', () => {
+  it('marks discipline complete appending to array', async () => {
     mkdirSync(testDir, { recursive: true })
     writeSeedingState(testDir, { session_id: null, status: 'active' })
-    markDisciplineComplete(testDir, 'brainstorming')
-    markDisciplineComplete(testDir, 'competition')
+    await markDisciplineComplete(testDir, 'brainstorming')
+    await markDisciplineComplete(testDir, 'competition')
     const state = readSeedingState(testDir)
     expect(state.disciplines_complete).toEqual(['brainstorming', 'competition'])
   })
 
-  it('does not duplicate discipline entries', () => {
+  it('does not duplicate discipline entries', async () => {
     mkdirSync(testDir, { recursive: true })
     writeSeedingState(testDir, { session_id: null, status: 'active' })
-    markDisciplineComplete(testDir, 'brainstorming')
-    markDisciplineComplete(testDir, 'brainstorming')
+    await markDisciplineComplete(testDir, 'brainstorming')
+    await markDisciplineComplete(testDir, 'brainstorming')
     const state = readSeedingState(testDir)
     expect(state.disciplines_complete).toEqual(['brainstorming'])
   })
 
-  it('advances current_discipline to next in sequence', () => {
+  it('advances current_discipline to next in sequence', async () => {
     mkdirSync(testDir, { recursive: true })
     writeSeedingState(testDir, { session_id: null, status: 'active' })
-    markDisciplineComplete(testDir, 'brainstorming')
+    await markDisciplineComplete(testDir, 'brainstorming')
     expect(readSeedingState(testDir).current_discipline).toBe('competition')
-    markDisciplineComplete(testDir, 'competition')
+    await markDisciplineComplete(testDir, 'competition')
     expect(readSeedingState(testDir).current_discipline).toBe('taste')
   })
 
-  it('skips completed disciplines when advancing', () => {
+  it('skips completed disciplines when advancing', async () => {
     mkdirSync(testDir, { recursive: true })
     writeSeedingState(testDir, {
       session_id: null,
       status: 'active',
       disciplines_complete: ['brainstorming', 'competition', 'taste'],
     })
-    markDisciplineComplete(testDir, 'spec')
+    await markDisciplineComplete(testDir, 'spec')
     expect(readSeedingState(testDir).current_discipline).toBe('infrastructure')
   })
 
@@ -122,5 +122,53 @@ describe('seeding-state', () => {
     // Should not throw.
     clearPendingCorrection(testDir)
     expect(readSeedingState(testDir).session_id).toBe('s')
+  })
+
+  // ─── Gated autonomy ─────────────────────────────────────────────
+
+  it('effectiveMode defaults to running_autonomous for legacy state', () => {
+    const legacy = { session_id: null, status: 'active' as const }
+    expect(effectiveMode(legacy)).toBe('running_autonomous')
+  })
+
+  it('setAwaitingGate flips mode and records the pending gate', () => {
+    mkdirSync(testDir, { recursive: true })
+    writeSeedingState(testDir, { session_id: 's', status: 'active' })
+    setAwaitingGate(testDir, 'brainstorming', 'brainstorming/H1-premise')
+    const state = readSeedingState(testDir)
+    expect(state.mode).toBe('awaiting_gate')
+    expect(state.pending_gate?.discipline).toBe('brainstorming')
+    expect(state.pending_gate?.gate_id).toBe('brainstorming/H1-premise')
+    expect(state.pending_gate?.asked_at).toBeTruthy()
+  })
+
+  it('isAwaitingGateFor matches only the specific discipline', () => {
+    mkdirSync(testDir, { recursive: true })
+    writeSeedingState(testDir, { session_id: 's', status: 'active' })
+    setAwaitingGate(testDir, 'brainstorming', 'brainstorming/H1')
+    const state = readSeedingState(testDir)
+    expect(isAwaitingGateFor(state, 'brainstorming')).toBe(true)
+    expect(isAwaitingGateFor(state, 'competition')).toBe(false)
+  })
+
+  it('clearPendingGate returns to running_autonomous and removes pending_gate', () => {
+    mkdirSync(testDir, { recursive: true })
+    writeSeedingState(testDir, { session_id: 's', status: 'active' })
+    setAwaitingGate(testDir, 'brainstorming', 'brainstorming/H1')
+    clearPendingGate(testDir)
+    const state = readSeedingState(testDir)
+    expect(state.mode).toBe('running_autonomous')
+    expect(state.pending_gate).toBeUndefined()
+  })
+
+  it('updateHeartbeat sets last_heartbeat_at to now', () => {
+    mkdirSync(testDir, { recursive: true })
+    writeSeedingState(testDir, { session_id: 's', status: 'active' })
+    const before = Date.now()
+    updateHeartbeat(testDir)
+    const state = readSeedingState(testDir)
+    expect(state.last_heartbeat_at).toBeTruthy()
+    const hbTs = new Date(state.last_heartbeat_at!).getTime()
+    expect(hbTs).toBeGreaterThanOrEqual(before - 5)
   })
 })

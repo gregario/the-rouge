@@ -6,7 +6,7 @@ import { ChatMessage } from '@/components/chat-message'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
-import { ArrowRight, Play, Send, ChevronDown, ChevronRight, Check, Circle, Loader2 } from 'lucide-react'
+import { Play, Send, ChevronDown, ChevronRight, Check, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { isBridgeEnabled } from '@/lib/bridge-client'
 import { useSeeding } from '@/lib/use-seeding'
@@ -79,21 +79,46 @@ export function ChatPanel({
   // Build display messages with discipline tags
   const displayMessages: MessageWithDiscipline[] = useMemo(() => {
     if (bridgeActive) {
-      return seeding.messages.map((m) => ({
+      const base: MessageWithDiscipline[] = seeding.messages.map((m) => ({
         id: m.id,
         role: m.role,
         type: m.role === 'human' ? ('answer' as const) : ('question' as const),
         content: m.content,
         timestamp: m.timestamp,
+        kind: m.kind,
+        markerId: m.metadata?.markerId,
         _discipline: m.metadata?.discipline,
       }))
+      // Optimistic pending human message: append at the end so the
+      // user sees their send land in chat immediately instead of
+      // watching the input grey out with their text still in it.
+      if (seeding.pendingUserMessage) {
+        base.push({
+          id: 'pending-user',
+          role: 'human',
+          type: 'answer',
+          content: seeding.pendingUserMessage,
+          timestamp: new Date().toISOString(),
+          _discipline: currentDiscipline,
+          isPending: true,
+          pendingErrored: seeding.pendingUserMessageErrored,
+        })
+      }
+      return base
     }
     // Mock path: use message.discipline if present
     return (propMessages as MessageWithDiscipline[]).map((m) => ({
       ...m,
       _discipline: m.discipline,
     }))
-  }, [bridgeActive, seeding.messages, propMessages])
+  }, [
+    bridgeActive,
+    seeding.messages,
+    seeding.pendingUserMessage,
+    seeding.pendingUserMessageErrored,
+    currentDiscipline,
+    propMessages,
+  ])
 
   // Group messages by discipline
   const groups: DisciplineGroup[] = useMemo(() => {
@@ -187,16 +212,47 @@ export function ChatPanel({
   }
 
   const inputDisabled = disabled || (bridgeActive && seeding.isSending)
-  const placeholder = bridgeActive && seeding.isSending ? 'Rouge is thinking…' : 'Reply to Rouge…'
+  // The last-message id drives resume_prompt button staleness: only the
+  // tail message's button is actionable. Anything older has been
+  // superseded (user answered, Claude responded, next chunk ran, etc.)
+  // and should render inert so clicking it can't fire a rogue "continue"
+  // into a now-irrelevant context.
+  const lastMessageId =
+    displayMessages.length > 0 ? displayMessages[displayMessages.length - 1].id : null
+  // First-turn placeholder: the user isn't replying to anything yet —
+  // they're telling Rouge what to build. Different placeholder frames
+  // this as an opening, not a reply to silence.
+  //
+  // Sending-state placeholder is intentionally blank — the bar above
+  // (ElapsedTimeIndicator) already says "Rouge is thinking"; duplicating
+  // it here just to fill the input was noise.
+  const isFirstTurn = displayMessages.length === 0
+  const placeholder =
+    bridgeActive && seeding.isSending
+      ? ''
+      : isFirstTurn
+        ? 'Describe what you want to build…'
+        : 'Reply to Rouge…'
 
   async function handleSend() {
     const text = inputValue.trim()
     if (!text) return
+    // Clear the input BEFORE the await so the user doesn't watch their
+    // text sit greyed-out for 30s — the optimistic pending message in
+    // seeding.messages takes over the visual feedback.
+    setInputValue('')
+    textareaRef.current?.focus()
     if (bridgeActive) {
       await seeding.sendMessage(text)
     }
-    setInputValue('')
-    textareaRef.current?.focus()
+  }
+
+  // Callback for the Continue button on resume_prompt messages. Routes
+  // through the same sendMessage path as typed input so the chain
+  // resumes with a fresh auto-continuation budget.
+  async function handleResume() {
+    if (!bridgeActive || seeding.isSending) return
+    await seeding.sendMessage('continue')
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -211,6 +267,10 @@ export function ChatPanel({
       className="flex h-full flex-col rounded-lg border border-gray-200 bg-white"
       data-testid="chat-panel"
     >
+      {/* Top chip removed — the liveness bar above the input box
+          (ElapsedTimeIndicator) carries all the "Rouge is thinking"
+          signal. Two places saying the same thing was redundant. */}
+
       {/* Message list — grouped by discipline */}
       <ScrollArea className="flex-1 overflow-auto">
         <div className="flex flex-col gap-2 p-4">
@@ -220,30 +280,37 @@ export function ChatPanel({
             </p>
           ) : groups.length === 0 ? (
             // Untagged messages — render flat
-            displayMessages.map((msg) => <ChatMessage key={msg.id} message={msg} />)
+            displayMessages.map((msg) => (
+              <ChatMessage
+                key={msg.id}
+                message={msg}
+                // Resume button is only live on the last message — a
+                // resume_prompt buried in history is stale (the user
+                // either resumed it manually or Rouge has since moved
+                // on). Non-last resume_prompts render with a disabled
+                // button.
+                onResume={msg.id === lastMessageId ? handleResume : undefined}
+                resumeDisabled={bridgeActive && seeding.isSending}
+              />
+            ))
           ) : (
-            groups.map((group, idx) => {
-              // After a completed discipline, insert a transition banner
-              // pointing at the next one in the stream. Gives the
-              // "something changed" signal the stepper alone lacks.
-              const next = groups[idx + 1]
-              const showBanner = group.status === 'complete' && next
-              return (
-                <div key={group.discipline} className="flex flex-col gap-2">
-                  <DisciplineSection
-                    group={group}
-                    expanded={expanded.has(group.discipline)}
-                    onToggle={() => toggleExpanded(group.discipline)}
-                  />
-                  {showBanner && (
-                    <TransitionBanner
-                      from={DISCIPLINE_LABELS[group.discipline] ?? group.discipline}
-                      to={DISCIPLINE_LABELS[next.discipline] ?? next.discipline}
-                    />
-                  )}
-                </div>
-              )
-            })
+            groups.map((group) => (
+              // Transition banners between completed sections were
+              // removed — the "Complete" pill in the section header
+              // plus the left-sidebar stepper already convey handoff.
+              // Stacking both produced ladders of green between every
+              // completed discipline. See feedback from 2026-04-17 PR
+              // #164 dogfood.
+              <DisciplineSection
+                key={group.discipline}
+                group={group}
+                expanded={expanded.has(group.discipline)}
+                onToggle={() => toggleExpanded(group.discipline)}
+                onResume={handleResume}
+                resumeDisabled={bridgeActive && seeding.isSending}
+                lastMessageId={lastMessageId}
+              />
+            ))
           )}
           {bridgeActive && seeding.isSending && seeding.sendingStartedAt !== null && (
             <ElapsedTimeIndicator
@@ -308,19 +375,6 @@ export function ChatPanel({
   )
 }
 
-function TransitionBanner({ from, to }: { from: string; to: string }) {
-  return (
-    <div
-      data-testid="discipline-transition-banner"
-      className="flex items-center gap-2 rounded-md border border-dashed border-green-300 bg-green-50/60 px-3 py-1.5 text-xs text-green-900"
-    >
-      <Check className="size-3.5 text-green-600" />
-      <span className="font-medium">{from} complete</span>
-      <ArrowRight className="size-3 text-green-600" />
-      <span className="text-green-800">now in {to}</span>
-    </div>
-  )
-}
 
 function ElapsedTimeIndicator({
   startedAt,
@@ -375,21 +429,34 @@ function DisciplineSection({
   group,
   expanded,
   onToggle,
+  onResume,
+  resumeDisabled,
+  lastMessageId,
 }: {
   group: DisciplineGroup
   expanded: boolean
   onToggle: () => void
+  onResume?: () => void
+  resumeDisabled?: boolean
+  lastMessageId?: string | null
 }) {
-  const statusIcon =
-    group.status === 'complete' ? (
-      <Check className="size-3.5 text-green-600" />
-    ) : group.status === 'current' ? (
-      <Circle className="size-3.5 fill-blue-500 text-blue-500" />
-    ) : (
-      <Circle className="size-3.5 text-gray-400" />
-    )
-
   const label = DISCIPLINE_LABELS[group.discipline] ?? group.discipline
+
+  // Status rendering as a pill next to the discipline name — replaces
+  // the icon-only status indicator. The pill is self-explanatory and
+  // removes the need for separate transition banners between sections.
+  const statusPill =
+    group.status === 'complete' ? (
+      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700">
+        <Check className="size-3" />
+        Complete
+      </span>
+    ) : group.status === 'current' ? (
+      <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+        <span className="size-1.5 rounded-full bg-blue-500" />
+        Active
+      </span>
+    ) : null
 
   return (
     <div id={`discipline-${group.discipline}`} className="scroll-mt-2">
@@ -407,9 +474,9 @@ function DisciplineSection({
         ) : (
           <ChevronRight className="size-4 text-gray-500" />
         )}
-        {statusIcon}
-        <span className="flex-1 text-sm font-medium text-gray-900">{label}</span>
-        <span className="text-xs text-gray-500">
+        <span className="text-sm font-medium text-gray-900">{label}</span>
+        {statusPill}
+        <span className="ml-auto text-xs text-gray-500">
           {group.messages.length} {group.messages.length === 1 ? 'message' : 'messages'}
         </span>
       </button>
@@ -417,7 +484,12 @@ function DisciplineSection({
       {expanded && (
         <div className="mt-2 flex flex-col gap-4 border-l-2 border-gray-200 pl-4">
           {group.messages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} />
+            <ChatMessage
+              key={msg.id}
+              message={msg}
+              onResume={msg.id === lastMessageId ? onResume : undefined}
+              resumeDisabled={resumeDisabled}
+            />
           ))}
         </div>
       )}
