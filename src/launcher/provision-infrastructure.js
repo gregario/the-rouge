@@ -6,7 +6,12 @@
  * Usage: node provision-infrastructure.js <project-dir>
  */
 
-const { execSync, execFileSync } = require('child_process');
+// Named import (not destructured) so tests can mock execSync via
+// t.mock.method(child_process, 'execSync', ...). Destructuring
+// captures the function reference at require time, which defeats
+// property-level mocking from a test.
+const child_process = require('child_process');
+const { execFileSync } = child_process;
 const fs = require('fs');
 const path = require('path');
 const { log: logLine } = require('./logger.js');
@@ -30,7 +35,7 @@ function log(msg) {
 
 function run(cmd, opts = {}) {
   log(`  $ ${cmd}`);
-  return execSync(cmd, { encoding: 'utf8', timeout: 60000, stdio: ['pipe', 'pipe', 'pipe'], ...opts });
+  return child_process.execSync(cmd, { encoding: 'utf8', timeout: 60000, stdio: ['pipe', 'pipe', 'pipe'], ...opts });
 }
 
 // --- Cloudflare Workers setup ---
@@ -148,7 +153,7 @@ function getSupabaseToken() {
   // Keychain stores: "go-keyring-base64:<base64-encoded-token>"
   // Strip prefix, base64 decode to get the actual token (sbp_...)
   try {
-    const raw = execSync('security find-generic-password -s "Supabase CLI" -w', { encoding: 'utf8', timeout: 5000 }).trim();
+    const raw = child_process.execSync('security find-generic-password -s "Supabase CLI" -w', { encoding: 'utf8', timeout: 5000 }).trim();
     const b64 = raw.replace('go-keyring-base64:', '');
     return Buffer.from(b64, 'base64').toString('utf8');
   } catch {}
@@ -158,7 +163,7 @@ function getSupabaseToken() {
 
 function supabaseApi(method, path, token) {
   const cmd = `curl -s -X ${method} "https://api.supabase.com/v1${path}" -H "Authorization: Bearer ${token}" -H "Content-Type: application/json"`;
-  return JSON.parse(execSync(cmd, { encoding: 'utf8', timeout: 30000 }));
+  return JSON.parse(child_process.execSync(cmd, { encoding: 'utf8', timeout: 30000 }));
 }
 
 function provisionSupabase(projectDir, projectName) {
@@ -180,7 +185,7 @@ function provisionSupabase(projectDir, projectName) {
   let projects;
   try {
     projects = JSON.parse(
-      execSync(`curl -s "https://api.supabase.com/v1/projects" -H "Authorization: Bearer ${token}"`, { encoding: 'utf8', timeout: 30000 })
+      child_process.execSync(`curl -s "https://api.supabase.com/v1/projects" -H "Authorization: Bearer ${token}"`, { encoding: 'utf8', timeout: 30000 })
     );
   } catch (err) {
     log(`Supabase: failed to list projects: ${err.message.slice(0, 200)}`);
@@ -223,7 +228,7 @@ function provisionSupabase(projectDir, projectName) {
       log(`Supabase: 2/2 slots used — pausing idle project: ${toPause.name} (${toPause.ref})`);
 
       try {
-        execSync(
+        child_process.execSync(
           `curl -s -X POST "https://api.supabase.com/v1/projects/${toPause.ref}/pause" -H "Authorization: Bearer ${token}" -H "Content-Type: application/json"`,
           { encoding: 'utf8', timeout: 30000 }
         );
@@ -231,11 +236,11 @@ function provisionSupabase(projectDir, projectName) {
         // Wait for pause to complete (poll every 10s, max 3 min)
         for (let i = 0; i < 18; i++) {
           const status = JSON.parse(
-            execSync(`curl -s "https://api.supabase.com/v1/projects/${toPause.ref}" -H "Authorization: Bearer ${token}"`, { encoding: 'utf8', timeout: 10000 })
+            child_process.execSync(`curl -s "https://api.supabase.com/v1/projects/${toPause.ref}" -H "Authorization: Bearer ${token}"`, { encoding: 'utf8', timeout: 10000 })
           ).status;
           log(`Supabase: ${toPause.name} status: ${status}`);
           if (status === 'INACTIVE') break;
-          execSync('sleep 10');
+          child_process.execSync('sleep 10');
         }
         log(`Supabase: ${toPause.name} paused — slot freed`);
       } catch (err) {
@@ -252,7 +257,7 @@ function provisionSupabase(projectDir, projectName) {
   // Create new project
   log(`Supabase: creating project "${projectName}"`);
   try {
-    const password = execSync('openssl rand -base64 24', { encoding: 'utf8' }).trim();
+    const password = child_process.execSync('openssl rand -base64 24', { encoding: 'utf8' }).trim();
     const result = run(`supabase projects create "${projectName}" --org-id ${projects[0]?.organization_id || ''} --db-password "${password}" --region eu-west-1`, {
       timeout: 60000,
     });
@@ -437,4 +442,17 @@ function main() {
   log(`  supabase_ref: ${ctx.supabase?.project_ref || 'none'}`);
 }
 
-main();
+// Export internals for testing. Only run main() when invoked as a
+// CLI script so `require('./provision-infrastructure.js')` from a
+// test file can import the helpers without triggering the
+// subprocess calls main() makes.
+module.exports = {
+  provisionCloudflare,
+  provisionSupabase,
+  getSupabaseToken,
+  supabaseApi,
+};
+
+if (require.main === module) {
+  main();
+}
