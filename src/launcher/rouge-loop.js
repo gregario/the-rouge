@@ -181,6 +181,23 @@ function readJson(filePath) {
 }
 
 function writeJson(filePath, data) {
+  // Schema validation (warn-only). Matches filenames to the schemas
+  // that live in the repo's `schemas/` dir. Failures don't block the
+  // write — we prefer a bad shape on disk over a loop that refuses
+  // to progress because validation found a nitpick.
+  try {
+    const { validate } = require('./schema-validator.js');
+    const base = path.basename(filePath);
+    if (base === 'state.json') {
+      validate('state.json', data, `write ${filePath}`);
+    } else if (base === 'cycle_context.json') {
+      validate('cycle-context-v3.json', data, `write ${filePath}`);
+    } else if (base === 'task_ledger.json') {
+      validate('task-ledger-v3.json', data, `write ${filePath}`);
+    }
+  } catch {
+    /* validator unavailable — skip silently */
+  }
   const tmp = filePath + '.tmp';
   fs.writeFileSync(tmp, JSON.stringify(data, null, 2) + '\n');
   fs.renameSync(tmp, filePath);
