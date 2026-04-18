@@ -314,10 +314,20 @@ const windows = {
   },
 
   get(service, key) {
+    // Pipe stderr so PowerShell errors (permissions, CredRead P/Invoke
+    // failures) surface in the log. Exit code 1 with empty stderr means
+    // "credential not found" — silent null is correct. Anything else
+    // is a real failure the operator needs to see. Audit G13.
     const r = winSpawn('get', service, key, {
-      stdio: ['ignore', 'pipe', 'ignore'],
+      stdio: ['ignore', 'pipe', 'pipe'],
     });
-    if (r.status !== 0) return null;
+    if (r.status !== 0) {
+      const err = (r.stderr || '').trim();
+      if (err) {
+        console.warn(`[secrets:windows] get ${service}/${key} failed (status ${r.status}): ${err.slice(0, 400)}`);
+      }
+      return null;
+    }
     return r.stdout || null;
   },
 
@@ -339,8 +349,17 @@ const windows = {
   },
 
   delete(service, key) {
-    const r = winSpawn('delete', service, key, { stdio: 'ignore' });
-    return r.status === 0;
+    const r = winSpawn('delete', service, key, {
+      stdio: ['ignore', 'ignore', 'pipe'],
+    });
+    if (r.status !== 0) {
+      const err = (r.stderr || '').trim();
+      if (err) {
+        console.warn(`[secrets:windows] delete ${service}/${key} failed (status ${r.status}): ${err.slice(0, 400)}`);
+      }
+      return false;
+    }
+    return true;
   },
 };
 

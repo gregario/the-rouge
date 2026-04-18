@@ -267,8 +267,11 @@ function ToggleHeader({
         type="button"
         onClick={() => onToggleVerbose(!verbose)}
         className="text-xs font-medium text-blue-600 hover:text-blue-800"
+        title={verbose
+          ? 'Collapse back to critical events (milestones, escalations, deploys)'
+          : 'Include every checkpoint alongside critical events'}
       >
-        {verbose ? 'Show critical' : 'Show all'}
+        {verbose ? 'Show critical only' : 'Show all events'}
       </button>
     </div>
   )

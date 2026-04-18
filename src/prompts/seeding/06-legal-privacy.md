@@ -197,3 +197,15 @@ When complete, produce a legal status object and pass it to the orchestrator:
 **If `regulated_domain_flags` is non-empty or `trademark_status` is BLOCKED**, the orchestrator must loop back to TASTE for scope adjustment before proceeding.
 
 **If `blocking_issues` is non-empty**, seeding cannot proceed until the human resolves them.
+
+---
+
+## Discipline complete
+
+When every artifact in `files_written` is on disk and no `blocking_issues` remain, emit:
+
+```
+[DISCIPLINE_COMPLETE: legal-privacy]
+```
+
+The handler verifies the files are present before advancing to MARKETING.

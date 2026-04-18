@@ -47,7 +47,7 @@ rouge status
 
 The dashboard is your control plane: real-time project visibility, escalation responses, build logs, milestone progress, and seeding sessions. One process, one port, auto-opens in your browser. Start it with `rouge dashboard start` (background) or `rouge dashboard` (foreground). Global installs ship a prebuilt Next.js standalone server — cold start is ~2s, no dev toolchain required. Pass `--no-open` to skip the auto-open.
 
-For teams that already live in Slack, Rouge also supports a Slack bot as an alternative control plane — see [Slack setup](docs/how-to/slack-setup.md). The dashboard and Slack bot should not run simultaneously for the same project.
+A Slack bot integration exists in `src/slack/` but is no longer recommended — the dashboard is the supported control surface. See [docs/how-to/slack-setup.md](docs/how-to/slack-setup.md) if you're keeping a pre-existing Slack setup running.
 
 ### The loop
 
@@ -193,20 +193,9 @@ rouge secrets list
 
 Secrets stored in your OS credential store (macOS Keychain, Linux secret-service, Windows Credential Manager). Rouge never sees the values.
 
-### Alternative: Slack control plane (experimental)
+### Alternative: Slack control plane (retired)
 
-For teams that already live in Slack, Rouge can send notifications and accept commands via a Slack bot. The Slack integration is functional but secondary to the dashboard — the dashboard provides richer visibility and doesn't require external tokens.
-
-```bash
-rouge slack setup     # Prints step-by-step guide
-rouge setup slack     # Store tokens (3 required: bot, app, webhook)
-rouge slack start     # Start the bot
-rouge slack test      # Verify
-```
-
-See [docs/how-to/slack-setup.md](docs/how-to/slack-setup.md) for the full guide.
-
-> **Note:** The dashboard and Slack bot should not run simultaneously for the same project — they both write to `state.json` and can race. Use `rouge.config.json` `control_plane` field (`"frontend"` or `"slack"`) to choose one. Dashboard is the default.
+The Slack bot control plane is retired and no longer recommended. Code stays in `src/slack/` for users with existing setups; new features and bug fixes land in the dashboard only. See [docs/how-to/slack-setup.md](docs/how-to/slack-setup.md) if you're keeping a pre-existing setup.
 
 ### Build a product
 
