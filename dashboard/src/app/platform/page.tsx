@@ -1,6 +1,7 @@
 import { fetchBridgePlatform, isBridgeEnabled } from '@/lib/bridge-client'
 import { ProviderSlotCard } from '@/components/provider-slot-card'
 import { LiveRefresh } from '@/components/live-refresh'
+import { SelfImproveStatus } from '@/components/self-improve-status'
 
 // This page shows live project state — it must render per-request so the
 // same-origin /api/platform fetch actually resolves. Without this, Next
@@ -109,6 +110,10 @@ export default async function PlatformPage() {
                 limit={q.limit}
               />
             ))}
+          </div>
+
+          <div className="mt-8">
+            <SelfImproveStatus />
           </div>
         </>
       )}
