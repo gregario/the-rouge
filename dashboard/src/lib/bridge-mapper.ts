@@ -15,6 +15,7 @@ import type {
   SeedingDiscipline,
   DisciplineStatus,
 } from '@/lib/types'
+import type { RougeEscalation } from '@/bridge/types'
 
 interface RougeStory {
   id: string
@@ -37,20 +38,6 @@ interface RougeMilestone {
   stories: RougeStory[]
   started_at?: string
   completed_at?: string
-}
-
-interface RougeEscalation {
-  id: string
-  tier: number
-  classification?: string
-  summary?: string
-  reason?: string
-  state?: string
-  story_id?: string
-  status: string
-  created_at: string
-  resolution?: string
-  resolved_at?: string
 }
 
 interface RougeState {
