@@ -1,4 +1,5 @@
 const fs = require('fs');
+const { randomUUID } = require('crypto');
 
 // Skip the read+count step until the file passes this size. JSONL append
 // is hot path — counting lines on every write would be wasteful for the
@@ -36,7 +37,7 @@ function rotateJsonlIfNeeded(filePath, maxEntries) {
   if (lines.length <= maxEntries) return;
 
   const kept = lines.slice(lines.length - maxEntries);
-  const tmp = `${filePath}.${process.pid}.${Date.now()}.rotate`;
+  const tmp = `${filePath}.${randomUUID()}.rotate`;
   try {
     fs.writeFileSync(tmp, kept.join('\n') + '\n');
     fs.renameSync(tmp, filePath);

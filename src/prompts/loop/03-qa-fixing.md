@@ -269,9 +269,9 @@ Update `retry_counts` for every criterion you attempted:
 
 ## State Transition
 
-You do NOT modify phase state directly. The launcher transitions the project back to `test-integrity` after this phase completes, which triggers the test integrity gate, then the QA gate re-runs with the fixed code.
+You do NOT modify phase state directly. The launcher transitions the project back to `milestone-check` after this phase completes, which re-runs the evaluation sub-phase chain (test-integrity → code-review → product-walk → evaluation) with the fixed code.
 
-The flow is: `milestone-fix` -> (launcher) -> `test-integrity` -> `qa-gate` -> PASS or back to `milestone-fix`
+The flow is: `milestone-fix` -> (launcher) -> `milestone-check` (runs 02-evaluation-orchestrator which dispatches 02a/02c/02d/02e) -> PASS or back to `milestone-fix`
 
 ---
 

@@ -16,6 +16,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { randomUUID } = require('crypto');
 
 function readJsonSafe(filePath) {
   try {
@@ -27,7 +28,7 @@ function readJsonSafe(filePath) {
 }
 
 function writeJsonAtomic(filePath, data) {
-  const tmp = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+  const tmp = `${filePath}.${randomUUID()}.tmp`;
   try {
     fs.writeFileSync(tmp, JSON.stringify(data, null, 2) + '\n');
     fs.renameSync(tmp, filePath);

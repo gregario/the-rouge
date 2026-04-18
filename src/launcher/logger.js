@@ -36,8 +36,17 @@ function resolveLogDir() {
     cachedLogDir = path.join(ROUGE_ROOT, 'logs');
   } else {
     // Global / packaged install — per-user dir, never writes to the
-    // install prefix or some parent of cwd.
-    const home = process.env.HOME || process.env.USERPROFILE || '/tmp';
+    // install prefix or some parent of cwd. Refuse to fall back to /tmp:
+    // it's world-readable and logs leak project names + prompt text that
+    // we don't want exposed. A missing HOME usually means the process
+    // was launched from launchd/systemd without an environment — the
+    // caller needs to fix that, not have us write secrets to /tmp.
+    const home = process.env.HOME || process.env.USERPROFILE;
+    if (!home) {
+      const msg = '[rouge-logger] refusing to start: no HOME/USERPROFILE env var. Set ROUGE_LOG_DIR or run from a user session.';
+      try { process.stderr.write(msg + '\n'); } catch { /* stderr unavailable */ }
+      throw new Error(msg);
+    }
     cachedLogDir = path.join(home, '.rouge', 'logs');
   }
 

@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync, renameSync, unlinkSync, existsSync } from 'fs'
+import { randomUUID } from 'node:crypto'
 import { join } from 'path'
 import { DISCIPLINE_SEQUENCE, type SeedingSessionState } from './types'
 import { statePath, writeStateJson } from './state-path'
@@ -30,7 +31,7 @@ export function readSeedingState(projectDir: string): SeedingSessionState {
  */
 export function writeSeedingState(projectDir: string, state: SeedingSessionState): void {
   const path = join(projectDir, STATE_FILE)
-  const tmp = `${path}.${process.pid}.${Date.now()}.tmp`
+  const tmp = `${path}.${randomUUID()}.tmp`
   try {
     writeFileSync(tmp, JSON.stringify(state, null, 2))
     renameSync(tmp, path)

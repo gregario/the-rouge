@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 
 export const ROUGE_DIR = '.rouge'
@@ -42,7 +43,10 @@ export function hasStateFile(projectDir: string): boolean {
  */
 export function writeStateJson(projectDir: string, state: unknown): void {
   const target = statePathForWrite(projectDir)
-  const tmp = `${target}.${process.pid}.${Date.now()}.tmp`
+  // UUID suffix eliminates collision risk that the prior pid+Date.now()
+  // pattern had in clustered dashboards or fast test loops where the
+  // millisecond clock doesn't tick between two writes from the same pid.
+  const tmp = `${target}.${randomUUID()}.tmp`
   try {
     writeFileSync(tmp, JSON.stringify(state, null, 2) + '\n')
     renameSync(tmp, target)

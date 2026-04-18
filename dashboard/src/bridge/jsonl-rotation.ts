@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, statSync, writeFileSync, renameSync, unlinkSync } from 'fs'
+import { randomUUID } from 'node:crypto'
 
 // Skip the read+count step until the file passes this size. JSONL append
 // is hot path — counting lines on every write would be wasteful for the
@@ -37,7 +38,7 @@ export function rotateJsonlIfNeeded(path: string, maxEntries: number): void {
   if (lines.length <= maxEntries) return
 
   const kept = lines.slice(lines.length - maxEntries)
-  const tmp = `${path}.${process.pid}.${Date.now()}.rotate`
+  const tmp = `${path}.${randomUUID()}.rotate`
   try {
     writeFileSync(tmp, kept.join('\n') + '\n')
     renameSync(tmp, path)

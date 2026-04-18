@@ -43,6 +43,10 @@ export function BuildLogTail({ slug, live = false, tail = 50 }: BuildLogTailProp
       // 1.5s while live — fast enough to feel continuous without
       // hammering the filesystem. Previous 5s polling meant users
       // waited up to 5s to see new output during active builds.
+      // Audit F16 considered switching to SSE; parked. SSE lowers
+      // latency further but adds endpoint + reconnect complexity
+      // and polling-at-1.5s is already good enough for the tail
+      // pattern. Revisit if the dashboard moves to multi-tenant.
       const i = setInterval(load, 1500)
       return () => { cancelled = true; clearInterval(i) }
     }
