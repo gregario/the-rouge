@@ -113,13 +113,26 @@ export function ProjectCard({ project }: { project: ProjectSummary }) {
     >
       <Card className="h-full border border-gray-200 bg-gray-50 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
         <CardContent className="flex flex-col gap-4 p-6">
-          {/* Header: name + state pill */}
+          {/* Header: name + state pill + liveness chip */}
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <h3 className="text-lg font-semibold text-gray-900 truncate">{project.name}</h3>
               <p className="mt-0.5 text-sm text-gray-500 truncate">{project.description}</p>
             </div>
-            <StateBadge state={project.state} size="lg" />
+            <div className="flex flex-col items-end gap-1">
+              <StateBadge state={project.state} size="lg" />
+              {project.awaitingGate && (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-900 ring-1 ring-amber-300"
+                  title={project.pendingGateDiscipline
+                    ? `Waiting on your answer for ${project.pendingGateDiscipline}`
+                    : 'Waiting on your input'}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                  awaiting you
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Escalation alert — inline when present */}

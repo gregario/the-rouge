@@ -376,6 +376,7 @@ export default function ProjectPage({
               onSelectDiscipline={setSelectedDiscipline}
               reviseLocked={buildRunning}
               reviseLockReason="Stop the build to revise the spec"
+              pendingGateDiscipline={project.pendingGateDiscipline}
             />
           }
           buildContent={buildContent}
