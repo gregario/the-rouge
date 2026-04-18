@@ -1,0 +1,102 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Rouge Integration Catalogue Entry",
+  "description": "Structural contract for library/integrations/<tier>/*.yaml files. Validated warn-only at contribute-pattern promotion time. Tier-specific fields enforced via oneOf.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["id", "name", "tier", "description"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Kebab-case slug. Matches filename (minus .yaml). No uppercase, no underscores, no leading dash."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable display name (e.g. 'Stripe')."
+    },
+    "tier": {
+      "type": "integer",
+      "enum": [1, 2, 3],
+      "description": "1 = core platform primitive; 2 = integrated service (Stripe, Supabase); 3 = pattern within a service (Stripe webhook handler, Sentry React boundary)."
+    },
+    "category": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Primary classification: payments, auth, database, analytics, error-monitoring, email, etc. Used to group in the dashboard catalogue browser."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 20,
+      "description": "One- to three-paragraph description. Must be substantive enough for Rouge's feasibility gate to match on keywords. Less than 20 chars is a stub."
+    },
+    "cost_tier": {
+      "type": "string",
+      "enum": ["free", "free-to-start", "usage-based", "subscription", "enterprise"],
+      "description": "Coarse cost shape. Tier 2 entries should always declare this; tier 3 inherits from its parent service."
+    },
+    "service": {
+      "type": "string",
+      "description": "Tier 3 only: the parent tier-2 service id (e.g. a stripe-webhook-handler pattern has service: stripe)."
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Arbitrary searchable labels (e.g. webhooks, server-side, cron). Used by feasibility to surface related patterns."
+    },
+    "applies_when": {
+      "type": "string",
+      "description": "Tier 3 only: one-paragraph description of when this pattern is needed. Helps Rouge decide to suggest it."
+    },
+    "requires": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "env_vars": { "type": "array", "items": { "type": "string" } },
+        "packages": { "type": "array", "items": { "type": "string" } },
+        "cli_tools": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "setup_steps": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Tier 2 only: ordered list of operator steps to wire the service. Each step is a single actionable line."
+    },
+    "teardown_steps": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "code_patterns": {
+      "type": "array",
+      "description": "Tier 3 only: file-level pattern sketches the Factory can implement.",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["file", "description"],
+        "properties": {
+          "file": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "tested_with": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Stacks this entry has been verified against (e.g. nextjs-cloudflare, nextjs-vercel)."
+    },
+    "free_tier_limits": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Tier 2 only: declared free-tier thresholds (requests, rows, GB, etc)."
+    },
+    "scale_considerations": {
+      "type": "string",
+      "description": "Optional: tier 2/3 notes on what breaks at scale and how to address."
+    },
+    "staleness_date": {
+      "type": "string",
+      "description": "ISO date the entry was last verified. Entries older than ~12 months should be reviewed before recommending."
+    }
+  }
+}

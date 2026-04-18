@@ -81,6 +81,53 @@ description: whatever
     assert.ok(result.errors.some((e) => /kebab/.test(e)));
   });
 
+  test('rejects a draft with description under the schema minimum', () => {
+    // Schema requires description >= 20 chars (stub threshold). This
+    // is the G7 schema kicking in on top of the hand-rolled checks.
+    const draft = writeDraft(
+      'short-desc.yaml',
+      `id: foo-bar
+name: Foo Bar
+tier: 2
+description: Short.
+`,
+    );
+    const result = contribute(draft, { dryRun: true });
+    assert.equal(result.success, false);
+    assert.ok(result.errors.some((e) => /schema:|description/i.test(e)));
+  });
+
+  test('rejects a draft with invalid cost_tier enum value', () => {
+    const draft = writeDraft(
+      'bad-cost.yaml',
+      `id: foo
+name: Foo
+tier: 2
+description: A reasonably long description passing the 20-char minimum.
+cost_tier: super-expensive
+`,
+    );
+    const result = contribute(draft, { dryRun: true });
+    assert.equal(result.success, false);
+    assert.ok(result.errors.some((e) => /schema:.*cost_tier/i.test(e)));
+  });
+
+  test('accepts a well-formed tier-2 draft', () => {
+    const draft = writeDraft(
+      'good-entry.yaml',
+      `id: mapbox
+name: Mapbox
+tier: 2
+category: maps
+description: Geocoding, static maps, and map tiles via Mapbox API.
+cost_tier: usage-based
+`,
+    );
+    const result = contribute(draft, { dryRun: true });
+    assert.equal(result.success, true);
+    assert.equal(result.dryRun, true);
+  });
+
   test('contributeAllDrafts returns empty when drafts dir has no files', () => {
     // Point scanDrafts at a clean temp by running from a cwd with no drafts dir.
     // scanDrafts uses a fixed library/integrations/drafts/ path rooted at
