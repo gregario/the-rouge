@@ -5,6 +5,7 @@ import { loadServerConfig } from "@/lib/server-config";
 import { statePath, writeStateJson } from "@/bridge/state-path";
 import { withStateLock } from "@/bridge/state-lock";
 import { readBuildInfo } from "@/bridge/build-runner";
+import { safeReadJson } from "@/lib/safe-read-json";
 import { guardMutation } from "@/lib/route-guards";
 import { sanitizedErrorResponse } from "@/lib/error-response";
 import { isPlaceholderSlug, slugify, uniqueSlug } from "@/bridge/slug";
@@ -53,6 +54,18 @@ export async function GET(
   // itself; `null` means nothing is running. See audit E9.
   const build = readBuildInfo(projectDir);
 
+  // Gated-autonomy signals from seeding-state so the detail page can
+  // surface a "Rouge is waiting on X" indicator without needing a
+  // second fetch. Matches the shape the scanner already exposes for
+  // project cards.
+  const seeding = safeReadJson<{
+    mode?: string;
+    pending_gate?: { discipline?: string };
+    last_heartbeat_at?: string;
+  } | null>(join(projectDir, "seeding-state.json"), null, {
+    context: `detail:gated-autonomy:${name}`,
+  });
+
   return NextResponse.json({
     slug: name,
     ...merged,
@@ -65,6 +78,9 @@ export async function GET(
     buildRunning: !!build,
     buildPid: build?.pid,
     buildStartedAt: build?.startedAt,
+    awaitingGate: seeding?.mode === "awaiting_gate",
+    pendingGateDiscipline: seeding?.pending_gate?.discipline,
+    lastHeartbeatAt: seeding?.last_heartbeat_at,
   });
 }
 

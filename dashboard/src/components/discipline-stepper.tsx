@@ -79,6 +79,9 @@ interface DisciplineStepperProps {
   currentDiscipline?: SeedingDiscipline
   selectedDiscipline?: SeedingDiscipline
   onSelectDiscipline?: (discipline: SeedingDiscipline) => void
+  // When set, the matching discipline gets an amber "awaiting you"
+  // dot so users see which discipline is blocked on their input.
+  pendingGateDiscipline?: SeedingDiscipline
 }
 
 export function DisciplineStepper({
@@ -86,6 +89,7 @@ export function DisciplineStepper({
   currentDiscipline,
   selectedDiscipline,
   onSelectDiscipline,
+  pendingGateDiscipline,
 }: DisciplineStepperProps) {
   const statusMap = new Map(
     disciplines.map((d) => [d.discipline, d.status])
@@ -167,7 +171,7 @@ export function DisciplineStepper({
             {/* Label */}
             <div
               className={cn(
-                'pb-3 text-sm leading-6',
+                'pb-3 text-sm leading-6 flex items-center gap-1.5',
                 isSelected
                   ? 'font-semibold text-foreground'
                   : isCurrent
@@ -177,7 +181,14 @@ export function DisciplineStepper({
                       : 'text-muted-foreground/60'
               )}
             >
-              {DISCIPLINE_LABELS[discipline]}
+              <span>{DISCIPLINE_LABELS[discipline]}</span>
+              {discipline === pendingGateDiscipline && (
+                <span
+                  className="inline-flex h-1.5 w-1.5 rounded-full bg-amber-500"
+                  aria-label="Awaiting your answer"
+                  title="Rouge is waiting on your answer for this discipline"
+                />
+              )}
             </div>
           </button>
         )

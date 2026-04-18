@@ -191,6 +191,12 @@ export interface ProjectSummary {
   firstMessagePreview?: string
   archived?: boolean
   archivedAt?: string
+  // Gated-autonomy signals. Populated from seeding-state.json while
+  // the project is seeding; drive the "awaiting you" chip on the
+  // project card and the discipline-gate indicator in spec-tab-content.
+  awaitingGate?: boolean
+  pendingGateDiscipline?: string
+  lastHeartbeatAt?: string
 }
 
 /** Full detail for war room / project deep dive */
@@ -227,6 +233,12 @@ export interface ProjectDetail {
   buildRunning?: boolean
   buildPid?: number
   buildStartedAt?: string
+  // Gated-autonomy signals (mirrors ProjectSummary). When set, the
+  // SpecTabContent highlights the discipline Rouge is blocked on and
+  // the project header shows the "awaiting you" chip.
+  awaitingGate?: boolean
+  pendingGateDiscipline?: SeedingDiscipline
+  lastHeartbeatAt?: string
   createdAt: string
   updatedAt: string
   archived?: boolean

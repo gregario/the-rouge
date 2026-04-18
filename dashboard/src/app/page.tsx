@@ -60,6 +60,9 @@ function mapBridgeProjects(data: Record<string, unknown>[]): ProjectSummary[] {
       firstMessagePreview: typeof p.firstMessagePreview === 'string' ? p.firstMessagePreview : undefined,
       archived: Boolean(p.archived),
       archivedAt: typeof p.archivedAt === 'string' ? p.archivedAt : undefined,
+      awaitingGate: p.awaitingGate === true ? true : undefined,
+      pendingGateDiscipline: typeof p.pendingGateDiscipline === 'string' ? p.pendingGateDiscipline : undefined,
+      lastHeartbeatAt: typeof p.lastHeartbeatAt === 'string' ? p.lastHeartbeatAt : undefined,
     }
   })
 }

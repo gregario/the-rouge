@@ -125,6 +125,15 @@ export interface BridgeProjectSummary {
   isPlaceholderName?: boolean
   archived?: boolean
   archivedAt?: string
+  // Gated-autonomy signals for the dashboard "awaiting you" chip.
+  // Populated from seeding-state.json while the project is seeding;
+  // all three are optional because legacy projects (or non-seeding
+  // states) won't carry them. `awaitingGate` is the primary signal;
+  // the other two let the UI explain *what* is being waited on and
+  // *how stale* the last autonomous beat is.
+  awaitingGate?: boolean
+  pendingGateDiscipline?: string
+  lastHeartbeatAt?: string
 }
 
 // ─── Seeding chat log ────────────────────────────────────────────────

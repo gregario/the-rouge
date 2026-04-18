@@ -21,6 +21,10 @@ interface SpecTabContentProps {
   // spec would cause drift between the running loop and updated artifacts).
   reviseLocked?: boolean
   reviseLockReason?: string
+  // Surfaced from scanner/seeding-state. When set, DisciplineStepper
+  // renders an "awaiting you" badge next to that discipline so users
+  // see which discipline is blocking.
+  pendingGateDiscipline?: SeedingDiscipline
 }
 
 export function SpecTabContent({
@@ -32,6 +36,7 @@ export function SpecTabContent({
   onSelectDiscipline,
   reviseLocked = false,
   reviseLockReason,
+  pendingGateDiscipline,
 }: SpecTabContentProps) {
   const hasAnySpecContent = !!(
     spec?.hasVision || spec?.hasMilestones || spec?.hasLegacySpec
@@ -156,6 +161,7 @@ function SeedingLayout({
             currentDiscipline={seedingProgress.currentDiscipline}
             selectedDiscipline={selectedDiscipline}
             onSelectDiscipline={onSelectDiscipline}
+            pendingGateDiscipline={pendingGateDiscipline}
           />
         </div>
       </div>

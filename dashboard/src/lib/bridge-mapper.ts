@@ -73,6 +73,14 @@ interface RougeState {
   // before reaching this mapper.
   stagingUrl?: string
   productionUrl?: string
+  // Build subprocess state + gated-autonomy signals. Populated by
+  // the detail API route before this mapper sees the payload.
+  buildRunning?: boolean
+  buildPid?: number
+  buildStartedAt?: string
+  awaitingGate?: boolean
+  pendingGateDiscipline?: string
+  lastHeartbeatAt?: string
 }
 
 function mapSeedingProgress(raw: RougeState['seedingProgress']): SeedingProgress | undefined {
@@ -260,6 +268,12 @@ export function mapRougeStateToProjectDetail(raw: unknown, slug: string): Projec
     // the page header can render an "Open staging" affordance.
     stagingUrl: state.stagingUrl ?? undefined,
     productionUrl: state.productionUrl ?? undefined,
+    buildRunning: state.buildRunning,
+    buildPid: state.buildPid,
+    buildStartedAt: state.buildStartedAt,
+    awaitingGate: state.awaitingGate,
+    pendingGateDiscipline: state.pendingGateDiscipline as SeedingDiscipline | undefined,
+    lastHeartbeatAt: state.lastHeartbeatAt,
     createdAt: now,
     updatedAt: now,
     archived: state.archived === true,

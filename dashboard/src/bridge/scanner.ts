@@ -286,6 +286,28 @@ function readLastCheckpoint(projectDir: string): { costUsd?: number; timestamp?:
   } catch { return {} }
 }
 
+function readGatedAutonomySignals(projectDir: string): {
+  awaitingGate?: boolean
+  pendingGateDiscipline?: string
+  lastHeartbeatAt?: string
+} {
+  const seedingPath = join(projectDir, 'seeding-state.json')
+  if (!existsSync(seedingPath)) return {}
+  const seeding = safeReadJson<{
+    mode?: string
+    pending_gate?: { discipline?: string }
+    last_heartbeat_at?: string
+  } | null>(seedingPath, null, {
+    context: `scanner:gated-autonomy:${projectDir.split('/').pop()}`,
+  })
+  if (!seeding) return {}
+  return {
+    awaitingGate: seeding.mode === 'awaiting_gate',
+    pendingGateDiscipline: seeding.pending_gate?.discipline,
+    lastHeartbeatAt: seeding.last_heartbeat_at,
+  }
+}
+
 function normalizeProject(
   slug: string,
   raw: Record<string, unknown>,
@@ -348,6 +370,8 @@ function normalizeProject(
   // no turns).
   const lastActivityAt = computeLastActivity(projectDir, lastCheckpoint.timestamp)
 
+  const gateSignals = readGatedAutonomySignals(projectDir)
+
   return {
     name,
     slug,
@@ -371,5 +395,6 @@ function normalizeProject(
     hasStateFile: true,
     providers,
     deploymentUrl,
+    ...gateSignals,
   }
 }
