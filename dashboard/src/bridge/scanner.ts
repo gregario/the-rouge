@@ -148,11 +148,11 @@ interface V2FeatureArea {
   status: string
 }
 
-interface RawEscalation {
-  tier: number
-  summary: string
-  status: string
-}
+// Narrow alias of the canonical RougeEscalation shape for scanner's
+// internal summary computation. Keep in sync by structurally pulling
+// the fields we actually read — TypeScript complains if bridge/types.ts
+// drops any of these.
+type RawEscalation = Pick<import('./types').RougeEscalation, 'tier' | 'summary' | 'status'>
 
 interface CycleContext {
   infrastructure?: {

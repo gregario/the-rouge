@@ -42,11 +42,18 @@ function buildPreamble({ phaseName, phaseDescription, modelName, requiredOutputK
     preamble = preamble.replace('{{required_output_keys}}', '(none specified)');
   }
 
-  // Learnings
+  // Learnings — escape `{{` / `}}` in the user-supplied content so
+  // literal mustache-looking text in learnings.md doesn't accidentally
+  // collide with preamble template placeholders on the next pass.
+  // Audit G9.
   if (learningsContent && learningsContent.trim()) {
+    const safeLearnings = learningsContent
+      .trim()
+      .replace(/\{\{/g, '\\{\\{')
+      .replace(/\}\}/g, '\\}\\}');
     preamble = preamble.replace(
       '{{learnings_section}}',
-      `### Project learnings\n${learningsContent.trim()}`
+      `### Project learnings\n${safeLearnings}`
     );
   } else {
     preamble = preamble.replace('{{learnings_section}}', '');
