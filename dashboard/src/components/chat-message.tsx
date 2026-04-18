@@ -66,7 +66,13 @@ export function ChatMessage({ message, onResume, resumeDisabled }: ChatMessagePr
 
   // Human messages
   if (message.role === 'human') {
-    const pending = message.isPending
+    // Pending optimistic messages are visually identical to settled
+    // ones — the "Rouge is thinking" bar below the chat conveys the
+    // processing state. The old "sending…" sub-label was misleading:
+    // it read as "stuck in transit" even though by the time the
+    // thinking bar was showing, the message had clearly landed and
+    // Rouge was processing it. Keep the error label for genuine
+    // send failures (rate limit, network).
     const errored = message.pendingErrored
     return (
       <div className="flex flex-col items-end gap-1" data-testid="chat-message" data-role="human">
@@ -75,16 +81,11 @@ export function ChatMessage({ message, onResume, resumeDisabled }: ChatMessagePr
             'max-w-[80%] rounded-lg px-4 py-3 text-sm whitespace-pre-wrap',
             errored
               ? 'bg-red-50 text-red-900 border border-red-200'
-              : pending
-                ? 'bg-primary/10 text-foreground/80'
-                : 'bg-primary/15 text-foreground',
+              : 'bg-primary/15 text-foreground',
           )}
         >
           {message.content}
         </div>
-        {pending && !errored && (
-          <span className="text-[10px] text-muted-foreground italic">sending…</span>
-        )}
         {errored && (
           <span className="text-[10px] text-red-600">send failed — retry by editing the last response</span>
         )}
