@@ -1,5 +1,5 @@
-import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
+import { safeReadJson } from '@/lib/safe-read-json'
 
 // Per-story enrichment assembled from cycle_context.json + story_context.json.
 // Decisions are matched to stories by file-overlap (decision.affects ∩ story.files_changed).
@@ -39,20 +39,16 @@ export interface StoryEnrichment {
 
 export type StoryEnrichmentMap = Record<string, StoryEnrichment>
 
-function safeReadJson(path: string): unknown {
-  if (!existsSync(path)) return null
-  try {
-    return JSON.parse(readFileSync(path, 'utf-8'))
-  } catch {
-    return null
-  }
-}
-
 export function readStoryEnrichment(projectDir: string): StoryEnrichmentMap {
   const result: StoryEnrichmentMap = {}
+  const slug = projectDir.split('/').pop()
 
   // Source 1: cycle_context.json (implemented stories + factory_decisions + factory_questions)
-  const cycleCtx = safeReadJson(join(projectDir, 'cycle_context.json')) as Record<string, unknown> | null
+  const cycleCtx = safeReadJson<Record<string, unknown> | null>(
+    join(projectDir, 'cycle_context.json'),
+    null,
+    { context: `story-enrichment:cycle_context:${slug}` },
+  )
   if (!cycleCtx) return result
 
   const implemented = (cycleCtx.implemented ?? []) as Array<{
@@ -90,9 +86,11 @@ export function readStoryEnrichment(projectDir: string): StoryEnrichmentMap {
   // (no implemented[] entry). Pull acceptance criteria from
   // task_ledger.json so the StoryList can show them even before the
   // story is built. V3 spec discipline writes per-story ACs here.
-  const ledger = safeReadJson(join(projectDir, 'task_ledger.json')) as
-    | { milestones?: Array<{ stories?: Array<{ id?: string; acceptance_criteria?: string[] }> }> }
-    | null
+  const ledger = safeReadJson<{ milestones?: Array<{ stories?: Array<{ id?: string; acceptance_criteria?: string[] }> }> } | null>(
+    join(projectDir, 'task_ledger.json'),
+    null,
+    { context: `story-enrichment:task_ledger:${slug}` },
+  )
   if (ledger?.milestones) {
     for (const m of ledger.milestones) {
       for (const s of m.stories ?? []) {
@@ -136,7 +134,11 @@ export function readStoryEnrichment(projectDir: string): StoryEnrichmentMap {
   }
 
   // Source 2: story_context.json (related_stories has env_limitations + issues for current-cycle stories)
-  const storyCtx = safeReadJson(join(projectDir, 'story_context.json')) as Record<string, unknown> | null
+  const storyCtx = safeReadJson<Record<string, unknown> | null>(
+    join(projectDir, 'story_context.json'),
+    null,
+    { context: `story-enrichment:story_context:${slug}` },
+  )
   if (storyCtx) {
     const related = (storyCtx.related_stories ?? []) as Array<{
       id: string

@@ -197,11 +197,27 @@ export default function ProjectPage({
   }
 
   if (!project) {
-    // Bridge enabled but still loading — show a loading indicator
+    // Bridge enabled but still loading — skeleton matching the main
+    // layout so the shift isn't jarring once data lands.
     if (isBridgeEnabled()) {
       return (
-        <div className="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <p className="text-sm text-gray-500">Loading project from bridge…</p>
+        <div className="mx-auto w-full max-w-7xl animate-pulse space-y-6 px-4 py-16 sm:px-6 lg:px-8">
+          <div className="space-y-2">
+            <div className="h-7 w-64 rounded bg-muted" />
+            <div className="h-4 w-40 rounded bg-muted/70" />
+          </div>
+          <div className="flex gap-2">
+            <div className="h-8 w-24 rounded bg-muted" />
+            <div className="h-8 w-24 rounded bg-muted" />
+            <div className="h-8 w-24 rounded bg-muted" />
+          </div>
+          <div className="space-y-3 rounded-lg border border-border p-6">
+            <div className="h-5 w-48 rounded bg-muted" />
+            <div className="h-4 w-full rounded bg-muted/70" />
+            <div className="h-4 w-5/6 rounded bg-muted/70" />
+            <div className="h-4 w-2/3 rounded bg-muted/70" />
+          </div>
+          <span className="sr-only">Loading project from bridge…</span>
         </div>
       )
     }
@@ -258,16 +274,32 @@ export default function ProjectPage({
         </Card>
       )}
 
-      {/* Escalation response area — visible for escalation projects */}
-      {isEscalation && project.escalations[0] && (
-        <div className="mt-6">
-          <EscalationResponse
-            escalation={project.escalations[0]}
-            slug={project.slug}
-            onResolved={refetch}
-          />
-        </div>
-      )}
+      {/* Escalation response area — visible for escalation projects.
+          Stacks one panel per pending escalation so multi-escalation
+          situations don't collapse into the first one. Audit F15. */}
+      {isEscalation && (() => {
+        const pending = project.escalations.filter(
+          (e) => (e as { status?: string }).status !== 'resolved',
+        )
+        if (pending.length === 0) return null
+        return (
+          <div className="mt-6 space-y-4">
+            {pending.length > 1 && (
+              <p className="text-xs text-muted-foreground">
+                {pending.length} escalations pending — resolve each one below.
+              </p>
+            )}
+            {pending.map((esc, i) => (
+              <EscalationResponse
+                key={(esc as { id?: string }).id ?? i}
+                escalation={esc}
+                slug={project.slug}
+                onResolved={refetch}
+              />
+            ))}
+          </div>
+        )
+      })()}
 
       {/* Build cost progress bar for BUILDING projects */}
       {project.state !== 'complete' && project.cost.budgetCap > 0 && project.cost.totalSpend > 0 && (

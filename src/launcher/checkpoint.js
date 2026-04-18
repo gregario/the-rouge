@@ -24,15 +24,35 @@ function readLatestCheckpoint(filePath) {
   if (!fs.existsSync(filePath)) return null;
   const content = fs.readFileSync(filePath, 'utf8').trim();
   if (!content) return null;
+  // filter(Boolean) drops empty lines. Walk backwards looking for the
+  // first parseable one — a partial/truncated final line (SIGKILL mid-
+  // append, disk-full half-write) used to throw here and take the whole
+  // checkpoint reader down. Audit F5.
   const lines = content.split('\n').filter(Boolean);
-  return JSON.parse(lines[lines.length - 1]);
+  for (let i = lines.length - 1; i >= 0; i--) {
+    try {
+      return JSON.parse(lines[i]);
+    } catch {
+      continue;
+    }
+  }
+  return null;
 }
 
 function readAllCheckpoints(filePath) {
   if (!fs.existsSync(filePath)) return [];
   const content = fs.readFileSync(filePath, 'utf8').trim();
   if (!content) return [];
-  return content.split('\n').filter(Boolean).map(line => JSON.parse(line));
+  const out = [];
+  for (const line of content.split('\n').filter(Boolean)) {
+    try {
+      out.push(JSON.parse(line));
+    } catch {
+      // Skip malformed lines rather than aborting — one bad checkpoint
+      // shouldn't hide the rest of the history.
+    }
+  }
+  return out;
 }
 
 function recoverFromCheckpoint(filePath, checkpointId) {
