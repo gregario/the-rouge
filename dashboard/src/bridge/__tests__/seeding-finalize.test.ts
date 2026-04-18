@@ -76,4 +76,44 @@ describe('finalizeSeeding', () => {
     expect(state.current_state).toBe('ready')
     expect(state.name).toBe('test') // preserved
   })
+
+  it('initializes foundation: { status: "pending" } when promoting to ready', () => {
+    seedCompleteProject()
+    const result = finalizeSeeding(testDir)
+    expect(result.ok).toBe(true)
+    const state = JSON.parse(readFileSync(join(testDir, '.rouge', 'state.json'), 'utf-8'))
+    // Testimonial symptom was state=foundation, foundation=null causing
+    // rouge-loop to crash. Finalize now guarantees the shape.
+    expect(state.foundation).toEqual({ status: 'pending' })
+  })
+
+  it('preserves an explicit foundation object set by the orchestrator', () => {
+    seedCompleteProject()
+    // Simulate the orchestrator having already set foundation to a
+    // specific value (e.g. `complete` when complexity profile waives
+    // foundation). Finalize must not clobber it.
+    writeFileSync(
+      join(testDir, '.rouge', 'state.json'),
+      JSON.stringify({
+        current_state: 'seeding',
+        name: 'test',
+        foundation: { status: 'complete' },
+      }),
+    )
+    const result = finalizeSeeding(testDir)
+    expect(result.ok).toBe(true)
+    const state = JSON.parse(readFileSync(join(testDir, '.rouge', 'state.json'), 'utf-8'))
+    expect(state.foundation).toEqual({ status: 'complete' })
+  })
+
+  it('is idempotent — a second call on an already-finalized project is a no-op', () => {
+    seedCompleteProject()
+    finalizeSeeding(testDir)
+    const first = readFileSync(join(testDir, '.rouge', 'state.json'), 'utf-8')
+    // Call again — should not rewrite (same content before/after).
+    const result = finalizeSeeding(testDir)
+    expect(result.ok).toBe(true)
+    const second = readFileSync(join(testDir, '.rouge', 'state.json'), 'utf-8')
+    expect(second).toBe(first)
+  })
 })

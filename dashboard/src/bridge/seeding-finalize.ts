@@ -62,7 +62,30 @@ export function finalizeSeeding(projectDir: string): FinalizeResult {
   const statePath = resolveStatePath(projectDir)
   if (existsSync(statePath)) {
     const state = JSON.parse(readFileSync(statePath, 'utf-8'))
+
+    // Idempotency: already-finalized project → no-op. Without this,
+    // a duplicate SEEDING_COMPLETE emission (retry, late reconcile)
+    // would overwrite state repeatedly with the same values, churning
+    // the state.json mtime and firing spurious bridge events.
+    if (state.current_state === 'ready' && state.foundation) {
+      return { ok: true }
+    }
+
     state.current_state = 'ready'
+    // Initialize the foundation field. Previously the orchestrator
+    // prompt was supposed to do this on human approval, but the bridge
+    // finalize path runs independently and left `foundation: null`
+    // behind — testimonial reached state=foundation with a null
+    // foundation field and rouge-loop crashed when it tried to read
+    // `state.foundation.status`. Setting `{ status: 'pending' }` here
+    // guarantees the shape is sound whenever state advances to 'ready'.
+    //
+    // If the caller (orchestrator) has already set foundation to
+    // something more specific (e.g., `{ status: 'complete' }` when the
+    // complexity profile waives foundation), preserve it.
+    if (!state.foundation) {
+      state.foundation = { status: 'pending' }
+    }
     writeStateJson(projectDir, state)
   }
 

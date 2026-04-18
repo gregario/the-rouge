@@ -3,10 +3,16 @@ import { join } from 'path'
 import type { BridgeProjectSummary } from './types'
 import { readChatLog } from './chat-reader'
 import { statePath } from './state-path'
+import { repairProjectState } from './state-repair'
 
 /**
  * Scan a Rouge projects directory and return normalized summaries
  * for every project that contains a state.json file.
+ *
+ * Runs an idempotent state-repair pass on each project before
+ * normalising — heals two known corruption shapes (stuck-seeding
+ * and null-foundation) that the build/seeding flow has historically
+ * produced on crash paths.
  */
 export function scanProjects(projectsRoot: string): BridgeProjectSummary[] {
   const entries = readdirSync(projectsRoot)
@@ -22,6 +28,18 @@ export function scanProjects(projectsRoot: string): BridgeProjectSummary[] {
 
     const stateFile = statePath(dir)
     if (!existsSync(stateFile)) continue
+
+    // Repair known corruption shapes BEFORE reading state, so the
+    // normalised summary reflects the healed values. Idempotent —
+    // healthy projects are a no-op.
+    try {
+      const report = repairProjectState(dir)
+      if (report.fixes.length > 0) {
+        console.log(`[state-repair] ${entry}: ${report.fixes.join('; ')}`)
+      }
+    } catch (err) {
+      console.warn(`[state-repair] ${entry} threw:`, err instanceof Error ? err.message : err)
+    }
 
     try {
       const raw = JSON.parse(readFileSync(stateFile, 'utf-8'))

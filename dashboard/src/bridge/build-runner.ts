@@ -1,5 +1,5 @@
 import { spawn } from 'child_process'
-import { readFileSync, writeFileSync, existsSync, unlinkSync, openSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, unlinkSync, openSync, statSync } from 'fs'
 import { join } from 'path'
 import { statePath as resolveStatePath, writeStateJson } from './state-path'
 
@@ -111,6 +111,15 @@ async function startBuildInner(
         priorCurrentState = state.current_state
         const foundationComplete = state.foundation?.status === 'complete'
         state.current_state = foundationComplete ? 'story-building' : 'foundation'
+        // Defence-in-depth: the seeding-finalize path is supposed to
+        // initialise `foundation: { status: "pending" }` when promoting
+        // to ready, but testimonial reached `current_state: "foundation"`
+        // with `foundation: null` and the loop crashed on
+        // `state.foundation.status`. Guard here so the shape is always
+        // sound by the time rouge-loop reads it.
+        if (!state.foundation) {
+          state.foundation = { status: 'pending' }
+        }
         writeStateJson(projectDir, state)
       } else if (state.current_state === 'complete') {
         return { ok: false, error: `Project is complete — nothing to build` }
@@ -206,6 +215,35 @@ async function startBuildInner(
       ok: false,
       error: `build subprocess exited immediately (code ${settled.code ?? '?'}) — check build.log`,
     }
+  }
+
+  // Extended health check: even if the process is still alive after
+  // 800ms, it might be hung on some early init step (bad prompt path,
+  // module resolution, permissions) that never reaches the first log
+  // write. testimonial's build.log was 0 bytes for 13 hours — the
+  // process was gone, the PID file stale, and nothing surfaced an
+  // error. Now rouge-loop writes a startup banner immediately; we
+  // probe for it here. If within 5s the log is still 0 bytes AND the
+  // PID has died, we know the subprocess crashed silently and can
+  // surface a real error.
+  const LOG_PROBE_MS = 5000
+  const deadline = Date.now() + LOG_PROBE_MS - SETTLEMENT_MS
+  while (Date.now() < deadline) {
+    const logPath = join(projectDir, 'build.log')
+    const logSize = (() => {
+      try { return statSync(logPath).size } catch { return 0 }
+    })()
+    const alive = isPidAlive(child.pid)
+    if (logSize > 0) break // loop is talking, we're fine
+    if (!alive) {
+      // Silent crash — process is dead and wrote nothing.
+      rollbackState()
+      return {
+        ok: false,
+        error: 'build subprocess crashed silently (no log output). Check rouge-loop startup path.',
+      }
+    }
+    await new Promise((r) => setTimeout(r, 500))
   }
 
   // Still alive after settlement — consider the launch successful.

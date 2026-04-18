@@ -277,6 +277,34 @@ async function runSeedingTurn(
     if (preGatePending) {
       clearPendingGate(projectDir)
     }
+
+    // Fallback finalization: if every discipline is complete on disk
+    // but `seeding_complete` was never set (the orchestrator prompt
+    // went silent after marketing without emitting SEEDING_COMPLETE,
+    // as happened with colour-contrast), auto-call finalizeSeeding.
+    // Without this the project sits in state=seeding forever with
+    // 8/8 disciplines done.
+    const postReconcileState = readSeedingState(projectDir)
+    const allDone =
+      (postReconcileState.disciplines_complete?.length ?? 0) >= DISCIPLINE_SEQUENCE.length
+    if (allDone && !postReconcileState.seeding_complete) {
+      const finalizeResult = finalizeSeeding(projectDir)
+      if (finalizeResult.ok) {
+        markSeedingComplete(projectDir)
+        appendChatMessage(projectDir, {
+          id: genId(),
+          role: 'rouge',
+          content:
+            'All 8 disciplines complete. Seeding finalized — project is now ready to build. ' +
+            'Click "Build this" in the specs table when you want the build loop to start.',
+          timestamp: new Date().toISOString(),
+          kind: 'system_note',
+        })
+      }
+      // If finalizeResult.ok is false, artifacts are genuinely missing
+      // — let the normal flow handle that; we don't want to surface a
+      // noisy system note here because the user hasn't triggered this.
+    }
   }
 
   const state = readSeedingState(projectDir)

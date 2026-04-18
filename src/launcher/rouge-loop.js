@@ -4,6 +4,20 @@
  * Canonical launcher for The Rouge's Karpathy Loop.
  */
 
+// Startup banner — absolute first line written to stderr so that when
+// the dashboard spawns us detached with stdout/stderr redirected to
+// `<project>/build.log`, any crash during require() or early init
+// leaves at least this line behind for diagnosis. Previously an early
+// crash resulted in a 0-byte build.log and no indication of what went
+// wrong (testimonial's 13-hour silent stall). Keep this BEFORE any
+// require — even a broken require on a later line still leaves this
+// diagnostic.
+process.stderr.write(
+  `[${new Date().toISOString().slice(0, 19)}Z] [rouge-loop] starting pid=${process.pid} ` +
+  `filter=${process.env.ROUGE_PROJECT_FILTER || '(none)'} ` +
+  `node=${process.version} cwd=${process.cwd()}\n`
+);
+
 const { execFileSync, execSync, spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');

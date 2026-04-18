@@ -229,7 +229,9 @@ There are no background agents, no async workers, and no parallel subprocesses. 
 
 3. **After each discipline completes**, evaluate loop-back triggers. If triggered, explain to the human via Slack what changed and why you're looping back.
 
-4. **When all disciplines have run and no new triggers fire**, present the SEED SUMMARY to the human:
+4. **When all disciplines have run and no new triggers fire**, present the SEED SUMMARY to the human as a **hard gate** — the final approval before seeding closes. Emit `[GATE: seeding/H-final-approval]` at the top of this turn, then follow it with the summary body below. Stop and return after emitting the gate — do NOT continue writing artifacts or emit SEEDING_COMPLETE until the human has replied.
+
+   Summary body (under the gate marker):
    - Product name and one-liner
    - Milestone count (with names)
    - Story count (total across all milestones)
@@ -242,8 +244,11 @@ There are no background agents, no async workers, and no parallel subprocesses. 
    - Legal flags (if any)
    - Estimated build milestones (not cycles — one milestone ≈ one sprint of stories)
    - Definition of done
+   - Options: `approve` (lock and promote to ready) · `revise <discipline>` (loop back) · `edit <aspect>` (name a specific change)
 
-5. **On human approval**, write all artifacts to the project directory:
+   Composing this summary is real work — if it's going to take you more than ~45s of gathering, emit a `[HEARTBEAT: assembling SEED SUMMARY]` first so the dashboard doesn't appear stalled.
+
+5. **On human approval** (the human replied `approve` or similar to the H-final-approval gate), write all artifacts to the project directory:
    - `vision.json` — structured vision document
    - `product_standard.json` — inherited global + domain + project overrides
    - `seed_spec/` — milestones with stories, each story with acceptance criteria, PO checks, dependencies, affected entities/screens
@@ -253,10 +258,12 @@ There are no background agents, no async workers, and no parallel subprocesses. 
      - Write `milestones[]` with nested `stories[]` (NOT `feature_areas[]`)
      - Each story has: `id`, `name`, `status: "pending"`, `depends_on`, `affected_entities`, `affected_screens`
      - Each milestone has: `name`, `status: "pending"`, `stories[]`
-     - Set `foundation.status` to `"pending"` if complexity profile requires foundation (NEVER `"complete"` — the foundation evaluator must run)
+     - Set `foundation.status` to `"pending"` if complexity profile requires foundation (NEVER `"complete"` — the foundation evaluator must run). The build-runner defends against this being null, but the orchestrator must set it explicitly so downstream tooling doesn't have to guess intent.
      - Set `current_state` to `"ready"` (NOT `building` — human triggers the loop explicitly)
 
-6. **On human rejection or revision request**, loop back to the relevant discipline.
+   Then emit `SEEDING_COMPLETE` as a bare word on its own line — this is the signal the bridge watches for. The bridge will call its own finalizer (verifying artifacts on disk, advancing state if not already advanced, marking `seeding_complete: true` in seeding-state.json). If you forget to emit it, the bridge's reconciler will eventually catch up on the next user message, but it's cleaner to emit it explicitly so the transition fires in the turn the human approved.
+
+6. **On human rejection or revision request**, loop back to the relevant discipline. Do NOT emit SEEDING_COMPLETE.
 
 ## Interaction Model
 
