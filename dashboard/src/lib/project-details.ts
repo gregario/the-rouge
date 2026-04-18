@@ -7,6 +7,50 @@ import { join } from "node:path";
 import { DISCIPLINE_SEQUENCE } from "@/bridge/types";
 import { readSeedingState } from "@/bridge/seeding-state";
 
+/**
+ * Merge milestones from `task_ledger.json` into the raw state when
+ * `state.json.milestones` is empty or missing.
+ *
+ * Background: V3 architecture uses `task_ledger.json` as the canonical
+ * task-tracking ledger (per README + CLAUDE.md). `state.json.milestones`
+ * is a legacy field that the orchestrator is supposed to populate on
+ * seeding approval — but during a seeding crash or an interrupted
+ * approval step, state.json can end up in states like "foundation"
+ * with an empty milestones array while task_ledger.json holds the
+ * full 7-milestone, 33-story decomposition. The dashboard UI's Build
+ * tab renders nothing when `state.milestones` is empty, so this
+ * fallback keeps the tab functional for V3 projects that completed
+ * spec decomposition but never made it through the approval
+ * handshake cleanly.
+ *
+ * Idempotent — a no-op when state.milestones is already populated.
+ */
+export function mergeMilestonesFromLedger(
+  projectDir: string,
+  rawState: Record<string, unknown>,
+): Record<string, unknown> {
+  const existing = rawState.milestones
+  if (Array.isArray(existing) && existing.length > 0) return rawState
+
+  const ledgerPath = join(projectDir, "task_ledger.json")
+  if (!existsSync(ledgerPath)) return rawState
+
+  try {
+    const ledger = JSON.parse(readFileSync(ledgerPath, "utf-8")) as {
+      milestones?: unknown[]
+    }
+    if (!Array.isArray(ledger.milestones) || ledger.milestones.length === 0) {
+      return rawState
+    }
+    return { ...rawState, milestones: ledger.milestones }
+  } catch {
+    // Malformed ledger — leave state as-is rather than crashing the
+    // dashboard; UI will render empty milestones which surfaces the
+    // symptom without breaking other tabs.
+    return rawState
+  }
+}
+
 export function mergeSeedingProgress(
   projectDir: string,
   rawState: Record<string, unknown>,

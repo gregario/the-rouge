@@ -43,8 +43,14 @@ export function scanProjects(projectsRoot: string): BridgeProjectSummary[] {
 
     try {
       const raw = JSON.parse(readFileSync(stateFile, 'utf-8'))
+      // Fall back to task_ledger.json for milestones if state.json's
+      // field is empty — V3 canonical source of truth (see README
+      // "dual ledger"). Keeps milestone counts in the specs table
+      // honest for projects that decomposed spec but didn't complete
+      // the approval handshake.
+      const withMilestones = mergeRawMilestonesFromLedger(dir, raw)
       const { providers, deploymentUrl } = deriveProviders(dir)
-      projects.push(normalizeProject(entry, raw, providers, deploymentUrl, dir))
+      projects.push(normalizeProject(entry, withMilestones, providers, deploymentUrl, dir))
     } catch {
       // Skip projects with malformed state.json
       continue
@@ -231,6 +237,33 @@ function computeLastActivity(
 
   if (candidates.length === 0) return undefined
   return new Date(Math.max(...candidates)).toISOString()
+}
+
+// Mirror of mergeMilestonesFromLedger from project-details.ts, kept
+// local to scanner.ts so the bridge module doesn't pull in lib/ types.
+// When state.json.milestones is empty but task_ledger.json holds the
+// full decomposition, surface those milestones so the specs table
+// shows accurate counts. See project-details.ts for the full
+// rationale.
+function mergeRawMilestonesFromLedger(
+  projectDir: string,
+  raw: Record<string, unknown>,
+): Record<string, unknown> {
+  const existing = raw.milestones
+  if (Array.isArray(existing) && existing.length > 0) return raw
+  const ledgerPath = join(projectDir, 'task_ledger.json')
+  if (!existsSync(ledgerPath)) return raw
+  try {
+    const ledger = JSON.parse(readFileSync(ledgerPath, 'utf-8')) as {
+      milestones?: unknown[]
+    }
+    if (!Array.isArray(ledger.milestones) || ledger.milestones.length === 0) {
+      return raw
+    }
+    return { ...raw, milestones: ledger.milestones }
+  } catch {
+    return raw
+  }
 }
 
 function readLastCheckpoint(projectDir: string): { costUsd?: number; timestamp?: string } {

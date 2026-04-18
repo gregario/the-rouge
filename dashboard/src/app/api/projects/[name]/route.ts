@@ -6,6 +6,7 @@ import { statePath, writeStateJson } from "@/bridge/state-path";
 import { isPlaceholderSlug, slugify, uniqueSlug } from "@/bridge/slug";
 import {
   mergeSeedingProgress,
+  mergeMilestonesFromLedger,
   readCheckpointSummary,
 } from "@/lib/project-details";
 
@@ -32,7 +33,13 @@ export async function GET(
   }
 
   const raw = JSON.parse(readFileSync(stateFile, "utf-8"));
-  const merged = mergeSeedingProgress(projectDir, raw);
+  // Pull milestones from task_ledger.json when state.json.milestones is
+  // empty — the Build tab's story timeline renders from this field.
+  // V3 projects that completed spec decomposition but not the
+  // approval-handshake step end up with state.milestones=[] while
+  // task_ledger.json holds the full decomposition.
+  const withMilestones = mergeMilestonesFromLedger(projectDir, raw);
+  const merged = mergeSeedingProgress(projectDir, withMilestones);
   const checkpoint = readCheckpointSummary(projectDir);
 
   return NextResponse.json({
