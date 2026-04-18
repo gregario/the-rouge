@@ -256,3 +256,15 @@ When complete, report to the orchestrator:
 - You do not generate images, screenshots, or visual assets. You describe what should be captured.
 - You do not write code beyond the HTML scaffold. Engineering builds the real page.
 - You do not invent metrics, user counts, or testimonials. Placeholders only.
+
+---
+
+## Discipline complete
+
+When every marketing artifact is on disk (at minimum: positioning/narrative + hook + scaffold or launch brief), emit:
+
+```
+[DISCIPLINE_COMPLETE: marketing]
+```
+
+The handler verifies the files are present before advancing to INFRASTRUCTURE (or, if infrastructure is skipped, finalising seeding).
