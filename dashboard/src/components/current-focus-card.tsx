@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import type { ProjectState } from '@/lib/types'
 import type { StoryContext } from '@/bridge/story-context-reader'
 import { phaseLabel, phaseGloss } from '@/lib/phase-labels'
-import { Loader2, Flag, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { Loader2, Flag, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface CurrentFocusCardProps {
@@ -63,24 +63,14 @@ export function CurrentFocusCard({
     return () => clearInterval(interval)
   }, [buildRunning])
 
-  // Escalation mode — overrides everything else.
+  // Escalation mode — previously rendered a full amber box here, but
+  // the actionable escalation drawer is already pinned above the tabs
+  // with the same title + summary + tier badge. Two boxes saying the
+  // same thing confused users. Return null so the drawer is the only
+  // surface for escalation state; the StateBadge in the header keeps
+  // the "Needs your input" label visible at a glance.
   if (state === 'escalation' || state === 'waiting-for-human') {
-    return (
-      <div
-        className="flex items-start gap-3 rounded-lg border-2 border-amber-300 bg-amber-50 px-4 py-3"
-        data-testid="current-focus-escalation"
-      >
-        <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-600" />
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold text-amber-900">
-            {phaseLabel(state)}
-          </div>
-          <div className="mt-0.5 truncate text-xs text-amber-900/80">
-            {escalationSummary ?? "Open the escalation below to respond."}
-          </div>
-        </div>
-      </div>
-    )
+    return null
   }
 
   if (state === 'complete') {

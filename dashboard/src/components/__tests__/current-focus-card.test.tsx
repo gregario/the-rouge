@@ -3,20 +3,20 @@ import { describe, it, expect } from 'vitest'
 import { CurrentFocusCard } from '../current-focus-card'
 
 describe('CurrentFocusCard', () => {
-  it('shows the escalation band when state is escalation', () => {
-    render(
-      <CurrentFocusCard
-        state="escalation"
-        escalationSummary="Deploy target was never set"
-      />,
+  it('returns null for escalation state — escalation drawer above the tabs owns that surface', () => {
+    // Previously the hero rendered a full amber box on top of the
+    // drawer, which looked like duplicate warnings. The state badge
+    // in the project header still carries the "Needs your input"
+    // label for at-a-glance visibility.
+    const { container } = render(
+      <CurrentFocusCard state="escalation" escalationSummary="Deploy target was never set" />,
     )
-    expect(screen.getByTestId('current-focus-escalation')).toBeInTheDocument()
-    expect(screen.getByText(/Deploy target was never set/)).toBeInTheDocument()
+    expect(container).toBeEmptyDOMElement()
   })
 
-  it('falls back to a generic message when escalation has no summary', () => {
-    render(<CurrentFocusCard state="escalation" />)
-    expect(screen.getByText(/Open the escalation below/)).toBeInTheDocument()
+  it('returns null for waiting-for-human state too', () => {
+    const { container } = render(<CurrentFocusCard state="waiting-for-human" />)
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('shows the shipped band when state is complete', () => {

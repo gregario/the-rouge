@@ -835,9 +835,38 @@ async function advanceState(projectDir) {
     case 'story-building': {
       const ctx = readJson(contextFile);
       const milestone = (state.milestones || []).find(m => m.name === state.current_milestone);
-      if (!milestone) { next = 'escalation'; break; }
+      if (!milestone) {
+        // Happens when a story completed on the previous tick but the
+        // current_milestone pointer now references something that's
+        // been removed or renamed. Escalate with a concrete reason so
+        // the user sees what went wrong instead of a generic
+        // placeholder synthesized by the dispatcher fallback.
+        next = escalate(state, {
+          id: `esc-story-building-missing-milestone-${Date.now()}`,
+          tier: 1,
+          classification: 'state-drift',
+          summary: `story-building entered but current_milestone='${state.current_milestone}' is not in state.milestones. Possible state corruption; reset to Ready and re-run.`,
+        });
+        break;
+      }
       const story = (milestone.stories || []).find(s => s.id === state.current_story);
-      if (!story) { next = 'escalation'; break; }
+      if (!story) {
+        // Testimonial's symptom at 15:34:14: story M1-S1.1 completed
+        // successfully (+87 files), pre-dispatch advanced current_story
+        // to the next pending id, then story-building re-entered
+        // without claude producing a story_result — resulting in
+        // "milestone found, next-story pointer valid, but the named
+        // story wasn't in milestone.stories" for some timing window.
+        // Escalate with context rather than silently advancing to an
+        // unspecified escalation placeholder.
+        next = escalate(state, {
+          id: `esc-story-building-missing-story-${Date.now()}`,
+          tier: 1,
+          classification: 'state-drift',
+          summary: `story-building entered but current_story='${state.current_story}' is not in milestone '${state.current_milestone}'. Possible pre-dispatch advance race; reset to Ready and re-run.`,
+        });
+        break;
+      }
 
       const result = ctx?.story_result || {};
       const outcome = result.outcome || 'pass';
