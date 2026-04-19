@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { loadServerConfig } from "@/lib/server-config";
 import { statePath, writeStateJson } from "@/bridge/state-path";
 import { withStateLock } from "@/bridge/state-lock";
+import { readBuildInfo, startBuild } from "@/bridge/build-runner";
 import { guardMutation } from "@/lib/route-guards";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +31,7 @@ export async function POST(
   const guard = await guardMutation(name);
   if (!guard.ok) return guard.response;
 
-  const { projectsRoot } = loadServerConfig();
+  const { projectsRoot, rougeCli } = loadServerConfig();
   const stateFile = statePath(join(projectsRoot, name));
   if (!existsSync(stateFile)) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
@@ -87,5 +88,23 @@ export async function POST(
       { status: 404 },
     );
   }
-  return NextResponse.json(result.raw);
+
+  // Writing human_response is inert unless rouge-loop is alive to read
+  // it on the next tick. If the loop is dead (user stopped the build,
+  // process crashed, dashboard opened fresh), the resolution sits in
+  // state.json forever. Auto-spawn so the user's action always leads
+  // to progress. startBuild is idempotent — if the loop is already
+  // running, it returns { alreadyRunning: true } without re-spawning.
+  let loopStarted = false;
+  if (!readBuildInfo(projectDir)) {
+    try {
+      const spawn = await startBuild(projectsRoot, rougeCli, name);
+      loopStarted = spawn.ok && !("alreadyRunning" in spawn && spawn.alreadyRunning);
+    } catch {
+      // Non-fatal — the resolution is persisted. Surface a hint so the
+      // user knows to click Start/Resume if needed.
+    }
+  }
+
+  return NextResponse.json({ ...result.raw, loopStarted });
 }

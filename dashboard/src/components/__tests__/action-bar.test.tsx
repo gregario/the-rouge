@@ -28,20 +28,97 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-describe('ActionBar — command result surfacing', () => {
+describe('ActionBar — mid-phase zombie (state says building, no live PID)', () => {
+  // When a mid-phase project has no live rouge-loop (process died, was
+  // stopped, or crashed), the bar offers Resume Build + Reset to Ready.
+  // The old "Stop Build" that did nothing for foundation-eval / analyzing
+  // / vision-check is gone — see build-runner rollback allowlist gap.
+
+  it('renders Resume + Reset when state is mid-phase and no process is alive', async () => {
+    render(<ActionBar state="foundation-eval" slug="alpha" />)
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^resume build$/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /^reset to ready$/i })).toBeInTheDocument()
+    })
+    expect(screen.queryByRole('button', { name: /^stop build$/i })).not.toBeInTheDocument()
+  })
+
+  it('Resume dispatches start with no confirmation dialog', async () => {
+    const user = userEvent.setup()
+    mockSendCommand.mockResolvedValueOnce({ ok: true, pid: 123 })
+
+    render(<ActionBar state="foundation-eval" slug="alpha" />)
+    await user.click(await screen.findByRole('button', { name: /^resume build$/i }))
+
+    await waitFor(() => expect(mockSendCommand).toHaveBeenCalledWith('alpha', 'start', undefined))
+    // No confirm dialog was shown — Start's dialog copy would be wrong
+    // for a resume. The 'resume' alias in execCommand skips confirm.
+    expect(screen.queryByRole('heading', { name: /start building/i })).not.toBeInTheDocument()
+  })
+
+  it('Reset shows a confirmation dialog and posts to /reset on confirm', async () => {
+    const user = userEvent.setup()
+    mockSendCommand.mockResolvedValueOnce({ ok: true, priorState: 'foundation-eval' })
+
+    render(<ActionBar state="foundation-eval" slug="alpha" />)
+    await user.click(await screen.findByRole('button', { name: /^reset to ready$/i }))
+
+    // Dialog renders a second "Reset to Ready" button — click it.
+    const buttons = screen.getAllByRole('button', { name: /^reset to ready$/i })
+    expect(buttons.length).toBeGreaterThan(1)
+    await user.click(buttons.at(-1)!)
+
+    await waitFor(() => expect(mockSendCommand).toHaveBeenCalledWith('alpha', 'reset', undefined))
+  })
+
+  it('surfaces a hint explaining the Resume/Reset choice', async () => {
+    render(<ActionBar state="foundation-eval" slug="alpha" />)
+    await waitFor(() => {
+      expect(
+        screen.getByText(/build stopped at foundation-eval/i),
+      ).toBeInTheDocument()
+    })
+  })
+
+  it('surfaces reset command errors inline', async () => {
+    const user = userEvent.setup()
+    mockSendCommand.mockRejectedValueOnce(new Error('state locked'))
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    render(<ActionBar state="foundation-eval" slug="alpha" />)
+    await user.click(await screen.findByRole('button', { name: /^reset to ready$/i }))
+    const buttons = screen.getAllByRole('button', { name: /^reset to ready$/i })
+    await user.click(buttons.at(-1)!)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('action-bar-error')).toBeInTheDocument()
+    })
+    expect(screen.getByTestId('action-bar-error')).toHaveTextContent(/reset failed/i)
+    expect(screen.getByTestId('action-bar-error')).toHaveTextContent(/state locked/i)
+    expect(errSpy).not.toHaveBeenCalled()
+    errSpy.mockRestore()
+  })
+})
+
+describe('ActionBar — Stop Build (live process)', () => {
+  // When buildRunning is true, Stop is the only action shown. These
+  // tests lock in the confirmation + notice paths for that case.
+
   it('shows an inline notice when stop succeeds on an already-stopped build', async () => {
     const user = userEvent.setup()
+    // Initial poll says running; after stop the follow-up status poll
+    // returns not running. sendCommand responds with alreadyStopped.
+    mockFetchBuildStatus
+      .mockResolvedValueOnce({ running: true, startedAt: new Date().toISOString() })
+      .mockResolvedValue({ running: false, startedAt: null })
     mockSendCommand.mockResolvedValueOnce({ ok: true, alreadyStopped: true })
 
     render(<ActionBar state="foundation" slug="alpha" />)
 
-    // Click the Stop Build button in the action bar. After click, a
-    // confirmation dialog appears with a second "Stop Build" button —
-    // click the dialog one (last in the list).
-    const stopButtons = () => screen.getAllByRole('button', { name: /^stop build$/i })
-    await user.click(stopButtons()[0])
-    await waitFor(() => expect(stopButtons().length).toBeGreaterThan(1))
-    await user.click(stopButtons().at(-1)!)
+    const topStop = await screen.findByRole('button', { name: /^stop build$/i })
+    await user.click(topStop)
+    const dialogStop = screen.getAllByRole('button', { name: /^stop build$/i }).at(-1)!
+    await user.click(dialogStop)
 
     await waitFor(() => {
       expect(screen.getByTestId('action-bar-notice')).toBeInTheDocument()
@@ -50,41 +127,20 @@ describe('ActionBar — command result surfacing', () => {
     expect(screen.queryByTestId('action-bar-error')).not.toBeInTheDocument()
   })
 
-  it('shows a stronger notice when zombie state was rolled back', async () => {
-    const user = userEvent.setup()
-    mockSendCommand.mockResolvedValueOnce({
-      ok: true,
-      alreadyStopped: true,
-      stateRolledBack: true,
-    })
-
-    render(<ActionBar state="foundation" slug="alpha" />)
-
-    const stopButton = await screen.findByRole('button', { name: /stop build/i })
-    await user.click(stopButton)
-    const confirmButton = screen.getAllByRole('button', { name: /^stop build$/i }).at(-1)!
-    await user.click(confirmButton)
-
-    await waitFor(() => {
-      expect(screen.getByTestId('action-bar-notice')).toBeInTheDocument()
-    })
-    expect(screen.getByTestId('action-bar-notice')).toHaveTextContent(/back to Ready/i)
-  })
-
   it('surfaces command errors inline instead of throwing to console.error', async () => {
     const user = userEvent.setup()
+    mockFetchBuildStatus
+      .mockResolvedValueOnce({ running: true, startedAt: new Date().toISOString() })
+      .mockResolvedValue({ running: false, startedAt: null })
     mockSendCommand.mockRejectedValueOnce(new Error('something went wrong'))
-
-    // Spy on console.error to confirm we don't call it (which would
-    // trigger Next.js's dev overlay).
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
     render(<ActionBar state="foundation" slug="alpha" />)
 
-    const stopButton = await screen.findByRole('button', { name: /stop build/i })
-    await user.click(stopButton)
-    const confirmButton = screen.getAllByRole('button', { name: /^stop build$/i }).at(-1)!
-    await user.click(confirmButton)
+    const topStop = await screen.findByRole('button', { name: /^stop build$/i })
+    await user.click(topStop)
+    const dialogStop = screen.getAllByRole('button', { name: /^stop build$/i }).at(-1)!
+    await user.click(dialogStop)
 
     await waitFor(() => {
       expect(screen.getByTestId('action-bar-error')).toBeInTheDocument()
@@ -93,15 +149,5 @@ describe('ActionBar — command result surfacing', () => {
     expect(screen.getByTestId('action-bar-error')).toHaveTextContent(/something went wrong/i)
     expect(errSpy).not.toHaveBeenCalled()
     errSpy.mockRestore()
-  })
-
-  it('shows a hint when state claims building but buildRunning poll is false', async () => {
-    render(<ActionBar state="foundation" slug="alpha" />)
-    // Poll returns running:false (default in beforeEach).
-    await waitFor(() => {
-      expect(
-        screen.getByText(/state says building but no process detected/i),
-      ).toBeInTheDocument()
-    })
   })
 })

@@ -6,20 +6,42 @@ import { isBridgeEnabled, sendCommand, fetchBuildStatus } from '@/lib/bridge-cli
 import { Button } from '@/components/ui/button'
 import { EscalationDrawer } from '@/components/escalation-drawer'
 import { ConfirmDialog } from '@/components/confirm-dialog'
-import { AlertTriangle, ExternalLink, Loader2, Play, Rocket, SkipForward, Square } from 'lucide-react'
+import { AlertTriangle, ExternalLink, Loader2, Play, Rocket, RotateCcw, SkipForward, Square } from 'lucide-react'
+
+// Mid-phase states — rouge-loop is expected to be actively running a
+// Claude subprocess while the project sits in one of these. When a
+// project is in one of these states but no PID is alive, we're in a
+// "zombie" — state hasn't been rolled back after the loop died (crash,
+// SIGINT, phase completion racing with stop). Used by the ActionBar to
+// render a Resume/Reset pair instead of a dead Stop button.
+const MID_PHASE_STATES: ReadonlySet<ProjectState> = new Set([
+  'foundation',
+  'foundation-eval',
+  'story-building',
+  'milestone-check',
+  'milestone-fix',
+  'analyzing',
+  'generating-change-spec',
+  'vision-check',
+  'shipping',
+  // final-review is included because the loop is still actively running
+  // the final-review phase and may need to be stopped mid-review.
+  'final-review',
+])
 
 interface ActionBarProps {
   state: ProjectState
   slug?: string
   productionUrl?: string
   escalation?: Escalation
+  onCommandComplete?: () => void
 }
 
-export function ActionBar({ state, slug, productionUrl, escalation }: ActionBarProps) {
+export function ActionBar({ state, slug, productionUrl, escalation, onCommandComplete }: ActionBarProps) {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [loading, setLoading] = useState<string | null>(null)
   const [buildRunning, setBuildRunning] = useState(false)
-  const [confirmAction, setConfirmAction] = useState<'start' | 'stop' | null>(null)
+  const [confirmAction, setConfirmAction] = useState<'start' | 'stop' | 'reset' | null>(null)
   const [buildStartedAt, setBuildStartedAt] = useState<string | null>(null)
   const [commandError, setCommandError] = useState<string | null>(null)
   const [commandNotice, setCommandNotice] = useState<string | null>(null)
@@ -64,13 +86,21 @@ export function ActionBar({ state, slug, productionUrl, escalation }: ActionBarP
           setCommandNotice('Build was already stopped.')
         }
       }
-      // Refresh build status after start/stop
-      if (command === 'start' || command === 'stop') {
+      // Refresh build status + page data after any command that can
+      // change state or process liveness. Reset flips state back to
+      // Ready without touching the subprocess (there shouldn't be one
+      // if Reset succeeded); Start/Stop obviously change both.
+      if (command === 'start' || command === 'stop' || command === 'reset') {
         try {
           const status = await fetchBuildStatus(slug)
           setBuildRunning(status.running)
           setBuildStartedAt(status.startedAt ?? null)
         } catch {}
+        // Trigger parent refetch so `project.state` reflects the server-side
+        // transition (ready → foundation on start, etc.) without waiting for
+        // the SSE state-change event, which can lag or drop. Without this,
+        // the Build tab stays disabled until the user manually refreshes.
+        onCommandComplete?.()
       }
     } catch (err) {
       // Caught errors used to go through console.error, which Next.js's
@@ -81,11 +111,19 @@ export function ActionBar({ state, slug, productionUrl, escalation }: ActionBarP
     } finally {
       setLoading(null)
     }
-  }, [slug])
+  }, [slug, onCommandComplete])
 
-  // Start/Stop go through confirmation; other commands run immediately.
+  // Start/Stop/Reset go through confirmation; other commands run
+  // immediately. "resume" is an alias for start-without-confirm —
+  // used by the Resume Build button shown in mid-phase zombie states,
+  // where the Start dialog's "Rouge will run foundation first" copy
+  // would be misleading.
   const execCommand = useCallback(async (command: string) => {
-    if (command === 'start' || command === 'stop') {
+    if (command === 'resume') {
+      await runCommand('start')
+      return
+    }
+    if (command === 'start' || command === 'stop' || command === 'reset') {
       setConfirmAction(command)
       return
     }
@@ -217,6 +255,35 @@ export function ActionBar({ state, slug, productionUrl, escalation }: ActionBarP
         }}
         onCancel={() => setConfirmAction(null)}
       />
+
+      <ConfirmDialog
+        open={confirmAction === 'reset'}
+        title="Reset project to Ready?"
+        description={
+          <>
+            <p>
+              Current state: <strong>{state}</strong>. Reset clears this flag
+              and sets state back to <strong>Ready</strong>.
+            </p>
+            <p className="mt-2">
+              Commits, milestones, and cycle context on disk are
+              <strong> preserved</strong>. On the next Start, rouge-loop
+              will begin from foundation again — already-built files
+              short-circuit quickly.
+            </p>
+            <p className="mt-2 text-xs text-gray-500">
+              Use Resume instead if you want to pick up at <strong>{state}</strong> without re-running foundation.
+            </p>
+          </>
+        }
+        confirmLabel="Reset to Ready"
+        variant="danger"
+        onConfirm={() => {
+          setConfirmAction(null)
+          runCommand('reset')
+        }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </>
   )
 }
@@ -237,19 +304,19 @@ function stateHint(state: ProjectState, buildRunning: boolean): string {
     case 'story-building':
     case 'milestone-check':
     case 'milestone-fix':
-    case 'story-diagnosis':
     case 'foundation':
     case 'foundation-eval':
     case 'analyzing':
     case 'generating-change-spec':
     case 'vision-check':
     case 'shipping':
-      // state.json says building, but no subprocess is polling as alive
-      // → half-started session. The Stop button's idempotent path will
-      // roll this back to Ready when clicked.
+      // state.json says building; if no subprocess is alive, the loop
+      // died without rolling state back. Resume re-spawns rouge-loop
+      // and picks up at the current phase (no work lost); Reset forces
+      // state back to Ready for a clean restart.
       return buildRunning
         ? 'Build in progress'
-        : 'State says building but no process detected — press Stop to clean up'
+        : `Build stopped at ${state} — resume to continue, or reset to restart from Ready`
     case 'waiting-for-human':
       return 'Waiting for your input'
     case 'escalation':
@@ -289,35 +356,47 @@ function renderActions(
     )
   }
 
+  // Mid-phase + no subprocess = zombie. Used to render another Stop
+  // button that did nothing (the existing rollback only covered two
+  // of ten mid-phase states). Now we give the user a real way forward:
+  // Resume (re-spawn rouge-loop at the current phase — preserves the
+  // work committed so far) and Reset (force state → ready for a clean
+  // restart). /start already handles the "state is past ready — just
+  // spawn" case, so Resume just calls execCommand('start').
+  if (MID_PHASE_STATES.has(state)) {
+    return (
+      <>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          onClick={() => execCommand('reset')}
+          disabled={loading !== null}
+          title={`Force state back to Ready. Commits on disk are preserved; the loop will start from foundation on next Start.`}
+        >
+          {icon('reset', RotateCcw)}
+          Reset to Ready
+        </Button>
+        <Button
+          size="sm"
+          className="gap-1.5"
+          onClick={() => execCommand('resume')}
+          disabled={loading !== null}
+          title={`Re-spawn rouge-loop at ${state}. No state change — picks up where it left off.`}
+        >
+          {icon('start', Play)}
+          Resume Build
+        </Button>
+      </>
+    )
+  }
+
   switch (state) {
     case 'ready':
       return (
         <Button size="sm" className="gap-1.5" onClick={() => execCommand('start')} disabled={loading !== null}>
           {icon('start', Rocket)}
           Start Build
-        </Button>
-      )
-
-    case 'story-building':
-    case 'milestone-check':
-    case 'milestone-fix':
-    case 'story-diagnosis':
-    case 'foundation':
-    case 'foundation-eval':
-    case 'analyzing':
-    case 'generating-change-spec':
-    case 'vision-check':
-    case 'shipping':
-      return (
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5 border-red-300 text-red-700 hover:bg-red-50"
-          onClick={() => execCommand('stop')}
-          disabled={loading !== null}
-        >
-          {icon('stop', Square)}
-          Stop Build
         </Button>
       )
 

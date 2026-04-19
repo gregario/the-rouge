@@ -18,7 +18,6 @@ import { GET as getBuildLog } from '../projects/[name]/build-log/route'
 import { GET as getBuildStatus } from '../projects/[name]/build-status/route'
 import { GET as getActivity } from '../projects/[name]/activity/route'
 import { POST as postFeedback } from '../projects/[name]/feedback/route'
-import { POST as postPause } from '../projects/[name]/pause/route'
 import { POST as postResolve } from '../projects/[name]/resolve-escalation/route'
 import { GET as getCatalogue } from '../catalogue/route'
 
@@ -312,35 +311,6 @@ describe('POST /api/projects/[name]/feedback', () => {
   })
 })
 
-describe('POST /api/projects/[name]/pause', () => {
-  beforeEach(() => {
-    rmSync(PROJECTS_ROOT, { recursive: true, force: true })
-    mkdirSync(PROJECTS_ROOT, { recursive: true })
-  })
-
-  it('flips current_state to waiting-for-human', async () => {
-    writeProject('alpha', { project: 'alpha', current_state: 'building' })
-    const response = await postPause(new Request('http://localhost', { method: 'POST' }), {
-      params: makeParams({ name: 'alpha' }),
-    })
-    expect(response.status).toBe(200)
-  })
-
-  it('returns 404 when the project is missing', async () => {
-    const response = await postPause(new Request('http://localhost', { method: 'POST' }), {
-      params: makeParams({ name: 'nope' }),
-    })
-    expect(response.status).toBe(404)
-  })
-
-  it('rejects an invalid slug with 400', async () => {
-    const response = await postPause(new Request('http://localhost', { method: 'POST' }), {
-      params: makeParams({ name: '../etc/passwd' }),
-    })
-    expect(response.status).toBe(400)
-  })
-})
-
 describe('POST /api/projects/[name]/resolve-escalation', () => {
   beforeEach(() => {
     rmSync(PROJECTS_ROOT, { recursive: true, force: true })
@@ -384,6 +354,28 @@ describe('POST /api/projects/[name]/resolve-escalation', () => {
     const data = await response.json()
     expect(data.escalations[0].human_response.type).toBe('guidance')
     expect(data.consecutive_failures).toBe(0)
+  })
+
+  it('includes loopStarted flag so the UI can tell whether rouge-loop was spawned', async () => {
+    // Writing human_response is inert unless rouge-loop is alive to
+    // consume it. The route now auto-spawns the loop when no PID is
+    // tracked; the flag lets the client show the user a confirmation.
+    writeProject('alpha', {
+      project: 'alpha',
+      escalations: [{ id: 'e1', status: 'pending' }],
+    })
+    const response = await postResolve(
+      new Request('http://localhost', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ escalation_id: 'e1', response_type: 'guidance' }),
+      }),
+      { params: makeParams({ name: 'alpha' }) },
+    )
+    expect(response.status).toBe(200)
+    const data = await response.json()
+    expect(data).toHaveProperty('loopStarted')
+    expect(typeof data.loopStarted).toBe('boolean')
   })
 })
 

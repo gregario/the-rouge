@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
-import { AlertTriangle, Send, Play, Terminal, CheckCircle2, Copy } from 'lucide-react'
+import { AlertTriangle, Send, Play, Terminal, CheckCircle2, Copy, CheckCheck, XCircle, SkipForward } from 'lucide-react'
 
 const tierLabels: Record<number, string> = {
   0: 'Tier 0 — Auto-recoverable',
@@ -165,6 +165,27 @@ export function EscalationResponse({
     void submitResponse(note, true, 'resume-after-handoff').finally(() => setResuming(false))
   }, [inputValue, submitResponse])
 
+  // Explicit response-type handlers. Before this, the textarea was the
+  // only input path and every submission was forced to response_type:
+  // 'guidance' — typing the literal string "dismiss-false-positive"
+  // looked like it ought to work but was in fact sent as guidance text.
+  // Each of these short-circuits to the correct response_type and
+  // resumes the loop.
+  const handleDismiss = useCallback(() => {
+    setResuming(true)
+    void submitResponse(inputValue.trim(), true, 'dismiss-false-positive').finally(() => setResuming(false))
+  }, [inputValue, submitResponse])
+
+  const handleManualFix = useCallback(() => {
+    setResuming(true)
+    void submitResponse(inputValue.trim(), true, 'manual-fix-applied').finally(() => setResuming(false))
+  }, [inputValue, submitResponse])
+
+  const handleAbort = useCallback(() => {
+    setResuming(true)
+    void submitResponse(inputValue.trim(), true, 'abort-story').finally(() => setResuming(false))
+  }, [inputValue, submitResponse])
+
   const handoffCommand = slug ? `rouge resume-escalation ${slug}` : ''
   const handleCopy = useCallback(() => {
     if (!handoffCommand) return
@@ -298,10 +319,10 @@ export function EscalationResponse({
           ) : (
             <>
               <label className="text-xs font-medium text-gray-500 mb-2 block">
-                Your Response
+                Your message (plain text — Rouge reads this as guidance for the next attempt)
               </label>
               <Textarea
-                placeholder="Provide guidance or instructions... (Enter to send, Shift+Enter for newline)"
+                placeholder="Describe what you want Rouge to try next, or leave blank and pick a resolution below. (Enter to send, Shift+Enter for newline)"
                 className="min-h-[4rem] resize-none bg-white"
                 rows={3}
                 value={inputValue}
@@ -310,7 +331,53 @@ export function EscalationResponse({
                 disabled={inFlight}
                 data-testid="escalation-response-input"
               />
-              <div className="mt-3 flex flex-wrap justify-end gap-2">
+
+              {/* Quick-resolution row. These are the explicit response_type
+                  values the launcher understands. Each optionally includes
+                  whatever note you typed above. Prior UI only exposed
+                  'guidance' via the textarea — typing the literal string
+                  "dismiss-false-positive" sent it as guidance text and did
+                  nothing useful. */}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs"
+                  onClick={handleDismiss}
+                  disabled={inFlight || !slug}
+                  title="Mark this escalation as a false alarm and keep going"
+                  data-testid="escalation-dismiss-button"
+                >
+                  <CheckCheck className="size-3.5" />
+                  Dismiss as false positive
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs"
+                  onClick={handleManualFix}
+                  disabled={inFlight || !slug}
+                  title="You fixed the underlying issue outside Rouge; resume where it left off"
+                  data-testid="escalation-manual-fix-button"
+                >
+                  <CheckCircle2 className="size-3.5" />
+                  I fixed it manually
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs text-red-700 border-red-300 hover:bg-red-50"
+                  onClick={handleAbort}
+                  disabled={inFlight || !slug}
+                  title="Give up on this story and move to the next one"
+                  data-testid="escalation-abort-button"
+                >
+                  <SkipForward className="size-3.5" />
+                  Abort this story
+                </Button>
+              </div>
+
+              <div className="mt-3 flex flex-wrap justify-end gap-2 border-t border-amber-200 pt-3">
                 <Button
                   variant="outline"
                   size="sm"
