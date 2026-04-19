@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { readSeedingState, writeSeedingState, updateSessionId, markDisciplineComplete, markSeedingComplete, appendPendingCorrection, peekPendingCorrection, clearPendingCorrection, setAwaitingGate, clearPendingGate, updateHeartbeat, isAwaitingGateFor, effectiveMode } from '../seeding-state'
-import { mkdirSync, readdirSync, rmSync } from 'fs'
+import { readSeedingState, writeSeedingState, updateSessionId, markDisciplineComplete, markDisciplinePrompted, markSeedingComplete, appendPendingCorrection, peekPendingCorrection, clearPendingCorrection, setAwaitingGate, clearPendingGate, updateHeartbeat, isAwaitingGateFor, effectiveMode } from '../seeding-state'
+import { writeStateJson, statePath } from '../state-path'
+import { mkdirSync, readdirSync, readFileSync, rmSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
 
@@ -84,6 +85,105 @@ describe('seeding-state', () => {
     const state = readSeedingState(testDir)
     expect(state.seeding_complete).toBe(true)
     expect(state.status).toBe('complete')
+  })
+
+  // Phase 0 of the seed-loop architecture plan: when a discipline is
+  // prompted, its state.json entry flips to 'in-progress'. Previously
+  // nothing ever wrote in-progress — only 'complete' — so the stepper
+  // had to synthesise the active state from `currentDiscipline`. That
+  // synthesis broke in the stackrank case (competition was prompted but
+  // UI showed pending). These tests lock in the direct write path.
+  describe('markDisciplinePrompted — state.json flip to in-progress', () => {
+    function seedProjectWithDisciplines(): void {
+      mkdirSync(testDir, { recursive: true })
+      writeStateJson(testDir, {
+        current_state: 'seeding',
+        seedingProgress: {
+          disciplines: [
+            { discipline: 'brainstorming', status: 'pending' },
+            { discipline: 'competition', status: 'pending' },
+            { discipline: 'taste', status: 'pending' },
+            { discipline: 'spec', status: 'pending' },
+            { discipline: 'infrastructure', status: 'pending' },
+            { discipline: 'design', status: 'pending' },
+            { discipline: 'legal-privacy', status: 'pending' },
+            { discipline: 'marketing', status: 'pending' },
+          ],
+          completedCount: 0,
+          totalCount: 8,
+          currentDiscipline: 'brainstorming',
+        },
+      })
+      writeSeedingState(testDir, { session_id: null, status: 'active' })
+    }
+
+    function readDisciplineStatus(discipline: string): string | undefined {
+      const state = JSON.parse(readFileSync(statePath(testDir), 'utf-8'))
+      const entry = state.seedingProgress?.disciplines?.find(
+        (d: { discipline: string }) => d.discipline === discipline,
+      )
+      return entry?.status
+    }
+
+    it('flips discipline status from pending to in-progress', async () => {
+      seedProjectWithDisciplines()
+      await markDisciplinePrompted(testDir, 'competition')
+      expect(readDisciplineStatus('competition')).toBe('in-progress')
+    })
+
+    it('leaves other disciplines untouched', async () => {
+      seedProjectWithDisciplines()
+      await markDisciplinePrompted(testDir, 'competition')
+      expect(readDisciplineStatus('brainstorming')).toBe('pending')
+      expect(readDisciplineStatus('taste')).toBe('pending')
+    })
+
+    it('does not advance currentDiscipline when only going to in-progress', async () => {
+      seedProjectWithDisciplines()
+      await markDisciplinePrompted(testDir, 'competition')
+      // currentDiscipline is controlled by the seed-handler's prompt
+      // flow; markDisciplinePrompted must not clobber it when just
+      // promoting to in-progress. (It DOES advance on 'complete', which
+      // is the existing markDisciplineComplete behaviour.)
+      const state = JSON.parse(readFileSync(statePath(testDir), 'utf-8'))
+      expect(state.seedingProgress.currentDiscipline).toBe('brainstorming')
+    })
+
+    it('is idempotent — calling twice leaves status at in-progress', async () => {
+      seedProjectWithDisciplines()
+      await markDisciplinePrompted(testDir, 'competition')
+      await markDisciplinePrompted(testDir, 'competition')
+      expect(readDisciplineStatus('competition')).toBe('in-progress')
+    })
+
+    it('does not downgrade a complete discipline back to in-progress', async () => {
+      seedProjectWithDisciplines()
+      // First complete brainstorming.
+      await markDisciplineComplete(testDir, 'brainstorming')
+      expect(readDisciplineStatus('brainstorming')).toBe('complete')
+      // Now a stray markDisciplinePrompted — must NOT downgrade.
+      await markDisciplinePrompted(testDir, 'brainstorming')
+      expect(readDisciplineStatus('brainstorming')).toBe('complete')
+    })
+
+    it('still appends to disciplines_prompted in seeding-state.json', async () => {
+      seedProjectWithDisciplines()
+      await markDisciplinePrompted(testDir, 'competition')
+      const s = readSeedingState(testDir)
+      expect(s.disciplines_prompted).toContain('competition')
+    })
+
+    it('is a no-op on state.json when seedingProgress is missing', async () => {
+      // Old projects / malformed states must not throw — they just
+      // skip the state.json update and proceed with seeding-state
+      // mutation.
+      mkdirSync(testDir, { recursive: true })
+      writeStateJson(testDir, { current_state: 'seeding' })
+      writeSeedingState(testDir, { session_id: null, status: 'active' })
+      await expect(markDisciplinePrompted(testDir, 'competition')).resolves.toBeUndefined()
+      const s = readSeedingState(testDir)
+      expect(s.disciplines_prompted).toContain('competition')
+    })
   })
 
   it('writeSeedingState leaves no .tmp file behind on success', () => {

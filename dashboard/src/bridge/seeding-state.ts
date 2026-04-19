@@ -64,7 +64,7 @@ export async function markDisciplineComplete(projectDir: string, discipline: str
   writeSeedingState(projectDir, state)
 
   // Also update state.json.seedingProgress so the dashboard sees progress
-  await updateStateJsonDiscipline(projectDir, discipline)
+  await updateDisciplineStatusInState(projectDir, discipline, 'complete')
 }
 
 function nextDiscipline(complete: string[]): string {
@@ -76,7 +76,25 @@ function nextDiscipline(complete: string[]): string {
   return DISCIPLINE_SEQUENCE[DISCIPLINE_SEQUENCE.length - 1]
 }
 
-async function updateStateJsonDiscipline(projectDir: string, discipline: string): Promise<void> {
+/**
+ * Update a discipline's status in state.json.seedingProgress.disciplines[].
+ *
+ * Only promotes forward: pending → in-progress → complete. Will not
+ * downgrade a complete entry back to in-progress, or an in-progress
+ * entry back to pending. This keeps the UI's sense of progress
+ * monotonic even if the seed-handler calls get interleaved (e.g. a
+ * discipline is both prompted and completed within the same turn).
+ *
+ * Advancing `currentDiscipline` to the next unfinished item happens
+ * ONLY when a discipline becomes complete — an in-progress transition
+ * leaves `currentDiscipline` pointing at this discipline (because it
+ * IS the one being worked on).
+ */
+async function updateDisciplineStatusInState(
+  projectDir: string,
+  discipline: string,
+  targetStatus: 'in-progress' | 'complete',
+): Promise<void> {
   const stateFile = statePath(projectDir)
   if (!existsSync(stateFile)) return
   await withStateLock(projectDir, () => {
@@ -86,15 +104,32 @@ async function updateStateJsonDiscipline(projectDir: string, discipline: string)
 
       const disciplines = rawState.seedingProgress.disciplines as Array<{ discipline: string; status: string }>
       const entry = disciplines.find(d => d.discipline === discipline)
-      if (entry && entry.status !== 'complete') {
-        entry.status = 'complete'
+      if (!entry) return
+
+      // Monotonic forward-only promotion. Rank: pending < in-progress < complete.
+      const rank = (s: string) => (s === 'complete' ? 2 : s === 'in-progress' ? 1 : 0)
+      if (rank(targetStatus) > rank(entry.status)) {
+        entry.status = targetStatus
+      } else {
+        // No-op — already at or past the target status. Skip the write
+        // to avoid thrashing the mtime (and the watcher) for idempotent
+        // calls.
+        return
       }
+
       rawState.seedingProgress.completedCount = disciplines.filter(d => d.status === 'complete').length
 
-      // Also update currentDiscipline to the next one in sequence
-      const complete = disciplines.filter(d => d.status === 'complete').map(d => d.discipline)
-      const current = DISCIPLINE_SEQUENCE.find(d => !complete.includes(d)) ?? DISCIPLINE_SEQUENCE[DISCIPLINE_SEQUENCE.length - 1]
-      rawState.seedingProgress.currentDiscipline = current
+      // Advance `currentDiscipline` only when something newly completed.
+      // Promoting pending → in-progress means THIS discipline is the
+      // current one, and any other disciplines' currentDiscipline
+      // pointer would be stale — but the handler's prompt logic sets
+      // currentDiscipline explicitly on handoff, so we leave it alone
+      // here for the in-progress case.
+      if (targetStatus === 'complete') {
+        const complete = disciplines.filter(d => d.status === 'complete').map(d => d.discipline)
+        const current = DISCIPLINE_SEQUENCE.find(d => !complete.includes(d)) ?? DISCIPLINE_SEQUENCE[DISCIPLINE_SEQUENCE.length - 1]
+        rawState.seedingProgress.currentDiscipline = current
+      }
 
       writeStateJson(projectDir, rawState)
     } catch {
@@ -122,8 +157,18 @@ export function setStatus(projectDir: string, status: SeedingSessionState['statu
  * Mark a discipline's detailed sub-prompt as having been injected into
  * the current session at least once. Used by the seed handler to decide
  * whether to re-inject on the next turn (#147).
+ *
+ * ALSO flips the matching `state.json.seedingProgress.disciplines[]`
+ * entry to `'in-progress'` (Phase 0 of the seed-loop architecture plan,
+ * see docs/plans/2026-04-19-seed-loop-architecture.md). Previously
+ * nothing ever wrote `in-progress` — the only status writer was
+ * `markDisciplineComplete`, so entries stayed `pending` the whole run
+ * and the dashboard stepper had to synthesise in-progress from
+ * `currentDiscipline`. That synthesis masked a real data gap and broke
+ * whenever the UI's copy of the project was stale (stackrank symptom:
+ * competition prompted, status still pending, UI shows nothing).
  */
-export function markDisciplinePrompted(projectDir: string, discipline: string): void {
+export async function markDisciplinePrompted(projectDir: string, discipline: string): Promise<void> {
   const state = readSeedingState(projectDir)
   const prompted = state.disciplines_prompted ?? []
   if (!prompted.includes(discipline)) {
@@ -132,6 +177,7 @@ export function markDisciplinePrompted(projectDir: string, discipline: string): 
     state.last_activity = new Date().toISOString()
     writeSeedingState(projectDir, state)
   }
+  await updateDisciplineStatusInState(projectDir, discipline, 'in-progress')
 }
 
 /**
