@@ -134,6 +134,12 @@ export interface Escalation {
   tier: EscalationTier
   reason: string
   state: ProjectState
+  // Pipeline status. Only 'pending' escalations block the loop / need
+  // user action; 'resolved' ones are history. Previously absent from
+  // the mapped shape, which made the page-level pending filter a no-op
+  // — three resolved escalations rendered as if they were all live
+  // until this field was carried through.
+  status?: 'pending' | 'resolved'
   createdAt: string
   resolvedAt?: string
   resolution?: string
