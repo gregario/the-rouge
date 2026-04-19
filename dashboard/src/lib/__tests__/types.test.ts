@@ -36,12 +36,12 @@ describe('Type contracts', () => {
   it('ProjectState union covers all V3 states', () => {
     const states: ProjectState[] = [
       'seeding', 'ready', 'foundation', 'foundation-eval',
-      'story-building', 'story-diagnosis', 'milestone-check',
+      'story-building', 'milestone-check',
       'milestone-fix', 'analyzing', 'generating-change-spec',
       'vision-check', 'shipping', 'final-review', 'complete',
       'escalation', 'waiting-for-human',
     ]
-    expect(states).toHaveLength(16)
+    expect(states).toHaveLength(15)
   })
 
   it('StoryStatus union is complete', () => {

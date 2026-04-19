@@ -2,7 +2,7 @@
 
 import type { Milestone, MilestoneStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
-import { Check, Circle, Loader2, X } from 'lucide-react'
+import { Check, Circle, Loader2, X, Eye, Wrench } from 'lucide-react'
 
 function statusIcon(status: MilestoneStatus) {
   switch (status) {
@@ -10,11 +10,33 @@ function statusIcon(status: MilestoneStatus) {
       return <Check className="size-3.5" />
     case 'in-progress':
       return <Loader2 className="size-3.5 animate-spin" />
+    case 'under-review':
+      return <Eye className="size-3.5" />
+    case 'fixing':
+      return <Wrench className="size-3.5" />
     case 'failed':
       return <X className="size-3.5" />
     case 'pending':
     default:
       return <Circle className="size-3" />
+  }
+}
+
+// Human label shown under the milestone pill so users don't have to
+// infer "review" from the icon alone. Only rendered for non-default
+// statuses; a pending/in-progress pill keeps its title line clean.
+function statusSubLabel(status: MilestoneStatus): string | null {
+  switch (status) {
+    case 'under-review':
+      return 'Reviewing'
+    case 'fixing':
+      return 'Fixing'
+    case 'promoted':
+      return 'Done'
+    case 'failed':
+      return 'Failed'
+    default:
+      return null
   }
 }
 
@@ -25,6 +47,10 @@ function statusColors(status: MilestoneStatus, isSelected: boolean): string {
         return 'bg-green-200 text-green-800 border-green-600 ring-2 ring-green-400/50'
       case 'in-progress':
         return 'bg-blue-200 text-blue-800 border-blue-600 ring-2 ring-blue-400/50'
+      case 'under-review':
+        return 'bg-amber-200 text-amber-800 border-amber-600 ring-2 ring-amber-400/50'
+      case 'fixing':
+        return 'bg-orange-200 text-orange-800 border-orange-600 ring-2 ring-orange-400/50'
       case 'failed':
         return 'bg-red-200 text-red-800 border-red-600 ring-2 ring-red-400/50'
       case 'pending':
@@ -37,6 +63,10 @@ function statusColors(status: MilestoneStatus, isSelected: boolean): string {
       return 'bg-green-100 text-green-700 border-green-400'
     case 'in-progress':
       return 'bg-blue-100 text-blue-700 border-blue-400'
+    case 'under-review':
+      return 'bg-amber-100 text-amber-700 border-amber-400'
+    case 'fixing':
+      return 'bg-orange-100 text-orange-700 border-orange-400'
     case 'failed':
       return 'bg-red-100 text-red-700 border-red-400'
     case 'pending':
@@ -51,6 +81,10 @@ function lineColor(status: MilestoneStatus): string {
       return 'bg-green-400'
     case 'in-progress':
       return 'bg-blue-400'
+    case 'under-review':
+      return 'bg-amber-400'
+    case 'fixing':
+      return 'bg-orange-400'
     case 'failed':
       return 'bg-red-400'
     case 'pending':
@@ -122,6 +156,21 @@ export function MilestoneTimeline({ milestones, selectedId, onSelect }: Mileston
               >
                 {milestone.title}
               </span>
+              {statusSubLabel(milestone.status) && (
+                <span
+                  className={cn(
+                    'text-[10px] uppercase tracking-wider',
+                    milestone.status === 'under-review' ? 'text-amber-700'
+                      : milestone.status === 'fixing' ? 'text-orange-700'
+                      : milestone.status === 'promoted' ? 'text-green-700'
+                      : milestone.status === 'failed' ? 'text-red-700'
+                      : 'text-muted-foreground',
+                  )}
+                  data-testid="milestone-sub-label"
+                >
+                  {statusSubLabel(milestone.status)}
+                </span>
+              )}
             </button>
 
             {/* Connector line */}

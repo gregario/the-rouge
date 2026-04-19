@@ -342,11 +342,16 @@ function normalizeProject(
     completed = areas.filter(a => a.status === 'complete').length
   }
 
-  // Escalation: find latest pending
+  // Escalation: find latest pending. Summary can be absent on
+  // older/partial escalation records; fall back to reason or a
+  // placeholder so the output type stays `{ tier, summary }` non-null.
   const escalations = (raw.escalations as RawEscalation[]) || []
   const pending = escalations.find(e => e.status === 'pending')
   const escalation = pending
-    ? { tier: pending.tier, summary: pending.summary }
+    ? {
+        tier: pending.tier,
+        summary: pending.summary || '(no summary recorded)',
+      }
     : undefined
 
   // Seeding progress

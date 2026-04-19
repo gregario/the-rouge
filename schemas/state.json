@@ -14,7 +14,6 @@
         "foundation",
         "foundation-eval",
         "story-building",
-        "story-diagnosis",
         "milestone-check",
         "milestone-fix",
         "analyzing",
@@ -24,7 +23,6 @@
         "final-review",
         "escalation",
         "waiting-for-human",
-        "paused",
         "complete"
       ]
     },
@@ -63,7 +61,15 @@
               "properties": {
                 "id": { "type": "string" },
                 "name": { "type": "string" },
-                "status": { "type": "string" }
+                "status": { "type": "string" },
+                "added_at": {
+                  "type": "string",
+                  "description": "ISO timestamp when this story was appended mid-build (typically by generating-change-spec). Seed-defined stories omit this field. Dashboard uses recency to render an 'Added by Rouge' badge."
+                },
+                "added_by": {
+                  "type": "string",
+                  "description": "Which phase added this story — currently only 'generating-change-spec'. Reserved for future provenance tracking."
+                }
               }
             }
           }

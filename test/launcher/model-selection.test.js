@@ -17,7 +17,6 @@ describe('Model Selection', () => {
     assert.equal(getModelForPhase('foundation-eval'), 'opus');
     assert.equal(getModelForPhase('milestone-fix'), 'opus');
     assert.equal(getModelForPhase('shipping'), 'opus');
-    assert.equal(getModelForPhase('story-diagnosis'), 'opus');
   });
 
   test('returns sonnet for milestone-check — the one bookkeeping phase', () => {
@@ -38,7 +37,7 @@ describe('Model Selection', () => {
     const phases = [
       'seeding', 'analyzing', 'vision-check', 'generating-change-spec',
       'final-review', 'story-building', 'foundation', 'foundation-eval',
-      'milestone-check', 'milestone-fix', 'shipping', 'story-diagnosis',
+      'milestone-check', 'milestone-fix', 'shipping',
     ];
     for (const p of phases) {
       assert.ok(STATE_TO_MODEL[p], `Missing mapping for ${p}`);

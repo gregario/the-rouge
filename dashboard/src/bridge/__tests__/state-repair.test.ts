@@ -119,4 +119,64 @@ describe('repairProjectState', () => {
     const second = await repairProjectState(dir)
     expect(second.fixes).toEqual([])
   })
+
+  it('heals empty-escalation: state=escalation but escalations[] is empty (testimonial shape)', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'repair-'))
+    seedProject(
+      {
+        current_state: 'escalation',
+        name: 'testimonial',
+        escalations: [], // the broken shape
+      },
+      { session_id: 's', status: 'active' },
+    )
+
+    const report = await repairProjectState(dir)
+    expect(report.fixes.length).toBe(1)
+    expect(report.fixes[0]).toContain('empty-escalation')
+
+    const state = JSON.parse(readFileSync(join(dir, '.rouge', 'state.json'), 'utf-8'))
+    expect(state.escalations).toHaveLength(1)
+    expect(state.escalations[0].status).toBe('pending')
+    expect(state.escalations[0].classification).toBe('unspecified-repair')
+  })
+
+  it('heals escalation whose only entries are already resolved', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'repair-'))
+    seedProject(
+      {
+        current_state: 'escalation',
+        name: 'stale',
+        escalations: [{ id: 'e1', status: 'resolved' }],
+      },
+      { session_id: 's', status: 'active' },
+    )
+
+    const report = await repairProjectState(dir)
+    expect(report.fixes.length).toBe(1)
+    expect(report.fixes[0]).toContain('empty-escalation')
+
+    const state = JSON.parse(readFileSync(join(dir, '.rouge', 'state.json'), 'utf-8'))
+    const pending = state.escalations.filter((e: { status: string }) => e.status === 'pending')
+    expect(pending).toHaveLength(1)
+  })
+
+  it('leaves a healthy escalation alone', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'repair-'))
+    seedProject(
+      {
+        current_state: 'escalation',
+        name: 'ok',
+        escalations: [
+          { id: 'e1', status: 'pending', tier: 1, classification: 'real', summary: 'real' },
+        ],
+      },
+      { session_id: 's', status: 'active' },
+    )
+    const before = readFileSync(join(dir, '.rouge', 'state.json'), 'utf-8')
+    const report = await repairProjectState(dir)
+    expect(report.fixes).toEqual([])
+    const after = readFileSync(join(dir, '.rouge', 'state.json'), 'utf-8')
+    expect(after).toBe(before)
+  })
 })

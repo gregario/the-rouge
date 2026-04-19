@@ -1,6 +1,7 @@
 import type { ProjectState } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { phaseLabel, phaseGloss } from '@/lib/phase-labels'
 
 const stateStyles: Record<string, string> = {
   // Escalation / needs attention — warm, urgent
@@ -12,7 +13,6 @@ const stateStyles: Record<string, string> = {
   'foundation-eval': 'bg-blue-50 text-blue-700 border-blue-300',
   'milestone-check': 'bg-blue-50 text-blue-700 border-blue-300',
   'milestone-fix': 'bg-blue-50 text-blue-700 border-blue-300',
-  'story-diagnosis': 'bg-blue-50 text-blue-700 border-blue-300',
   analyzing: 'bg-blue-50 text-blue-700 border-blue-300',
   'generating-change-spec': 'bg-blue-50 text-blue-700 border-blue-300',
   'vision-check': 'bg-blue-50 text-blue-700 border-blue-300',
@@ -25,13 +25,6 @@ const stateStyles: Record<string, string> = {
   complete: 'bg-green-50 text-green-700 border-green-300',
   // Ready / parked — neutral
   ready: 'bg-slate-100 text-slate-600 border-slate-300',
-}
-
-function formatState(state: string): string {
-  return state
-    .split('-')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ')
 }
 
 export function StateBadge({
@@ -54,8 +47,9 @@ export function StateBadge({
         className,
       )}
       data-state={state}
+      title={phaseGloss(state)}
     >
-      {formatState(state)}
+      {phaseLabel(state)}
     </Badge>
   )
 }

@@ -18,6 +18,7 @@ import path from "node:path";
 export interface ServerConfig {
   projectsRoot: string;
   rougeCli: string;
+  rougeLogDir: string;
 }
 
 // No caching — env vars can change between test runs, and resolving once
@@ -68,14 +69,23 @@ export function loadServerConfig(): ServerConfig {
   }
 
   const home = homedir();
+  const rougeCli =
+    envCli ||
+    resolveAgainstConfig(fileCfg.rouge_cli) ||
+    path.join(home, ".rouge", "bin", "rouge");
+  // Phase logs live at <repo>/logs/<slug>-<phase>.log when rouge-loop runs
+  // from a git checkout. Derive from rougeCli (src/launcher/rouge-cli.js →
+  // up three dirs is the repo root). ROUGE_LOG_DIR overrides for users who
+  // set a custom path in .env.
+  const rougeLogDir =
+    process.env.ROUGE_LOG_DIR ||
+    path.resolve(path.dirname(rougeCli), "..", "..", "logs");
   return {
     projectsRoot:
       envProjects ||
       resolveAgainstConfig(fileCfg.projects_root) ||
       path.join(home, ".rouge", "projects"),
-    rougeCli:
-      envCli ||
-      resolveAgainstConfig(fileCfg.rouge_cli) ||
-      path.join(home, ".rouge", "bin", "rouge"),
+    rougeCli,
+    rougeLogDir,
   };
 }

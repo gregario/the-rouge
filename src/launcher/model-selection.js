@@ -13,7 +13,6 @@
  *     chain (test-integrity → code-review → product-walk → evaluation);
  *     each sub-phase is reasoning.
  *   - ship-promote: "is this actually ready to ship" is judgement.
- *   - story-diagnosis: root-cause analysis of failure.
  *
  * The one remaining Sonnet assignment is `milestone-check`: a boolean
  * "are all stories done?" that really is bookkeeping.
@@ -32,7 +31,6 @@ const STATE_TO_MODEL = {
   'foundation-eval':        'opus',
   'milestone-fix':          'opus',
   'shipping':               'opus',
-  'story-diagnosis':        'opus',
 
   // Bookkeeping-only — count story statuses and transition. Cheap.
   'milestone-check':        'sonnet',

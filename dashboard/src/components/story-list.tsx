@@ -11,7 +11,20 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion'
 import { cn } from '@/lib/utils'
-import { Check, Circle, Loader2, SkipForward, X, ChevronDown, ChevronRight, FileCode, TestTube2, AlertTriangle, ListChecks } from 'lucide-react'
+import { Check, Circle, Loader2, SkipForward, X, ChevronDown, ChevronRight, FileCode, TestTube2, AlertTriangle, ListChecks, Sparkles } from 'lucide-react'
+
+// Stories stamped with `addedAt` within this window are labelled
+// "Added by Rouge". After 24h they blend back into the plan — the
+// badge is a transient "heads-up, the plan evolved" signal, not a
+// permanent tag.
+const ADDED_BY_ROUGE_WINDOW_MS = 24 * 60 * 60 * 1000
+
+function isRecentlyAdded(addedAt?: string): boolean {
+  if (!addedAt) return false
+  const t = new Date(addedAt).getTime()
+  if (!Number.isFinite(t)) return false
+  return Date.now() - t < ADDED_BY_ROUGE_WINDOW_MS
+}
 
 function storyStatusStyle(status: StoryStatus): string {
   switch (status) {
@@ -271,6 +284,20 @@ export function StoryList({ milestones, selectedMilestoneId, enrichment }: Story
                   <span className="text-sm" data-testid="story-title">
                     {story.title}
                   </span>
+                  {/* Added by Rouge — transient badge for stories
+                      appended mid-build by generating-change-spec so
+                      the user notices the plan evolving. Auto-hides
+                      after 24h so it doesn't stick forever. */}
+                  {isRecentlyAdded(story.addedAt) && (
+                    <span
+                      className="inline-flex items-center gap-1 rounded-full border border-purple-200 bg-purple-50 px-1.5 py-0.5 text-[10px] font-medium text-purple-700"
+                      title={`Added by Rouge${story.addedBy ? ` (${story.addedBy})` : ''} at ${story.addedAt}`}
+                      data-testid="story-added-by-rouge"
+                    >
+                      <Sparkles className="size-3" />
+                      Added by Rouge
+                    </span>
+                  )}
                   {/* Quick stats inline when enrichment exists */}
                   {storyEnrichment?.filesChanged && (
                     <span className="ml-auto hidden items-center gap-1 text-[10px] text-gray-400 sm:inline-flex">

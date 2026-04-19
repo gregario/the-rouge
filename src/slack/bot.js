@@ -519,7 +519,6 @@ const STATE_EMOJI = {
   'foundation-eval': '\u{1F50D}',     // 🔍
   // Story loop
   'story-building': '\u{1F528}',      // 🔨
-  'story-diagnosis': '\u{1F9EA}',     // 🧪
   // Milestone loop
   'milestone-check': '\u{1F4CB}',     // 📋
   'milestone-fix': '\u{1F527}',       // 🔧
@@ -722,7 +721,7 @@ app.action(/^skip_/, async ({ action, ack, respond }) => {
     const stuckPhase = state.paused_from_state || 'unknown';
     // Advance past the stuck phase
     // V3 phase pipeline — must match STATE_TO_PROMPT order in rouge-loop.js
-    const pipeline = ['story-building', 'story-diagnosis', 'milestone-check', 'milestone-fix', 'analyzing', 'generating-change-spec', 'vision-check', 'shipping', 'final-review'];
+    const pipeline = ['story-building', 'milestone-check', 'milestone-fix', 'analyzing', 'generating-change-spec', 'vision-check', 'shipping', 'final-review'];
     const idx = pipeline.indexOf(stuckPhase);
     const nextPhase = idx >= 0 && idx < pipeline.length - 1 ? pipeline[idx + 1] : 'promoting';
     state.current_state = nextPhase;

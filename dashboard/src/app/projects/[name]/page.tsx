@@ -12,10 +12,13 @@ import { MilestoneTimeline } from '@/components/milestone-timeline'
 import { StoryList } from '@/components/story-list'
 import { ActivityLog } from '@/components/activity-log'
 import { BuildLogTail } from '@/components/build-log-tail'
-import { CurrentStoryCard } from '@/components/current-story-card'
 import type { StoryContext } from '@/bridge/story-context-reader'
 import type { StoryEnrichmentMap } from '@/bridge/story-enrichment-reader'
 import { ActionBar } from '@/components/action-bar'
+import { PhaseEventsFeed } from '@/components/phase-events-feed'
+import { CurrentFocusCard } from '@/components/current-focus-card'
+import { DiagnosticsFooter } from '@/components/diagnostics-footer'
+import { fetchBridgePhaseEvents, type PhaseEventPayload } from '@/lib/bridge-client'
 import { ProjectTabs } from '@/components/project-tabs'
 import { SpecTabContent } from '@/components/spec-tab-content'
 import type { ProjectSpec } from '@/components/spec-view'
@@ -170,11 +173,52 @@ export default function ProjectPage({
   }, [name, verboseActivity])
   useBridgeEvents(refetch, name)
 
-  // Milestone selection state
-  const defaultMilestoneId = project?.milestones.find((m) => m.status === 'in-progress')?.id
+  // Latest tool call / assistant text, for the Current Focus hero. We
+  // tail just the last couple of phase events at 2s cadence while the
+  // build is running; the full event feed lives inside the diagnostics
+  // footer and polls its own cadence. This keeps the hero feeling live
+  // without double-fetching the full tail on every tick.
+  const [latestPhaseEvent, setLatestPhaseEvent] = useState<PhaseEventPayload | null>(null)
+  const buildRunningForPoll = !!project?.buildRunning
+  useEffect(() => {
+    if (!isBridgeEnabled() || !buildRunningForPoll) {
+      return
+    }
+    let cancelled = false
+    const poll = () => {
+      fetchBridgePhaseEvents(name, 5)
+        .then((data) => {
+          if (cancelled) return
+          const meaningful = [...data.events].reverse().find(
+            (e) => e.type === 'tool_use' || e.type === 'text',
+          )
+          setLatestPhaseEvent(meaningful ?? null)
+        })
+        .catch(() => {})
+    }
+    poll()
+    const i = setInterval(poll, 2000)
+    return () => { cancelled = true; clearInterval(i) }
+  }, [name, buildRunningForPoll])
+
+  // Milestone selection state. `defaultMilestoneId` is memoised on the
+  // project snapshot so the timeline auto-follows the active milestone
+  // as rouge-loop advances — previously it was computed once at mount
+  // and stayed pinned to whatever was in-progress the first time the
+  // page loaded. `manuallySelectedMilestoneId` preserves an explicit
+  // click: once the user picks a specific milestone, stop auto-tracking
+  // until they click back to the active one (or reload).
+  const activeMilestoneId = project?.milestones.find((m) => m.status === 'in-progress')?.id
     ?? project?.milestones.find((m) => m.status !== 'promoted')?.id
-    ?? project?.milestones[project.milestones.length - 1]?.id
-  const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | undefined>(defaultMilestoneId)
+    ?? project?.milestones[project?.milestones.length - 1]?.id
+  const [manuallySelectedMilestoneId, setManuallySelectedMilestoneId] = useState<string | undefined>(undefined)
+  const selectedMilestoneId = manuallySelectedMilestoneId ?? activeMilestoneId
+  const setSelectedMilestoneId = useCallback((id: string | undefined) => {
+    // If the user clicks the currently-active milestone, clear the
+    // override so the timeline resumes auto-tracking on the next phase
+    // transition.
+    setManuallySelectedMilestoneId(id === activeMilestoneId ? undefined : id)
+  }, [activeMilestoneId])
 
   // Discipline selection state for seeding
   const [selectedDiscipline, setSelectedDiscipline] = useState<SeedingDiscipline | undefined>(undefined)
@@ -238,6 +282,9 @@ export default function ProjectPage({
   const activity = bridgeActivity ?? getProjectActivity(project.slug)
   const isSeeding = project.state === 'seeding'
   const isEscalation = project.state === 'escalation' || project.state === 'waiting-for-human'
+  const pendingEscalations = isEscalation
+    ? project.escalations.filter((e) => (e as { status?: string }).status !== 'resolved')
+    : []
 
   // Unified layout: ProjectTabs with Spec (View/Revise modes) + Build.
   // Build is disabled ONLY if seeding, OR if state is 'ready' AND no build
@@ -249,18 +296,49 @@ export default function ProjectPage({
   const defaultTab: 'spec' | 'build' = buildDisabled ? 'spec' : 'build'
   // Spec defaults to Revise during active seeding, View once past seeding.
   const defaultSpecMode: 'view' | 'revise' = isSeeding ? 'revise' : 'view'
+  // Pull the most actionable escalation summary into the hero so the
+  // user sees *why* Rouge stopped without scrolling down to the drawer.
+  const topEscalationSummary = pendingEscalations[0]
+    ? ((pendingEscalations[0] as { summary?: string; reason?: string }).summary
+      ?? (pendingEscalations[0] as { summary?: string; reason?: string }).reason
+      ?? undefined)
+    : undefined
+
+  // Derive a short "latest tool call" line for the hero from the
+  // polled phase events. `tool_use` events carry the tool name + a
+  // path/command summary; `text` events carry a brief narrative
+  // sentence. Either is more specific than the phase gloss.
+  const latestToolSummary = latestPhaseEvent
+    ? latestPhaseEvent.type === 'tool_use'
+      ? `${latestPhaseEvent.name}${latestPhaseEvent.summary ? ` ${latestPhaseEvent.summary}` : ''}`
+      : latestPhaseEvent.type === 'text' && latestPhaseEvent.text
+        ? latestPhaseEvent.text
+        : undefined
+    : undefined
+
   const buildContent = (
     <>
-      {/* Current story detail — visible during story-building when context exists */}
-      {storyContext?.story?.name && (
-        <div className="mb-4">
-          <CurrentStoryCard ctx={storyContext} />
-        </div>
-      )}
+      {/* Hero — the one place the user looks for "what is Rouge doing
+          right now?". Replaces the stack of pill + current-story card
+          + phase-events panel + IDLE/LIVE badges that earlier
+          iterations scattered across the page. */}
+      <CurrentFocusCard
+        state={project.state}
+        buildRunning={buildRunning}
+        buildStartedAt={project.buildStartedAt}
+        currentStoryName={storyContext?.story?.name}
+        currentMilestoneName={
+          project.milestones.find((m) => m.status === 'in-progress')?.title
+        }
+        storyContext={storyContext}
+        latestToolSummary={latestToolSummary}
+        latestToolAt={latestPhaseEvent?.ts}
+        escalationSummary={topEscalationSummary}
+      />
 
       {/* Merged milestone timeline + story list in ONE card */}
       {project.milestones.length > 0 && (
-        <Card className="border border-gray-200 bg-gray-50 shadow-sm">
+        <Card className="mt-4 border border-gray-200 bg-gray-50 shadow-sm">
           <CardContent className="p-5">
             <MilestoneTimeline
               milestones={project.milestones}
@@ -273,33 +351,6 @@ export default function ProjectPage({
           </CardContent>
         </Card>
       )}
-
-      {/* Escalation response area — visible for escalation projects.
-          Stacks one panel per pending escalation so multi-escalation
-          situations don't collapse into the first one. Audit F15. */}
-      {isEscalation && (() => {
-        const pending = project.escalations.filter(
-          (e) => (e as { status?: string }).status !== 'resolved',
-        )
-        if (pending.length === 0) return null
-        return (
-          <div className="mt-6 space-y-4">
-            {pending.length > 1 && (
-              <p className="text-xs text-muted-foreground">
-                {pending.length} escalations pending — resolve each one below.
-              </p>
-            )}
-            {pending.map((esc, i) => (
-              <EscalationResponse
-                key={(esc as { id?: string }).id ?? i}
-                escalation={esc}
-                slug={project.slug}
-                onResolved={refetch}
-              />
-            ))}
-          </div>
-        )
-      })()}
 
       {/* Build cost progress bar for BUILDING projects */}
       {project.state !== 'complete' && project.cost.budgetCap > 0 && project.cost.totalSpend > 0 && (
@@ -339,28 +390,75 @@ export default function ProjectPage({
         </div>
       )}
 
-      {/* Activity log — full width */}
-      <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-5">
-        <h3 className="mb-4 text-sm font-semibold text-gray-900">Activity</h3>
-        <ActivityLog
-          events={activity}
-          verbose={isBridgeEnabled() ? verboseActivity : undefined}
-          onToggleVerbose={isBridgeEnabled() ? setVerboseActivity : undefined}
-        />
-      </div>
-
-      {/* Build log tail — raw stdout from the loop subprocess */}
+      {/* Diagnostics — the secondary surfaces that answer
+          "what happened and when" collapsed into one footer. Phase
+          activity (detailed tool-call stream), history (checkpoint
+          transitions), and raw build log (stderr fallback) were each
+          competing for the reader's attention at the same level as the
+          milestone plan; they all belong here now. Default collapsed
+          so the page leads with "what's happening" not "what the log
+          says". */}
       {isBridgeEnabled() && (
-        <div className="mt-6">
-          <BuildLogTail slug={project.slug} live={buildRunning} />
-        </div>
+        <DiagnosticsFooter
+          label="Diagnostics"
+          summary="Phase events · History · Raw log"
+        >
+          <div>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Phase events
+            </h3>
+            <PhaseEventsFeed slug={project.slug} live={buildRunning} />
+          </div>
+          <div>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              History
+            </h3>
+            <ActivityLog
+              events={activity}
+              verbose={verboseActivity}
+              onToggleVerbose={setVerboseActivity}
+            />
+          </div>
+          <div>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Raw log
+            </h3>
+            <BuildLogTail slug={project.slug} live={buildRunning} />
+          </div>
+        </DiagnosticsFooter>
       )}
     </>
   )
 
+  // Escalation banner, hoisted above the tabs. Previously lived inside
+  // buildContent, which meant switching to the Spec tab hid the
+  // escalation drawer and the user lost access to Respond / Hand off /
+  // Dismiss. Rendering here keeps the escalation visible and actionable
+  // regardless of which tab is active. Stacks one panel per pending
+  // escalation so multi-escalation situations don't collapse into the
+  // first one (audit F15).
+
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-8 pb-20 sm:px-6 lg:px-8">
       <ProjectHeader project={project} infrastructure={infrastructure} />
+
+      {pendingEscalations.length > 0 && (
+        <div className="mt-6 space-y-4">
+          {pendingEscalations.length > 1 && (
+            <p className="text-xs text-muted-foreground">
+              {pendingEscalations.length} escalations pending — resolve each one below.
+            </p>
+          )}
+          {pendingEscalations.map((esc, i) => (
+            <EscalationResponse
+              key={(esc as { id?: string }).id ?? i}
+              escalation={esc}
+              slug={project.slug}
+              onResolved={refetch}
+            />
+          ))}
+        </div>
+      )}
 
       <div className="mt-8">
         <ProjectTabs
@@ -389,6 +487,7 @@ export default function ProjectPage({
         slug={project.slug}
         productionUrl={project.productionUrl}
         escalation={project.escalations[0]}
+        onCommandComplete={refetch}
       />
     </div>
   )
