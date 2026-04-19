@@ -156,6 +156,7 @@ export function readProviders(projectDir: string): string[] {
     const ctxPath = join(projectDir, 'cycle_context.json')
     if (!existsSync(ctxPath)) return providers
     const ctx = JSON.parse(readFileSync(ctxPath, 'utf-8')) as {
+      vision?: { infrastructure?: { deployment_target?: string } }
       infrastructure?: {
         staging_url?: string
         production_url?: string
@@ -171,6 +172,14 @@ export function readProviders(projectDir: string): string[] {
       .join(' ')
     if (urls.includes('.vercel.app')) providers.push('vercel')
     if (urls.includes('.pages.dev') || urls.includes('.workers.dev')) providers.push('cloudflare')
+    // GitHub Pages doesn't go through a Rouge-provisioned cloud account,
+    // so there's no env var or DSN to detect. Use two signals: the
+    // deployment target declared in vision, or a *.github.io staging/prod
+    // URL. Either tells us the project is Pages-deployed.
+    const target = ctx.vision?.infrastructure?.deployment_target
+    if (target === 'github-pages' || target === 'gh-pages' || urls.includes('.github.io')) {
+      providers.push('github-pages')
+    }
     if (infra.supabase_url && infra.supabase_ref) providers.push('supabase')
     if (infra.sentry_dsn) providers.push('sentry')
     if (infra.readiness?.posthog === true) providers.push('posthog')

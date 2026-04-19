@@ -100,6 +100,51 @@ Rouge's staging deploy handler runs `docker compose up -d --build` from the proj
 
 **CI workflow** — a GitHub Actions workflow at `.github/workflows/publish-image.yml` that builds multi-arch images (`linux/amd64`, `linux/arm64`) and publishes to GHCR on release-tag push. Template in `01-building.md` step for ship preparation; foundation just needs the Dockerfile + compose file present so the staging deploy can run during the build loop.
 
+#### Static-export deployments (`deployment_target: github-pages` / `gh-pages`)
+
+When `infrastructure_manifest.json.deploy.target` (or `vision.json.infrastructure.deployment_target`) is `github-pages` or `gh-pages`, the first build must produce fully static HTML/CSS/JS at a known output directory or the staging deploy will fail to find anything to push. The launcher's `deployGithubPages` handler (see `src/launcher/deploy-to-staging.js`) probes `dist`, `build`, `out`, `public` in that order, or a directory explicitly named in `infrastructure_manifest.json.github_pages.output_dir`.
+
+**What foundation MUST scaffold for a static-export target:**
+
+1. **Framework config for static export.** Pick the right recipe for the framework the infrastructure manifest selected:
+   - **Next.js** — `next.config.js` (or `.mjs`) must set `output: 'export'` and `images: { unoptimized: true }` (Pages has no image optimiser). Also set `trailingSlash: true` so Pages' `repo/page/` form matches file `repo/page/index.html`. If the repo is a project page (not a user/org root page), set `basePath: '/<repo-name>'` and `assetPrefix: '/<repo-name>/'` — derive the repo name from `git config --get remote.origin.url` at scaffold time and write it through; do not hardcode. The default `next build` then produces `out/`, which the deploy handler will find.
+   - **Vite** — `vite.config.{ts,js}` must set `base: '/<repo-name>/'` (same derivation rule as above, or `'/'` for user/org pages). Default `npm run build` produces `dist/`. No additional flags needed.
+   - **Create React App** — set `"homepage": "https://<owner>.github.io/<repo>"` in `package.json`. Default `npm run build` produces `build/`.
+   - **Astro** — `astro.config.{mjs,ts}` must set `site: 'https://<owner>.github.io'` and `base: '/<repo-name>'`. Default `npm run build` produces `dist/`.
+   - **SvelteKit** — use `@sveltejs/adapter-static` with `fallback: 'index.html'` for SPA mode and `paths: { base: '/<repo-name>' }` in `svelte.config.js`.
+
+2. **Empty `.nojekyll` at the project root.** Without it, GitHub Pages' Jekyll processor strips files whose names start with `_` (which hits Next.js's `_next/` folder in particular). The deploy handler runs `gh-pages@6 --dotfiles` so this file is copied through.
+
+3. **Optional `CNAME` file** if the product has a custom domain in the infrastructure manifest (`github_pages.custom_domain`). Single line, the domain only, no scheme. `--dotfiles` also propagates this.
+
+4. **Health check that works without a server.** Since there's no runtime to call, the "health check" for a static-export product is a build-time assertion: the deploy handler confirms the output directory exists and contains at least an `index.html`. Foundation should NOT scaffold a runtime `/api/health` route — those won't exist on Pages.
+
+5. **README note on prerequisites.** Add one line reminding whoever runs the first deploy that GitHub Pages must be enabled for the repo with Source = "Deploy from a branch" → `gh-pages`. The launcher can't enable this for them; Rouge's staging push to the `gh-pages` branch is a no-op from the user's perspective until the setting is toggled.
+
+**What foundation MUST NOT scaffold for a static-export target:**
+
+- **API routes / route handlers** (`app/api/*/route.ts`, `pages/api/*.ts`). There is no server. If a story needs server state, its acceptance criteria are incompatible with the declared deployment target — ESCALATE during the first story that triggers this, do not silently drop the route at build time.
+- **Server components that read secrets at request time.** All data must be baked in at build time or fetched client-side with public keys only.
+- **Middleware** (`middleware.ts`). Unsupported by static export.
+- **`getServerSideProps`, dynamic route segments without `generateStaticParams`**, or anything that requires per-request rendering.
+- **`next/image` with default loader.** Use `images: { unoptimized: true }` globally; if the project needs optimisation, that's a vision-level incompatibility and should have been caught by 08-infrastructure — ESCALATE.
+
+**Decision capture.** Write the derived repo name + base path + output directory into `factory_decisions` so the deploy handler and later stories can read the same values without re-deriving. Example entry:
+
+```json
+{
+  "topic": "github-pages-config",
+  "decided": {
+    "owner": "gregario",
+    "repo": "testimonial",
+    "base_path": "/testimonial",
+    "output_dir": "out",
+    "framework": "next",
+    "reason": "Derived from git remote origin URL at foundation time."
+  }
+}
+```
+
 ### Test Fixtures
 - Seed data for every entity in the schema
 - Data generators for testing at scale
