@@ -3,13 +3,16 @@
 
 // ─── Enums & Union Types ─────────────────────────────────────────────
 
+// Keep in sync with schemas/state.json's current_state enum and rouge-loop.js
+// STATE_TO_PROMPT. 'story-diagnosis' was removed from the state machine —
+// it had scaffolding (prompt, model selection, handler) but no code path
+// ever transitioned into it. Don't add it back without a real trigger.
 export type ProjectState =
   | 'seeding'
   | 'ready'
   | 'foundation'
   | 'foundation-eval'
   | 'story-building'
-  | 'story-diagnosis'
   | 'milestone-check'
   | 'milestone-fix'
   | 'analyzing'
@@ -22,7 +25,19 @@ export type ProjectState =
   | 'waiting-for-human'
 
 export type StoryStatus = 'pending' | 'in-progress' | 'done' | 'failed' | 'skipped'
-export type MilestoneStatus = 'pending' | 'in-progress' | 'promoted' | 'failed'
+// 'under-review' and 'fixing' are derived client-side from project.state
+// (milestone-check / milestone-fix) + which milestone is current — the
+// backend doesn't persist them separately. Existing state.json
+// milestones keep their base status; the mapper overlays review/fix
+// on the current milestone so the timeline shows what's happening
+// without requiring a schema change.
+export type MilestoneStatus =
+  | 'pending'
+  | 'in-progress'
+  | 'under-review'
+  | 'fixing'
+  | 'promoted'
+  | 'failed'
 export type SeedingDiscipline =
   | 'brainstorming'
   | 'competition'
@@ -95,6 +110,13 @@ export interface Story {
   startedAt?: string   // ISO 8601
   completedAt?: string
   failureReason?: string
+  // Provenance for stories appended mid-build (by generating-change-spec
+  // or similar). Seed-defined stories omit these. Dashboard shows an
+  // "Added by Rouge" badge on stories whose `addedAt` is within the
+  // last 24h so a user notices when the plan evolves without reading
+  // every story.
+  addedAt?: string
+  addedBy?: string
 }
 
 export interface Milestone {

@@ -30,6 +30,8 @@ interface RougeStory {
   completed_at?: string
   files_changed?: string[]
   failure_reason?: string
+  added_at?: string
+  added_by?: string
 }
 
 interface RougeMilestone {
@@ -141,6 +143,8 @@ function mapStory(s: RougeStory): Story {
     acceptanceCriteria: [], // Rouge doesn't track these per story
     completedAt: s.completed_at,
     failureReason: s.failure_reason,
+    addedAt: s.added_at,
+    addedBy: s.added_by,
   }
 }
 
@@ -211,6 +215,8 @@ export function mapRougeStateToProjectDetail(raw: unknown, slug: string): Projec
 
   const isBuilding = state.current_state === 'story-building' || state.current_state === 'foundation'
   const activeStoryId = isBuilding ? state.current_story : undefined
+  const isReviewing = state.current_state === 'milestone-check'
+  const isFixing = state.current_state === 'milestone-fix'
 
   const milestones = state.milestones
     ? state.milestones.map((m, i) => {
@@ -227,6 +233,17 @@ export function mapRougeStateToProjectDetail(raw: unknown, slug: string): Projec
         }
         if (m.name === state.current_milestone && mapped.status === 'pending' && isBuilding) {
           mapped.status = 'in-progress'
+        }
+        // Overlay review-loop status on the current milestone when the
+        // project is in milestone-check/milestone-fix. The launcher
+        // doesn't persist these as milestone statuses (they're
+        // inferred from project.current_state + current_milestone); the
+        // mapper is the one place to derive them. UI timelines render
+        // 'under-review' / 'fixing' distinctly from 'in-progress' so
+        // users can see when Rouge is reviewing vs. still building.
+        if (m.name === state.current_milestone) {
+          if (isReviewing) mapped.status = 'under-review'
+          else if (isFixing) mapped.status = 'fixing'
         }
         return mapped
       })

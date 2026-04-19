@@ -93,7 +93,7 @@ interface Section {
 
 const needsAttentionStates = new Set<ProjectState>(['escalation', 'waiting-for-human'])
 const buildingStates = new Set<ProjectState>([
-  'foundation', 'foundation-eval', 'story-building', 'story-diagnosis',
+  'foundation', 'foundation-eval', 'story-building',
   'milestone-check', 'milestone-fix', 'analyzing', 'generating-change-spec',
   'vision-check', 'shipping', 'final-review',
 ])

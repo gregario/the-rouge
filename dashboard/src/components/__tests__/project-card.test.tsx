@@ -49,7 +49,9 @@ describe('ProjectCard', () => {
   it('renders project name and state', () => {
     render(<ProjectCard project={baseProject} />)
     expect(screen.getByText('Test Project')).toBeInTheDocument()
-    expect(screen.getByText('Story Building')).toBeInTheDocument()
+    // State badge now shows the user-speak label via phase-labels.ts
+    // rather than a raw title-cased form of the internal state name.
+    expect(screen.getByText(/building this story/i)).toBeInTheDocument()
   })
 
   it('shows milestone progress for building projects', () => {
