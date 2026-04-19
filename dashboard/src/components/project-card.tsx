@@ -120,6 +120,10 @@ export function ProjectCard({ project }: { project: ProjectSummary }) {
               <p className="mt-0.5 text-sm text-gray-500 truncate">{project.description}</p>
             </div>
             <div className="flex flex-col items-end gap-1">
+              {/* ProjectSummary (the home-page card source) doesn't
+                  carry buildRunning; the scanner doesn't track PIDs.
+                  Badge falls back to non-paused styling. Paused
+                  detection lives on the detail page. */}
               <StateBadge state={project.state} size="lg" />
               {project.awaitingGate && (
                 <span

@@ -8,6 +8,7 @@ const escalation: Escalation = {
   tier: 1,
   reason: 'Staging deploy failed — bundle size exceeds 1MB Workers limit.',
   state: 'escalation',
+  status: 'pending',
   createdAt: '2026-03-30T16:20:00Z',
 }
 

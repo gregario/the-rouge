@@ -39,6 +39,11 @@ interface EscalationDrawerProps {
   projectState: ProjectState
   slug?: string
   affectedStory?: string
+  // Called after the server confirms a Resume / Skip / feedback command,
+  // so the parent page can refetch and drop the escalation card instead
+  // of waiting for the SSE state-change event (which can lag 1–2 s). The
+  // audit flagged this as a P0 reactivity gap.
+  onResolved?: () => void
 }
 
 export function EscalationDrawer({
@@ -48,6 +53,7 @@ export function EscalationDrawer({
   projectState,
   slug,
   affectedStory,
+  onResolved,
 }: EscalationDrawerProps) {
   const [loading, setLoading] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -62,12 +68,13 @@ export function EscalationDrawer({
       }
       await sendCommand(slug, command)
       onOpenChange(false)
+      onResolved?.()
     } catch (err) {
       console.error(`[bridge] Escalation command "${command}" failed:`, err)
     } finally {
       setLoading(null)
     }
-  }, [slug, onOpenChange])
+  }, [slug, onOpenChange, onResolved])
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

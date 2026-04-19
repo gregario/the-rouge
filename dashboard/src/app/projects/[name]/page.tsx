@@ -301,13 +301,12 @@ export default function ProjectPage({
   const defaultTab: 'spec' | 'build' = buildDisabled ? 'spec' : 'build'
   // Spec defaults to Revise during active seeding, View once past seeding.
   const defaultSpecMode: 'view' | 'revise' = isSeeding ? 'revise' : 'view'
-  // Pull the most actionable escalation summary into the hero so the
-  // user sees *why* Rouge stopped without scrolling down to the drawer.
-  const topEscalationSummary = pendingEscalations[0]
-    ? ((pendingEscalations[0] as { summary?: string; reason?: string }).summary
-      ?? (pendingEscalations[0] as { summary?: string; reason?: string }).reason
-      ?? undefined)
-    : undefined
+  // Escalation summary for the hero. Escalation.reason is the
+  // mapper's canonical text field (summary / reason / classification
+  // / placeholder, in order of preference) so no unsafe cast is
+  // needed — and no conflicting `summary` field exists on the mapped
+  // shape to trip over.
+  const topEscalationSummary = pendingEscalations[0]?.reason
 
   // Derive a short "latest tool call" line for the hero from the
   // polled phase events. `tool_use` events carry the tool name + a
@@ -363,8 +362,11 @@ export default function ProjectPage({
         </Card>
       )}
 
-      {/* Build cost progress bar for BUILDING projects */}
-      {project.state !== 'complete' && project.cost.budgetCap > 0 && project.cost.totalSpend > 0 && (
+      {/* Build cost progress bar for BUILDING projects. Renders even
+          at $0 spent so the user has forward visibility into available
+          budget; previously hidden until the first token charge which
+          made new builds look unbudgeted. */}
+      {project.state !== 'complete' && project.cost.budgetCap > 0 && (
         <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-gray-500">Build Cost</span>
@@ -460,9 +462,9 @@ export default function ProjectPage({
               {pendingEscalations.length} escalations pending — resolve each one below.
             </p>
           )}
-          {pendingEscalations.map((esc, i) => (
+          {pendingEscalations.map((esc) => (
             <EscalationResponse
-              key={(esc as { id?: string }).id ?? i}
+              key={esc.id}
               escalation={esc}
               slug={project.slug}
               onResolved={refetch}
@@ -499,6 +501,8 @@ export default function ProjectPage({
         productionUrl={project.productionUrl}
         escalation={project.escalations[0]}
         onCommandComplete={refetch}
+        buildRunning={buildRunning}
+        buildStartedAt={project.buildStartedAt}
       />
     </div>
   )

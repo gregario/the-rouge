@@ -113,6 +113,7 @@ describe('Type contracts', () => {
       tier: 1,
       reason: 'Deploy failed',
       state: 'escalation',
+      status: 'pending',
       createdAt: '2026-04-01T00:00:00Z',
     }
     expect(escalation.tier).toBe(1)

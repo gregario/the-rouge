@@ -27,16 +27,43 @@ const stateStyles: Record<string, string> = {
   ready: 'bg-slate-100 text-slate-600 border-slate-300',
 }
 
+// States where Rouge is actively running a phase (the loop should have
+// a live PID). Used to render a "Paused" overlay on the badge when
+// state claims building but no process is alive — previously the
+// badge said e.g. "Building this story" in blue while the action bar
+// said "Build stopped", which gave users contradictory signals.
+const MID_PHASE_STATES: ReadonlySet<ProjectState> = new Set([
+  'foundation',
+  'foundation-eval',
+  'story-building',
+  'milestone-check',
+  'milestone-fix',
+  'analyzing',
+  'generating-change-spec',
+  'vision-check',
+  'shipping',
+  'final-review',
+])
+
 export function StateBadge({
   state,
   className,
   size = 'default',
+  buildRunning,
 }: {
   state: ProjectState
   className?: string
   size?: 'default' | 'lg'
+  // When state is a mid-phase state but no loop is alive, the badge
+  // renders with a subtle "Paused" suffix + muted styling so the
+  // visual matches what the ActionBar is saying. Omit for surfaces
+  // (project cards on the dashboard home) that don't have PID info.
+  buildRunning?: boolean
 }) {
-  const style = stateStyles[state] ?? 'bg-slate-100 text-slate-600 border-slate-300'
+  const isPaused = buildRunning === false && MID_PHASE_STATES.has(state)
+  const style = isPaused
+    ? 'bg-slate-100 text-slate-600 border-slate-300'
+    : stateStyles[state] ?? 'bg-slate-100 text-slate-600 border-slate-300'
 
   return (
     <Badge
@@ -47,9 +74,15 @@ export function StateBadge({
         className,
       )}
       data-state={state}
+      data-paused={isPaused ? 'true' : undefined}
       title={phaseGloss(state)}
     >
       {phaseLabel(state)}
+      {isPaused && (
+        <span className="ml-1.5 text-[10px] uppercase tracking-wider opacity-70">
+          · paused
+        </span>
+      )}
     </Badge>
   )
 }

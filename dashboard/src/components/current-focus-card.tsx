@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import type { ProjectState } from '@/lib/types'
 import type { StoryContext } from '@/bridge/story-context-reader'
 import { phaseLabel, phaseGloss } from '@/lib/phase-labels'
-import { Loader2, Flag, CheckCircle2 } from 'lucide-react'
+import { Loader2, Flag, CheckCircle2, ArrowDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface CurrentFocusCardProps {
@@ -63,14 +63,22 @@ export function CurrentFocusCard({
     return () => clearInterval(interval)
   }, [buildRunning])
 
-  // Escalation mode — previously rendered a full amber box here, but
-  // the actionable escalation drawer is already pinned above the tabs
-  // with the same title + summary + tier badge. Two boxes saying the
-  // same thing confused users. Return null so the drawer is the only
-  // surface for escalation state; the StateBadge in the header keeps
-  // the "Needs your input" label visible at a glance.
+  // Escalation mode — a thin pointer to the drawer above. Previously
+  // rendered a full amber box (duplicating the drawer's content), then
+  // returned null (which made the hero vanish and broke the page's
+  // "what's happening" narrative). The current shape — a single-line
+  // nudge with an arrow — keeps the hero present without re-stating
+  // the full escalation.
   if (state === 'escalation' || state === 'waiting-for-human') {
-    return null
+    return (
+      <div
+        className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/60 px-4 py-2 text-xs text-amber-900"
+        data-testid="current-focus-escalation-nudge"
+      >
+        <ArrowDown className="size-3.5 shrink-0" />
+        <span>Escalation pending — respond in the banner above.</span>
+      </div>
+    )
   }
 
   if (state === 'complete') {

@@ -150,6 +150,7 @@ const recipeOracleEscalations: Escalation[] = [
     tier: 1,
     reason: 'Staging deploy failed — Wrangler build timeout after 3 retries. Bundle size 1.4MB compressed, exceeds 1MB Workers limit. Likely caused by Supabase client bundling unused modules.',
     state: 'escalation',
+    status: 'pending',
     createdAt: '2026-03-30T16:20:00Z',
   },
 ]

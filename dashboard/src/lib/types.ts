@@ -135,11 +135,12 @@ export interface Escalation {
   reason: string
   state: ProjectState
   // Pipeline status. Only 'pending' escalations block the loop / need
-  // user action; 'resolved' ones are history. Previously absent from
-  // the mapped shape, which made the page-level pending filter a no-op
-  // — three resolved escalations rendered as if they were all live
-  // until this field was carried through.
-  status?: 'pending' | 'resolved'
+  // user action; 'resolved' ones are history. Required — the mapper
+  // guarantees a value (defaults non-'resolved' raw input to
+  // 'pending'), so leaving this optional would let the page-level
+  // filter silently treat undefined as pending and show historical
+  // escalations as live.
+  status: 'pending' | 'resolved'
   createdAt: string
   resolvedAt?: string
   resolution?: string

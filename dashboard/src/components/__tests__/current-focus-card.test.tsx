@@ -3,20 +3,19 @@ import { describe, it, expect } from 'vitest'
 import { CurrentFocusCard } from '../current-focus-card'
 
 describe('CurrentFocusCard', () => {
-  it('returns null for escalation state — escalation drawer above the tabs owns that surface', () => {
-    // Previously the hero rendered a full amber box on top of the
-    // drawer, which looked like duplicate warnings. The state badge
-    // in the project header still carries the "Needs your input"
-    // label for at-a-glance visibility.
-    const { container } = render(
-      <CurrentFocusCard state="escalation" escalationSummary="Deploy target was never set" />,
-    )
-    expect(container).toBeEmptyDOMElement()
+  it('renders a thin nudge to the escalation banner above the tabs', () => {
+    // Previously rendered a full amber box duplicating the drawer,
+    // then briefly returned null (which made the hero disappear and
+    // broke the page narrative). Settled on a single-line nudge that
+    // points to the drawer without restating its contents.
+    render(<CurrentFocusCard state="escalation" escalationSummary="Deploy target was never set" />)
+    expect(screen.getByTestId('current-focus-escalation-nudge')).toBeInTheDocument()
+    expect(screen.getByText(/respond in the banner above/i)).toBeInTheDocument()
   })
 
-  it('returns null for waiting-for-human state too', () => {
-    const { container } = render(<CurrentFocusCard state="waiting-for-human" />)
-    expect(container).toBeEmptyDOMElement()
+  it('shows the same nudge for waiting-for-human', () => {
+    render(<CurrentFocusCard state="waiting-for-human" />)
+    expect(screen.getByTestId('current-focus-escalation-nudge')).toBeInTheDocument()
   })
 
   it('shows the shipped band when state is complete', () => {
