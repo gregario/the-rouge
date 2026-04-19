@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync, statSync } from 'fs'
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync, renameSync } from 'fs'
 import { join } from 'path'
 import { statePath as resolveStatePath, writeStateJson } from './state-path'
 import { withStateLock } from './state-lock'
@@ -20,7 +20,103 @@ function fileLooksReal(path: string): boolean {
   }
 }
 
+function writeJsonAtomic(path: string, data: unknown): void {
+  const tmp = path + '.tmp'
+  writeFileSync(tmp, JSON.stringify(data, null, 2) + '\n')
+  renameSync(tmp, path)
+}
+
+/**
+ * Mirror infrastructure decisions from `infrastructure_manifest.json` into
+ * `vision.json.infrastructure` (and `cycle_context.json.vision.infrastructure`),
+ * where the launcher's provisioner actually looks them up.
+ *
+ * Background: the INFRASTRUCTURE discipline writes the chosen deploy target
+ * to `infrastructure_manifest.json.deploy.target`. The provisioner
+ * (src/launcher/provision-infrastructure.js:328) reads
+ * `cycle_context.vision.infrastructure.deployment_target`. Nothing was
+ * copying the value across, so a fresh project would always hit the
+ * "No deployment_target in vision.json.infrastructure" warning and stall.
+ * Testimonial reproduced this: manifest.deploy.target="docker-compose" but
+ * vision.json.infrastructure={}.
+ *
+ * This mirror is intentionally non-destructive: it only fills fields that
+ * are missing on the target, so explicit spec/vision overrides win.
+ */
+function propagateInfrastructureFromManifest(projectDir: string): void {
+  const manifestPath = join(projectDir, 'infrastructure_manifest.json')
+  if (!existsSync(manifestPath)) return
+  let manifest: {
+    deploy?: { target?: string; staging_env?: string; production_env?: string }
+    database?: { provider?: string | null } | null
+    auth?: { strategy?: string | null; provider?: string | null } | null
+  }
+  try {
+    manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
+  } catch {
+    return
+  }
+  const target = manifest.deploy?.target
+  if (!target || typeof target !== 'string') return
+
+  const needsDatabase = !!(manifest.database && manifest.database.provider)
+  const needsAuth = !!(manifest.auth && (manifest.auth.strategy || manifest.auth.provider))
+
+  const visionPath = join(projectDir, 'vision.json')
+  if (existsSync(visionPath)) {
+    try {
+      const vision = JSON.parse(readFileSync(visionPath, 'utf-8')) as {
+        infrastructure?: {
+          deployment_target?: string
+          needs_database?: boolean
+          needs_auth?: boolean
+        }
+      }
+      const infra = vision.infrastructure ?? {}
+      let changed = false
+      if (!infra.deployment_target) { infra.deployment_target = target; changed = true }
+      if (infra.needs_database === undefined) { infra.needs_database = needsDatabase; changed = true }
+      if (infra.needs_auth === undefined) { infra.needs_auth = needsAuth; changed = true }
+      if (changed) {
+        vision.infrastructure = infra
+        writeJsonAtomic(visionPath, vision)
+      }
+    } catch {
+      // malformed vision.json — leave alone; missing-artifacts check will
+      // flag it if it's below the byte floor.
+    }
+  }
+
+  const ctxPath = join(projectDir, 'cycle_context.json')
+  if (existsSync(ctxPath)) {
+    try {
+      const ctx = JSON.parse(readFileSync(ctxPath, 'utf-8')) as {
+        vision?: { infrastructure?: Record<string, unknown> }
+      }
+      ctx.vision = ctx.vision ?? {}
+      const infra = ctx.vision.infrastructure ?? {}
+      let changed = false
+      if (!infra.deployment_target) { infra.deployment_target = target; changed = true }
+      if (infra.needs_database === undefined) { infra.needs_database = needsDatabase; changed = true }
+      if (infra.needs_auth === undefined) { infra.needs_auth = needsAuth; changed = true }
+      if (changed) {
+        ctx.vision.infrastructure = infra
+        writeJsonAtomic(ctxPath, ctx)
+      }
+    } catch {
+      // malformed cycle_context.json — skip; rouge-loop has its own repair.
+    }
+  }
+}
+
 export async function finalizeSeeding(projectDir: string): Promise<FinalizeResult> {
+  // Propagate deployment_target and needs_* from the infrastructure
+  // manifest into vision.json + cycle_context.json before the artifact
+  // check runs — that way a project that had a valid manifest but an
+  // empty vision.infrastructure still passes the byte-floor check and
+  // the provisioner finds the target when the build loop boots.
+  propagateInfrastructureFromManifest(projectDir)
+
   const missing: string[] = []
 
   // Task ledger — V3 story/milestone tracking the launcher consumes.

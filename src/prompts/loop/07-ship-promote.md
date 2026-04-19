@@ -179,7 +179,15 @@ Execute the production deployment. Read `infrastructure_manifest.json` (or `visi
 
 - **Cloudflare Workers** (`deployment_target: "cloudflare"` or `"cloudflare-workers"`): Run `npx wrangler deploy` to promote to production. Verify with `curl -s -o /dev/null -w "%{http_code}" <production-url>`.
 - **Vercel** (`deployment_target: "vercel"`): Run `npx vercel deploy --yes --prod`. Verify the stable project URL responds with 200.
+- **Docker Compose** (`deployment_target: "docker-compose"` or `"docker"`): Rouge does not own the production host — self-hosted products are deployed to **the user's** infrastructure. Production promote here means publishing the artifact, not running a server. Steps:
+  1. Confirm `.github/workflows/publish-image.yml` (or equivalent) builds and pushes a multi-arch image to the project's registry (GHCR by default). If missing, ESCALATE rather than improvising a registry target.
+  2. Tag the release: `git tag v<version> && git push origin v<version>`. The workflow publishes `ghcr.io/<org>/<repo>:v<version>` on tag push.
+  3. Verify the image is pullable: `docker manifest inspect ghcr.io/<org>/<repo>:v<version>` (or `docker buildx imagetools inspect`). Record the digest as the production artifact reference.
+  4. Update `infrastructure_manifest.json.deploy.production_artifact` with the digest + tag so downstream users can pin.
+  5. Record `production_url: null` in `ship_result` — there is no Rouge-managed production URL for self-hosted products; the user runs the image on their own box.
+- **GitHub Pages** (`deployment_target: "github-pages"` or `"gh-pages"`): Production IS the gh-pages branch; the staging deploy already serves the live site. Verify the Pages URL (`https://<owner>.github.io/<repo>/`) responds with 200 and record it as `production_url`. No separate promote step.
 - **npm publish**: Run `npm publish` (only if the project is a published package — check `package.json.private`).
+- **None** (`deployment_target: "none"`): Non-web deliverable (CLI tool, MCP server, library). Skip deploy; the ship step is whatever makes the artifact consumable (npm publish, binary release, etc.). If no distribution path is configured, ESCALATE.
 - **Other platforms**: Read the deployment pattern from the integration catalogue (`library/integrations/`) and execute accordingly. If no pattern exists for the target, ESCALATE — do not improvise a deploy command.
 
 **CRITICAL: If promotion fails, do NOT retry automatically.** Production deployments that fail may leave the system in an inconsistent state. On failure:

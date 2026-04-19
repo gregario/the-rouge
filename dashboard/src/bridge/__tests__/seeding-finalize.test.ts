@@ -116,4 +116,90 @@ describe('finalizeSeeding', () => {
     const second = readFileSync(join(testDir, '.rouge', 'state.json'), 'utf-8')
     expect(second).toBe(first)
   })
+
+  describe('infrastructure manifest propagation', () => {
+    function writeVision(extra: Record<string, unknown> = {}): void {
+      writeFileSync(
+        join(testDir, 'vision.json'),
+        JSON.stringify({
+          product_name: 'test',
+          one_liner: LONG, // keep byte size above the stub floor
+          infrastructure: {},
+          ...extra,
+        }),
+      )
+    }
+    function writeManifest(target: string, opts: { database?: boolean; auth?: boolean } = {}): void {
+      writeFileSync(
+        join(testDir, 'infrastructure_manifest.json'),
+        JSON.stringify({
+          deploy: { target },
+          database: opts.database ? { provider: 'self-hosted' } : null,
+          auth: opts.auth ? { strategy: 'home-grown' } : null,
+        }),
+      )
+    }
+
+    it('mirrors manifest.deploy.target into vision.json.infrastructure.deployment_target', async () => {
+      seedCompleteProject()
+      writeVision()
+      writeManifest('docker-compose', { database: true, auth: true })
+
+      const result = await finalizeSeeding(testDir)
+      expect(result.ok).toBe(true)
+
+      const vision = JSON.parse(readFileSync(join(testDir, 'vision.json'), 'utf-8'))
+      expect(vision.infrastructure.deployment_target).toBe('docker-compose')
+      expect(vision.infrastructure.needs_database).toBe(true)
+      expect(vision.infrastructure.needs_auth).toBe(true)
+    })
+
+    it('also writes into cycle_context.json.vision.infrastructure (where the provisioner reads)', async () => {
+      seedCompleteProject()
+      writeVision()
+      writeManifest('docker-compose')
+      writeFileSync(join(testDir, 'cycle_context.json'), JSON.stringify({ vision: { infrastructure: {} } }))
+
+      await finalizeSeeding(testDir)
+
+      const ctx = JSON.parse(readFileSync(join(testDir, 'cycle_context.json'), 'utf-8'))
+      expect(ctx.vision.infrastructure.deployment_target).toBe('docker-compose')
+    })
+
+    it('does not overwrite an explicit vision.infrastructure.deployment_target', async () => {
+      seedCompleteProject()
+      writeVision({ infrastructure: { deployment_target: 'vercel' } })
+      writeManifest('docker-compose')
+
+      await finalizeSeeding(testDir)
+
+      const vision = JSON.parse(readFileSync(join(testDir, 'vision.json'), 'utf-8'))
+      expect(vision.infrastructure.deployment_target).toBe('vercel')
+    })
+
+    it('is a no-op when manifest is missing', async () => {
+      seedCompleteProject()
+      writeVision()
+      // no infrastructure_manifest.json written
+
+      await finalizeSeeding(testDir)
+
+      const vision = JSON.parse(readFileSync(join(testDir, 'vision.json'), 'utf-8'))
+      expect(vision.infrastructure).toEqual({})
+    })
+
+    it('is a no-op when manifest has no deploy.target', async () => {
+      seedCompleteProject()
+      writeVision()
+      writeFileSync(
+        join(testDir, 'infrastructure_manifest.json'),
+        JSON.stringify({ deploy: {} }),
+      )
+
+      await finalizeSeeding(testDir)
+
+      const vision = JSON.parse(readFileSync(join(testDir, 'vision.json'), 'utf-8'))
+      expect(vision.infrastructure).toEqual({})
+    })
+  })
 })
