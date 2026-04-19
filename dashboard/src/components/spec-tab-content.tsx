@@ -82,6 +82,7 @@ export function SpecTabContent({
       completedDisciplines={completedDisciplines}
       selectedDiscipline={selectedDiscipline}
       onSelectDiscipline={onSelectDiscipline}
+      pendingGateDiscipline={pendingGateDiscipline}
     />
   }
 
@@ -130,6 +131,7 @@ export function SpecTabContent({
           completedDisciplines={completedDisciplines}
           selectedDiscipline={selectedDiscipline}
           onSelectDiscipline={onSelectDiscipline}
+          pendingGateDiscipline={pendingGateDiscipline}
         />
       ) : null}
     </div>
@@ -142,12 +144,14 @@ function SeedingLayout({
   completedDisciplines,
   selectedDiscipline,
   onSelectDiscipline,
+  pendingGateDiscipline,
 }: {
   seedingProgress: SeedingProgress
   slug: string
   completedDisciplines: string[]
   selectedDiscipline?: SeedingDiscipline
   onSelectDiscipline: (d: SeedingDiscipline | undefined) => void
+  pendingGateDiscipline?: SeedingDiscipline
 }) {
   return (
     <div className="grid min-h-[60vh] grid-cols-1 gap-6 lg:grid-cols-5">
