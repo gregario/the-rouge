@@ -35,4 +35,8 @@ or discoveries to cycle_context.json under "pre_compaction_flush":
 }
 ```
 
+{{human_guidance_section}}
+
+{{human_resolution_section}}
+
 {{learnings_section}}

@@ -1328,6 +1328,118 @@ if (command === 'doctor') {
     console.error(`  Fatal error: ${err.message}`);
     process.exit(1);
   });
+} else if (command === 'resume-escalation') {
+  // Hand-off flow: user has an open escalation and wants to work
+  // through it in a direct Claude Code session. This command:
+  //   1. Marks the latest pending escalation as hand-off
+  //   2. Prints a `claude -p` invocation primed with the escalation
+  //      context (summary, classification, recent build.log tail,
+  //      cycle_context excerpt). User runs claude themselves; when
+  //      done they press "I've resolved it" in the dashboard.
+  //
+  // Usage: rouge resume-escalation <project-slug>
+  const slug = args[1];
+  if (!slug) {
+    console.error('Usage: rouge resume-escalation <project-slug>');
+    process.exit(1);
+  }
+  const projectsRoot = process.env.ROUGE_PROJECTS_DIR ||
+    path.join(process.env.HOME || '', '.rouge', 'projects');
+  const projectDir = path.join(projectsRoot, slug);
+  if (!fs.existsSync(projectDir)) {
+    console.error(`  Project not found: ${slug}`);
+    process.exit(1);
+  }
+
+  const stateFile = fs.existsSync(path.join(projectDir, '.rouge', 'state.json'))
+    ? path.join(projectDir, '.rouge', 'state.json')
+    : path.join(projectDir, 'state.json');
+  if (!fs.existsSync(stateFile)) {
+    console.error(`  No state.json for ${slug}`);
+    process.exit(1);
+  }
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  const pending = (state.escalations || []).find((e) => e.status === 'pending' && !e.human_response);
+  if (!pending) {
+    console.error(`  No pending escalation for ${slug}. Nothing to hand off.`);
+    process.exit(1);
+  }
+
+  // Mark the escalation as handed-off. Launcher picks this up on its
+  // next loop tick and parks the project.
+  pending.human_response = {
+    type: 'hand-off',
+    text: 'Handed off to direct Claude Code session',
+    submitted_at: new Date().toISOString(),
+  };
+  const tmp = stateFile + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(state, null, 2) + '\n');
+  fs.renameSync(tmp, stateFile);
+
+  // Build a primed prompt for Claude Code.
+  const logFile = path.join(projectDir, 'build.log');
+  let logTail = '';
+  if (fs.existsSync(logFile)) {
+    try {
+      const raw = fs.readFileSync(logFile, 'utf8');
+      logTail = raw.split('\n').slice(-80).join('\n');
+    } catch { /* ignore */ }
+  }
+
+  const ctxFile = path.join(projectDir, 'cycle_context.json');
+  let ctxSummary = '';
+  if (fs.existsSync(ctxFile)) {
+    try {
+      const ctx = JSON.parse(fs.readFileSync(ctxFile, 'utf8'));
+      const pick = (k) => (ctx[k] ? `${k}: ${JSON.stringify(ctx[k]).slice(0, 500)}` : '');
+      ctxSummary = [
+        pick('current_phase'),
+        pick('evaluation_report'),
+        pick('qa_fix_results'),
+        pick('analysis_recommendation'),
+      ].filter(Boolean).join('\n\n');
+    } catch { /* ignore */ }
+  }
+
+  console.log(`
+  Hand-off primed for: ${slug}
+  Escalation: ${pending.id} (tier ${pending.tier})
+
+  The launcher has marked this escalation as handed-off. It will stay
+  parked until you submit "I've resolved it" from the dashboard.
+
+  To work through the problem now:
+
+    cd ${projectDir}
+    claude
+
+  When Claude opens, paste this as the first message:
+
+  ---
+  You are helping me resolve an escalation in this Rouge project.
+
+  **Escalation**: ${pending.classification || 'general'} (tier ${pending.tier})
+  **Summary**: ${pending.summary || '(none)'}
+  **Story**: ${pending.story_id || '(none)'}
+
+  **Recent build.log** (last 80 lines):
+  \`\`\`
+  ${logTail || '(log empty)'}
+  \`\`\`
+
+  **Context snapshot**:
+  ${ctxSummary || '(cycle_context empty)'}
+
+  Work with me to understand and resolve this. When we're done, make
+  a commit so the resolution is on the branch. The Rouge launcher
+  will capture the commits and resume the phase with them as context.
+  ---
+
+  When you finish: return to the dashboard, click "I've resolved it"
+  on the escalation card. The launcher will capture your commits and
+  resume.
+`);
+
 } else if (command === 'secrets') {
   const subcommand = args[1];
   if (subcommand === 'list') {
@@ -1371,6 +1483,9 @@ if (command === 'doctor') {
     rouge secrets expiry set <s/K> <date>  Set expiry for a secret
     rouge feasibility <description> Assess feasibility of a proposed change
     rouge contribute <path>         Contribute a draft integration pattern via PR
+    rouge resume-escalation <slug>  Prime a direct Claude Code session for an
+                                    escalation hand-off. Parks the project,
+                                    prints the claude command + context.
     rouge improve                   Run one self-improvement iteration
     rouge improve --max-iterations 5  Run up to 5 iterations
     rouge improve --explore         Enable exploration when no issues remain

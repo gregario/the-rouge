@@ -211,6 +211,14 @@ const VALID_HUMAN_RESPONSE_TYPES = new Set([
   'manual-fix-applied',
   'dismiss-false-positive',
   'abort-story',
+  // Hand-off mode: human is working through the problem in a direct
+  // Claude Code session in the project dir. Keeps the project parked
+  // until they submit `resume-after-handoff`.
+  'hand-off',
+  // User finished the hand-off session. Launcher captures any commits
+  // since the escalation fired and writes them as human_resolution
+  // context into cycle_context.json.
+  'resume-after-handoff',
 ]);
 
 /**
@@ -224,6 +232,43 @@ const VALID_HUMAN_RESPONSE_TYPES = new Set([
  * escalation with tier=999/malformed_response is raised so the user
  * can see what happened.
  */
+/**
+ * Capture commits made in a project directory since an ISO timestamp.
+ * Used by the escalation hand-off flow to summarise what the human
+ * changed during their direct Claude Code session. Returns an array
+ * of { sha, subject, files_changed[] }, newest first. Returns an
+ * empty array if the project isn't a git repo or the operation fails.
+ */
+function captureCommitsSince(projectDir, sinceIso) {
+  try {
+    if (!fs.existsSync(path.join(projectDir, '.git'))) return [];
+    const { execSync } = require('child_process');
+    // %H short-sha | %s subject, one commit per line.
+    const log = execSync(
+      `git log --since="${sinceIso}" --pretty=format:"%h|%s"`,
+      { cwd: projectDir, encoding: 'utf8', timeout: 10000, stdio: ['ignore', 'pipe', 'pipe'] },
+    ).trim();
+    if (!log) return [];
+    return log.split('\n').map((line) => {
+      const [sha, ...rest] = line.split('|');
+      const subject = rest.join('|');
+      let files_changed = [];
+      try {
+        const raw = execSync(
+          `git show --name-only --pretty=format: ${sha}`,
+          { cwd: projectDir, encoding: 'utf8', timeout: 5000, stdio: ['ignore', 'pipe', 'pipe'] },
+        );
+        files_changed = raw.split('\n').map((s) => s.trim()).filter(Boolean);
+      } catch {
+        /* swallow per-commit failure */
+      }
+      return { sha, subject, files_changed };
+    });
+  } catch {
+    return [];
+  }
+}
+
 function validateHumanResponse(hr) {
   if (!hr || typeof hr !== 'object' || Array.isArray(hr)) {
     return { ok: false, reason: 'human_response must be an object' };
@@ -1416,6 +1461,64 @@ async function advanceState(projectDir) {
           } else {
             next = 'milestone-check';
           }
+        } else if (hrType === 'hand-off') {
+          // User is working through the problem in a direct Claude Code
+          // session (`rouge resume-escalation <slug>` invocation). Mark
+          // the escalation as in-progress but keep the project parked
+          // in `escalation` state. The launcher won't advance until
+          // the user submits `resume-after-handoff`.
+          //
+          // We revert `status` back to 'pending' so the dashboard
+          // keeps showing the escalation card (user can change their
+          // mind), but we stash `handoff_started_at` so the resume
+          // path knows where to slice the git log from.
+          pendingEsc.status = 'pending';
+          pendingEsc.handoff_started_at = new Date().toISOString();
+          delete pendingEsc.resolved_at;
+          delete pendingEsc.human_response; // consume so we don't re-trigger
+          writeJson(stateFile, state);
+          log(`[${projectName}] Escalation handed off to direct Claude Code — parked until resume`);
+          // Stay in 'escalation' state.
+          next = 'escalation';
+        } else if (hrType === 'resume-after-handoff') {
+          // User finished their hand-off session. Capture any commits
+          // made since handoff_started_at, write them to
+          // cycle_context.human_resolution, and resume the phase that
+          // was paused when the escalation fired.
+          const since = pendingEsc.handoff_started_at || pendingEsc.created_at;
+          const commits = captureCommitsSince(projectDir, since);
+          const resolution = {
+            note: pendingEsc.human_response.text || '',
+            commits,
+            files_changed: Array.from(
+              new Set(commits.flatMap(c => c.files_changed || []))
+            ),
+          };
+          const resumeCtx = readJson(contextFile) || {};
+          resumeCtx.human_resolution = resolution;
+          writeJson(contextFile, resumeCtx);
+          state.consecutive_failures = 0;
+          // If the escalation was story-scoped, flip the story back to
+          // retrying so the next phase actually re-attempts it with
+          // the human_resolution context injected by the preamble.
+          const resumeStory = flat.find(s => s.id === pendingEsc.story_id);
+          if (resumeStory && (resumeStory.status === 'blocked' || resumeStory.status === 'pending')) {
+            resumeStory.status = 'retrying';
+          }
+          writeJson(stateFile, state);
+          const resumeMs = (state.milestones || []).find(m => m.name === state.current_milestone);
+          if (resumeMs) {
+            const elig = findNextStory(resumeMs, flatStories(state));
+            if (elig) {
+              next = startStory(state, resumeMs, elig);
+              writeJson(stateFile, state);
+            } else {
+              next = 'milestone-check';
+            }
+          } else {
+            next = 'milestone-check';
+          }
+          log(`[${projectName}] Escalation resumed after hand-off — ${commits.length} commit(s) captured`);
         } else {
           // Unrecognised response type — ignore, stay in escalation
           log(`[${projectName}] Unrecognised escalation response type: ${hrType}`);

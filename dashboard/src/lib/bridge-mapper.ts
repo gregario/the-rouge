@@ -156,7 +156,7 @@ function mapMilestone(m: RougeMilestone, index: number): Milestone {
   }
 }
 
-function mapEscalation(e: RougeEscalation): Escalation {
+function mapEscalation(e: RougeEscalation & { handoff_started_at?: string }): Escalation {
   const tier = (Math.max(0, Math.min(3, e.tier)) as EscalationTier)
   return {
     id: e.id,
@@ -166,6 +166,7 @@ function mapEscalation(e: RougeEscalation): Escalation {
     createdAt: e.created_at,
     resolvedAt: e.resolved_at,
     resolution: e.resolution,
+    handoff_started_at: e.handoff_started_at,
   }
 }
 

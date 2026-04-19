@@ -13,6 +13,13 @@ const VALID_RESPONSE_TYPES = [
   "manual-fix-applied",
   "dismiss-false-positive",
   "abort-story",
+  // Hand-off to direct Claude Code session. User runs
+  // `rouge resume-escalation <slug>` and works in their terminal.
+  // Launcher parks the project until `resume-after-handoff` arrives.
+  "hand-off",
+  // User finished the hand-off session. Launcher captures git
+  // commits since the hand-off started and resumes the phase.
+  "resume-after-handoff",
 ] as const;
 
 export async function POST(
