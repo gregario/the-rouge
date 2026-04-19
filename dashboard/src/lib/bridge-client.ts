@@ -104,8 +104,14 @@ export interface PhaseEventsPayload {
   exists: boolean
 }
 
-export async function fetchBridgePhaseEvents(name: string, tail = 100): Promise<PhaseEventsPayload> {
-  const res = await fetch(`${BRIDGE_URL}/api/projects/${name}/phase-events?tail=${tail}`)
+export async function fetchBridgePhaseEvents(
+  name: string,
+  tail = 100,
+  options: { storyId?: string } = {},
+): Promise<PhaseEventsPayload> {
+  const qs = new URLSearchParams({ tail: String(tail) })
+  if (options.storyId) qs.set('story_id', options.storyId)
+  const res = await fetch(`${BRIDGE_URL}/api/projects/${name}/phase-events?${qs.toString()}`)
   if (!res.ok) throw new Error(`Bridge error: ${res.status}`)
   return res.json()
 }

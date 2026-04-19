@@ -23,6 +23,11 @@ export interface PhaseEvent {
   status?: 'ok' | 'error'
   exit_code?: number | null
   duration_ms?: number
+  // Story/milestone context stamped by the launcher at writer creation
+  // time so the dashboard can scope a feed per story. Absent for
+  // project-level phases (foundation, analyzing, shipping).
+  story_id?: string
+  milestone_name?: string
 }
 
 export interface PhaseEventsTail {
@@ -52,7 +57,23 @@ function emptyTail(): PhaseEventsTail {
  * case). If we start seeing MB-scale files in practice, switch to a
  * read-from-end strategy.
  */
-export function readPhaseEvents(projectDir: string, tailCount = 100): PhaseEventsTail {
+export interface ReadPhaseEventsOptions {
+  tailCount?: number
+  // Filter to events stamped with this story_id. Applied BEFORE the
+  // tail slice so tailCount = N returns the last N events *for this
+  // story*, not the last N overall that happen to include this story.
+  // Matches nothing when no events carry story_id (e.g. a project
+  // whose only phase run was foundation).
+  storyId?: string
+}
+
+export function readPhaseEvents(projectDir: string, optsOrTail: ReadPhaseEventsOptions | number = {}): PhaseEventsTail {
+  const opts: ReadPhaseEventsOptions = typeof optsOrTail === 'number'
+    ? { tailCount: optsOrTail }
+    : optsOrTail
+  const tailCount = opts.tailCount ?? 100
+  const storyId = opts.storyId
+
   const path = join(projectDir, EVENTS_FILENAME)
   if (!existsSync(path)) return emptyTail()
   try {
@@ -71,6 +92,7 @@ export function readPhaseEvents(projectDir: string, tailCount = 100): PhaseEvent
       try {
         const obj = JSON.parse(line)
         if (obj && typeof obj === 'object' && typeof obj.ts === 'string' && typeof obj.type === 'string') {
+          if (storyId && obj.story_id !== storyId) continue
           parsed.push(obj as PhaseEvent)
         }
       } catch {
