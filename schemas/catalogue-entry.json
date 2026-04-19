@@ -17,9 +17,11 @@
       "description": "Human-readable display name (e.g. 'Stripe')."
     },
     "tier": {
-      "type": "integer",
-      "enum": [1, 2, 3],
-      "description": "1 = core platform primitive; 2 = integrated service (Stripe, Supabase); 3 = pattern within a service (Stripe webhook handler, Sentry React boundary)."
+      "oneOf": [
+        { "type": "integer", "enum": [1, 2, 3] },
+        { "type": "string", "const": "draft" }
+      ],
+      "description": "1 = core platform primitive; 2 = integrated service (Stripe, Supabase); 3 = pattern within a service (Stripe webhook handler, Sentry React boundary). 'draft' is valid for entries under library/integrations/drafts/ awaiting promotion to a numeric tier — see contribute-pattern.js."
     },
     "category": {
       "type": "string",
