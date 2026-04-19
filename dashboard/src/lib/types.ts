@@ -115,6 +115,10 @@ export interface Escalation {
   createdAt: string
   resolvedAt?: string
   resolution?: string
+  // Set by the launcher when the user triggers a hand-off to direct
+  // Claude Code. The dashboard uses its presence to switch the
+  // escalation panel into "I've resolved it" mode.
+  handoff_started_at?: string
 }
 
 export interface CostInfo {

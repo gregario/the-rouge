@@ -28,6 +28,22 @@ describe('validateHumanResponse', () => {
     }
   });
 
+  test('accepts the hand-off + resume-after-handoff pair', () => {
+    // These drive the direct Claude Code hand-off flow — the user
+    // runs `rouge resume-escalation <slug>` in their terminal and
+    // works through the problem there. The enum pair is load-bearing.
+    assert.equal(validateHumanResponse({ type: 'hand-off' }).ok, true);
+    assert.equal(validateHumanResponse({ type: 'resume-after-handoff' }).ok, true);
+    assert.equal(
+      validateHumanResponse({
+        type: 'resume-after-handoff',
+        text: 'Fixed the regex; see commit abc1234',
+        submitted_at: '2026-04-18T12:00:00Z',
+      }).ok,
+      true,
+    );
+  });
+
   test('rejects null and undefined', () => {
     assert.equal(validateHumanResponse(null).ok, false);
     assert.equal(validateHumanResponse(undefined).ok, false);

@@ -127,4 +127,76 @@ describe('Preamble Injector', () => {
       assert.ok(!result.includes('Project learnings'));
     });
   });
+
+  describe('human guidance + resolution injection', () => {
+    test('omits both sections when cycle_context is missing', () => {
+      const result = injectPreamble({
+        projectDir: tmpDir,
+        phaseName: 'story-building',
+        phaseDescription: 'Build',
+        modelName: 'opus',
+        requiredOutputKeys: [],
+      });
+      assert.ok(!result.includes('Human guidance for this phase'));
+      assert.ok(!result.includes('Human resolved this off-line'));
+    });
+
+    test('injects human_guidance block when cycle_context has the field', () => {
+      fs.writeFileSync(
+        path.join(tmpDir, 'cycle_context.json'),
+        JSON.stringify({
+          human_guidance: 'Use the existing Stripe client, not a new one. Look at lib/stripe.ts.',
+        }),
+      );
+      const result = injectPreamble({
+        projectDir: tmpDir,
+        phaseName: 'story-building',
+        phaseDescription: 'Build',
+        modelName: 'opus',
+        requiredOutputKeys: [],
+      });
+      assert.match(result, /Human guidance for this phase/);
+      assert.match(result, /Use the existing Stripe client/);
+      assert.match(result, /higher-priority than your own judgement/);
+    });
+
+    test('injects human_resolution block with commits + files', () => {
+      fs.writeFileSync(
+        path.join(tmpDir, 'cycle_context.json'),
+        JSON.stringify({
+          human_resolution: {
+            note: 'Regex was greedy; made it lazy.',
+            commits: [
+              { sha: 'abc1234', subject: 'fix(auth): lazy quantifier in token regex', files_changed: ['lib/auth.ts'] },
+            ],
+            files_changed: ['lib/auth.ts'],
+          },
+        }),
+      );
+      const result = injectPreamble({
+        projectDir: tmpDir,
+        phaseName: 'story-building',
+        phaseDescription: 'Build',
+        modelName: 'opus',
+        requiredOutputKeys: [],
+      });
+      assert.match(result, /Human resolved this off-line/);
+      assert.match(result, /Regex was greedy/);
+      assert.match(result, /abc1234/);
+      assert.match(result, /lib\/auth\.ts/);
+    });
+
+    test('swallows malformed cycle_context without throwing', () => {
+      fs.writeFileSync(path.join(tmpDir, 'cycle_context.json'), 'not json {{{');
+      assert.doesNotThrow(() =>
+        injectPreamble({
+          projectDir: tmpDir,
+          phaseName: 'story-building',
+          phaseDescription: 'Build',
+          modelName: 'opus',
+          requiredOutputKeys: [],
+        }),
+      );
+    });
+  });
 });
