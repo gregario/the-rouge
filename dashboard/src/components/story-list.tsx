@@ -389,6 +389,20 @@ export function StoryList({ milestones, selectedMilestoneId, enrichment, slug, b
 
                   {/* Enrichment details (files, tests, decisions, questions) */}
                   {storyEnrichment && <StoryDetails enrichment={storyEnrichment} />}
+
+                  {/* Pending-story placeholder — earlier, expanding a
+                      pending story showed a blank panel that felt
+                      broken. Now explains why there's nothing to
+                      read yet. Shown only when the user has nothing
+                      else to look at. */}
+                  {story.status === 'pending'
+                    && story.acceptanceCriteria.length === 0
+                    && !storyEnrichment
+                    && !story.failureReason && (
+                    <p className="py-1 text-xs italic text-muted-foreground">
+                      This story hasn&rsquo;t been picked up yet — acceptance criteria and implementation detail will appear here once Rouge starts it.
+                    </p>
+                  )}
                 </div>
               </AccordionContent>
             </AccordionItem>

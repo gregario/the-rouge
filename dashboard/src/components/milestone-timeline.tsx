@@ -118,15 +118,19 @@ export function MilestoneTimeline({ milestones, selectedId, onSelect }: Mileston
             className="flex items-start"
             data-testid="milestone-step"
           >
-            {/* Step */}
+            {/* Step — pending milestones can't be selected (nothing
+                to show yet), so render with a disabled cursor + muted
+                opacity so the user can see at a glance why clicking
+                doesn't respond. */}
             <button
               type="button"
               disabled={!isClickable}
               onClick={() => isClickable && onSelect?.(milestone.id)}
+              title={isClickable ? undefined : 'This milestone hasn\u2019t started yet'}
               className={cn(
                 'flex flex-col items-center gap-1.5 transition-transform',
                 isSelected ? 'min-w-[140px] scale-105' : 'min-w-[120px]',
-                isClickable ? 'cursor-pointer' : 'cursor-default',
+                isClickable ? 'cursor-pointer' : 'cursor-not-allowed opacity-70',
               )}
               data-testid="milestone-button"
             >

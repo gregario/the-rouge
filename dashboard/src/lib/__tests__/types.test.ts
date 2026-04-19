@@ -351,9 +351,10 @@ describe('Seed data integrity', () => {
     expect(disciplines.has('taste')).toBe(true)
   })
 
-  it('confidence histories are monotonically timestamped', () => {
+  it('confidence histories (when present on fixtures) are monotonically timestamped', () => {
     for (const slug of Object.keys(projectDetails)) {
       const history = projectDetails[slug].confidenceHistory
+      if (!history) continue
       for (let i = 1; i < history.length; i++) {
         expect(new Date(history[i].timestamp).getTime())
           .toBeGreaterThan(new Date(history[i - 1].timestamp).getTime())

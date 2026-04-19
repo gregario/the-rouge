@@ -132,17 +132,10 @@ export function ProjectHeader({
             Staging
           </a>
         )}
-        {project.repoUrl && (
-          <a
-            href={project.repoUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-500 transition-colors hover:text-gray-900 hover:border-gray-300"
-          >
-            <ExternalLink className="size-3" />
-            Repository
-          </a>
-        )}
+        {/* Repository link removed — the mapper never populated
+            project.repoUrl so the button existed as dead UI for
+            months. If repo visibility is wanted, wire it through
+            from cycle_context.github_repo. */}
       </div>
 
       {/* Stack status card */}

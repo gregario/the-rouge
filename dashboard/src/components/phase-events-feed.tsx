@@ -168,29 +168,32 @@ export function PhaseEventsFeed({
   }
 
   if (!payload.exists || payload.events.length === 0) {
-    // Compact empty state — used inside story cards where the longer
-    // explanatory text would be noisy. Stories that haven't been
-    // actively built yet just get a short waiting line.
+    // Be specific about what we're waiting for. The generic "Waiting
+    // for the first event…" from earlier told users nothing about
+    // whether the subprocess was starting up, blocked, or had
+    // finished. The phrasing now differentiates the cases we know
+    // about.
+    const emptyMessage = live
+      ? payload.exists
+        ? 'Subprocess is running — waiting for its first tool call or message.'
+        : 'Starting the phase subprocess…'
+      : 'No phase events recorded for this project yet.'
     if (compact) {
       return (
         <p className="text-xs text-gray-500">
           {live
             ? storyId
-              ? 'Waiting for Rouge to act on this story…'
-              : 'Waiting for the first event…'
+              ? 'Waiting for Rouge to pick up this story. Activity will appear here as tool calls land.'
+              : emptyMessage
             : 'No activity recorded for this story yet.'}
         </p>
       )
     }
     return (
       <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50/50 p-6 text-center">
-        <p className="text-sm text-gray-500">
-          {live
-            ? 'Waiting for the first event…'
-            : 'No phase events recorded for this project yet.'}
-        </p>
+        <p className="text-sm text-gray-500">{emptyMessage}</p>
         <p className="mt-1 text-xs text-gray-400">
-          Event capture requires stream-json output — available on rouge-loop runs started after this feature shipped.
+          Event capture runs through <code>claude -p --output-format stream-json</code>. If this stays empty during a build, check the Raw Log in diagnostics for subprocess errors.
         </p>
       </div>
     )

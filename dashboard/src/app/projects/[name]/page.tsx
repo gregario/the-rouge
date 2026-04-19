@@ -155,7 +155,11 @@ export default function ProjectPage({
     return () => { cancelled = true }
   }, [name, verboseActivity])
 
-  // Live updates — re-fetch this project on any matching bridge event
+  // Live updates — re-fetch on every matching bridge event.
+  // spec + infrastructure were mount-only previously, so if the loop
+  // edited the spec (generating-change-spec) or provisioned new infra
+  // mid-build, the dashboard ignored it until a manual refresh. Now
+  // in the refetch set.
   const refetch = useCallback(() => {
     if (!isBridgeEnabled()) return
     fetchBridgeProject(name)
@@ -169,6 +173,12 @@ export default function ProjectPage({
       .catch(() => {})
     fetchBridgeStoryEnrichment(name)
       .then((data) => setStoryEnrichment(data as StoryEnrichmentMap | null))
+      .catch(() => {})
+    fetchBridgeSpec(name)
+      .then((data) => setSpec(data as ProjectSpec))
+      .catch(() => {})
+    fetchBridgeInfrastructure(name)
+      .then((data) => setInfrastructure(data as InfrastructureManifest | null))
       .catch(() => {})
   }, [name, verboseActivity])
   useBridgeEvents(refetch, name)
@@ -365,13 +375,20 @@ export default function ProjectPage({
       {/* Build cost progress bar for BUILDING projects. Renders even
           at $0 spent so the user has forward visibility into available
           budget; previously hidden until the first token charge which
-          made new builds look unbudgeted. */}
+          made new builds look unbudgeted. When a build has run but
+          somehow totalSpend is still 0 (no checkpoints written yet)
+          we show "No spend recorded yet" instead of "$0.00" to
+          distinguish "hasn't started" from "couldn't read cost". */}
       {project.state !== 'complete' && project.cost.budgetCap > 0 && (
         <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-gray-500">Build Cost</span>
             <span className="text-sm font-medium tabular-nums text-gray-900">
-              ${project.cost.totalSpend.toFixed(2)} / ${project.cost.budgetCap.toFixed(0)} budget
+              {project.cost.totalSpend > 0
+                ? `$${project.cost.totalSpend.toFixed(2)} / $${project.cost.budgetCap.toFixed(0)} budget`
+                : project.state === 'ready' || project.state === 'seeding'
+                  ? `Budget: $${project.cost.budgetCap.toFixed(0)}`
+                  : `No spend recorded yet · cap $${project.cost.budgetCap.toFixed(0)}`}
             </span>
           </div>
           <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">

@@ -3,27 +3,40 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { phaseLabel, phaseGloss } from '@/lib/phase-labels'
 
+// Colour palette groups phases by what they're FOR, not when they
+// happen. Previously all "building" phases rendered as the same blue,
+// so the user couldn't tell at a glance whether Rouge was executing
+// (building), reviewing (milestone-check), or fixing (milestone-fix).
+// The three families:
+//   blue = actively producing code (foundation / story-building /
+//          generating-change-spec)
+//   amber = evaluating / reviewing (foundation-eval / milestone-check
+//           / vision-check / analyzing)
+//   orange = fixing something that failed review (milestone-fix)
+//   purple = forming / exploratory (seeding)
+//   green = success (complete)
+//   red = needs human (escalation / waiting-for-human)
+//   slate = parked / final gate (ready / final-review)
 const stateStyles: Record<string, string> = {
-  // Escalation / needs attention — warm, urgent
   escalation: 'bg-red-50 text-red-700 border-red-300',
   'waiting-for-human': 'bg-red-50 text-red-700 border-red-300',
-  // Building / active — productive, moving
-  'story-building': 'bg-blue-50 text-blue-700 border-blue-300',
+  // Producing
   foundation: 'bg-blue-50 text-blue-700 border-blue-300',
-  'foundation-eval': 'bg-blue-50 text-blue-700 border-blue-300',
-  'milestone-check': 'bg-blue-50 text-blue-700 border-blue-300',
-  'milestone-fix': 'bg-blue-50 text-blue-700 border-blue-300',
-  analyzing: 'bg-blue-50 text-blue-700 border-blue-300',
+  'story-building': 'bg-blue-50 text-blue-700 border-blue-300',
   'generating-change-spec': 'bg-blue-50 text-blue-700 border-blue-300',
-  'vision-check': 'bg-blue-50 text-blue-700 border-blue-300',
   shipping: 'bg-blue-50 text-blue-700 border-blue-300',
-  // Seeding / spec — creative, forming
+  // Reviewing
+  'foundation-eval': 'bg-amber-50 text-amber-700 border-amber-300',
+  'milestone-check': 'bg-amber-50 text-amber-700 border-amber-300',
+  'vision-check': 'bg-amber-50 text-amber-700 border-amber-300',
+  analyzing: 'bg-amber-50 text-amber-700 border-amber-300',
+  // Fixing
+  'milestone-fix': 'bg-orange-50 text-orange-700 border-orange-300',
+  // Forming
   seeding: 'bg-purple-50 text-purple-700 border-purple-300',
-  // Final review — attention, not alarm
-  'final-review': 'bg-amber-50 text-amber-700 border-amber-300',
-  // Complete / shipped — success
+  // Final gate / complete / ready
+  'final-review': 'bg-slate-100 text-slate-700 border-slate-400',
   complete: 'bg-green-50 text-green-700 border-green-300',
-  // Ready / parked — neutral
   ready: 'bg-slate-100 text-slate-600 border-slate-300',
 }
 
