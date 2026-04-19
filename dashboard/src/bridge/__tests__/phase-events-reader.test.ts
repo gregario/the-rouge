@@ -74,4 +74,30 @@ describe('readPhaseEvents', () => {
     expect(r.events).toEqual([])
     expect(r.sizeBytes).toBe(0)
   })
+
+  it('filters by storyId when provided — applies before tail slice', () => {
+    const events = [
+      { ts: '1', type: 'tool_use', name: 'Edit', summary: '/a.ts', story_id: 's1' },
+      { ts: '2', type: 'tool_use', name: 'Edit', summary: '/b.ts', story_id: 's2' },
+      { ts: '3', type: 'tool_use', name: 'Edit', summary: '/c.ts', story_id: 's1' },
+      { ts: '4', type: 'tool_use', name: 'Edit', summary: '/d.ts' }, // unstamped
+    ]
+    writeFileSync(
+      join(projectDir, EVENTS_FILENAME),
+      events.map((e) => JSON.stringify(e)).join('\n') + '\n',
+    )
+    const r = readPhaseEvents(projectDir, { storyId: 's1' })
+    expect(r.events).toHaveLength(2)
+    expect(r.events.every((e) => e.story_id === 's1')).toBe(true)
+    expect(r.totalCount).toBe(2)
+  })
+
+  it('accepts a positional tailCount for backwards compatibility', () => {
+    const events = Array.from({ length: 5 }, (_, i) =>
+      JSON.stringify({ ts: String(i), type: 'tool_use', name: 'Edit', summary: `/f${i}` }),
+    )
+    writeFileSync(join(projectDir, EVENTS_FILENAME), events.join('\n') + '\n')
+    const r = readPhaseEvents(projectDir, 3)
+    expect(r.events).toHaveLength(3)
+  })
 })

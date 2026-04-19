@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/accordion'
 import { cn } from '@/lib/utils'
 import { Check, Circle, Loader2, SkipForward, X, ChevronDown, ChevronRight, FileCode, TestTube2, AlertTriangle, ListChecks, Sparkles } from 'lucide-react'
+import { PhaseEventsFeed } from '@/components/phase-events-feed'
 
 // Stories stamped with `addedAt` within this window are labelled
 // "Added by Rouge". After 24h they blend back into the plan — the
@@ -239,9 +240,15 @@ interface StoryListProps {
   milestones: Milestone[]
   selectedMilestoneId?: string
   enrichment?: StoryEnrichmentMap | null
+  // Project slug + live-build hint enable the per-story live feed
+  // that renders inside the active story's expanded card. Omit both
+  // (the default) for mock/offline rendering paths that don't have a
+  // bridge backing them.
+  slug?: string
+  buildRunning?: boolean
 }
 
-export function StoryList({ milestones, selectedMilestoneId, enrichment }: StoryListProps) {
+export function StoryList({ milestones, selectedMilestoneId, enrichment, slug, buildRunning }: StoryListProps) {
   // Use selectedMilestoneId if provided, otherwise fall back to current milestone logic
   const currentMilestone = selectedMilestoneId
     ? milestones.find((m) => m.id === selectedMilestoneId)
@@ -320,6 +327,29 @@ export function StoryList({ milestones, selectedMilestoneId, enrichment }: Story
               </AccordionTrigger>
               <AccordionContent>
                 <div className="flex flex-col gap-2 pl-2">
+                  {/* Live activity — in-progress stories render a
+                      compact phase-events feed scoped to this
+                      story_id. Moves the "what's Rouge doing for
+                      this specific story" signal from the project
+                      hero INTO the story card it's talking about,
+                      so cause and effect are co-located. Only
+                      mounts for in-progress stories to avoid
+                      polling for every expanded done card. */}
+                  {slug && story.status === 'in-progress' && (
+                    <div className="mb-1 rounded-md border border-blue-200 bg-blue-50/50 p-2">
+                      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-blue-700">
+                        Live activity
+                      </p>
+                      <PhaseEventsFeed
+                        slug={slug}
+                        live={!!buildRunning}
+                        storyId={story.id}
+                        tail={30}
+                        compact
+                      />
+                    </div>
+                  )}
+
                   {/* Acceptance criteria (always shown) */}
                   {story.acceptanceCriteria.length > 0 && (
                     <>

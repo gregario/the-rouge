@@ -346,7 +346,13 @@ export default function ProjectPage({
               onSelect={setSelectedMilestoneId}
             />
             <div className="mt-4 border-t border-gray-200 pt-4">
-              <StoryList milestones={project.milestones} selectedMilestoneId={selectedMilestoneId} enrichment={storyEnrichment} />
+              <StoryList
+                milestones={project.milestones}
+                selectedMilestoneId={selectedMilestoneId}
+                enrichment={storyEnrichment}
+                slug={project.slug}
+                buildRunning={buildRunning}
+              />
             </div>
           </CardContent>
         </Card>

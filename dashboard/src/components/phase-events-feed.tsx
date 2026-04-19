@@ -10,6 +10,13 @@ interface PhaseEventsFeedProps {
   // When true, polls every 1.5s. When false, fetches once (post-phase view).
   live?: boolean
   tail?: number
+  // Optional filter: only show events stamped with this story_id. Used
+  // by the per-story feed inside active story cards so each card shows
+  // its own tool calls, not the full project-wide stream.
+  storyId?: string
+  // Compact layout — used inside story cards where the full panel
+  // header + "N events" counter would be visual noise.
+  compact?: boolean
 }
 
 function formatTime(ts: string): string {
@@ -112,14 +119,20 @@ function EventRow({ ev }: { ev: PhaseEventPayload }) {
  * launcher, or no build has ever run), renders a short explanatory
  * empty state.
  */
-export function PhaseEventsFeed({ slug, live = false, tail = 100 }: PhaseEventsFeedProps) {
+export function PhaseEventsFeed({
+  slug,
+  live = false,
+  tail = 100,
+  storyId,
+  compact = false,
+}: PhaseEventsFeedProps) {
   const [payload, setPayload] = useState<PhaseEventsPayload | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     const load = () => {
-      fetchBridgePhaseEvents(slug, tail)
+      fetchBridgePhaseEvents(slug, tail, { storyId })
         .then((data) => {
           if (!cancelled) {
             setPayload(data)
@@ -136,7 +149,7 @@ export function PhaseEventsFeed({ slug, live = false, tail = 100 }: PhaseEventsF
       return () => { cancelled = true; clearInterval(i) }
     }
     return () => { cancelled = true }
-  }, [slug, live, tail])
+  }, [slug, live, tail, storyId])
 
   if (error) {
     return (
@@ -155,6 +168,20 @@ export function PhaseEventsFeed({ slug, live = false, tail = 100 }: PhaseEventsF
   }
 
   if (!payload.exists || payload.events.length === 0) {
+    // Compact empty state — used inside story cards where the longer
+    // explanatory text would be noisy. Stories that haven't been
+    // actively built yet just get a short waiting line.
+    if (compact) {
+      return (
+        <p className="text-xs text-gray-500">
+          {live
+            ? storyId
+              ? 'Waiting for Rouge to act on this story…'
+              : 'Waiting for the first event…'
+            : 'No activity recorded for this story yet.'}
+        </p>
+      )
+    }
     return (
       <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50/50 p-6 text-center">
         <p className="text-sm text-gray-500">
@@ -165,6 +192,18 @@ export function PhaseEventsFeed({ slug, live = false, tail = 100 }: PhaseEventsF
         <p className="mt-1 text-xs text-gray-400">
           Event capture requires stream-json output — available on rouge-loop runs started after this feature shipped.
         </p>
+      </div>
+    )
+  }
+
+  if (compact) {
+    // Bare list — no outer chrome. The host container (the story
+    // card) already provides a heading + frame.
+    return (
+      <div className="max-h-48 overflow-auto">
+        {payload.events.map((ev, i) => (
+          <EventRow key={`${ev.ts}-${ev.id ?? i}-${i}`} ev={ev} />
+        ))}
       </div>
     )
   }

@@ -16,9 +16,16 @@ export async function GET(
   if (!existsSync(projectDir)) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
-  const tailParam = new URL(request.url).searchParams.get("tail");
+  const url = new URL(request.url);
+  const tailParam = url.searchParams.get("tail");
   const tail = tailParam
     ? Math.max(1, Math.min(500, parseInt(tailParam, 10) || 100))
     : 100;
-  return NextResponse.json(readPhaseEvents(projectDir, tail));
+  // `story_id` filter: scopes the feed to events stamped with a
+  // specific current_story at phase-start. Used by the in-story feed
+  // inside the active story card so each card shows only its own
+  // tool calls — project-level phases (foundation, analyzing) don't
+  // leak into story cards.
+  const storyId = url.searchParams.get("story_id") ?? undefined;
+  return NextResponse.json(readPhaseEvents(projectDir, { tailCount: tail, storyId }));
 }
