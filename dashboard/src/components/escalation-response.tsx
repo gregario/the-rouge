@@ -95,6 +95,16 @@ export function EscalationResponse({
         })
         if (!res.ok) {
           const body = (await res.json().catch(() => ({}))) as { error?: string }
+          // A 404 "No pending escalation found" means the escalation
+          // has already been resolved server-side — commonly the loop
+          // processed a prior resolution and the dashboard's cached
+          // state lagged behind. Treat as "stale view, refresh" rather
+          // than an error the user needs to act on. The parent's
+          // onResolved refetch clears the stale card.
+          if (res.status === 404 && /no pending escalation/i.test(body.error ?? '')) {
+            onResolved?.()
+            return true
+          }
           setError(body.error ?? `HTTP ${res.status}`)
           return false
         }
