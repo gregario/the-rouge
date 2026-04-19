@@ -282,8 +282,13 @@ export default function ProjectPage({
   const activity = bridgeActivity ?? getProjectActivity(project.slug)
   const isSeeding = project.state === 'seeding'
   const isEscalation = project.state === 'escalation' || project.state === 'waiting-for-human'
+  // Only pending escalations need a drawer. Historical resolved ones
+  // stay in state.escalations as history but shouldn't render as
+  // actionable cards. Earlier iterations cast through `any` to read
+  // status which the mapper wasn't carrying through — three resolved
+  // escalations then rendered as if they were live.
   const pendingEscalations = isEscalation
-    ? project.escalations.filter((e) => (e as { status?: string }).status !== 'resolved')
+    ? project.escalations.filter((e) => e.status !== 'resolved')
     : []
 
   // Unified layout: ProjectTabs with Spec (View/Revise modes) + Build.

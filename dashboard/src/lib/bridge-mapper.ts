@@ -162,11 +162,18 @@ function mapMilestone(m: RougeMilestone, index: number): Milestone {
 
 function mapEscalation(e: RougeEscalation & { handoff_started_at?: string }): Escalation {
   const tier = (Math.max(0, Math.min(3, e.tier)) as EscalationTier)
+  // Preserve 'status' — consumed by the page-level filter that decides
+  // which escalations render as active drawers. Before this field was
+  // carried through, every escalation in state.escalations (including
+  // historical resolved ones) rendered as pending, so testimonial's
+  // page showed three boxes for one real issue.
+  const status = e.status === 'resolved' ? 'resolved' : 'pending'
   return {
     id: e.id,
     tier,
     reason: e.summary ?? e.reason ?? e.classification ?? 'Escalation raised',
     state: (e.state as ProjectState) ?? 'escalation',
+    status,
     createdAt: e.created_at,
     resolvedAt: e.resolved_at,
     resolution: e.resolution,

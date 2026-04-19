@@ -45,6 +45,40 @@ describe('mapRougeStateToProjectDetail — review-loop overlay', () => {
   })
 })
 
+describe('mapRougeStateToProjectDetail — escalation status passthrough', () => {
+  // Regression: the mapper used to drop 'status' from escalations.
+  // The page-level pending filter (e.status !== 'resolved') then
+  // treated historical resolved escalations as if they were live,
+  // producing a stack of identical drawers.
+  it('carries status=resolved through for resolved escalations', () => {
+    const mapped = mapRougeStateToProjectDetail(
+      {
+        project: 'demo',
+        current_state: 'escalation',
+        escalations: [
+          { id: 'e1', tier: 1, status: 'resolved', resolved_at: '2026-04-19T15:00:00Z' },
+          { id: 'e2', tier: 1, status: 'pending' },
+        ],
+      },
+      'demo',
+    )
+    expect(mapped.escalations[0].status).toBe('resolved')
+    expect(mapped.escalations[1].status).toBe('pending')
+  })
+
+  it('defaults status=pending when the raw escalation omits it', () => {
+    const mapped = mapRougeStateToProjectDetail(
+      {
+        project: 'demo',
+        current_state: 'escalation',
+        escalations: [{ id: 'e1', tier: 1 }],
+      },
+      'demo',
+    )
+    expect(mapped.escalations[0].status).toBe('pending')
+  })
+})
+
 describe('mapRougeStateToProjectDetail — story provenance', () => {
   it('passes addedAt and addedBy through to the mapped story', () => {
     const mapped = mapRougeStateToProjectDetail(
