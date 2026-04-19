@@ -302,8 +302,9 @@ export function mapRougeStateToProjectDetail(raw: unknown, slug: string): Projec
     // Narrow the raw string[] to Provider[]. Unknown values drop
     // silently (they still render, via ProviderIcons' fallback, but
     // in TS we only allow the recognised set).
-    providers: (state.providers ?? []).filter((p): p is 'vercel' | 'cloudflare' | 'supabase' | 'sentry' | 'posthog' =>
-      ['vercel', 'cloudflare', 'supabase', 'sentry', 'posthog'].includes(p),
+    providers: (state.providers ?? []).filter(
+      (p): p is 'vercel' | 'cloudflare' | 'github-pages' | 'supabase' | 'sentry' | 'posthog' =>
+        ['vercel', 'cloudflare', 'github-pages', 'supabase', 'sentry', 'posthog'].includes(p),
     ),
     progress: computeProgress(milestones),
     health: computeHealth(state, computeProgress(milestones)),

@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { ProjectWatcher } from '../watcher'
-import { writeFileSync, mkdirSync, rmSync } from 'fs'
+import { writeFileSync, mkdirSync, rmSync, renameSync } from 'fs'
+import { randomUUID } from 'crypto'
 import { join } from 'path'
 import { tmpdir } from 'os'
 
@@ -230,5 +231,51 @@ describe('ProjectWatcher', () => {
     const stateChanges = events.filter((e: any) => e.type === 'state-change')
     // Should only get one state-change event despite multiple writes
     expect(stateChanges.length).toBe(1)
+  })
+
+  // Regression for the "all stories pending" bug: the launcher mutates
+  // state.json via atomic rename (write to `<target>.<uuid>.tmp`, then
+  // rename(2) into place). On macOS, fs.watch bound directly to the file
+  // holds an inode handle that the rename unlinks — the watch goes deaf
+  // after the first rename, the dashboard never refetches, and the UI
+  // freezes at whatever stories were in-state on page mount. The fix is
+  // to watch the parent directory; this test simulates the exact
+  // atomic-rename pattern across multiple updates and asserts events
+  // keep flowing.
+  it('keeps firing events across repeated atomic renames (the launcher\'s write pattern)', async () => {
+    mkdirSync(projectDir, { recursive: true })
+    const stateFile = join(projectDir, 'state.json')
+    writeFileSync(stateFile, JSON.stringify({ current_state: 'ready' }))
+
+    watcher = new ProjectWatcher(testDir)
+    const events: unknown[] = []
+    watcher.on('event', (e) => events.push(e))
+    watcher.start()
+    await new Promise((r) => setTimeout(r, 200))
+
+    // Simulate the launcher's writeStateJson: write to tmp, rename into
+    // place. Repeat multiple times with meaningful diffs. The old
+    // file-bound watcher would only catch the first of these on macOS;
+    // the directory-bound watcher catches all of them.
+    const writeAtomic = (body: unknown) => {
+      const tmp = `${stateFile}.${randomUUID()}.tmp`
+      writeFileSync(tmp, JSON.stringify(body))
+      renameSync(tmp, stateFile)
+    }
+
+    writeAtomic({ current_state: 'foundation' })
+    await new Promise((r) => setTimeout(r, 400))
+    writeAtomic({ current_state: 'foundation-eval' })
+    await new Promise((r) => setTimeout(r, 400))
+    writeAtomic({ current_state: 'story-building' })
+    await new Promise((r) => setTimeout(r, 600))
+
+    watcher.stop()
+    const stateChanges = events.filter((e: any) => e.type === 'state-change')
+    // Three distinct state transitions — all three should fire.
+    expect(stateChanges.length).toBe(3)
+    expect((stateChanges[0] as any).data.to).toBe('foundation')
+    expect((stateChanges[1] as any).data.to).toBe('foundation-eval')
+    expect((stateChanges[2] as any).data.to).toBe('story-building')
   })
 })

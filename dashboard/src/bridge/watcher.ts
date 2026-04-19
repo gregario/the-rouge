@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events'
 import { watch, readFileSync, readdirSync, existsSync, statSync } from 'fs'
-import { join, basename } from 'path'
+import { join, basename, dirname } from 'path'
 import type { FSWatcher } from 'fs'
 import type { BridgeEvent } from './types'
 import { statePath } from './state-path'
@@ -141,9 +141,37 @@ export class ProjectWatcher extends EventEmitter {
   private watchProject(projectDir: string): void {
     const stateFile = statePath(projectDir)
     const projectName = basename(projectDir)
+    // Watch the parent directory, not the state.json file directly.
+    //
+    // `writeStateJson` is an atomic rename (write to `<target>.<uuid>.tmp`
+    // → rename(2) into place — see state-path.ts:49-52). On macOS,
+    // `fs.watch` bound directly to the target file holds a handle on the
+    // original inode; the atomic rename unlinks that inode and the
+    // handle goes permanently deaf (may fire once for the rename, then
+    // silent forever). Result: the dashboard would fetch the project
+    // once on page mount and then freeze at that snapshot while the
+    // launcher advanced underneath — exactly the "all stories show
+    // pending while the loop is shipping commits" symptom users
+    // reported.
+    //
+    // Watching the directory instead survives the rename on every
+    // platform (inotify on Linux, kqueue-directory on macOS, ReadDirectoryChanges
+    // on Windows). We filter callbacks by filename so unrelated files
+    // written into the same directory (e.g. the `.tmp` intermediate
+    // itself, or `state.lock`) don't trigger spurious handleStateChange
+    // calls — the debounce would coalesce them, but filtering is free
+    // and cuts noise.
+    const watchDir = dirname(stateFile)
+    const watchFilename = basename(stateFile)
 
     try {
-      const w = watch(stateFile, (_eventType) => {
+      const w = watch(watchDir, (_eventType, filename) => {
+        // Some Node builds fire callbacks without a filename (e.g.
+        // kqueue-level inode changes). When that happens we can't tell
+        // what moved, so conservatively trigger handleStateChange —
+        // readFileSync + content-diff inside handleStateChange will
+        // short-circuit if nothing relevant actually changed.
+        if (filename && filename !== watchFilename) return
         this.debounce(projectDir, () => {
           this.handleStateChange(projectDir, projectName)
         })
@@ -151,7 +179,7 @@ export class ProjectWatcher extends EventEmitter {
 
       this.watchers.set(projectDir, w)
     } catch {
-      // File may have been removed
+      // Parent directory may have been removed.
     }
   }
 

@@ -202,6 +202,43 @@ describe('deploy-to-staging', () => {
       assert.ok(logText.includes('target: gh-pages)'), 'should log target');
       assert.ok(!logText.includes('no handler is registered'), 'alias must resolve to github-pages handler');
     });
+
+    // The gh-pages handler previously swallowed a missing git remote and
+    // returned null URL silently, so the launcher treated deploys against
+    // remote-less projects as "succeeded with unknown URL". These tests
+    // lock in the fail-fast behaviour: missing or non-GitHub remotes now
+    // throw a clear error that deploy() reports as a failure.
+
+    test('github-pages: no origin remote → deploy fails with clear error, not silent null URL', () => {
+      projectDir = makeTempProject({
+        infrastructure: { deployment_target: 'github-pages' },
+      });
+      const { result, logs } = captureLogs(() => deploy(projectDir));
+      assert.strictEqual(result, null);
+      const logText = logs.join('\n');
+      assert.ok(
+        logText.includes('no `origin` remote configured') || logText.includes('origin` remote is empty'),
+        `Expected a "no origin remote" failure message, got: ${logText}`,
+      );
+    });
+
+    test('github-pages: non-GitHub remote → deploy fails with GitHub-URL error', () => {
+      projectDir = makeTempProject({
+        infrastructure: { deployment_target: 'github-pages' },
+      });
+      // Simulate a git repo with a non-GitHub remote (GitLab).
+      const { execSync } = require('child_process');
+      execSync('git init -q', { cwd: projectDir });
+      execSync('git remote add origin https://gitlab.com/someorg/someproject.git', { cwd: projectDir });
+
+      const { result, logs } = captureLogs(() => deploy(projectDir));
+      assert.strictEqual(result, null);
+      const logText = logs.join('\n');
+      assert.ok(
+        logText.includes('not a github.com URL'),
+        `Expected the "not a github.com URL" failure message, got: ${logText}`,
+      );
+    });
   });
 
   // ── detectDeployTarget in isolation ──

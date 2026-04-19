@@ -50,7 +50,7 @@ export type SeedingDiscipline =
 export type DisciplineStatus = 'pending' | 'in-progress' | 'complete'
 export type DeployStatus = 'success' | 'failed' | 'rollback'
 export type EscalationTier = 0 | 1 | 2 | 3
-export type Provider = 'vercel' | 'cloudflare' | 'supabase' | 'sentry' | 'posthog'
+export type Provider = 'vercel' | 'cloudflare' | 'github-pages' | 'supabase' | 'sentry' | 'posthog'
 
 export type ChatRole = 'rouge' | 'human'
 export type ChatMessageType = 'question' | 'answer' | 'transition' | 'summary'

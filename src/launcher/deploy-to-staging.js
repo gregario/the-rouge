@@ -195,6 +195,36 @@ function deployDockerCompose(projectDir) {
  * rollback guarantees, pick Cloudflare Pages or Vercel.
  */
 function deployGithubPages(projectDir) {
+  // Fail fast on a missing / non-GitHub remote. Previously we ran the
+  // full build and push, then returned `url=null` when the remote
+  // parse failed — the launcher treated that as "deployed with
+  // unknown URL" and moved on, so a project with no remote looked
+  // like a passing deploy. Validate up front so the error class
+  // propagates as "target-prerequisite-missing" rather than the
+  // silent half-success.
+  let remote;
+  try {
+    remote = run('git config --get remote.origin.url', { cwd: projectDir }).trim();
+  } catch (err) {
+    throw new Error(
+      'GitHub Pages: no `origin` remote configured. Pages deploys require a GitHub repo — add one with ' +
+        '`gh repo create` or `git remote add origin git@github.com:<owner>/<repo>.git` before deploying. ' +
+        `(git returned: ${(err.message || '').slice(0, 120)})`,
+    );
+  }
+  if (!remote) {
+    throw new Error(
+      'GitHub Pages: `origin` remote is empty. Configure it (`git remote add origin git@github.com:<owner>/<repo>.git`) before deploying.',
+    );
+  }
+  const remoteMatch = remote.match(/github\.com[:/]([^/]+)\/([^/.]+?)(?:\.git)?$/);
+  if (!remoteMatch) {
+    throw new Error(
+      `GitHub Pages: origin remote "${remote}" is not a github.com URL. Pages deploys require a GitHub remote.`,
+    );
+  }
+  const [, owner, repo] = remoteMatch;
+
   const manifest = readJson(path.join(projectDir, 'infrastructure_manifest.json'));
   const vision = readJson(path.join(projectDir, 'vision.json'));
   const configuredOutput =
@@ -216,7 +246,18 @@ function deployGithubPages(projectDir) {
   if (!outputDir) {
     throw new Error(
       `GitHub Pages: no build output directory found. Tried: ${outputCandidates.join(', ')}. ` +
-        `Set infrastructure_manifest.json.github_pages.output_dir or ensure the build produces one of these.`,
+        `The project's build must emit static HTML — for Next.js set \`output: 'export'\` in next.config; for Vite set \`base\`; for CRA set \`homepage\`. ` +
+        `Or name the directory explicitly via infrastructure_manifest.json.github_pages.output_dir.`,
+    );
+  }
+  // Sanity-check: the output dir should have an index.html at minimum.
+  // If the build produced a server bundle (e.g. Next without output:'export')
+  // instead of static HTML, this surfaces the mistake before we push
+  // an empty tree to gh-pages.
+  if (!fs.existsSync(path.join(projectDir, outputDir, 'index.html'))) {
+    throw new Error(
+      `GitHub Pages: "${outputDir}" exists but contains no index.html — likely a server/SSR build instead of a static export. ` +
+        `Ensure the framework is configured for static export (Next.js: \`output: 'export'\`, Vite: default, CRA: default).`,
     );
   }
   log(`Using build output: ${outputDir}`);
@@ -224,31 +265,22 @@ function deployGithubPages(projectDir) {
   const deployMsg = `Rouge deploy ${new Date().toISOString()}`;
   // `gh-pages` needs a dotfiles flag for CNAME / .nojekyll — include
   // it by default so custom domains and bare HTML survive the push.
+  // Note: `npx gh-pages` uses the local git credentials (HTTPS cached
+  // token, SSH key, or GH_TOKEN env var) — we don't shell out to
+  // `gh` CLI for the push, so `gh auth login` isn't strictly required,
+  // but the ambient git auth must be able to push to origin.
   run(`npx -y gh-pages@6 -d ${outputDir} -b gh-pages -m "${deployMsg}" --dotfiles`, {
     cwd: projectDir,
     timeout: 180000,
   });
 
-  // Derive the served URL from the origin remote. GitHub Pages URLs
-  // follow https://<owner>.github.io/<repo>/ (user/org pages at
-  // <owner>.github.io are a special case we don't try to detect).
-  let url = null;
-  try {
-    const remote = run('git config --get remote.origin.url', { cwd: projectDir }).trim();
-    const match = remote.match(/github\.com[:/]([^/]+)\/([^/.]+?)(?:\.git)?$/);
-    if (match) {
-      const [, owner, repo] = match;
-      url = `https://${owner}.github.io/${repo}/`;
-    } else {
-      log(`⚠️  Could not parse GitHub remote URL (${remote}); URL unknown`);
-    }
-  } catch (err) {
-    log(`⚠️  Could not read git remote.origin.url: ${(err.message || '').slice(0, 200)}`);
-  }
-  if (url) {
-    log(`Deployed to ${url}`);
-    log('⚠️  First-time deploy: enable GitHub Pages in repo settings (Source: gh-pages branch) if not already. Propagation takes ~1 min.');
-  }
+  // GitHub Pages URLs follow https://<owner>.github.io/<repo>/ for
+  // project pages. User/org root pages (<owner>/<owner>.github.io)
+  // are a separate case we don't try to detect here; they'd want
+  // https://<owner>.github.io/ without the repo suffix.
+  const url = `https://${owner}.github.io/${repo}/`;
+  log(`Deployed to ${url}`);
+  log('⚠️  First-time deploy: enable GitHub Pages in repo settings (Source: Deploy from a branch → gh-pages) if not already. Propagation takes ~1 min.');
   return url;
 }
 
