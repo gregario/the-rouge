@@ -86,6 +86,11 @@ interface RougeState {
   archived?: boolean
   archivedAt?: string
   budget_cap_usd?: number
+  // Providers derived from cycle_context.infrastructure by the detail
+  // API route. Used for "Live on Cloudflare" style badges and the
+  // project-card stack icons. Previously hardcoded to [] in the
+  // mapper, so none of those UI elements rendered.
+  providers?: string[]
   // Deploy URLs — populated by the project-detail API route from
   // infrastructure_manifest.json + cycle_context.json.deploy_history
   // before reaching this mapper.
@@ -294,7 +299,12 @@ export function mapRougeStateToProjectDetail(raw: unknown, slug: string): Projec
     // into the UI's state-badge switch and render as raw text. Now it
     // falls back to 'ready' and warns once.
     state: narrowEnum(state.current_state, PROJECT_STATES, 'project.current_state') ?? 'ready',
-    providers: [], // TODO: derive from infrastructure_manifest.json when available
+    // Narrow the raw string[] to Provider[]. Unknown values drop
+    // silently (they still render, via ProviderIcons' fallback, but
+    // in TS we only allow the recognised set).
+    providers: (state.providers ?? []).filter((p): p is 'vercel' | 'cloudflare' | 'supabase' | 'sentry' | 'posthog' =>
+      ['vercel', 'cloudflare', 'supabase', 'sentry', 'posthog'].includes(p),
+    ),
     progress: computeProgress(milestones),
     health: computeHealth(state, computeProgress(milestones)),
     cost: {

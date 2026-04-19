@@ -711,6 +711,26 @@ async function advanceState(projectDir) {
 
       state.foundation.status = 'complete';
       state.foundation.completed_at = new Date().toISOString();
+      // Load task_ledger milestones into state.milestones if they're
+      // missing. V3 projects that complete seeding but don't go
+      // through the approval handshake end up with state.milestones=[]
+      // while task_ledger holds the real decomposition. Without this,
+      // findNextMilestone below returns undefined and the foundation-
+      // eval → escalation path fires for a purely synthetic reason.
+      if (!Array.isArray(state.milestones) || state.milestones.length === 0) {
+        try {
+          const ledgerPath = path.join(projectDir, 'task_ledger.json');
+          if (fs.existsSync(ledgerPath)) {
+            const ledger = JSON.parse(fs.readFileSync(ledgerPath, 'utf-8'));
+            if (Array.isArray(ledger.milestones) && ledger.milestones.length > 0) {
+              state.milestones = ledger.milestones;
+              log(`[${projectName}] Loaded ${ledger.milestones.length} milestones from task_ledger.json`);
+            }
+          }
+        } catch (err) {
+          log(`[${projectName}] Could not load milestones from task_ledger: ${(err.message || '').slice(0, 100)}`);
+        }
+      }
       // Also mark the foundation milestone as complete so findNextMilestone skips it
       const foundationMilestone = (state.milestones || []).find(m => m.name === 'foundation');
       if (foundationMilestone) foundationMilestone.status = 'complete';
@@ -817,12 +837,36 @@ async function advanceState(projectDir) {
         break;
       }
 
-      // Start first milestone
+      // Start first milestone. Informative escalations replace the
+      // old `next = 'escalation'` fallbacks so users see WHY the loop
+      // stopped, not a generic placeholder.
       const milestone = findNextMilestone(state);
-      if (!milestone) { next = 'escalation'; break; }
+      if (!milestone) {
+        next = escalate(state, {
+          id: `esc-no-next-milestone-${Date.now()}`,
+          tier: 1,
+          classification: 'no-milestones-defined',
+          summary:
+            'Foundation is complete but no milestones are in state.milestones or task_ledger.json. ' +
+            'The seeding step that decomposes the spec into milestones likely didn\'t finish. ' +
+            'Reset to Ready and re-run seeding, or populate task_ledger.json manually.',
+        });
+        break;
+      }
       milestone.status = 'in-progress';
       const story = findNextStory(milestone, flat);
-      if (!story) { next = 'escalation'; break; }
+      if (!story) {
+        next = escalate(state, {
+          id: `esc-no-next-story-${Date.now()}`,
+          tier: 1,
+          classification: 'empty-milestone',
+          summary:
+            `Foundation-eval passed but milestone "${milestone.name}" has no stories to build. ` +
+            'Check task_ledger.json — every milestone should have a non-empty stories array.',
+          story_id: null,
+        });
+        break;
+      }
       next = startStory(state, milestone, story);
       log(`[${projectName}] Starting milestone "${milestone.name}", story "${story.id}"`);
       break;

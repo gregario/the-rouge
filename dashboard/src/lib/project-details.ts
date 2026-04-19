@@ -141,6 +141,45 @@ export function readDeployUrls(projectDir: string): {
   return { stagingUrl, productionUrl }
 }
 
+/**
+ * Derive the list of providers this project actually uses from
+ * cycle_context.infrastructure. Mirrors the scanner's logic (same
+ * file at dashboard/src/bridge/scanner.ts) so the detail API and the
+ * home-page card agree on which badges to show. Previously the
+ * detail mapper hardcoded `providers: []` which meant the "Live on
+ * Cloudflare" badge and stack icons never appeared even for projects
+ * deployed to real infrastructure.
+ */
+export function readProviders(projectDir: string): string[] {
+  const providers: string[] = []
+  try {
+    const ctxPath = join(projectDir, 'cycle_context.json')
+    if (!existsSync(ctxPath)) return providers
+    const ctx = JSON.parse(readFileSync(ctxPath, 'utf-8')) as {
+      infrastructure?: {
+        staging_url?: string
+        production_url?: string
+        supabase_url?: string
+        supabase_ref?: string
+        sentry_dsn?: string
+        readiness?: { posthog?: boolean }
+      }
+    }
+    const infra = ctx.infrastructure ?? {}
+    const urls = [infra.staging_url, infra.production_url]
+      .filter(Boolean)
+      .join(' ')
+    if (urls.includes('.vercel.app')) providers.push('vercel')
+    if (urls.includes('.pages.dev') || urls.includes('.workers.dev')) providers.push('cloudflare')
+    if (infra.supabase_url && infra.supabase_ref) providers.push('supabase')
+    if (infra.sentry_dsn) providers.push('sentry')
+    if (infra.readiness?.posthog === true) providers.push('posthog')
+  } catch {
+    // malformed cycle_context — silent empty list
+  }
+  return providers
+}
+
 export interface CheckpointSummary {
   costUsd: number | null;
   lastCheckpointAt: string | null;

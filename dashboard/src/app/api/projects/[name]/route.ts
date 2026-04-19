@@ -14,7 +14,9 @@ import {
   mergeMilestonesFromLedger,
   readCheckpointSummary,
   readDeployUrls,
+  readProviders,
 } from "@/lib/project-details";
+import { repairProjectState } from "@/bridge/state-repair";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +38,20 @@ export async function GET(
 
   if (!existsSync(stateFile)) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
+
+  // Run state-repair before reading, same pattern the scanner uses on
+  // the home page. Without this, opening a project detail directly
+  // (bypassing the home page) could render against a zombie state —
+  // the user's "three boxes" / "stuck at escalation with no drawer"
+  // bug was a consequence of this path being unrepaired.
+  try {
+    const report = await repairProjectState(projectDir);
+    if (report.fixes.length > 0) {
+      console.log(`[state-repair] ${name} (detail): ${report.fixes.join('; ')}`);
+    }
+  } catch (err) {
+    console.warn(`[state-repair] ${name} (detail) threw:`, err instanceof Error ? err.message : err);
   }
 
   const raw = JSON.parse(readFileSync(stateFile, "utf-8"));
@@ -66,9 +82,17 @@ export async function GET(
     context: `detail:gated-autonomy:${name}`,
   });
 
+  // Derive real providers from cycle_context.infrastructure so the
+  // header's stack area, the "Live on X" badge on complete projects,
+  // and the project-card icons all reflect reality. Previously the
+  // mapper hardcoded providers: [] which meant none of those ever
+  // rendered — dead UI on every project.
+  const providers = readProviders(projectDir);
+
   return NextResponse.json({
     slug: name,
     ...merged,
+    providers,
     costUsd: checkpoint.costUsd,
     lastCheckpointAt: checkpoint.lastCheckpointAt,
     lastPhase: checkpoint.lastPhase,
