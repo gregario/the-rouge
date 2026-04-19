@@ -18,5 +18,14 @@ export async function POST(
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 404 });
   }
+  // Discriminate on alreadyStopped so the `killed` / `stateRolledBack`
+  // narrowing works without an unsound cast.
+  if ('alreadyStopped' in result) {
+    return NextResponse.json({
+      ok: true,
+      alreadyStopped: true,
+      stateRolledBack: result.stateRolledBack ?? false,
+    });
+  }
   return NextResponse.json({ ok: true, killed: result.killed });
 }

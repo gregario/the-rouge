@@ -87,9 +87,49 @@ export async function repairProjectState(projectDir: string): Promise<RepairRepo
     fixes.push('null-foundation: current_state=foundation with null foundation → set { status: "pending" }')
   }
 
-  // Shape 3: similar for story-building with no milestones — we can't
-  // synthesise milestones, so just log. Left as an observation for
-  // future work; no auto-fix.
+  // Shape 3: current_state='escalation' but escalations[] has no pending
+  // item (the testimonial symptom — foundation-eval transitioned to
+  // escalation over a "no staging URL" warning without pushing a
+  // matching object, leaving the dashboard's escalation view blank).
+  // Synthesise a placeholder so the UI has something to render and the
+  // user can Reset or Resume. rouge-loop's dispatcher was also hardened
+  // to prevent the broken shape going forward; this handles projects
+  // already persisted with it.
+  const shape3Fixed = await withStateLock(projectDir, () => {
+    try {
+      const current = JSON.parse(readFileSync(sp, 'utf-8')) as {
+        current_state?: string
+        escalations?: Array<Record<string, unknown>>
+      } & Record<string, unknown>
+      if (current.current_state === 'escalation') {
+        const pending = (current.escalations || []).filter(
+          (e) => e && e.status === 'pending',
+        )
+        if (pending.length === 0) {
+          if (!Array.isArray(current.escalations)) current.escalations = []
+          current.escalations.push({
+            id: `esc-repair-${Date.now()}`,
+            tier: 1,
+            classification: 'unspecified-repair',
+            summary:
+              "Rouge transitioned into 'escalation' but didn't record a specific reason. " +
+              'Check the launcher log or cycle_context.json for context around this time.',
+            story_id: null,
+            status: 'pending',
+            created_at: new Date().toISOString(),
+          })
+          writeStateJson(projectDir, current)
+          return true
+        }
+      }
+    } catch {
+      /* swallow — already reported above */
+    }
+    return false
+  })
+  if (shape3Fixed) {
+    fixes.push('empty-escalation: current_state=escalation with no pending escalation → synthesised placeholder')
+  }
 
   return { slug, fixes }
 }

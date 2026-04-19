@@ -180,7 +180,7 @@ export async function PATCH(
     if (body.archived !== undefined) {
       if (body.archived === true && (currentState === 'foundation' || currentState === 'foundation-eval' ||
           currentState === 'story-building' || currentState === 'milestone-check' ||
-          currentState === 'milestone-fix' || currentState === 'story-diagnosis')) {
+          currentState === 'milestone-fix')) {
         return {
           status: 409 as const,
           error: `Stop the build before archiving (current state: ${currentState}).`,
