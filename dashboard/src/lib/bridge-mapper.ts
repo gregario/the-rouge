@@ -16,6 +16,22 @@ import type {
   DisciplineStatus,
 } from '@/lib/types'
 import type { RougeEscalation } from '@/bridge/types'
+import { narrowEnum } from '@/lib/validate-enum'
+
+// Known-valid enum members — used by narrowEnum to reject launcher
+// typos ('brainstormng') instead of casting them through and causing
+// blank renders downstream.
+const SEEDING_DISCIPLINES: readonly SeedingDiscipline[] = [
+  'brainstorming', 'competition', 'taste', 'spec',
+  'infrastructure', 'design', 'legal-privacy', 'marketing',
+]
+const DISCIPLINE_STATUSES: readonly DisciplineStatus[] = ['pending', 'in-progress', 'complete']
+const PROJECT_STATES: readonly ProjectState[] = [
+  'seeding', 'ready', 'foundation', 'foundation-eval', 'story-building',
+  'milestone-check', 'milestone-fix', 'analyzing', 'generating-change-spec',
+  'vision-check', 'shipping', 'final-review', 'complete',
+  'escalation', 'waiting-for-human',
+]
 
 interface RougeStory {
   id: string
@@ -87,14 +103,24 @@ interface RougeState {
 
 function mapSeedingProgress(raw: RougeState['seedingProgress']): SeedingProgress | undefined {
   if (!raw || !raw.disciplines) return undefined
+  // Validate discipline and status rather than casting blind. A
+  // launcher-side typo used to propagate as a bogus enum value,
+  // breaking downstream components that expected to match it in a
+  // known set. Unknown values now drop with a one-time console
+  // warning; the UI renders without them rather than crashing.
+  const disciplines = raw.disciplines
+    .map((d) => {
+      const discipline = narrowEnum(d.discipline, SEEDING_DISCIPLINES, 'seedingProgress.discipline')
+      const status = narrowEnum(d.status, DISCIPLINE_STATUSES, 'seedingProgress.status')
+      if (!discipline || !status) return null
+      return { discipline, status }
+    })
+    .filter((x): x is { discipline: SeedingDiscipline; status: DisciplineStatus } => x !== null)
   return {
-    disciplines: raw.disciplines.map(d => ({
-      discipline: d.discipline as SeedingDiscipline,
-      status: d.status as DisciplineStatus,
-    })),
+    disciplines,
     completedCount: raw.completedCount ?? 0,
     totalCount: raw.totalCount ?? 8,
-    currentDiscipline: raw.currentDiscipline as SeedingDiscipline | undefined,
+    currentDiscipline: narrowEnum(raw.currentDiscipline, SEEDING_DISCIPLINES, 'seedingProgress.currentDiscipline'),
   }
 }
 
@@ -163,16 +189,15 @@ function mapMilestone(m: RougeMilestone, index: number): Milestone {
 function mapEscalation(e: RougeEscalation & { handoff_started_at?: string }): Escalation {
   const tier = (Math.max(0, Math.min(3, e.tier)) as EscalationTier)
   // Preserve 'status' — consumed by the page-level filter that decides
-  // which escalations render as active drawers. Before this field was
-  // carried through, every escalation in state.escalations (including
-  // historical resolved ones) rendered as pending, so testimonial's
-  // page showed three boxes for one real issue.
+  // which escalations render as active drawers.
   const status = e.status === 'resolved' ? 'resolved' : 'pending'
   return {
     id: e.id,
     tier,
     reason: e.summary ?? e.reason ?? e.classification ?? 'Escalation raised',
-    state: (e.state as ProjectState) ?? 'escalation',
+    // Validate the phase-of-origin field; bad values fall back to
+    // 'escalation' so the UI never renders an un-styleable state.
+    state: narrowEnum(e.state, PROJECT_STATES, 'escalation.state') ?? 'escalation',
     status,
     createdAt: e.created_at,
     resolvedAt: e.resolved_at,
@@ -265,12 +290,13 @@ export function mapRougeStateToProjectDetail(raw: unknown, slug: string): Projec
     name: state.project ?? state.name ?? slug,
     slug,
     description: '', // Rouge state.json doesn't have descriptions
-    state: (state.current_state as ProjectState) ?? 'ready',
+    // Validated: a typo in state.current_state used to leak straight
+    // into the UI's state-badge switch and render as raw text. Now it
+    // falls back to 'ready' and warns once.
+    state: narrowEnum(state.current_state, PROJECT_STATES, 'project.current_state') ?? 'ready',
     providers: [], // TODO: derive from infrastructure_manifest.json when available
     progress: computeProgress(milestones),
     health: computeHealth(state, computeProgress(milestones)),
-    confidence: 0.75, // Placeholder — Rouge doesn't surface this yet
-    confidenceHistory: [],
     cost: {
       // Real cumulative cost from latest checkpoint, or 0 if no checkpoints yet
       totalSpend: state.costUsd ?? 0,

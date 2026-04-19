@@ -201,7 +201,11 @@ export interface ProjectSummary {
   }
   health: number        // 0-100
   progress: number      // 0-100 story completion %
-  confidence: number    // 0-1
+  // confidence — optional and currently unused. Kept on the mock
+  // shape so legacy fixtures don't need a sweep, but nothing in
+  // production renders it. Drop once we either surface real
+  // confidence or delete the mock fixtures.
+  confidence?: number   // 0-1
   cost: CostInfo
   lastCheckpointAt?: string
   milestonesTotal: number
@@ -247,8 +251,16 @@ export interface ProjectDetail {
   }
   health: number
   progress: number     // 0-100 story completion %
-  confidence: number
-  confidenceHistory: ConfidencePoint[]
+  // confidence / confidenceHistory / repoUrl are OPTIONAL and not set
+  // by the live mapper — the launcher doesn't surface confidence or
+  // a repo URL anywhere in state.json. The mapper used to fill them
+  // with hardcoded placeholders (0.75 / empty array / undefined);
+  // those placeholders rendered as if they were real data. The
+  // fields stay optional so legacy demo fixtures still type-check,
+  // but no production surface reads them. If a feature ever needs
+  // them, wire them from a real source before using in the UI.
+  confidence?: number
+  confidenceHistory?: ConfidencePoint[]
   cost: CostInfo
   milestones: Milestone[]
   escalations: Escalation[]
