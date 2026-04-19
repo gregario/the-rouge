@@ -26,7 +26,6 @@ function phaseTransition(projectName, fromState, toState, details, confidenceHis
     'foundation': 'Building foundation — schema, auth, deploy pipeline',
     'foundation-eval': 'Evaluating foundation completeness',
     'story-building': 'Building a story',
-    'story-diagnosis': 'Diagnosing a failing story',
     'milestone-check': 'Evaluating milestone — test integrity, code review, browser QA',
     'milestone-fix': 'Fixing quality gaps found during evaluation',
     'analyzing': 'Analysing evaluation results',
@@ -40,7 +39,7 @@ function phaseTransition(projectName, fromState, toState, details, confidenceHis
 
   const emojis = {
     'foundation': '🏗️', 'foundation-eval': '🔍', 'story-building': '🔨',
-    'story-diagnosis': '🩺', 'milestone-check': '📋', 'milestone-fix': '🔧',
+    'milestone-check': '📋', 'milestone-fix': '🔧',
     'analyzing': '🧠', 'generating-change-spec': '📝', 'vision-check': '🔭',
     'shipping': '🚀', 'final-review': '👀', 'escalation': '⏸️', 'complete': '✅',
   };
@@ -153,7 +152,6 @@ function qaResult(projectName, verdict, healthScore, criteriaPass, criteriaTotal
 function escalation(projectName, phase, reason, context) {
   const phaseExplanations = {
     'story-building': 'Rouge was building a story and got stuck',
-    'story-diagnosis': 'Rouge was diagnosing a failing story and couldn\'t resolve it',
     'milestone-check': 'Rouge evaluated a milestone and found issues it couldn\'t fix',
     'milestone-fix': 'Rouge tried to fix quality gaps but couldn\'t resolve them',
     'foundation': 'Foundation setup hit a blocker',

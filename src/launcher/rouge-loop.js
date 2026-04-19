@@ -32,6 +32,15 @@ const { getMilestoneTagName } = require('./branch-strategy.js');
 const { getModelForPhase } = require('./model-selection.js');
 const { buildClaudeEnv } = require('./auth-mode.js');
 const { statePath, statePathForWrite, hasStateFile } = require('./state-path.js');
+const {
+  escalate,
+  beginStory,
+  advanceStory,
+  retryStory,
+  setStoryStatus,
+  toMilestoneCheck,
+  assertInvariants,
+} = require('./state-transitions.js');
 
 // Load .env from Rouge root (for ROUGE_SLACK_WEBHOOK, etc.)
 {
@@ -121,9 +130,13 @@ const STATE_TO_PROMPT = {
   'foundation': 'loop/00-foundation-building.md',
   'foundation-eval': 'loop/00-foundation-evaluating.md',
 
-  // Story loop
+  // Story loop. 'story-diagnosis' was removed from the state machine:
+  // full scaffolding existed (prompt, case handler, model selection,
+  // cost estimate) but no code path ever transitioned into it. Its
+  // intended job — post-failure root-cause before escalating — is now
+  // covered by the circuit-breaker → analyzing path + the escalation
+  // flow itself.
   'story-building': 'loop/01-building.md',
-  'story-diagnosis': 'loop/03-qa-fixing.md',
 
   // Milestone loop
   'milestone-check': 'loop/02-evaluation-orchestrator.md',
@@ -151,7 +164,13 @@ const PROGRESS_STALE_THRESHOLD = parseInt(process.env.ROUGE_PROGRESS_STALE || '1
 const LOG_STALE_THRESHOLD = parseInt(process.env.ROUGE_LOG_STALE || '10', 10) * 60 * 1000; // 10 min no log growth
 const HARD_CEILING = parseInt(process.env.ROUGE_HARD_CEILING || '60', 10) * 60 * 1000; // 60 min absolute max
 
-const SKIP_STATES = new Set(['seeding', 'ready', 'waiting-for-human', 'escalation', 'complete', 'paused']);
+// States the loop does not actively advance — either terminal, awaiting
+// human input, or pre-build. 'paused' was removed from this set after a
+// codebase audit: it was listed here but no code path ever wrote it to
+// current_state. If a user-initiated pause ever returns, add it back
+// AND route at least one caller through a transition helper so the
+// marker is real, not decorative.
+const SKIP_STATES = new Set(['seeding', 'ready', 'waiting-for-human', 'escalation', 'complete']);
 
 function readJson(filePath) {
   try {
@@ -463,12 +482,14 @@ function recordFixMemory(state, storyId, entry) {
   state.fix_memory[storyId].push(entry);
 }
 
-/** Start building a story — update state and return the next state name. */
+/**
+ * Start building a story — delegates to the atomic helper so story
+ * status, current_milestone, and current_story move in lockstep. The
+ * function kept its local signature (positional args) so existing
+ * callers didn't all have to change shape when the helper landed.
+ */
 function startStory(state, milestone, story) {
-  story.status = 'in-progress';
-  state.current_milestone = milestone.name;
-  state.current_story = story.id;
-  return 'story-building';
+  return beginStory(state, { milestone, story });
 }
 
 // ---------------------------------------------------------------------------
@@ -861,7 +882,6 @@ async function advanceState(projectDir) {
         }
 
       } else if (outcome === 'blocked') {
-        story.status = 'blocked';
         story.blocked_by = result.blocked_by || 'unknown';
         story.attempts = (story.attempts || 0) + 1;
         state.consecutive_failures = (state.consecutive_failures || 0) + 1;
@@ -876,19 +896,25 @@ async function advanceState(projectDir) {
           files_changed: result.files_changed || [],
         });
 
-        // Track escalation
-        if (result.escalation) {
-          if (!state.escalations) state.escalations = [];
-          state.escalations.push({
-            id: `esc-${story.id}-${story.attempts}`,
-            tier: result.escalation.tier || 1,
-            classification: result.classification || 'unknown',
-            summary: result.escalation.summary || result.symptom || '',
-            story_id: story.id,
-            status: 'pending',
-            created_at: new Date().toISOString(),
-          });
-        }
+        // Set status + optionally raise escalation through the atomic
+        // helper. Before the helper existed, this code pushed an
+        // escalation object but left current_state as 'story-building',
+        // so the dashboard saw a zombie "building" project that was
+        // actually blocked. The helper returns 'escalation' when an
+        // escalation is attached; caller threads that into `next`.
+        const transitionTo = setStoryStatus(state, {
+          story,
+          status: 'blocked',
+          escalation: result.escalation
+            ? {
+                id: `esc-${story.id}-${story.attempts}`,
+                tier: result.escalation.tier || 1,
+                classification: result.classification || 'unknown',
+                summary: result.escalation.summary || result.symptom || 'Story blocked',
+              }
+            : null,
+        });
+        if (transitionTo) next = transitionTo;
 
       } else {
         // fail — will be retried
@@ -1039,28 +1065,6 @@ async function advanceState(projectDir) {
       } else {
         log(`[${projectName}] No eligible stories — milestone check`);
         next = 'milestone-check';
-      }
-      break;
-    }
-
-    case 'story-diagnosis': {
-      const ctx = readJson(contextFile);
-      const diag = ctx?.diagnosis_result || {};
-
-      if (diag.fixed) {
-        state.consecutive_failures = 0;
-        writeJson(stateFile, state);
-        next = 'story-building';
-        log(`[${projectName}] Diagnosis resolved — resuming`);
-      } else {
-        const story = flat.find(s => s.id === state.current_story);
-        if (story) {
-          story.status = 'blocked';
-          story.blocked_by = diag.classification || 'diagnosis-failed';
-        }
-        writeJson(stateFile, state);
-        next = 'escalation';
-        log(`[${projectName}] Diagnosis failed — escalating`);
       }
       break;
     }
@@ -1238,7 +1242,12 @@ async function advanceState(projectDir) {
       } else if (action.startsWith('deepen') || action === 'broaden') {
         next = 'generating-change-spec';
       } else if (action.startsWith('notify') || action === 'rollback') {
-        next = 'escalation';
+        next = escalate(state, {
+          id: `esc-analyze-${action}-${Date.now()}`,
+          tier: 2,
+          classification: `analyze-${action}`,
+          summary: `Analysis recommended '${action}'. See analysis_recommendation in cycle_context.json.`,
+        });
       } else {
         next = 'vision-check';
       }
@@ -1268,6 +1277,12 @@ async function advanceState(projectDir) {
             affected_entities: [],
             affected_screens: spec.affected_screens || [],
             acceptance_criteria: [],
+            // Provenance: marks this story as added by Rouge mid-build
+            // (rather than from the seeded spec). The dashboard shows
+            // an "Added by Rouge" badge on stories with a recent
+            // added_at so the user notices when the plan evolves.
+            added_at: new Date().toISOString(),
+            added_by: 'generating-change-spec',
           });
           added++;
         }
@@ -1309,7 +1324,14 @@ async function advanceState(projectDir) {
       }
 
       if (results.trajectory === 'diverging' || results.pivot_proposal) {
-        next = 'escalation';
+        next = escalate(state, {
+          id: `esc-vision-drift-${Date.now()}`,
+          tier: 2,
+          classification: 'vision-drift',
+          summary: results.pivot_proposal
+            ? `Vision check suggests a pivot: ${String(results.pivot_proposal).slice(0, 200)}`
+            : 'Vision check detected the build diverging from the original vision. Review the vision_check_results in cycle_context.json before continuing.',
+        });
         log(`[${projectName}] Vision drift — escalating`);
       } else {
         next = 'shipping';
@@ -1330,7 +1352,12 @@ async function advanceState(projectDir) {
         state.final_review_attempts = 0;
         log(`[${projectName}] Final review PASSED — complete!`);
       } else if (report?.recommendation === 'major-rework') {
-        next = 'escalation';
+        next = escalate(state, {
+          id: `esc-final-review-rework-${Date.now()}`,
+          tier: 2,
+          classification: 'final-review-major-rework',
+          summary: 'Final review flagged major rework. See final_review_report in cycle_context.json for specifics.',
+        });
         log(`[${projectName}] Major rework — escalating`);
       } else {
         // Refinement loop — but with a circuit breaker
@@ -1397,6 +1424,31 @@ async function advanceState(projectDir) {
         pendingEsc.status = 'resolved';
         pendingEsc.resolved_at = new Date().toISOString();
 
+        // Resume target for escalations resolved while no milestone
+        // exists (e.g. escalation fired during foundation/foundation-eval,
+        // before any stories were created). Going to 'milestone-check'
+        // in that case violates the invariant (milestone-check requires
+        // current_milestone) and the loop spins. Routing to
+        // 'foundation-eval' re-runs the evaluation phase, which either
+        // promotes the project forward with better context OR escalates
+        // again with a specific reason via the helper. Closes the gap
+        // the dismiss-false-positive click on testimonial hit.
+        const pickResumeTarget = () => {
+          const hrMs = (state.milestones || []).find(m => m.name === state.current_milestone);
+          if (hrMs) {
+            const hrElig = findNextStory(hrMs, flatStories(state));
+            if (hrElig) {
+              const nx = startStory(state, hrMs, hrElig);
+              writeJson(stateFile, state);
+              return { next: nx, detail: `story: ${hrElig.id}` };
+            }
+            return { next: toMilestoneCheck(state), detail: 'milestone-check (milestone exists, no eligible stories)' };
+          }
+          // No milestone yet — pre-story escalation. Re-run foundation-eval.
+          state.current_story = null;
+          return { next: 'foundation-eval', detail: 'foundation-eval (no milestone yet)' };
+        };
+
         if (hrType === 'guidance') {
           const hrCtx = readJson(contextFile) || {};
           hrCtx.human_guidance = pendingEsc.human_response.text;
@@ -1405,62 +1457,33 @@ async function advanceState(projectDir) {
           if (hrStory && (hrStory.status === 'blocked' || hrStory.status === 'pending')) hrStory.status = 'retrying';
           state.consecutive_failures = 0;
           writeJson(stateFile, state);
-          const hrMs = (state.milestones || []).find(m => m.name === state.current_milestone);
-          if (hrMs) {
-            const hrElig = findNextStory(hrMs, flatStories(state));
-            if (hrElig) {
-              next = startStory(state, hrMs, hrElig);
-              writeJson(stateFile, state);
-              log(`[${projectName}] Escalation resolved (guidance) — story: ${hrElig.id}`);
-            } else {
-              next = 'milestone-check';
-            }
-          } else {
-            next = 'milestone-check';
-          }
+          const resume = pickResumeTarget();
+          next = resume.next;
+          log(`[${projectName}] Escalation resolved (guidance) — ${resume.detail}`);
         } else if (hrType === 'manual-fix-applied') {
           state.consecutive_failures = 0;
           const hrStory = flat.find(s => s.id === pendingEsc.story_id);
           if (hrStory && hrStory.status === 'blocked') hrStory.status = 'done';
           writeJson(stateFile, state);
-          next = 'milestone-check';
-          log(`[${projectName}] Escalation resolved (manual-fix-applied) — advancing to milestone-check`);
+          const resume = pickResumeTarget();
+          next = resume.next;
+          log(`[${projectName}] Escalation resolved (manual-fix-applied) — ${resume.detail}`);
         } else if (hrType === 'dismiss-false-positive') {
           state.consecutive_failures = 0;
           const hrStory = flat.find(s => s.id === pendingEsc.story_id);
           if (hrStory && (hrStory.status === 'blocked' || hrStory.status === 'pending')) hrStory.status = 'retrying';
           writeJson(stateFile, state);
-          const hrMs = (state.milestones || []).find(m => m.name === state.current_milestone);
-          if (hrMs) {
-            const hrElig = findNextStory(hrMs, flatStories(state));
-            if (hrElig) {
-              next = startStory(state, hrMs, hrElig);
-              writeJson(stateFile, state);
-              log(`[${projectName}] Escalation dismissed — story: ${hrElig.id}`);
-            } else {
-              next = 'milestone-check';
-            }
-          } else {
-            next = 'milestone-check';
-          }
+          const resume = pickResumeTarget();
+          next = resume.next;
+          log(`[${projectName}] Escalation dismissed — ${resume.detail}`);
         } else if (hrType === 'abort-story') {
           const hrStory = flat.find(s => s.id === pendingEsc.story_id);
           if (hrStory) hrStory.status = 'blocked';
           state.consecutive_failures = 0;
           writeJson(stateFile, state);
-          const hrMs = (state.milestones || []).find(m => m.name === state.current_milestone);
-          if (hrMs) {
-            const hrElig = findNextStory(hrMs, flatStories(state));
-            if (hrElig) {
-              next = startStory(state, hrMs, hrElig);
-              writeJson(stateFile, state);
-              log(`[${projectName}] Story aborted — next story: ${hrElig.id}`);
-            } else {
-              next = 'milestone-check';
-            }
-          } else {
-            next = 'milestone-check';
-          }
+          const resume = pickResumeTarget();
+          next = resume.next;
+          log(`[${projectName}] Story aborted — ${resume.detail}`);
         } else if (hrType === 'hand-off') {
           // User is working through the problem in a direct Claude Code
           // session (`rouge resume-escalation <slug>` invocation). Mark
@@ -1501,9 +1524,12 @@ async function advanceState(projectDir) {
           // If the escalation was story-scoped, flip the story back to
           // retrying so the next phase actually re-attempts it with
           // the human_resolution context injected by the preamble.
+          // retryStory() also repoints current_story at the retrying
+          // story — previously the pointer could dangle at whatever
+          // story was current before the hand-off.
           const resumeStory = flat.find(s => s.id === pendingEsc.story_id);
           if (resumeStory && (resumeStory.status === 'blocked' || resumeStory.status === 'pending')) {
-            resumeStory.status = 'retrying';
+            retryStory(state, { story: resumeStory });
           }
           writeJson(stateFile, state);
           const resumeMs = (state.milestones || []).find(m => m.name === state.current_milestone);
@@ -1513,10 +1539,10 @@ async function advanceState(projectDir) {
               next = startStory(state, resumeMs, elig);
               writeJson(stateFile, state);
             } else {
-              next = 'milestone-check';
+              next = toMilestoneCheck(state);
             }
           } else {
-            next = 'milestone-check';
+            next = toMilestoneCheck(state);
           }
           log(`[${projectName}] Escalation resumed after hand-off — ${commits.length} commit(s) captured`);
         } else {
@@ -1571,8 +1597,51 @@ async function advanceState(projectDir) {
 
   if (next) {
     log(`[${projectName}] ${current} → ${next}`);
+
+    // Self-heal: if a case block set next='escalation' without pushing
+    // a specific escalation object, synthesize a placeholder so the
+    // invariant (state='escalation' ⇒ at least one pending escalation)
+    // holds. Callers that use escalate() get informative messaging;
+    // this is the belt-and-suspenders for older raw `next =
+    // 'escalation'` sites that haven't been migrated. The WARN tag
+    // makes it easy to grep for sites worth migrating.
+    if (next === 'escalation') {
+      const pending = (state.escalations || []).filter((e) => e && e.status === 'pending');
+      if (pending.length === 0) {
+        log(
+          `[${projectName}] WARN: transition ${current} → escalation raised without a specific escalation object. ` +
+          `Synthesizing placeholder — migrate the ${current} case handler to use escalate() for better UX.`,
+        );
+        if (!state.escalations) state.escalations = [];
+        state.escalations.push({
+          id: `esc-unspecified-${current}-${Date.now()}`,
+          tier: 1,
+          classification: `unspecified-from-${current}`,
+          summary:
+            `Rouge escalated from '${current}' but didn't record a specific reason. ` +
+            `Check the launcher log around this timestamp for context.`,
+          story_id: state.current_story || null,
+          status: 'pending',
+          created_at: new Date().toISOString(),
+        });
+      }
+    }
+
     state.current_state = next;
     state.timestamp = new Date().toISOString();
+    // Defensive: catch invariant violations at the single unified write
+    // site. If anything drifted in the case handlers above (story-building
+    // with no current_story, complete with unfinished milestones, etc.)
+    // we'd rather fail loudly here than persist a broken state and
+    // render a blank UI. On throw, log + skip the write — the loop
+    // retries next tick with the previous state intact.
+    try {
+      assertInvariants(state);
+    } catch (err) {
+      log(`[${projectName}] STATE INVARIANT VIOLATION: ${err.message}`);
+      log(`[${projectName}] Refusing to persist corrupt state — transition ${current} → ${next} aborted`);
+      return { success: false, invariantViolation: true };
+    }
     writeJson(stateFile, state);
 
     notifyRich('transition', { project: projectName, from: current, to: next });
@@ -1721,7 +1790,11 @@ async function runPhase(projectDir) {
         );
         if (nextPending) {
           log(`[${projectName}] Story "${state.current_story}" already done — advancing to "${nextPending.id}"`);
-          state.current_story = nextPending.id;
+          // Atomic pointer + status update. Without the helper, the new
+          // story's status stayed 'pending' while current_story claimed
+          // it was active — a silent drift the next phase invocation
+          // would render as "building a pending story".
+          advanceStory(state, { story: nextPending });
           writeJson(stateFile, state);
         } else {
           // All stories done. Deploy to staging then advance to milestone-check.
@@ -1780,7 +1853,7 @@ async function runPhase(projectDir) {
   // V2: Assemble focused context views before invoking prompts
   try {
     const { assembleStoryContext, assembleMilestoneContext, assembleFixStoryContext } = require('./context-assembly');
-    if (currentState === 'story-building' || currentState === 'story-diagnosis') {
+    if (currentState === 'story-building') {
       assembleStoryContext(projectDir, state);
       log(`[${projectName}] Assembled story_context.json for ${state.current_story}`);
     } else if (currentState === 'milestone-check') {
@@ -1826,7 +1899,6 @@ async function runPhase(projectDir) {
       'foundation': 'Build the project foundation — schema, auth, deploy pipeline, seed data',
       'foundation-eval': 'Evaluate foundation completeness across 6 dimensions',
       'story-building': 'Build the current story using TDD',
-      'story-diagnosis': 'Diagnose and fix a failing story',
       'milestone-check': 'Evaluate milestone quality — test integrity, code review, product walk, PO review',
       'milestone-fix': 'Fix regressions found during milestone evaluation',
       'analyzing': 'Analyse evaluation results and recommend next action',
@@ -1839,7 +1911,6 @@ async function runPhase(projectDir) {
       'foundation': ['deployment_url', 'implemented', 'skipped', 'divergences', 'factory_decisions', 'factory_questions', 'foundation_completion'],
       'foundation-eval': ['foundation_eval_report'],
       'story-building': ['story_result', 'implemented', 'skipped', 'divergences', 'factory_decisions', 'factory_questions'],
-      'story-diagnosis': ['qa_fix_results'],
       'milestone-check': ['diff_scope', 'evaluation_tier', 'evaluation_report'],
       'milestone-fix': ['qa_fix_results'],
       'analyzing': ['analysis_recommendation', 'analysis_result'],
@@ -1881,7 +1952,16 @@ async function runPhase(projectDir) {
     });
     log(`[${projectName}] Auth mode: ${authMode}`);
 
-    // spawn (not execFile) for real-time stdout streaming
+    // spawn (not execFile) for real-time stdout streaming.
+    //
+    // --output-format stream-json + --verbose makes claude emit one JSONL
+    // record per internal event (assistant text, tool_use, tool_result,
+    // result). Without this, `claude -p` is almost entirely silent on
+    // stdout during tool use — which left the dashboard with no signal
+    // to show users for 30-60 minute foundation phases. The parsed
+    // stream is turned into compact events by phase-events.js and
+    // appended to <projectDir>/phase_events.jsonl; the dashboard tails
+    // that file to render a live tool-call feed.
     const { args: denyArgs } = require('./tool-permissions').buildDenylistArgs();
     const child = spawn('claude', [
       '-p',
@@ -1889,6 +1969,8 @@ async function runPhase(projectDir) {
       '--dangerously-skip-permissions',
       '--model', model,
       '--max-turns', '200',
+      '--output-format', 'stream-json',
+      '--verbose',
       ...addDirs.flatMap(dir => ['--add-dir', dir]),
       ...denyArgs,
     ], {
@@ -1897,12 +1979,32 @@ async function runPhase(projectDir) {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 
-    // Stream stdout to log file in real-time
-    // NOTE: .pipe() does not capture claude -p output (stream encoding issue).
-    // Using .on('data') instead, which reliably captures stdout.
+    // Stream claude's stream-json stdout to (a) the phase log verbatim
+    // for diagnostics, and (b) the phase-events writer which splits it
+    // into lines, parses each, and appends compact events the dashboard
+    // can render without re-implementing the parser client-side.
+    const { createPhaseEventWriter } = require('./phase-events.js');
+    const eventWriter = createPhaseEventWriter({
+      projectDir,
+      phase: currentState,
+      pid: child.pid,
+      model,
+      // Story/milestone context at phase start, stamped on every
+      // event. Non-story phases (foundation, analyzing, shipping)
+      // leave story_id unset — the dashboard treats absence as
+      // "project-level activity" and shows it in the hero instead of
+      // any specific story card.
+      storyId: state.current_story || undefined,
+      milestoneName: state.current_milestone || undefined,
+      // A non-JSON stdout line (rare — only if stream-json isn't
+      // understood by this claude build) still gets teed to the phase
+      // log so nothing is silently lost.
+      onRawLine: (line) => { try { logStream.write(line + '\n'); } catch {} },
+    });
     if (child.stdout) {
       child.stdout.on('data', (chunk) => {
         logStream.write(chunk);
+        eventWriter.onChunk(chunk);
       });
     }
 
@@ -2020,6 +2122,7 @@ async function runPhase(projectDir) {
     child.on('close', async (code) => {
       try { clearInterval(heartbeat); } catch {}
       try { logStream.end(); } catch {}
+      try { eventWriter.onEnd(code); } catch {}
 
       const stderr = stderrChunks.map(c => typeof c === 'string' ? c : c.toString()).join('');
 

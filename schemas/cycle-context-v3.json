@@ -117,15 +117,6 @@
         "ship_result",
         "evaluation_report"
       ]
-    },
-    "story-diagnosis": {
-      "required_output_keys": [
-        "qa_fix_results"
-      ],
-      "forbidden_output_keys": [
-        "evaluation_report",
-        "ship_result"
-      ]
     }
   }
 }

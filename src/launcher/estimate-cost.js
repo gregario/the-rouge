@@ -32,7 +32,6 @@ const PHASE_MINUTES = {
   'foundation': 15.0,            // foundation-building (longer than a story build)
   'foundation-eval': 8.0,       // foundation evaluation
   'story-building': 10.1,       // was: building
-  'story-diagnosis': 4.3,       // was: test-integrity + qa-gate (combined in V3)
   'milestone-check': 12.0,      // was: qa-gate + po-review-* (evaluation orchestrator in V3)
   'milestone-fix': 8.0,         // fix cycle after milestone evaluation
   'analyzing': 3.9,             // unchanged
