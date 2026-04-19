@@ -405,8 +405,11 @@ async function runSeedingTurn(
 
   // We successfully handed the discipline's sub-prompt to Claude; record
   // it so we don't re-inject on every subsequent turn in the same phase.
+  // Also flips the discipline's status to 'in-progress' in state.json so
+  // the dashboard stepper reads it directly (Phase 0 of the seed-loop
+  // architecture plan — docs/plans/2026-04-19-seed-loop-architecture.md).
   if (needsDisciplinePrompt && activeDiscipline) {
-    markDisciplinePrompted(projectDir, activeDiscipline)
+    await markDisciplinePrompted(projectDir, activeDiscipline)
   }
 
   // Persist session_id if new
