@@ -580,7 +580,9 @@ Write the required services list to `vision.json.infrastructure.services`:
   "needs_database": true,
   "needs_auth": true,
   "needs_payments": true,
-  "deployment_target": "cloudflare",
+  "deployment_target": "<one of: cloudflare | cloudflare-workers | vercel | docker-compose | github-pages | none>",
   "services": ["supabase", "stripe", "mapbox"]
 }
 ```
+
+Pick `deployment_target` based on what the product needs, not on a house default. Leave it unset only if you genuinely cannot decide yet — the INFRASTRUCTURE discipline will confirm or override it, and `seeding-finalize` will mirror the final choice from `infrastructure_manifest.json.deploy.target`. Docker Compose (`docker-compose`) is the right pick for self-hosted open-source products and complex multi-service stacks; GitHub Pages (`github-pages`) for static-only single-page builds; `none` for CLIs, MCP servers, and other non-web deliverables.

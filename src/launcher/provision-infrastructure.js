@@ -335,7 +335,7 @@ function main() {
   // which meant a project declaring deployment_target: "vercel" would still get
   // wrangler.toml, @opennextjs/cloudflare, and a Workers staging deploy. See #96.
   if (!target) {
-    log('❌ No deployment_target in vision.json.infrastructure — cannot provision. Set it to one of: cloudflare, cloudflare-workers, vercel, docker-compose, none');
+    log('❌ No deployment_target in vision.json.infrastructure — cannot provision. Set it to one of: cloudflare, cloudflare-workers, vercel, docker-compose, docker, github-pages, gh-pages, none');
   } else if (target === 'cloudflare' || target === 'cloudflare-workers') {
     const stagingUrl = provisionCloudflare(projectDir, projectName);
     if (stagingUrl) {
@@ -348,8 +348,14 @@ function main() {
     log('Vercel: the deploy handler in deploy-to-staging.js handles `vercel deploy --yes --prod`.');
   } else if (target === 'docker-compose' || target === 'docker' || target === 'none') {
     log(`${target}: no cloud provisioning needed.`);
+  } else if (target === 'github-pages' || target === 'gh-pages') {
+    // Pages serves from the gh-pages branch; the staging deploy handler
+    // (deploy-to-staging.js:deployGithubPages) owns that push. No cloud
+    // provisioning step here — the project just needs a GitHub repo with
+    // Pages enabled, which is outside Rouge's provisioner scope.
+    log(`${target}: no cloud provisioning needed; deploy handler pushes to gh-pages branch.`);
   } else {
-    log(`❌ Unknown deployment_target "${target}" — no provisioner registered. Supported: cloudflare, cloudflare-workers, vercel, docker-compose, none`);
+    log(`❌ Unknown deployment_target "${target}" — no provisioner registered. Supported: cloudflare, cloudflare-workers, vercel, docker-compose, docker, github-pages, gh-pages, none`);
   }
 
   // Supabase (if needed).

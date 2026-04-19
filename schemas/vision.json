@@ -107,7 +107,11 @@
         "needs_database": { "type": "boolean" },
         "needs_auth": { "type": "boolean" },
         "needs_payments": { "type": "boolean" },
-        "deployment_target": { "type": "string", "default": "cloudflare-workers" },
+        "deployment_target": {
+          "type": "string",
+          "enum": ["cloudflare", "cloudflare-workers", "vercel", "docker-compose", "docker", "github-pages", "gh-pages", "none"],
+          "default": "cloudflare-workers"
+        },
         "services": {
           "type": "array",
           "items": { "type": "string" },
