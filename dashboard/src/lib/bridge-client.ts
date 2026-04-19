@@ -58,6 +58,8 @@ export interface BuildLogPayload {
   sizeBytes: number
   mtime: string | null
   truncated: boolean
+  source: 'phase' | 'build'
+  sourcePath: string | null
 }
 
 export async function fetchBridgeStoryEnrichment(name: string) {
@@ -74,6 +76,36 @@ export async function fetchBridgeStoryContext(name: string) {
 
 export async function fetchBridgeBuildLog(name: string, tail = 50): Promise<BuildLogPayload> {
   const res = await fetch(`${BRIDGE_URL}/api/projects/${name}/build-log?tail=${tail}`)
+  if (!res.ok) throw new Error(`Bridge error: ${res.status}`)
+  return res.json()
+}
+
+export interface PhaseEventPayload {
+  ts: string
+  type: 'phase_start' | 'phase_end' | 'text' | 'tool_use' | 'tool_result'
+  phase?: string
+  pid?: number
+  model?: string
+  text?: string
+  id?: string
+  name?: string
+  summary?: string
+  status?: 'ok' | 'error'
+  exit_code?: number | null
+  duration_ms?: number
+}
+
+export interface PhaseEventsPayload {
+  events: PhaseEventPayload[]
+  totalCount: number
+  truncated: boolean
+  mtime: string | null
+  sizeBytes: number
+  exists: boolean
+}
+
+export async function fetchBridgePhaseEvents(name: string, tail = 100): Promise<PhaseEventsPayload> {
+  const res = await fetch(`${BRIDGE_URL}/api/projects/${name}/phase-events?tail=${tail}`)
   if (!res.ok) throw new Error(`Bridge error: ${res.status}`)
   return res.json()
 }

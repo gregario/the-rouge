@@ -71,8 +71,14 @@ export function BuildLogTail({ slug, live = false, tail = 50 }: BuildLogTailProp
   if (!log) return null
 
   const empty = log.totalLines === 0
+  // Call this section "Raw Log" regardless of source — it's the secondary,
+  // diagnostics-grade surface (claude's stderr + startup banners). The
+  // primary in-flight signal lives in the phase events feed above. Not
+  // claiming LIVE/IDLE here on purpose: those labels only had the weight
+  // of file-mtime heuristics and misled users when the real activity was
+  // in tool calls, not stdout.
   const summary = empty
-    ? 'Build log empty — loop hasn\'t started via dashboard yet'
+    ? 'No raw output yet'
     : `${log.totalLines} line${log.totalLines === 1 ? '' : 's'} · ${formatBytes(log.sizeBytes)}`
 
   return (
@@ -91,14 +97,8 @@ export function BuildLogTail({ slug, live = false, tail = 50 }: BuildLogTailProp
             ? <ChevronDown className="size-4 text-gray-500" />
             : <ChevronRight className="size-4 text-gray-500" />
           )}
-          <span className="text-sm font-semibold text-gray-900">Build Log</span>
+          <span className="text-sm font-semibold text-gray-900">Raw Log</span>
           <span className="text-xs text-gray-500">{summary}</span>
-          {live && !empty && (
-            <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-medium text-green-700">
-              <span className="size-1.5 rounded-full bg-green-500 animate-pulse" />
-              LIVE
-            </span>
-          )}
         </div>
       </button>
       {expanded && !empty && (
