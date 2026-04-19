@@ -112,17 +112,26 @@ Six phases. Each is a separate PR. Each is independently shippable and valuable.
 
 ---
 
-### Phase 1 — Extract `runClaude` into a detached daemon
+### Phase 1 — Extract subprocess orchestration into a detached daemon
 
-**Scope:** The architectural move. New `src/launcher/seed-loop.js` owns the seeding subprocess. HTTP handler becomes a queue writer.
+**Status:** shipped behind `ROUGE_USE_SEED_DAEMON` feature flag.
 
-**Files:**
-- NEW `/Users/gregario/Projects/ClaudeCode/The-Rouge/src/launcher/seed-loop.js` — daemon entry point
-- NEW `/Users/gregario/Projects/ClaudeCode/The-Rouge/src/launcher/seed-runner.js` — turn execution + marker parsing (extracted from `claude-runner.ts` logic)
-- `/Users/gregario/Projects/ClaudeCode/The-Rouge/dashboard/src/bridge/seed-handler.ts` — drastically simplified: writes queue, ensures daemon alive, returns
-- `/Users/gregario/Projects/ClaudeCode/The-Rouge/dashboard/src/bridge/claude-runner.ts` — retire (or keep only for non-seeding callers if any)
-- Queue file contract: `<projectDir>/seed-queue.jsonl` — append-only, each line a user or system message
-- PID file: `<projectDir>/.seed-pid` — same shape as `.build-pid`
+**Scope:** The architectural move. The seeding subprocess chain moves out of the HTTP request handler's lifecycle and into a detached daemon. HTTP handler becomes a queue writer.
+
+**As-built files:** The original plan proposed `src/launcher/seed-loop.js` (plain JS sibling to `rouge-loop.js`). The implementation instead chose TypeScript at `dashboard/src/bridge/seed-daemon.ts` so the daemon can re-use the existing `handleSeedMessage` function without porting ~600 lines of prompt-assembly / marker-parsing / state-mutation logic. Zero duplication; the daemon IS just a process lifecycle wrapper around the existing TS code. Spawned via `tsx` (already a dashboard dep).
+
+- NEW `/Users/gregario/Projects/ClaudeCode/The-Rouge/dashboard/src/bridge/seed-daemon.ts` — daemon entry point (tsx-invoked)
+- NEW `/Users/gregario/Projects/ClaudeCode/The-Rouge/dashboard/src/bridge/seed-daemon-spawn.ts` — `ensureSeedDaemon` helper for the HTTP handler
+- NEW `/Users/gregario/Projects/ClaudeCode/The-Rouge/dashboard/src/bridge/seed-daemon-pid.ts` — PID file helpers (parallels `build-runner`'s `.build-pid` pattern)
+- NEW `/Users/gregario/Projects/ClaudeCode/The-Rouge/dashboard/src/bridge/seed-queue.ts` — atomic append + two-phase drain for `seed-queue.jsonl`
+- MODIFIED `/Users/gregario/Projects/ClaudeCode/The-Rouge/dashboard/src/bridge/seed-handler.ts` — added `handleSeedMessageRouted` that switches on flag; inline path preserved
+- MODIFIED `/Users/gregario/Projects/ClaudeCode/The-Rouge/dashboard/src/app/api/projects/[name]/seed/message/route.ts` — uses `handleSeedMessageRouted`
+- Queue file contract: `<projectDir>/seed-queue.jsonl` — append-only JSONL, one `{id, text, enqueuedAt}` per line
+- PID file: `<projectDir>/.seed-pid` — JSON with `{pid, startedAt, sessionId}`; sessionId rotates on re-claim so race losers detect and exit
+- Heartbeat file: `<projectDir>/.rouge/seed-heartbeat.json` — JSON with `{lastTickAt, lastTurnId, status, sessionId, pid}` written every tick (enables Phase 5 observability)
+- Daemon logs: `<projectDir>/seed-daemon.log` (append mode, detached from dashboard)
+
+**Feature flag:** `ROUGE_USE_SEED_DAEMON=1` enables the daemon path. Default off for safety. Phase 4 will flip the default and delete the inline path after live validation.
 
 **Daemon behaviour:**
 1. Launched with `node seed-loop.js <projectDir>`, detached, stdout/stderr to `seed-loop.log`

@@ -217,6 +217,63 @@ export async function handleSeedMessage(
   return runSeedingTurn(projectDir, userText, {})
 }
 
+/**
+ * Phase 1 seed-loop architecture: when ROUGE_USE_SEED_DAEMON is set,
+ * the HTTP handler enqueues the user message and ensures a detached
+ * daemon is running to drain it, then returns immediately (202-style).
+ *
+ * When the flag is NOT set, falls through to the existing inline
+ * path — HTTP handler awaits the full subprocess chain.
+ *
+ * This is the feature-flagged introduction of the daemon architecture.
+ * Both paths are fully functional; the flag selects which one the
+ * POST /seed/message route handler runs. When we've validated the
+ * daemon path on real sessions, a follow-up PR flips the default and
+ * eventually deletes the inline path (Phase 4).
+ *
+ * See docs/plans/2026-04-19-seed-loop-architecture.md for rationale.
+ */
+export async function handleSeedMessageRouted(
+  projectDir: string,
+  userText: string,
+): Promise<SendMessageResult> {
+  if (process.env.ROUGE_USE_SEED_DAEMON === '1') {
+    return handleSeedMessageViaDaemon(projectDir, userText)
+  }
+  return runSeedingTurn(projectDir, userText, {})
+}
+
+async function handleSeedMessageViaDaemon(
+  projectDir: string,
+  userText: string,
+): Promise<SendMessageResult> {
+  // Lazy-import so the daemon-spawn module (and its child_process
+  // side-effects) doesn't load unless the flag is on. Keeps the
+  // unflagged path byte-identical to pre-Phase-1 behaviour.
+  const { enqueueMessage } = await import('./seed-queue')
+  const { ensureSeedDaemon } = await import('./seed-daemon-spawn')
+
+  const messageId = enqueueMessage(projectDir, userText)
+  const spawn = ensureSeedDaemon(projectDir)
+  if (!spawn.ok) {
+    // Daemon spawn failed — the message is still queued, but nothing's
+    // going to process it. Surface as a 500 so the UI knows, and
+    // include the messageId so the user can retry without
+    // duplicating their entry on the queue (if they care).
+    return {
+      ok: false,
+      status: 500,
+      error: `seed daemon spawn failed: ${spawn.error ?? 'unknown'} (messageId=${messageId})`,
+    }
+  }
+
+  // Return immediately. The daemon will run the turn asynchronously;
+  // the dashboard learns about the result via state.json + chat-log
+  // changes picked up by the watcher (or, from Phase 2 onwards, via
+  // a 2s poll of those files).
+  return { ok: true, status: 202 }
+}
+
 async function runSeedingTurn(
   projectDir: string,
   text: string,
