@@ -35,7 +35,7 @@ describe('ActionBar — mid-phase zombie (state says building, no live PID)', ()
   // / vision-check is gone — see build-runner rollback allowlist gap.
 
   it('renders Resume + Reset when state is mid-phase and no process is alive', async () => {
-    render(<ActionBar state="foundation-eval" slug="alpha" />)
+    render(<ActionBar state="foundation-eval" slug="alpha" buildRunning={false} />)
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /^resume build$/i })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /^reset to ready$/i })).toBeInTheDocument()
@@ -47,7 +47,7 @@ describe('ActionBar — mid-phase zombie (state says building, no live PID)', ()
     const user = userEvent.setup()
     mockSendCommand.mockResolvedValueOnce({ ok: true, pid: 123 })
 
-    render(<ActionBar state="foundation-eval" slug="alpha" />)
+    render(<ActionBar state="foundation-eval" slug="alpha" buildRunning={false} />)
     await user.click(await screen.findByRole('button', { name: /^resume build$/i }))
 
     await waitFor(() => expect(mockSendCommand).toHaveBeenCalledWith('alpha', 'start', undefined))
@@ -60,7 +60,7 @@ describe('ActionBar — mid-phase zombie (state says building, no live PID)', ()
     const user = userEvent.setup()
     mockSendCommand.mockResolvedValueOnce({ ok: true, priorState: 'foundation-eval' })
 
-    render(<ActionBar state="foundation-eval" slug="alpha" />)
+    render(<ActionBar state="foundation-eval" slug="alpha" buildRunning={false} />)
     await user.click(await screen.findByRole('button', { name: /^reset to ready$/i }))
 
     // Dialog renders a second "Reset to Ready" button — click it.
@@ -72,7 +72,7 @@ describe('ActionBar — mid-phase zombie (state says building, no live PID)', ()
   })
 
   it('surfaces a hint explaining the Resume/Reset choice', async () => {
-    render(<ActionBar state="foundation-eval" slug="alpha" />)
+    render(<ActionBar state="foundation-eval" slug="alpha" buildRunning={false} />)
     await waitFor(() => {
       expect(
         screen.getByText(/build stopped at foundation-eval/i),
@@ -85,7 +85,7 @@ describe('ActionBar — mid-phase zombie (state says building, no live PID)', ()
     mockSendCommand.mockRejectedValueOnce(new Error('state locked'))
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    render(<ActionBar state="foundation-eval" slug="alpha" />)
+    render(<ActionBar state="foundation-eval" slug="alpha" buildRunning={false} />)
     await user.click(await screen.findByRole('button', { name: /^reset to ready$/i }))
     const buttons = screen.getAllByRole('button', { name: /^reset to ready$/i })
     await user.click(buttons.at(-1)!)
@@ -101,19 +101,15 @@ describe('ActionBar — mid-phase zombie (state says building, no live PID)', ()
 })
 
 describe('ActionBar — Stop Build (live process)', () => {
-  // When buildRunning is true, Stop is the only action shown. These
-  // tests lock in the confirmation + notice paths for that case.
+  // When buildRunning is true, Stop is the only action shown. The
+  // prop is now a parent-owned snapshot (previously an internal 5 s
+  // poll) — tests pass it explicitly.
 
   it('shows an inline notice when stop succeeds on an already-stopped build', async () => {
     const user = userEvent.setup()
-    // Initial poll says running; after stop the follow-up status poll
-    // returns not running. sendCommand responds with alreadyStopped.
-    mockFetchBuildStatus
-      .mockResolvedValueOnce({ running: true, startedAt: new Date().toISOString() })
-      .mockResolvedValue({ running: false, startedAt: null })
     mockSendCommand.mockResolvedValueOnce({ ok: true, alreadyStopped: true })
 
-    render(<ActionBar state="foundation" slug="alpha" />)
+    render(<ActionBar state="foundation" slug="alpha" buildRunning={true} buildStartedAt={new Date().toISOString()} />)
 
     const topStop = await screen.findByRole('button', { name: /^stop build$/i })
     await user.click(topStop)
@@ -129,13 +125,10 @@ describe('ActionBar — Stop Build (live process)', () => {
 
   it('surfaces command errors inline instead of throwing to console.error', async () => {
     const user = userEvent.setup()
-    mockFetchBuildStatus
-      .mockResolvedValueOnce({ running: true, startedAt: new Date().toISOString() })
-      .mockResolvedValue({ running: false, startedAt: null })
     mockSendCommand.mockRejectedValueOnce(new Error('something went wrong'))
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    render(<ActionBar state="foundation" slug="alpha" />)
+    render(<ActionBar state="foundation" slug="alpha" buildRunning={true} buildStartedAt={new Date().toISOString()} />)
 
     const topStop = await screen.findByRole('button', { name: /^stop build$/i })
     await user.click(topStop)

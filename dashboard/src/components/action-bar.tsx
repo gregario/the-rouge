@@ -1,8 +1,8 @@
 'use client'
 
 import type { Escalation, ProjectState } from '@/lib/types'
-import { useState, useCallback, useEffect } from 'react'
-import { isBridgeEnabled, sendCommand, fetchBuildStatus } from '@/lib/bridge-client'
+import { useState, useCallback } from 'react'
+import { isBridgeEnabled, sendCommand } from '@/lib/bridge-client'
 import { Button } from '@/components/ui/button'
 import { EscalationDrawer } from '@/components/escalation-drawer'
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -35,40 +35,29 @@ interface ActionBarProps {
   productionUrl?: string
   escalation?: Escalation
   onCommandComplete?: () => void
+  // Parent-owned build-status snapshot — the page reads it from the
+  // project payload (PID liveness + startedAt) and keeps it fresh via
+  // SSE + post-mutation refetch. ActionBar used to run its own 5 s
+  // poll, which drifted against the page by up to 5 s and made the
+  // Stop button flicker for users. Single source of truth now.
+  buildRunning: boolean
+  buildStartedAt?: string | null
 }
 
-export function ActionBar({ state, slug, productionUrl, escalation, onCommandComplete }: ActionBarProps) {
+export function ActionBar({
+  state,
+  slug,
+  productionUrl,
+  escalation,
+  onCommandComplete,
+  buildRunning,
+  buildStartedAt,
+}: ActionBarProps) {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [loading, setLoading] = useState<string | null>(null)
-  const [buildRunning, setBuildRunning] = useState(false)
   const [confirmAction, setConfirmAction] = useState<'start' | 'stop' | 'reset' | null>(null)
-  const [buildStartedAt, setBuildStartedAt] = useState<string | null>(null)
   const [commandError, setCommandError] = useState<string | null>(null)
   const [commandNotice, setCommandNotice] = useState<string | null>(null)
-
-  // Poll build status every 5s so the button reflects subprocess state
-  // even before the Rouge loop has written its first checkpoint.
-  useEffect(() => {
-    if (!slug || !isBridgeEnabled()) return
-    let cancelled = false
-    const check = async () => {
-      try {
-        const status = await fetchBuildStatus(slug)
-        if (!cancelled) {
-          setBuildRunning(status.running)
-          setBuildStartedAt(status.startedAt ?? null)
-        }
-      } catch {
-        // Silent — status poll is best-effort
-      }
-    }
-    check()
-    const interval = setInterval(check, 5000)
-    return () => {
-      cancelled = true
-      clearInterval(interval)
-    }
-  }, [slug])
 
   const runCommand = useCallback(async (command: string) => {
     if (!slug || !isBridgeEnabled()) return
@@ -86,20 +75,11 @@ export function ActionBar({ state, slug, productionUrl, escalation, onCommandCom
           setCommandNotice('Build was already stopped.')
         }
       }
-      // Refresh build status + page data after any command that can
-      // change state or process liveness. Reset flips state back to
-      // Ready without touching the subprocess (there shouldn't be one
-      // if Reset succeeded); Start/Stop obviously change both.
+      // Trigger parent refetch so `project.state` + `project.buildRunning`
+      // + `project.buildStartedAt` all update in lockstep. The parent
+      // reads build status from the project GET (PID liveness included)
+      // so we don't need a separate call here.
       if (command === 'start' || command === 'stop' || command === 'reset') {
-        try {
-          const status = await fetchBuildStatus(slug)
-          setBuildRunning(status.running)
-          setBuildStartedAt(status.startedAt ?? null)
-        } catch {}
-        // Trigger parent refetch so `project.state` reflects the server-side
-        // transition (ready → foundation on start, etc.) without waiting for
-        // the SSE state-change event, which can lag or drop. Without this,
-        // the Build tab stays disabled until the user manually refreshes.
         onCommandComplete?.()
       }
     } catch (err) {
@@ -202,6 +182,7 @@ export function ActionBar({ state, slug, productionUrl, escalation, onCommandCom
           escalation={escalation}
           projectState={state}
           slug={slug}
+          onResolved={onCommandComplete}
         />
       )}
 

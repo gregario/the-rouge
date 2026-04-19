@@ -79,7 +79,7 @@ export function ProjectHeader({
         <div className="flex flex-wrap items-center gap-4">
           <ProjectTitleEditable slug={project.slug} name={project.name} state={project.state} />
           <ProjectSettingsMenu slug={project.slug} state={project.state} />
-          <StateBadge state={project.state} size="lg" />
+          <StateBadge state={project.state} size="lg" buildRunning={project.buildRunning} />
         </div>
 
         {/* Real metrics only — Build Cost & Last Activity pulled from latest checkpoint */}

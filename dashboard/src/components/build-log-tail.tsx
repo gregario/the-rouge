@@ -68,7 +68,17 @@ export function BuildLogTail({ slug, live = false, tail = 50 }: BuildLogTailProp
     )
   }
 
-  if (!log) return null
+  if (!log) {
+    // Previously returned null here, which rendered a blank space in
+    // the diagnostics footer during the first poll. A tiny "fetching"
+    // placeholder makes it clear the panel is alive but waiting on
+    // data rather than broken.
+    return (
+      <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-500">
+        Fetching raw log…
+      </div>
+    )
+  }
 
   const empty = log.totalLines === 0
   // Call this section "Raw Log" regardless of source — it's the secondary,
