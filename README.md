@@ -22,8 +22,8 @@ rouge setup                 # First-time: install dashboard, check prerequisites
 rouge dashboard start       # Start the dashboard (optional, recommended)
 
 rouge init my-product
-rouge seed my-product       # Interactive co-design (~10-20 min)
-rouge build my-product      # Start the autonomous loop
+rouge seed my-product "I want to build X"   # Starts seeding (use the dashboard for interactive)
+rouge build my-product                       # Start the autonomous loop
 rouge status
 ```
 
@@ -201,10 +201,10 @@ The Slack bot control plane is retired and no longer recommended. Code stays in 
 
 ```bash
 rouge init my-product
-rouge seed my-product       # Interactive seeding (~10-20 min)
-rouge build my-product      # Start the autonomous loop
-rouge status                # Check progress
-rouge cost my-product       # See cost estimate
+rouge seed my-product "I want to build X"   # One-shot seeding via the daemon; dashboard is the interactive path
+rouge build my-product                       # Start the autonomous loop
+rouge status                                 # Check progress
+rouge cost my-product                        # See cost estimate
 ```
 
 ## Safety

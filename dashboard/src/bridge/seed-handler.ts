@@ -196,20 +196,6 @@ interface TurnOptions {
    *  auto-continuation chain so a runaway discipline can't burn
    *  unbounded tokens. See MAX_CHUNK_DEPTH. */
   chunkDepth?: number
-  /**
-   * The HTTP handler (daemon path, Fix B) has ALREADY appended the
-   * user's human chat message to seeding-chat.jsonl before this turn
-   * started. Skip the in-turn human-append so we don't double-write.
-   *
-   * Distinct from isKickoff: a Fix-B daemon user-turn still runs the
-   * reconciler, the derive-title path, and everything else a user
-   * turn does — it just doesn't own the human-append. isKickoff means
-   * "not a user turn at all" (continuation) and has broader semantics.
-   *
-   * When Phase 4 deletes the inline path, this flag becomes
-   * unconditionally true and can be removed.
-   */
-  humanMessageAlreadyPersisted?: boolean
 }
 
 // Max turns we'll auto-chain from a single user message. Covers:
@@ -224,49 +210,48 @@ interface TurnOptions {
 // frequently.
 const MAX_CHUNK_DEPTH = 10
 
+/**
+ * Daemon-internal: called by seed-daemon when it drains a queued
+ * message. Runs a single seeding turn against the current project
+ * state. Exported because the daemon module imports it; not meant to
+ * be called by route handlers (those go through `postSeedMessage`).
+ *
+ * The inline (non-daemon) path was deleted — every seeding message
+ * now flows HTTP handler → queue → daemon → this function. Human
+ * chat entries are pre-persisted by the HTTP handler, so the turn
+ * ALWAYS skips its own human-append. `TurnOptions.humanMessageAlreadyPersisted`
+ * is no longer needed as a parameter since it's implicit for all
+ * daemon-driven calls.
+ */
 export async function handleSeedMessage(
   projectDir: string,
   userText: string,
-  options?: { humanMessageAlreadyPersisted?: boolean },
 ): Promise<SendMessageResult> {
-  return runSeedingTurn(projectDir, userText, {
-    humanMessageAlreadyPersisted: options?.humanMessageAlreadyPersisted,
-  })
-}
-
-/**
- * Phase 1 seed-loop architecture: when ROUGE_USE_SEED_DAEMON is set,
- * the HTTP handler enqueues the user message and ensures a detached
- * daemon is running to drain it, then returns immediately (202-style).
- *
- * When the flag is NOT set, falls through to the existing inline
- * path — HTTP handler awaits the full subprocess chain.
- *
- * This is the feature-flagged introduction of the daemon architecture.
- * Both paths are fully functional; the flag selects which one the
- * POST /seed/message route handler runs. When we've validated the
- * daemon path on real sessions, a follow-up PR flips the default and
- * eventually deletes the inline path (Phase 4).
- *
- * See docs/plans/2026-04-19-seed-loop-architecture.md for rationale.
- */
-export async function handleSeedMessageRouted(
-  projectDir: string,
-  userText: string,
-): Promise<SendMessageResult> {
-  if (process.env.ROUGE_USE_SEED_DAEMON === '1') {
-    return handleSeedMessageViaDaemon(projectDir, userText)
-  }
   return runSeedingTurn(projectDir, userText, {})
 }
 
-async function handleSeedMessageViaDaemon(
+/**
+ * HTTP entry point. The user POSTs a seeding message; we:
+ *   1. Append the human chat entry synchronously so a refetch after
+ *      the POST resolves immediately sees the message.
+ *   2. Enqueue the message for the detached daemon.
+ *   3. Ensure a daemon is running (spawn if absent, respect PID file
+ *      if alive).
+ *   4. Return 202 Accepted. The daemon runs the turn asynchronously.
+ *
+ * Previously flag-gated by `ROUGE_USE_SEED_DAEMON`, with an inline
+ * code path as fallback. Both branches are gone — the daemon path
+ * is the only path (Option A pre-publish decision, see
+ * docs/plans/2026-04-19-seed-loop-architecture.md).
+ */
+export async function postSeedMessage(
   projectDir: string,
   userText: string,
 ): Promise<SendMessageResult> {
-  // Lazy-import so the daemon-spawn module (and its child_process
-  // side-effects) doesn't load unless the flag is on. Keeps the
-  // unflagged path byte-identical to pre-Phase-1 behaviour.
+  // Lazy-import so `child_process` side-effects in seed-daemon-spawn
+  // don't load for non-seeding requests (tests that import
+  // seed-handler for other reasons, the handleSeedMessage daemon
+  // callers, etc.).
   const { enqueueMessage } = await import('./seed-queue')
   const { ensureSeedDaemon } = await import('./seed-daemon-spawn')
 
@@ -276,12 +261,9 @@ async function handleSeedMessageViaDaemon(
   // written anything yet — runClaude is still in flight), sets
   // messages to [] and clears the optimistic placeholder, leaving the
   // chat visibly BLANK for the full turn duration. Writing the
-  // human entry here closes the window.
-  //
-  // The daemon sees `humanAlreadyPersisted: true` on the queue entry
-  // and passes `humanMessageAlreadyPersisted: true` to the turn,
-  // suppressing its own human-append. See TurnOptions comment for the
-  // two append-site gates.
+  // human entry here closes the window. The daemon's subsequent call
+  // to `handleSeedMessage → runSeedingTurn` skips its own human-append
+  // unconditionally (no opt-in needed post-Option-A).
   const state = readSeedingState(projectDir)
   const activeDiscipline = resolveActiveDiscipline(state.current_discipline)
   try {
@@ -300,12 +282,12 @@ async function handleSeedMessageViaDaemon(
     }
   }
 
-  // Enqueue AFTER the append so a subsequent daemon drain sees the
-  // `humanAlreadyPersisted` flag on an entry whose corresponding chat
-  // row already exists on disk.
+  // Enqueue AFTER the append so the daemon, on drain, already has
+  // the matching chat row on disk. Post-Option-A the daemon always
+  // skips human-append; no flag on the queue entry needed.
   let messageId: string
   try {
-    messageId = enqueueMessage(projectDir, userText, { humanAlreadyPersisted: true })
+    messageId = enqueueMessage(projectDir, userText)
   } catch (err) {
     // Append succeeded but enqueue failed. The chat now shows the
     // user's message but nothing will process it. Write a system_note
@@ -353,37 +335,23 @@ async function handleSeedMessageViaDaemon(
 }
 
 /**
- * The seeding turn function — the heart of inline-path seeding, and the
- * function the daemon delegates to via `handleSeedMessage`.
+ * The seeding turn function — called by the daemon for every queued
+ * user message and by continuation-turn recursion.
  *
- * Human-append semantics — two gates:
- *   1. `isKickoff` — this turn is system-triggered (continuation
- *      kickoff or autonomous chunk). `text` is a [SYSTEM] instruction,
- *      NOT user prose. Never append as human.
- *   2. `humanMessageAlreadyPersisted` — this turn was triggered by a
- *      user message, but the caller (Fix B daemon path's HTTP handler)
- *      has already written the human chat entry to disk. Don't
- *      double-append.
- *
- * Under the flag-off inline path, BOTH options are false and this
- * function owns the human-append (line `appendChatMessage` below).
- * Under the flag-on daemon path, `humanMessageAlreadyPersisted: true`
- * is passed and the append is suppressed. Both gates also apply to the
- * secondary append site in the rate-limit branch (see below).
+ * Human-append semantics post-Option-A: NEVER. The HTTP handler
+ * pre-persists the user's message before enqueuing, so the daemon's
+ * turn should not duplicate the entry. Continuation turns
+ * (`isKickoff: true`) carry `[SYSTEM]` text rather than user prose
+ * and also skip the append. The old flag-off inline path that owned
+ * the human-append was deleted in Option A; both append sites that
+ * used to live here are gone.
  */
 async function runSeedingTurn(
   projectDir: string,
   text: string,
   options: TurnOptions,
 ): Promise<SendMessageResult> {
-  const {
-    isKickoff = false,
-    chunkDepth = 0,
-    humanMessageAlreadyPersisted = false,
-  } = options
-  // Canonical "should we append the user's text as a human chat
-  // message in this turn?" — used at both append sites below.
-  const shouldAppendHumanMessage = !isKickoff && !humanMessageAlreadyPersisted
+  const { isKickoff = false, chunkDepth = 0 } = options
 
   // Gated-autonomy: a user-initiated turn IS the answer to any pending
   // gate. But ORDERING MATTERS: we must capture the pre-clear gate
@@ -554,15 +522,11 @@ async function runSeedingTurn(
   // to act on it.
   if (detectRateLimit(result.result)) {
     setStatus(projectDir, 'paused')
-    // shouldAppendHumanMessage gates this too: under Fix B the handler
-    // already wrote the human entry, so pass null here to avoid
-    // double-append. The rate-limited Rouge response still lands.
-    appendMessages(
-      projectDir,
-      shouldAppendHumanMessage ? text : null,
-      result.result,
-      activeDiscipline ?? undefined,
-    )
+    // Human entry was pre-persisted by the HTTP handler; only append
+    // the rate-limited Rouge response here. Post-Option-A there's no
+    // inline code path that owns the human-append, so `null` is the
+    // right always-answer.
+    appendMessages(projectDir, null, result.result, activeDiscipline ?? undefined)
     return { ok: false, status: 429, error: 'Claude rate-limited', rateLimited: true }
   }
 
@@ -648,27 +612,19 @@ async function runSeedingTurn(
     }
   }
 
-  // Append conversation. Human entry first (skipped on kickoff — the
-  // `text` was a system instruction, not user input), then the rouge
-  // response split on markers into one chat message per segment. Each
-  // segment carries its kind (gate/decision/heartbeat/prose) so the UI
-  // renders distinctly and the traffic-light chip can reset on each
-  // marker arrival.
+  // Append conversation. Rouge response split on markers into one
+  // chat message per segment. Each segment carries its kind
+  // (gate/decision/heartbeat/prose) so the UI renders distinctly and
+  // the traffic-light chip can reset on each marker arrival.
+  //
+  // Human entry was pre-persisted by the HTTP handler before the
+  // daemon ever picked this message up — nothing to append here.
+  // Post-Option-A, runSeedingTurn NEVER owns the human-append.
   //
   // If the agent emitted markers for disciplines whose artifacts aren't
   // on disk, append a follow-up SYSTEM NOTE so both the human (in the
   // chat UI) and the agent (via session history on the next turn) see
   // that the marker was rejected.
-  if (shouldAppendHumanMessage) {
-    appendChatMessage(projectDir, {
-      id: genId(),
-      role: 'human',
-      content: text,
-      timestamp: new Date().toISOString(),
-      metadata: activeDiscipline ? { discipline: activeDiscipline } : undefined,
-    })
-  }
-  // Reuse the segments parsed above for the gate-and-complete guard.
   appendSegmentedRougeMessages(projectDir, prelimSegments, activeDiscipline ?? undefined)
   applyMarkerStateEffects(projectDir, prelimSegments, activeDiscipline)
   if (rejectedDisciplines.length > 0) {

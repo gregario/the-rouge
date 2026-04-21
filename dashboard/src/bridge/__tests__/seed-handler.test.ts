@@ -274,13 +274,15 @@ describe('handleSeedMessage — auto-kickoff on marker acceptance', () => {
     expect(kickoffPrompt).toContain('Find competitors.')
     expect(kickoffPrompt).toContain('[SYSTEM]')
 
-    // Chat log: ONE human message (the user's), TWO rouge messages
-    // (original response + kickoff response). The kickoff's system text
-    // must NOT appear as a human message.
+    // Chat log: ZERO human messages (post-Option-A the daemon-side
+    // handleSeedMessage NEVER appends human entries; the HTTP entry
+    // point `postSeedMessage` pre-persists them before queuing).
+    // TWO rouge messages: original response + kickoff response. The
+    // kickoff's system text must not appear as a human entry either.
     const log = readChatLog(PROJECT_DIR)
     const humanCount = log.filter((m) => m.role === 'human').length
     const rougeCount = log.filter((m) => m.role === 'rouge').length
-    expect(humanCount).toBe(1)
+    expect(humanCount).toBe(0)
     expect(rougeCount).toBe(2)
 
     // Kickoff marked the new discipline as prompted.
@@ -645,33 +647,19 @@ describe('handleSeedMessage — discipline transition injection', () => {
   })
 })
 
-describe('handleSeedMessage — humanMessageAlreadyPersisted (Fix B)', () => {
-  // Default (no option) still appends. Guards against any accidental
-  // flip of the default in future refactors.
-  it('DEFAULT: appends the human chat message (inline path behaviour unchanged)', async () => {
+describe('handleSeedMessage — post-Option-A invariants', () => {
+  // The daemon-side `handleSeedMessage` now NEVER appends a human
+  // chat entry. The HTTP entry point `postSeedMessage` pre-persists
+  // before enqueuing; the daemon picks up from the queue and this
+  // function just runs the turn. A regression here would either
+  // double-write human messages (append-twice) or lose them (append-
+  // never), both user-visible failures.
+  it('does NOT append the human chat message — pre-persist invariant', async () => {
     mockRunClaude.mockResolvedValueOnce({
       result: 'Rouge response.',
       session_id: 'session-1',
     })
     await handleSeedMessage(PROJECT_DIR, 'user asked something')
-    const chat = readChatLog(PROJECT_DIR)
-    const humans = chat.filter((m) => m.role === 'human')
-    expect(humans).toHaveLength(1)
-    expect(humans[0].content).toBe('user asked something')
-  })
-
-  // Fix B: with humanMessageAlreadyPersisted: true the turn must NOT
-  // append its own human entry — the caller (HTTP handler in the
-  // daemon path) has already done so. Any regression here reproduces
-  // the blank-chat symptom or — worse — a silent double-write.
-  it('skips the human-append when humanMessageAlreadyPersisted is true', async () => {
-    mockRunClaude.mockResolvedValueOnce({
-      result: 'Rouge response.',
-      session_id: 'session-1',
-    })
-    await handleSeedMessage(PROJECT_DIR, 'pre-persisted elsewhere', {
-      humanMessageAlreadyPersisted: true,
-    })
     const chat = readChatLog(PROJECT_DIR)
     const humans = chat.filter((m) => m.role === 'human')
     expect(humans).toHaveLength(0)
@@ -680,19 +668,17 @@ describe('handleSeedMessage — humanMessageAlreadyPersisted (Fix B)', () => {
     expect(rouges.some((m) => m.content.includes('Rouge response'))).toBe(true)
   })
 
-  // The rate-limit branch has its OWN append site (appendMessages at
-  // line 453). Easy to miss — pre-implementation audit caught it. If
-  // this regresses, a rate-limited turn double-writes the human
-  // message (or doesn't write it at all under the wrong branch).
-  it('rate-limited turn does not double-append when humanMessageAlreadyPersisted', async () => {
+  // The rate-limit branch has its own append site (appendMessages
+  // inside the rate-limit block). Post-Option-A it passes null for
+  // human so the entry isn't re-appended. A regression here would
+  // double-write the human message specifically on rate-limited
+  // turns — easy to miss without this guard.
+  it('rate-limited turn does not append the human message', async () => {
     mockRunClaude.mockResolvedValueOnce({
-      // Short response matching detectRateLimit heuristics.
       result: "You've hit your limit — resets in 3 hours",
       session_id: null,
     })
-    const result = await handleSeedMessage(PROJECT_DIR, 'ratelimited message', {
-      humanMessageAlreadyPersisted: true,
-    })
+    const result = await handleSeedMessage(PROJECT_DIR, 'ratelimited message')
     expect(result.rateLimited).toBe(true)
     const chat = readChatLog(PROJECT_DIR)
     const humans = chat.filter((m) => m.role === 'human')
@@ -700,19 +686,5 @@ describe('handleSeedMessage — humanMessageAlreadyPersisted (Fix B)', () => {
     // The rate-limited Rouge response itself still appears.
     const rouges = chat.filter((m) => m.role === 'rouge')
     expect(rouges.length).toBeGreaterThanOrEqual(1)
-  })
-
-  // Sanity: rate-limit under the DEFAULT path still appends the
-  // human as it always has.
-  it('rate-limited turn DOES append human under the default (inline) path', async () => {
-    mockRunClaude.mockResolvedValueOnce({
-      result: "You've hit your limit — resets in 3 hours",
-      session_id: null,
-    })
-    await handleSeedMessage(PROJECT_DIR, 'inline ratelimit')
-    const chat = readChatLog(PROJECT_DIR)
-    const humans = chat.filter((m) => m.role === 'human')
-    expect(humans).toHaveLength(1)
-    expect(humans[0].content).toBe('inline ratelimit')
   })
 })

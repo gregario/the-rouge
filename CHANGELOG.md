@@ -6,6 +6,89 @@ All notable changes to Rouge ship here. Format follows
 
 ## [Unreleased]
 
+### Added
+- **Seeding daemon** (`dashboard/src/bridge/seed-daemon.ts`) owns the
+  seeding subprocess chain. Moves the long-running `claude -p` call
+  out of the HTTP request handler's lifecycle, so tab switches,
+  dashboard restarts, and HMR no longer interrupt in-flight seeding
+  work. Spawned via `tsx`, PID-tracked in `<projectDir>/.seed-pid`,
+  heartbeat in `<projectDir>/.rouge/seed-heartbeat.json`. Queued
+  messages live in `<projectDir>/seed-queue.jsonl`.
+- **Background heartbeat ticker** in the daemon (5s cadence via
+  `setInterval`) keeps the liveness file fresh during long
+  `runClaude` blocks so the UI doesn't false-alarm as "stalled".
+- **Daemon self-heal.** If `handleSeedMessage` returns bare prose
+  (no markers, no gate, not complete), the daemon fires a
+  discipline-specific recovery turn. Bounded to 3 per hour per
+  project; hitting the cap writes a visible `system_note`.
+- **Dashboard polls state** (`use-seeding.ts`) at 2s cadence instead
+  of relying on SSE events for seeding. Events-driven live updates
+  had too many silent-failure surfaces across the watcher/SSE/client
+  filter path. Polling is simpler and strictly more reliable.
+- **Daemon-liveness chip** above the chat input — "Rouge is thinking"
+  stays visible for the whole daemon turn, and flips to a yellow
+  stall warning if the heartbeat age exceeds the per-discipline
+  threshold.
+- **Per-discipline stall threshold** via `stallThresholdMsForDiscipline`
+  in `dashboard/src/lib/discipline-timing.ts`. Long disciplines
+  (spec, design) get wider windows automatically.
+- **Per-discipline recovery prompts** in
+  `dashboard/src/bridge/recovery-prompts.ts`. Recovery turns get
+  discipline-specific `[SYSTEM]` guidance narrowing what markers are
+  expected at this stage, instead of a generic "continue".
+- **Seed-daemon-crash escalation.** State-repair pushes a first-class
+  `Escalation` with classification `seed-daemon-crash` when it
+  detects an orphan `.seed-pid` with a non-empty queue. Deduped
+  across repair passes, auto-resolves when the daemon recovers.
+- **Send-disabled-while-processing.** Chat-panel send button is
+  disabled while `daemonLiveness === 'processing'`. Prevents the
+  user from accidentally queuing a follow-up that would be treated
+  as the gate answer when Rouge finishes the current turn.
+- **`rouge seed <name> "<message>"`** rewritten to route through
+  the same daemon + queue the dashboard uses. Pretty-prints the
+  chat tail to stdout; Ctrl-C detaches without killing the daemon.
+
+### Changed
+- **Seeding is daemon-only.** The inline (HTTP-handler-owned)
+  seeding path was deleted alongside the `ROUGE_USE_SEED_DAEMON`
+  feature flag. Every seeding message now flows HTTP handler →
+  queue → daemon → `handleSeedMessage`. The HTTP entry point was
+  renamed from `handleSeedMessageRouted` to `postSeedMessage`.
+- **`handleSeedMessage` no longer accepts options.** Always skips
+  its own human-append because the HTTP handler / CLI pre-persists
+  the entry before queuing.
+- **Queue entry shape simplified.** `QueueEntry` is now
+  `{id, text, enqueuedAt}`.
+- **State-repair** now surfaces orphan daemons with pending work
+  as visible chat system notes + first-class escalations
+  (previously only a chat note).
+- **`ProjectWatcher`** watches `<projectDir>/.rouge/` (parent dir)
+  rather than `.rouge/state.json` directly, so atomic renames on
+  state writes don't break the watch handle on macOS.
+- **`markDisciplinePrompted`** now writes `currentDiscipline` into
+  `state.json.seedingProgress` when a discipline transitions to
+  in-progress.
+
+### Removed
+- `SeedingRelay` and its test — unreferenced in production.
+- `handleSeedMessageRouted` (replaced by `postSeedMessage`).
+- `ROUGE_USE_SEED_DAEMON` env var.
+- `TurnOptions.humanMessageAlreadyPersisted` and
+  `QueueEntry.humanAlreadyPersisted` (implicit post-cleanup).
+
+### Fixed
+- **Chat blanks during long turns.** The HTTP handler now
+  pre-persists the human chat entry synchronously before returning
+  202, closing the window where the client's refetch saw an empty
+  chat while the daemon was still mid-turn.
+- **False-stall warnings on long disciplines** (spec, design). The
+  per-discipline threshold widens the stall window to reflect
+  typical turn duration.
+- **Colourcontrast / stack-rank-style silent stalls.** Rouge
+  returning bare prose with no markers used to leave the session
+  idling indefinitely. The daemon's self-heal path visibly fires a
+  recovery turn.
+
 ## [0.3.1] — 2026-04-13
 
 ### Added

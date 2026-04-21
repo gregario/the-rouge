@@ -95,8 +95,8 @@ rouge dashboard start       # Background mode, survives terminal close
 # From the dashboard: click New Project → spec → build.
 # Or from the CLI:
 rouge init <project-name>
-rouge seed <project-name>   # Interactive seeding
-rouge build <project-name>  # Kick off the autonomous loop
+rouge seed <project-name> "<opening message>"   # Seed via the detached daemon; dashboard is the interactive path
+rouge build <project-name>                       # Kick off the autonomous loop
 ```
 
 Global installs ship a prebuilt Next.js standalone server — no dev toolchain needed. Pass `--no-open` to skip the auto-open on `rouge dashboard start`.

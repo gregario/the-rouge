@@ -47,10 +47,10 @@ Get from zero to your first Rouge-built product in 5 minutes.
 ## Your First Product
 
 ```bash
-rouge init my-product       # Create the project directory
-rouge seed my-product       # Interactive co-design session
-rouge build my-product      # Start the autonomous build loop
-rouge status my-product     # Check progress
+rouge init my-product                       # Create the project directory
+rouge seed my-product "I want to build X"   # Seed via the detached daemon (dashboard is the interactive path)
+rouge build my-product                       # Start the autonomous build loop
+rouge status my-product                      # Check progress
 ```
 
 Rouge will iterate: build, evaluate, fix, repeat — until the quality bar is met.

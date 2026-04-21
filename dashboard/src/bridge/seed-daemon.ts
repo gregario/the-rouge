@@ -255,20 +255,15 @@ async function processBatch(
       pid: process.pid,
     })
     try {
-      // handleSeedMessage already handles: prompt assembly, runClaude,
-      // marker parsing, state mutations, auto-continuation (up to
+      // handleSeedMessage handles prompt assembly, runClaude, marker
+      // parsing, state mutations, and auto-continuation (up to
       // MAX_CHUNK_DEPTH internally). All we add is the process
       // lifecycle around it.
       //
-      // `humanMessageAlreadyPersisted` is forwarded from the queue
-      // entry (Fix B). When the HTTP handler wrote the human chat
-      // message at enqueue time, this flag is true and the turn
-      // suppresses its own human-append. Legacy entries (pre-Fix-B,
-      // shouldn't exist after deploy) fall back to false → daemon
-      // appends.
-      await handleSeedMessage(projectDir, entry.text, {
-        humanMessageAlreadyPersisted: entry.humanAlreadyPersisted === true,
-      })
+      // The human chat entry was already written to disk by the HTTP
+      // handler before this message was enqueued — the turn never
+      // owns the human-append post-Option-A.
+      await handleSeedMessage(projectDir, entry.text)
       // Phase 3 self-heal. Check if the turn stalled (bare prose
       // return, no markers, no gate, not complete). If so and we're
       // under the hourly cap, fire a recovery turn — the same
@@ -386,9 +381,7 @@ async function maybeFireRecovery(projectDir: string, sessionId: string): Promise
   // unknown / null disciplines.
   const recoveryPrompt = recoveryPromptFor(state.current_discipline)
   try {
-    await handleSeedMessage(projectDir, recoveryPrompt.text, {
-      humanMessageAlreadyPersisted: true,
-    })
+    await handleSeedMessage(projectDir, recoveryPrompt.text)
   } catch (err) {
     console.error(`[seed-daemon] recovery turn failed:`, err)
     appendChatMessage(projectDir, {

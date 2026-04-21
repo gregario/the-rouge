@@ -38,10 +38,12 @@ That's it. Nothing to build yet. `rouge doctor` should still show all green — 
 ## Seed
 
 ```bash
-rouge seed my-first-app
+rouge seed my-first-app "I want to build a task manager for freelancers"
 ```
 
-This is the interactive bit. Eight disciplines walk through your idea: brainstorming, competition, taste, spec, infrastructure, design, legal, marketing. About 10-20 minutes of your time. The [seeding example](seeding-example.md) covers this in detail.
+This kicks off seeding through the detached daemon. The CLI tails the seeding chat to your terminal; Rouge responds inline. When Rouge asks a gate question and needs your answer, re-run with your reply. For a richer interactive experience, open the dashboard at http://localhost:3001 — both paths share the same daemon and queue.
+
+Eight disciplines walk through your idea: brainstorming, competition, taste, spec, infrastructure, design, legal, marketing. About 10-20 minutes of your time. The [seeding example](seeding-example.md) covers this in detail.
 
 The key outputs are `vision.json` (the North Star for every autonomous phase) and `task_ledger.json` (milestones and stories with acceptance criteria). For simple products, the infrastructure discipline resolves database and deploy decisions upfront so the foundation phase doesn't have to.
 

@@ -525,8 +525,9 @@ function cmdInit(name) {
 // Routes seeding through the detached seed-daemon the dashboard uses
 // (docs/plans/2026-04-19-seed-loop-architecture.md). The CLI:
 //   1. Appends the human message to seeding-chat.jsonl synchronously
-//      (Fix B contract — so any UI tailing sees it immediately).
-//   2. Enqueues into seed-queue.jsonl with humanAlreadyPersisted:true.
+//      so any UI tailing sees it immediately.
+//   2. Enqueues into seed-queue.jsonl (no per-entry flag needed
+//      post-Option-A — daemon never appends human text for queue work).
 //   3. Spawns the daemon (only if one isn't already alive).
 //   4. Tails seeding-chat.jsonl to stdout, pretty-printed, until the
 //      daemon exits (idle or awaiting_gate).
@@ -566,8 +567,7 @@ async function cmdSeed(name, firstMessage) {
     process.exit(1);
   }
 
-  // 2. Enqueue with humanAlreadyPersisted so the daemon doesn't
-  //    double-append.
+  // 2. Enqueue for the daemon.
   try {
     enqueueSeedMessage(projectPath, firstMessage.trim());
   } catch (err) {
@@ -624,11 +624,14 @@ function appendHumanChatEntry(projectPath, text) {
 }
 
 function enqueueSeedMessage(projectPath, text) {
+  // Post-Option-A: queue entries no longer carry humanAlreadyPersisted.
+  // The invariant "human chat entry has been written before enqueue"
+  // holds for every producer (CLI here + HTTP handler in the
+  // dashboard). The daemon never appends human text for queue work.
   const entry = {
     id: genSeedMsgId(),
     text,
     enqueuedAt: new Date().toISOString(),
-    humanAlreadyPersisted: true,
   };
   fs.appendFileSync(path.join(projectPath, 'seed-queue.jsonl'), JSON.stringify(entry) + '\n', 'utf8');
   return entry.id;

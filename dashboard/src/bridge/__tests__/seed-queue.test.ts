@@ -119,46 +119,38 @@ describe('seed-queue', () => {
     expect(stray).toEqual([])
   })
 
-  // Fix B: queue entries carry a `humanAlreadyPersisted` flag so the
-  // daemon knows the HTTP handler has already written the human chat
-  // entry. Without this the daemon double-writes the user message
-  // under the flag-on path.
-  describe('humanAlreadyPersisted flag', () => {
-    it('round-trips true via enqueue → drain', () => {
+  // Post-Option-A the queue entry shape is the minimum: {id, text,
+  // enqueuedAt}. The `humanAlreadyPersisted` flag was removed because
+  // every producer (HTTP handler + CLI) pre-persists the human chat
+  // entry before enqueuing, making the flag redundant.
+  describe('queue entry shape (post-Option-A)', () => {
+    it('on-disk JSONL carries only the three canonical fields', () => {
       mkdirSync(testDir, { recursive: true })
-      enqueueMessage(testDir, 'fix-b-message', { humanAlreadyPersisted: true })
-      const batch = drainQueue(testDir)
-      expect(batch).toHaveLength(1)
-      expect(batch[0].humanAlreadyPersisted).toBe(true)
-      expect(batch[0].text).toBe('fix-b-message')
+      enqueueMessage(testDir, 'canonical')
+      const raw = require('fs').readFileSync(join(testDir, 'seed-queue.jsonl'), 'utf-8')
+      expect(raw).not.toContain('humanAlreadyPersisted')
+      const parsed = JSON.parse(raw.trim())
+      expect(Object.keys(parsed).sort()).toEqual(['enqueuedAt', 'id', 'text'])
     })
 
-    it('defaults to undefined when opts not passed (backwards-compat with legacy entries)', () => {
-      mkdirSync(testDir, { recursive: true })
-      enqueueMessage(testDir, 'legacy-shape')
-      const batch = drainQueue(testDir)
-      expect(batch[0].humanAlreadyPersisted).toBeUndefined()
-    })
-
-    it('legacy on-disk entry without the field parses as undefined flag', () => {
+    it('legacy entries with humanAlreadyPersisted:true still drain correctly', () => {
+      // A deploy that lands while a user has queued messages would see
+      // pre-Option-A entries on disk. drainQueue must still parse them
+      // without the field affecting behavior — the daemon always skips
+      // human-append now regardless of the field.
       mkdirSync(testDir, { recursive: true })
       writeFileSync(
         join(testDir, 'seed-queue.jsonl'),
-        JSON.stringify({ id: 'old-1', text: 'pre-fixb', enqueuedAt: '2026-04-19T00:00:00Z' }) + '\n',
+        JSON.stringify({
+          id: 'legacy-1',
+          text: 'was enqueued with the flag',
+          enqueuedAt: '2026-04-21T00:00:00Z',
+          humanAlreadyPersisted: true,
+        }) + '\n',
       )
       const batch = drainQueue(testDir)
-      expect(batch[0].humanAlreadyPersisted).toBeUndefined()
-      expect(batch[0].text).toBe('pre-fixb')
-    })
-
-    it('does not write the flag onto the JSONL when false/omitted', () => {
-      // Absent-when-false keeps the on-disk shape minimal and matches
-      // how Phase 4 / post-cleanup will look after the flag is
-      // unconditionally true.
-      mkdirSync(testDir, { recursive: true })
-      enqueueMessage(testDir, 'no-flag')
-      const raw = require('fs').readFileSync(join(testDir, 'seed-queue.jsonl'), 'utf-8')
-      expect(raw).not.toContain('humanAlreadyPersisted')
+      expect(batch).toHaveLength(1)
+      expect(batch[0].text).toBe('was enqueued with the flag')
     })
   })
 })

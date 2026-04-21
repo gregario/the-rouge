@@ -201,7 +201,21 @@ export function ChatPanel({
     })
   }
 
-  const inputDisabled = disabled || (bridgeActive && seeding.isSending)
+  // Disable the send button while Rouge is actively working on an
+  // earlier message. The daemon queues concurrent sends and strictly
+  // serialises them (FIFO, no interleaving), and a second message
+  // that arrives mid-turn is treated as the gate answer when Rouge
+  // finishes — which is usually NOT what the user intends. Blocking
+  // the send until the turn resolves keeps the conversational
+  // mental model intact: you speak, Rouge speaks, you speak.
+  //
+  // `isSending` is the local HTTP round-trip (~50ms); `daemonLiveness
+  // === 'processing'` is the whole daemon turn (30s–several min).
+  // Either blocks input. Users on slow connections see both; users
+  // with fast round-trips only see the latter.
+  const inputDisabled =
+    disabled ||
+    (bridgeActive && (seeding.isSending || seeding.daemonLiveness === 'processing'))
   // The last-message id drives resume_prompt button staleness: only the
   // tail message's button is actionable. Anything older has been
   // superseded (user answered, Claude responded, next chunk ran, etc.)
