@@ -222,4 +222,93 @@ describe('repairProjectState', () => {
     expect(report.fixes.filter((f) => f.startsWith('orphan-daemon'))).toEqual([])
     expect(report.fixes.filter((f) => f.startsWith('stale-seed-pid'))).toEqual([])
   })
+
+  // Daemon-crash → first-class escalation (follow-up to Phase 5). The
+  // chat system_note was already covered above; these tests lock in
+  // the additional state.json.escalations[] push so the crash
+  // surfaces on the project card and anywhere escalations render.
+  it('pushes a seed-daemon-crash escalation alongside the system note', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'repair-'))
+    seedProject(
+      { current_state: 'seeding', name: 'crash-test', escalations: [] },
+      { session_id: null, status: 'active' },
+    )
+    writeFileSync(
+      join(dir, 'seed-queue.jsonl'),
+      JSON.stringify({ id: 'q1', text: 'stranded', enqueuedAt: '2026-04-21T00:00:00Z' }) + '\n',
+    )
+
+    const report = await repairProjectState(dir)
+    expect(report.fixes.some((f) => f.startsWith('seed-daemon-crash'))).toBe(true)
+
+    const state = JSON.parse(readFileSync(join(dir, '.rouge', 'state.json'), 'utf-8'))
+    const crashEsc = (state.escalations as Array<Record<string, unknown>>).find(
+      (e) => e.classification === 'seed-daemon-crash',
+    )
+    expect(crashEsc).toBeDefined()
+    expect(crashEsc!.status).toBe('pending')
+    expect(crashEsc!.tier).toBe(1)
+  })
+
+  it('does NOT add a second pending crash escalation on repeated repair passes', async () => {
+    // Repair runs on every scan + every detail fetch. Duplicating
+    // would spam the escalations array; we must dedupe.
+    dir = mkdtempSync(join(tmpdir(), 'repair-'))
+    seedProject(
+      { current_state: 'seeding', name: 'no-dup', escalations: [] },
+      { session_id: null, status: 'active' },
+    )
+    writeFileSync(
+      join(dir, 'seed-queue.jsonl'),
+      JSON.stringify({ id: 'q1', text: 'stranded', enqueuedAt: '2026-04-21T00:00:00Z' }) + '\n',
+    )
+
+    await repairProjectState(dir)
+    await repairProjectState(dir)
+    await repairProjectState(dir)
+
+    const state = JSON.parse(readFileSync(join(dir, '.rouge', 'state.json'), 'utf-8'))
+    const crashEscs = (state.escalations as Array<Record<string, unknown>>).filter(
+      (e) => e.classification === 'seed-daemon-crash' && e.status === 'pending',
+    )
+    expect(crashEscs).toHaveLength(1)
+  })
+
+  it('resolves stale crash escalations once the queue has drained', async () => {
+    // Flow: daemon crashes with queued work → escalation added.
+    // User sends a new message, daemon respawns, drains queue.
+    // State: queue empty, daemon alive → the escalation no longer
+    // applies, so the next repair pass resolves it.
+    dir = mkdtempSync(join(tmpdir(), 'repair-'))
+    seedProject(
+      {
+        current_state: 'seeding',
+        name: 'recovered',
+        escalations: [
+          {
+            id: 'esc-old-crash',
+            tier: 1,
+            classification: 'seed-daemon-crash',
+            summary: 'daemon crashed earlier',
+            status: 'pending',
+            created_at: '2026-04-21T00:00:00Z',
+          },
+        ],
+      },
+      { session_id: null, status: 'active' },
+    )
+    // No seed-queue.jsonl on disk → queue has drained. No .seed-pid
+    // → daemon idle-exited. The escalation should resolve because
+    // the queue is empty.
+
+    const report = await repairProjectState(dir)
+    expect(report.fixes.some((f) => f.startsWith('seed-daemon-crash-stale'))).toBe(true)
+
+    const state = JSON.parse(readFileSync(join(dir, '.rouge', 'state.json'), 'utf-8'))
+    const esc = (state.escalations as Array<Record<string, unknown>>).find(
+      (e) => e.id === 'esc-old-crash',
+    )
+    expect(esc!.status).toBe('resolved')
+    expect(esc!.resolved_at).toBeDefined()
+  })
 })

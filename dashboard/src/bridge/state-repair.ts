@@ -138,25 +138,101 @@ export async function repairProjectState(projectDir: string): Promise<RepairRepo
   // `readSeedPid` already cleans up the file and returns null in that
   // case, but we do the explicit call here for the report AND surface
   // stranded queue entries (messages enqueued but the daemon died
-  // before processing them). The user sees a system_note telling
-  // them exactly that happened — otherwise the stranded messages
-  // just sit there until the next user message respawns the daemon.
+  // before processing them). Plus we push a first-class Escalation
+  // so operators scanning the project list see the crash without
+  // needing to open the specific project's seeding chat.
   //
   // Phase 5 of the seed-loop architecture plan: make silent failures
   // visible. A crashed daemon with queued work is exactly the kind of
   // state the UI should surface rather than hide.
   const priorPid = readSeedPid(projectDir) // side-effect: cleans stale file
   const pidExistsOnDisk = existsSync(join(projectDir, '.seed-pid'))
-  // If readSeedPid returned null but the on-disk file existed before
-  // that call, it means readSeedPid evicted a stale entry.
-  // We can also detect stale indirectly: the file went from present
-  // to absent across the call. Simpler: inspect the queue and heartbeat.
   const queueHasWork = hasQueuedMessages(projectDir)
-  if (priorPid === null && !pidExistsOnDisk && queueHasWork) {
-    // Stranded entries with no daemon and no PID file. The user's
-    // next message will respawn a daemon that drains them, but they
-    // should know their prior messages are waiting — especially if
-    // it's been minutes since the crash.
+  const daemonDown = priorPid === null && !pidExistsOnDisk
+
+  // Sweep any `seed-daemon-crash` escalations that no longer apply
+  // (daemon is alive OR queue has drained). Lives OUTSIDE the
+  // "add escalation" path so it runs every repair pass — otherwise
+  // a crash-escalation persists forever after recovery.
+  const crashResolveFixed = await withStateLock(projectDir, () => {
+    try {
+      const current = JSON.parse(readFileSync(sp, 'utf-8')) as {
+        escalations?: Array<Record<string, unknown>>
+      } & Record<string, unknown>
+      const escalations = current.escalations ?? []
+      let mutated = false
+      for (const e of escalations) {
+        if (
+          e.classification === 'seed-daemon-crash' &&
+          e.status === 'pending' &&
+          // Resolve if daemon is back OR queue drained.
+          (!daemonDown || !queueHasWork)
+        ) {
+          e.status = 'resolved'
+          e.resolved_at = new Date().toISOString()
+          e.resolution = 'Daemon recovered or queue drained.'
+          mutated = true
+        }
+      }
+      if (mutated) {
+        writeStateJson(projectDir, current)
+        return true
+      }
+    } catch {
+      // swallow
+    }
+    return false
+  })
+  if (crashResolveFixed) {
+    fixes.push('seed-daemon-crash-stale: resolved prior crash escalation — daemon recovered')
+  }
+
+  if (daemonDown && queueHasWork) {
+    // Stranded entries with no daemon. Two visible surfaces:
+    //   1. A chat system_note in this project's seeding-chat.jsonl
+    //      (tells the user what happened inline with the conversation).
+    //   2. A first-class Escalation in state.json.escalations[]
+    //      (surfaces on the project card + anywhere escalations are
+    //      rendered, so the user sees it without opening the project).
+    //
+    // Only create a new escalation if one isn't already pending —
+    // the repair pass runs on every scan + every detail fetch, and
+    // re-creating would spam escalations.
+    const alreadyEscalated = await withStateLock(projectDir, () => {
+      try {
+        const current = JSON.parse(readFileSync(sp, 'utf-8')) as {
+          escalations?: Array<Record<string, unknown>>
+        } & Record<string, unknown>
+        const existingPendingCrash = (current.escalations ?? []).some(
+          (e) => e.classification === 'seed-daemon-crash' && e.status === 'pending',
+        )
+        if (existingPendingCrash) return true
+        if (!Array.isArray(current.escalations)) current.escalations = []
+        current.escalations.push({
+          id: `esc-seed-daemon-crash-${Date.now()}`,
+          tier: 1,
+          classification: 'seed-daemon-crash',
+          summary:
+            'The seeding daemon crashed with queued messages pending. ' +
+            'Send any message (or click Continue) to respawn — queued work drains first.',
+          story_id: null,
+          status: 'pending',
+          created_at: new Date().toISOString(),
+        })
+        writeStateJson(projectDir, current)
+        return false
+      } catch {
+        return false
+      }
+    })
+    if (!alreadyEscalated) {
+      fixes.push('seed-daemon-crash: added pending escalation for visibility')
+    }
+
+    // Inline chat system_note — written once per call. Dedupe on
+    // content is tolerable; consecutive repair passes might write
+    // duplicates, but the escalation itself is guarded against that
+    // above and is the authoritative signal.
     try {
       appendChatMessage(projectDir, {
         id: `repair-stranded-${Date.now()}`,
