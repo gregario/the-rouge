@@ -214,6 +214,19 @@ export interface SeedingLivenessStatus {
   last_heartbeat_at: string | null
   current_discipline: string | null
   status: 'not-started' | 'active' | 'paused' | 'complete'
+  /**
+   * Seed-daemon liveness snapshot. Surfaced as part of status so the
+   * UI can render a "working / idle / stalled" indicator from a
+   * single fetch. Null `activity` and `lastTickAt` mean the daemon
+   * has never written a heartbeat yet (brand-new project, or inline
+   * path where the daemon isn't used). Phase 2 seed-loop plan.
+   */
+  daemon?: {
+    alive: boolean
+    activity: 'processing' | 'idle' | null
+    lastTickAt: string | null
+    lastTurnId: string | null
+  }
 }
 
 export async function fetchSeedingStatus(slug: string): Promise<SeedingLivenessStatus> {

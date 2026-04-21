@@ -119,13 +119,22 @@ async function updateDisciplineStatusInState(
 
       rawState.seedingProgress.completedCount = disciplines.filter(d => d.status === 'complete').length
 
-      // Advance `currentDiscipline` only when something newly completed.
-      // Promoting pending → in-progress means THIS discipline is the
-      // current one, and any other disciplines' currentDiscipline
-      // pointer would be stale — but the handler's prompt logic sets
-      // currentDiscipline explicitly on handoff, so we leave it alone
-      // here for the in-progress case.
-      if (targetStatus === 'complete') {
+      // Keep `seedingProgress.currentDiscipline` in sync with whichever
+      // discipline is actively being worked on — that's what the
+      // dashboard stepper reads to highlight the active row, and what
+      // the bridge watcher diffs to emit a `seeding-progress` event.
+      //
+      // - Promoting pending → in-progress: this discipline IS the
+      //   current one. Point currentDiscipline at it. Without this,
+      //   `currentDiscipline` stays `null` for the whole time brainstorming
+      //   is being worked on (nobody else writes it during active work),
+      //   the watcher's diff check sees no change, and the dashboard
+      //   never learns the daemon finished a turn.
+      // - Promoting something → complete: advance currentDiscipline to
+      //   the next uncompleted one in DISCIPLINE_SEQUENCE.
+      if (targetStatus === 'in-progress') {
+        rawState.seedingProgress.currentDiscipline = discipline
+      } else if (targetStatus === 'complete') {
         const complete = disciplines.filter(d => d.status === 'complete').map(d => d.discipline)
         const current = DISCIPLINE_SEQUENCE.find(d => !complete.includes(d)) ?? DISCIPLINE_SEQUENCE[DISCIPLINE_SEQUENCE.length - 1]
         rawState.seedingProgress.currentDiscipline = current

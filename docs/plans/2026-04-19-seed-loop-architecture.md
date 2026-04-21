@@ -1,7 +1,9 @@
 # Seeding Loop Architecture — Design & Phased Rollout
 
-> **Status:** design approved 2026-04-19, ready to execute in phases.
-> **Driver:** the seeding flow has been the source of repeated silent-failure bugs (colourcontrast stall, stackrank pending-status, testimonial-style watcher misses). After ~8 hours of tactical patches shipped across PRs #187–#192, the pattern became clear: we are repeatedly working around an architectural flaw rather than fixing it.
+> **Status:** all five phases shipped on 2026-04-21 in PR #196.
+> **Driver:** the seeding flow was the source of repeated silent-failure bugs (colourcontrast stall, stackrank pending-status, testimonial-style watcher misses). After ~8 hours of tactical patches shipped across PRs #187–#192, the pattern became clear: we were repeatedly working around an architectural flaw rather than fixing it.
+>
+> **What the user validated at the end:** "The back and forth is much better now. It's taken through the decisions, and that looks good. The UI of the decisions is pretty good. The UI of the 'Needs your answer' is pretty good. On the whole it's in a pretty good place."
 
 ## Problem statement
 
@@ -92,6 +94,21 @@ Six phases. Each is a separate PR. Each is independently shippable and valuable.
 
 ---
 
+### Shipped status (2026-04-21)
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| 0 | ✅ shipped | PR #195 — one-line writer fix + 7 tests. Merged ahead of the big PR. |
+| 1 | ✅ shipped | PR #196 — daemon + queue + PID + Fix B pre-persist + chat-appended watcher event + markDisciplinePrompted writing currentDiscipline. All behind `ROUGE_USE_SEED_DAEMON=1`. |
+| 2 | ✅ shipped | PR #196 — 2s client poll of `/seed/messages` + `/seed/status`, useBridgeEvents removed from seeding path, daemonLiveness derived field, "Rouge is thinking" bar stays visible across whole daemon turn. |
+| 3 | ✅ shipped | PR #196 — daemon detects bare-prose returns, fires recovery turn with visible system_note. Bounded to 3 per hour per project. |
+| 4 | ✅ shipped (partial) | PR #196 — SeedingRelay + its test deleted. `claude-runner.ts` kept (used by derive-title). `rouge seed` CLI kept (user-facing surface, no explicit deletion signal). |
+| 5 | ✅ shipped (minimum) | PR #196 — state-repair shapes for `stale-seed-pid` + `orphan-daemon-with-queue`, both surface a visible chat system_note when detected. Background heartbeat ticker inside the daemon keeps the "last tick" fresh during long runClaude calls (fixes false-stall UX surfaced during UAT). Formal daemon-crash escalation + project-card daemon chip deferred — no observed pain signal yet. |
+
+The user validated the end-to-end flow as "pretty good" after phases 1–3 + ticker fix. Phases 4 and 5 shipped as light cleanup + observability hardening in the same PR rather than waiting.
+
+---
+
 ### Phase 0 — Stop the bleeding (writer fix)
 
 **Scope:** One-line fix: when `markDisciplinePrompted` runs, also write `'in-progress'` to the matching discipline entry in `state.json.seedingProgress.disciplines[]`.
@@ -112,17 +129,26 @@ Six phases. Each is a separate PR. Each is independently shippable and valuable.
 
 ---
 
-### Phase 1 — Extract `runClaude` into a detached daemon
+### Phase 1 — Extract subprocess orchestration into a detached daemon
 
-**Scope:** The architectural move. New `src/launcher/seed-loop.js` owns the seeding subprocess. HTTP handler becomes a queue writer.
+**Status:** shipped behind `ROUGE_USE_SEED_DAEMON` feature flag.
 
-**Files:**
-- NEW `/Users/gregario/Projects/ClaudeCode/The-Rouge/src/launcher/seed-loop.js` — daemon entry point
-- NEW `/Users/gregario/Projects/ClaudeCode/The-Rouge/src/launcher/seed-runner.js` — turn execution + marker parsing (extracted from `claude-runner.ts` logic)
-- `/Users/gregario/Projects/ClaudeCode/The-Rouge/dashboard/src/bridge/seed-handler.ts` — drastically simplified: writes queue, ensures daemon alive, returns
-- `/Users/gregario/Projects/ClaudeCode/The-Rouge/dashboard/src/bridge/claude-runner.ts` — retire (or keep only for non-seeding callers if any)
-- Queue file contract: `<projectDir>/seed-queue.jsonl` — append-only, each line a user or system message
-- PID file: `<projectDir>/.seed-pid` — same shape as `.build-pid`
+**Scope:** The architectural move. The seeding subprocess chain moves out of the HTTP request handler's lifecycle and into a detached daemon. HTTP handler becomes a queue writer.
+
+**As-built files:** The original plan proposed `src/launcher/seed-loop.js` (plain JS sibling to `rouge-loop.js`). The implementation instead chose TypeScript at `dashboard/src/bridge/seed-daemon.ts` so the daemon can re-use the existing `handleSeedMessage` function without porting ~600 lines of prompt-assembly / marker-parsing / state-mutation logic. Zero duplication; the daemon IS just a process lifecycle wrapper around the existing TS code. Spawned via `tsx` (already a dashboard dep).
+
+- NEW `/Users/gregario/Projects/ClaudeCode/The-Rouge/dashboard/src/bridge/seed-daemon.ts` — daemon entry point (tsx-invoked)
+- NEW `/Users/gregario/Projects/ClaudeCode/The-Rouge/dashboard/src/bridge/seed-daemon-spawn.ts` — `ensureSeedDaemon` helper for the HTTP handler
+- NEW `/Users/gregario/Projects/ClaudeCode/The-Rouge/dashboard/src/bridge/seed-daemon-pid.ts` — PID file helpers (parallels `build-runner`'s `.build-pid` pattern)
+- NEW `/Users/gregario/Projects/ClaudeCode/The-Rouge/dashboard/src/bridge/seed-queue.ts` — atomic append + two-phase drain for `seed-queue.jsonl`
+- MODIFIED `/Users/gregario/Projects/ClaudeCode/The-Rouge/dashboard/src/bridge/seed-handler.ts` — added `handleSeedMessageRouted` that switches on flag; inline path preserved
+- MODIFIED `/Users/gregario/Projects/ClaudeCode/The-Rouge/dashboard/src/app/api/projects/[name]/seed/message/route.ts` — uses `handleSeedMessageRouted`
+- Queue file contract: `<projectDir>/seed-queue.jsonl` — append-only JSONL, one `{id, text, enqueuedAt}` per line
+- PID file: `<projectDir>/.seed-pid` — JSON with `{pid, startedAt, sessionId}`; sessionId rotates on re-claim so race losers detect and exit
+- Heartbeat file: `<projectDir>/.rouge/seed-heartbeat.json` — JSON with `{lastTickAt, lastTurnId, status, sessionId, pid}` written every tick (enables Phase 5 observability)
+- Daemon logs: `<projectDir>/seed-daemon.log` (append mode, detached from dashboard)
+
+**Feature flag:** `ROUGE_USE_SEED_DAEMON=1` enables the daemon path. Default off for safety. Phase 4 will flip the default and delete the inline path after live validation.
 
 **Daemon behaviour:**
 1. Launched with `node seed-loop.js <projectDir>`, detached, stdout/stderr to `seed-loop.log`

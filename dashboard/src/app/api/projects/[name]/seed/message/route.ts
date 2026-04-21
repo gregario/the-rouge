@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { handleSeedMessage } from "@/bridge/seed-handler";
+import { handleSeedMessageRouted } from "@/bridge/seed-handler";
 import { loadServerConfig } from "@/lib/server-config";
 import { guardMutation } from "@/lib/route-guards";
 
@@ -43,6 +43,9 @@ export async function POST(
   if (!text) {
     return NextResponse.json({ error: "text is required" }, { status: 400 });
   }
-  const result = await handleSeedMessage(projectDir, text);
+  // Routed variant: delegates to the detached daemon when
+  // ROUGE_USE_SEED_DAEMON=1, else runs the existing inline path.
+  // See docs/plans/2026-04-19-seed-loop-architecture.md Phase 1.
+  const result = await handleSeedMessageRouted(projectDir, text);
   return NextResponse.json(result, { status: result.status });
 }

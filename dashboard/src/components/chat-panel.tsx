@@ -313,11 +313,38 @@ export function ChatPanel({
               />
             ))
           )}
-          {bridgeActive && seeding.isSending && seeding.sendingStartedAt !== null && (
-            <ElapsedTimeIndicator
-              startedAt={seeding.sendingStartedAt}
-              discipline={currentDiscipline}
-            />
+          {/*
+            Activity indicator — shows for the WHOLE time Rouge is
+            working, not just during the HTTP send. Before Phase 2:
+            isSending flipped back to false ~50ms after the POST
+            returned 202, so this bar vanished while the daemon was
+            still running and the user had no signal anything was
+            alive. Now we show it while either:
+              - The client is mid-send (local optimistic state), OR
+              - The daemon reports activity === 'processing'.
+            If we have a local start timestamp we use it; otherwise
+            the component degrades to "Rouge is thinking" without a
+            timer (daemon restart loses the clock).
+          */}
+          {bridgeActive &&
+            (seeding.isSending || seeding.daemonLiveness === 'processing') && (
+              <ElapsedTimeIndicator
+                startedAt={seeding.sendingStartedAt}
+                discipline={currentDiscipline}
+              />
+            )}
+          {bridgeActive && seeding.daemonLiveness === 'stalled' && (
+            <div
+              className="mx-4 my-2 rounded-md border border-yellow-400 bg-yellow-50 px-3 py-2 text-xs text-yellow-900"
+              data-testid="daemon-stalled-warning"
+            >
+              ⚠ Rouge hasn't ticked in{' '}
+              {seeding.heartbeatAgeMs !== null
+                ? `${Math.round(seeding.heartbeatAgeMs / 1000)}s`
+                : 'a while'}
+              . The seeding daemon may have stalled or crashed. Send another
+              message to respawn.
+            </div>
           )}
         </div>
       </ScrollArea>
@@ -388,7 +415,11 @@ function ElapsedTimeIndicator({
   startedAt,
   discipline,
 }: {
-  startedAt: number
+  /** null when the turn was picked up by the daemon across a page
+   *  reload or dashboard restart — we don't have a local start
+   *  timestamp in that case, so the indicator degrades to "Rouge is
+   *  thinking" without a timer. */
+  startedAt: number | null
   discipline?: string
 }) {
   const [now, setNow] = useState<number>(Date.now())
@@ -397,9 +428,9 @@ function ElapsedTimeIndicator({
     return () => clearInterval(id)
   }, [])
 
-  const elapsedSec = Math.max(0, Math.floor((now - startedAt) / 1000))
+  const elapsedSec = startedAt === null ? null : Math.max(0, Math.floor((now - startedAt) / 1000))
   const typical = discipline ? TYPICAL_DURATION_SEC[discipline] : undefined
-  const overTypical = typical ? elapsedSec > typical.high : false
+  const overTypical = typical && elapsedSec !== null ? elapsedSec > typical.high : false
 
   return (
     <div
@@ -412,8 +443,12 @@ function ElapsedTimeIndicator({
       )}
     >
       <Loader2 className="size-3.5 animate-spin" />
-      <span className="font-medium tabular-nums">Rouge is thinking · {formatDuration(elapsedSec)}</span>
-      {typical && (
+      <span className="font-medium tabular-nums">
+        {elapsedSec !== null
+          ? `Rouge is thinking · ${formatDuration(elapsedSec)}`
+          : 'Rouge is thinking'}
+      </span>
+      {typical && elapsedSec !== null && (
         <span className="text-muted-foreground">
           · typical for {discipline}: {formatDuration(typical.low)}–{formatDuration(typical.high)}
         </span>
