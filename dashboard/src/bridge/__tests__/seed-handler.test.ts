@@ -115,11 +115,14 @@ describe('handleSeedMessage — marker verification', () => {
     expect(state.disciplines_complete ?? []).not.toContain('brainstorming')
     expect(state.current_discipline).toBe('brainstorming')
 
-    // Chat log carries a system note explaining the rejection.
+    // Chat log carries a user-speak system note explaining the situation.
+    // The "was rejected" + DISCIPLINE_COMPLETE(...) protocol vocabulary
+    // lives in pending_correction (delivered to Claude), NOT in the chat.
     const log = readChatLog(PROJECT_DIR)
-    const note = log.find((m) => m.content.includes('was rejected'))
+    const note = log.find((m) => m.kind === 'system_note')
     expect(note).toBeDefined()
-    expect(note?.content).toContain('DISCIPLINE_COMPLETE(brainstorming) was rejected')
+    expect(note?.content).toContain('Brainstorming')
+    expect(note?.content).toContain("isn't on disk yet")
   })
 
   it('accepts [DISCIPLINE_COMPLETE: brainstorming] when the artifact is on disk with real content', async () => {
@@ -231,11 +234,10 @@ describe('handleSeedMessage — marker verification', () => {
     const result = await handleSeedMessage(PROJECT_DIR, 'msg')
     expect(result.disciplineComplete).toBeUndefined()
     const log = readChatLog(PROJECT_DIR)
-    // Human-facing system note is now tagged via kind: 'system_note'
-    // (prefix stripped for UI readability). Look up by kind rather than
-    // by a brittle text prefix.
+    // Human-facing system note is tagged via kind: 'system_note'.
+    // Content is user-speak (no "rejected" / no protocol vocab).
     const note = log.find((m) => m.kind === 'system_note')
-    expect(note?.content).toContain('rejected')
+    expect(note?.content).toContain('unknown discipline')
     expect(note?.content).toContain('hallucinated-discipline')
   })
 })
@@ -438,10 +440,10 @@ describe('handleSeedMessage — reconciliation of stranded state', () => {
     const state = readSeedingState(PROJECT_DIR)
     expect(state.disciplines_complete ?? []).not.toContain('competition')
 
-    // System note explains the sequential gap.
+    // System note explains the sequential gap in user-speak.
     const log = readChatLog(PROJECT_DIR)
-    const note = log.find((m) => m.content.includes('was rejected'))
-    expect(note?.content).toMatch(/earlier discipline brainstorming is still pending/)
+    const note = log.find((m) => m.kind === 'system_note')
+    expect(note?.content).toMatch(/Brainstorming hasn't been completed yet/)
   })
 })
 
@@ -512,10 +514,11 @@ describe('handleSeedMessage — gated autonomy', () => {
     // it up, but that's a separate code path with its own guard.)
     expect(result.disciplineComplete).toBeUndefined()
 
-    // System note explains the rejection reason.
+    // System note explains the situation in user-speak (no marker vocab).
     const log = readChatLog(PROJECT_DIR)
-    const note = log.find((m) => m.content.includes('was rejected'))
-    expect(note?.content).toMatch(/gate.+same turn|DISCIPLINE_COMPLETE and a \[GATE/i)
+    const note = log.find((m) => m.kind === 'system_note')
+    expect(note?.content).toMatch(/asked you a question above/)
+    expect(note?.content).toMatch(/Brainstorming stays active until you answer/)
   })
 
   it('[DECISION:] and [HEARTBEAT:] markers bump last_heartbeat_at', async () => {

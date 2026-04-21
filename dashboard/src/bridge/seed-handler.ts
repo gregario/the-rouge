@@ -579,16 +579,38 @@ async function runSeedingTurn(
   const turnHasGate = prelimSegments.some((s) => s.kind === 'gate')
 
   const acceptedDisciplines: string[] = []
-  const rejectedDisciplines: Array<{ discipline: string; reason: string }> = []
+  // Rejections carry two independent messages:
+  //   - `claudeReason`: the Rouge-protocol explanation delivered to
+  //     Claude on the next turn via pending_correction. Uses marker
+  //     vocabulary ("DISCIPLINE_COMPLETE and [GATE:]") because that's
+  //     what Claude parses.
+  //   - `userMessage`: the human-readable version shown in the chat
+  //     UI as a system_note. Describes the situation in product terms
+  //     ("Rouge asked you a question first; {name} stays active until
+  //     you answer") with no marker-protocol jargon.
+  // Previously both audiences got the same Claude-facing text, which
+  // leaked protocol vocabulary into the user's chat and double-
+  // periods into the copy. The split keeps Claude's context intact
+  // without confusing the user.
+  const rejectedDisciplines: Array<{
+    discipline: string
+    claudeReason: string
+    userMessage: string
+  }> = []
   for (const d of markers.disciplinesComplete) {
     if (!isKnownDiscipline(d)) {
-      rejectedDisciplines.push({ discipline: d, reason: 'unknown discipline name' })
+      rejectedDisciplines.push({
+        discipline: d,
+        claudeReason: 'unknown discipline name',
+        userMessage: `Rouge referenced an unknown discipline (${d}). Ignoring; the real disciplines continue.`,
+      })
       continue
     }
     if (turnHasGate) {
       rejectedDisciplines.push({
         discipline: d,
-        reason: `cannot emit DISCIPLINE_COMPLETE and a [GATE:] in the same turn — end the turn after the gate, wait for the human answer, then complete on a later turn.`,
+        claudeReason: 'cannot emit DISCIPLINE_COMPLETE and a [GATE:] in the same turn — end the turn after the gate, wait for the human answer, then complete on a later turn',
+        userMessage: `Rouge thought ${disciplineLabel(d)} was done, but it also asked you a question above. ${disciplineLabel(d)} stays active until you answer — Rouge will wrap it up on the next turn.`,
       })
       continue
     }
@@ -596,7 +618,8 @@ async function runSeedingTurn(
     if (gap) {
       rejectedDisciplines.push({
         discipline: d,
-        reason: `cannot complete ${d} — earlier discipline ${gap} is still pending with no artifact. Complete ${gap} first.`,
+        claudeReason: `cannot complete ${d} — earlier discipline ${gap} is still pending with no artifact. Complete ${gap} first`,
+        userMessage: `Rouge tried to finish ${disciplineLabel(d)}, but ${disciplineLabel(gap)} hasn't been completed yet. Continuing with ${disciplineLabel(gap)} first.`,
       })
       continue
     }
@@ -608,7 +631,15 @@ async function runSeedingTurn(
       console.warn(
         `[seeding] rejecting DISCIPLINE_COMPLETE(${d}) — ${check.reason}`,
       )
-      rejectedDisciplines.push({ discipline: d, reason: check.reason ?? 'artifact missing' })
+      // Strip any trailing period from verify-reason so the claudeNote
+      // template (which adds its own period separator) doesn't produce
+      // the historical double-period bug.
+      const claudeReason = (check.reason ?? 'artifact missing').replace(/\.\s*$/, '')
+      rejectedDisciplines.push({
+        discipline: d,
+        claudeReason,
+        userMessage: `Rouge tried to finish ${disciplineLabel(d)} but the expected output isn't on disk yet. Continuing.`,
+      })
     }
   }
 
@@ -628,23 +659,20 @@ async function runSeedingTurn(
   appendSegmentedRougeMessages(projectDir, prelimSegments, activeDiscipline ?? undefined)
   applyMarkerStateEffects(projectDir, prelimSegments, activeDiscipline)
   if (rejectedDisciplines.length > 0) {
-    // Claude-facing note keeps the [SYSTEM NOTE] prefix — that text is
-    // delivered via appendPendingCorrection on the next turn and the
-    // bracket tag helps the agent parse it as an instruction.
+    // Claude-facing note keeps the [SYSTEM NOTE] prefix + marker
+    // vocabulary — it's delivered via appendPendingCorrection on the
+    // next turn and Claude parses bracket tags as instructions.
     const claudeNote = rejectedDisciplines
       .map(
         (r) =>
-          `[SYSTEM NOTE] DISCIPLINE_COMPLETE(${r.discipline}) was rejected — ${r.reason}. The discipline remains active. Continue the work on disk and emit the marker only when the artifact exists with real content.`,
+          `[SYSTEM NOTE] DISCIPLINE_COMPLETE(${r.discipline}) was rejected — ${r.claudeReason}. The discipline remains active. Continue the work on disk and emit the marker only when the artifact exists with real content.`,
       )
       .join('\n')
-    // Human-facing note drops the prefix — UI styling from kind=system_note
-    // conveys the meaning; raw bracket tags read as scaffolding.
-    const humanNote = rejectedDisciplines
-      .map(
-        (r) =>
-          `DISCIPLINE_COMPLETE(${r.discipline}) was rejected — ${r.reason}. The discipline remains active; Rouge will keep working and emit the marker only when the artifact is truly done.`,
-      )
-      .join('\n')
+    // Human-facing note uses the user-speak message with no protocol
+    // vocabulary and no "was rejected" alarm language. The goal is
+    // for the user to understand what Rouge is about to do next, not
+    // to see Rouge's internal marker-contract enforcement.
+    const humanNote = rejectedDisciplines.map((r) => r.userMessage).join('\n\n')
     appendChatMessage(projectDir, {
       id: genId(),
       role: 'rouge',
@@ -794,6 +822,32 @@ async function runContinuationTurn(
       timestamp: new Date().toISOString(),
       kind: 'system_note',
     })
+  }
+}
+
+/**
+ * Render a discipline slug as the user-facing label used in the
+ * dashboard stepper and chat. "brainstorming" → "Brainstorming";
+ * "legal-privacy" → "Legal & Privacy". The rejection system_note
+ * uses these so the user sees the same name the stepper shows.
+ * Kept local to this file — the authoritative mapping lives in
+ * dashboard/src/components/chat-panel.tsx (DISCIPLINE_LABELS), but
+ * bridge code can't import from components, so we duplicate the
+ * small set. If the stepper labels ever diverge from these, the
+ * divergence surfaces immediately in the user's chat and is
+ * cheap to fix.
+ */
+function disciplineLabel(d: string): string {
+  switch (d) {
+    case 'brainstorming': return 'Brainstorming'
+    case 'competition': return 'Competition'
+    case 'taste': return 'Taste'
+    case 'spec': return 'Spec'
+    case 'infrastructure': return 'Infrastructure'
+    case 'design': return 'Design'
+    case 'legal-privacy': return 'Legal & Privacy'
+    case 'marketing': return 'Marketing'
+    default: return d
   }
 }
 
