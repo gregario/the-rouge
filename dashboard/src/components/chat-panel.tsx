@@ -120,12 +120,27 @@ export function ChatPanel({
       messagesByDiscipline.get(d)!.push(msg)
     }
 
-    // Only include disciplines that have messages
+    // Include a discipline if ANY of:
+    //   - it has messages tagged with it
+    //   - it's marked complete in state (stepper checkmark, autonomous run)
+    //   - it's the currently-active discipline (so the "Rouge thinking"
+    //     indicator gets a home before the first reply lands)
+    //
+    // Previously we filtered on messages-only, which meant a discipline
+    // that completed autonomously with zero chat output (legal-privacy
+    // is the common case — no gates, just write artifact + complete)
+    // appeared as a green check in the stepper but had NO section on
+    // the right. Users saw a completed-checkmark with no way to click
+    // through to the conversation (even to an empty one) and assumed
+    // the UI was broken. Empty-but-tracked sections now render a
+    // placeholder line pointing at the artifact on disk.
     const result: DisciplineGroup[] = []
     for (const d of DISCIPLINE_SEQUENCE) {
-      const msgs = messagesByDiscipline.get(d)
-      if (!msgs || msgs.length === 0) continue
-      const status = complete.has(d) ? 'complete' : d === currentDiscipline ? 'current' : 'pending'
+      const msgs = messagesByDiscipline.get(d) ?? []
+      const isComplete = complete.has(d)
+      const isCurrent = d === currentDiscipline
+      if (msgs.length === 0 && !isComplete && !isCurrent) continue
+      const status = isComplete ? 'complete' : isCurrent ? 'current' : 'pending'
       result.push({ discipline: d, messages: msgs, status })
     }
     return result
@@ -529,16 +544,38 @@ function DisciplineSection({
 
       {expanded && (
         <div className="mt-2 flex flex-col gap-4 border-l-2 border-gray-200 pl-4">
-          {group.messages.map((msg) => (
-            <ChatMessage
-              key={msg.id}
-              message={msg}
-              onResume={msg.id === lastMessageId ? onResume : undefined}
-              resumeDisabled={resumeDisabled}
-            />
-          ))}
+          {group.messages.length === 0 ? (
+            <div
+              className="py-2 text-xs text-muted-foreground"
+              data-testid={`discipline-empty-${group.discipline}`}
+            >
+              {group.status === 'complete'
+                ? `Rouge completed this discipline autonomously — no conversation to review. See ${disciplineArtifactPath(group.discipline)} for the output.`
+                : group.status === 'current'
+                  ? 'Rouge is working on this discipline. Output will appear here as it lands on disk.'
+                  : 'No messages in this discipline yet.'}
+            </div>
+          ) : (
+            group.messages.map((msg) => (
+              <ChatMessage
+                key={msg.id}
+                message={msg}
+                onResume={msg.id === lastMessageId ? onResume : undefined}
+                resumeDisabled={resumeDisabled}
+              />
+            ))
+          )}
         </div>
       )}
     </div>
   )
+}
+
+function disciplineArtifactPath(discipline: string): string {
+  // Matches the file names produced by the seeding disciplines; used
+  // only for the empty-section placeholder so the user knows where to
+  // look for the autonomously-produced output.
+  const filename =
+    discipline === 'infrastructure' ? 'infrastructure_manifest.json' : `seed_spec/${discipline}.md`
+  return filename
 }
