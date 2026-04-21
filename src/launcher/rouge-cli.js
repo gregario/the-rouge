@@ -507,7 +507,8 @@ function cmdInit(name) {
 
   console.log(`\n  Project created: ${name}`);
   console.log(`  Path: ${projectPath}`);
-  console.log(`\n  Next: run \`rouge seed ${name}\` to start the seeding process.`);
+  console.log(`\n  Next: run \`rouge seed ${name} "<what you want to build>"\` to start seeding`);
+  console.log(`        or open the dashboard at http://localhost:3000 for interactive seeding.`);
   // Nudge about dashboard if not running
   const ROUGE_HOME = process.env.ROUGE_HOME || path.join(require('os').homedir(), '.rouge');
   const pidFile = path.join(ROUGE_HOME, 'dashboard.pid');
@@ -519,42 +520,281 @@ function cmdInit(name) {
   }
 }
 
-function cmdSeed(name) {
+// `rouge seed <name> "<first message>"`
+//
+// Routes seeding through the detached seed-daemon the dashboard uses
+// (docs/plans/2026-04-19-seed-loop-architecture.md). The CLI:
+//   1. Appends the human message to seeding-chat.jsonl synchronously
+//      (Fix B contract — so any UI tailing sees it immediately).
+//   2. Enqueues into seed-queue.jsonl with humanAlreadyPersisted:true.
+//   3. Spawns the daemon (only if one isn't already alive).
+//   4. Tails seeding-chat.jsonl to stdout, pretty-printed, until the
+//      daemon exits (idle or awaiting_gate).
+//
+// On Ctrl-C the daemon keeps running — it's detached. The user can
+// re-run `rouge seed <name> "<reply>"` to continue, or open the
+// dashboard. This replaces the pre-seed-loop implementation that
+// spawned `claude -p` inline and bypassed the observable architecture.
+async function cmdSeed(name, firstMessage) {
   warnExperimental('seed');
   if (!name) {
-    console.error('Usage: rouge seed <name>');
+    console.error('Usage: rouge seed <name> "<first message>"');
+    console.error('\nExample: rouge seed calculator "I want to build a notebook-style calculator"');
     process.exit(1);
   }
 
+  // Project-existence check first so `rouge seed ghost-project` still
+  // reports the not-found error (the legacy UX the CLI tests pin).
   const projectPath = path.join(PROJECTS_DIR, name);
   if (!fs.existsSync(projectPath)) {
     console.error(`Project not found. Run \`rouge init ${name}\` first.`);
     process.exit(1);
   }
 
-  const promptFile = path.join(ROUGE_ROOT, 'src/prompts/seeding/00-swarm-orchestrator.md');
-  if (!fs.existsSync(promptFile)) {
-    console.error(`Seeding prompt not found: ${promptFile}`);
+  if (!firstMessage || !firstMessage.trim()) {
+    console.error('Error: `rouge seed` requires a message.');
+    console.error('\nUsage: rouge seed <name> "<first message>"');
+    console.error('\nFor an interactive experience, use the dashboard at http://localhost:3000');
     process.exit(1);
   }
 
-  const promptContent = fs.readFileSync(promptFile, 'utf8');
-  // Route seeding through the same provider the project will use for build.
-  const statePath = resolveStatePath(projectPath);
-  let state = null;
-  try { state = JSON.parse(fs.readFileSync(statePath, 'utf8')); } catch {}
-  const { env: claudeEnv } = buildClaudeEnv({ state });
-  const { args: denyArgs } = require('./tool-permissions').buildDenylistArgs();
-  const child = spawn('claude', ['-p', '--project', projectPath, ...denyArgs], {
-    stdio: ['pipe', 'inherit', 'inherit'],
-    env: claudeEnv,
-  });
-  child.stdin.write(promptContent);
-  child.stdin.end();
+  // 1. Append the human message synchronously.
+  try {
+    appendHumanChatEntry(projectPath, firstMessage.trim());
+  } catch (err) {
+    console.error(`Failed to append message to chat log: ${err.message || err}`);
+    process.exit(1);
+  }
 
-  child.on('close', (code) => {
-    process.exit(code || 0);
-  });
+  // 2. Enqueue with humanAlreadyPersisted so the daemon doesn't
+  //    double-append.
+  try {
+    enqueueSeedMessage(projectPath, firstMessage.trim());
+  } catch (err) {
+    console.error(`Failed to enqueue message: ${err.message || err}`);
+    process.exit(1);
+  }
+
+  // 3. Ensure a daemon is alive. If one already is (someone else
+  //    started via the dashboard, or a previous `rouge seed` call
+  //    left it running), just skip spawn and tail.
+  const alreadyAlive = readAliveSeedPid(projectPath);
+  if (alreadyAlive) {
+    console.log(`→ Daemon already running (pid ${alreadyAlive}) — your message is in the queue.`);
+  } else {
+    const spawnResult = spawnSeedDaemon(projectPath);
+    if (!spawnResult.ok) {
+      console.error(`Failed to spawn seed daemon: ${spawnResult.error}`);
+      console.error('Your message is queued but nothing will process it until a daemon starts.');
+      console.error('Open the dashboard or retry this command to re-attempt the spawn.');
+      process.exit(1);
+    }
+    console.log(`→ Spawned seed daemon (pid ${spawnResult.pid})`);
+  }
+
+  console.log(`→ Tailing seeding-chat.jsonl (Ctrl-C to detach — daemon keeps running)\n`);
+
+  // 4. Tail the chat log until daemon exits or awaiting_gate.
+  await tailSeedingChat(projectPath);
+}
+
+function genSeedMsgId() {
+  return `msg-${Date.now()}-${require('crypto').randomUUID().slice(0, 8)}`;
+}
+
+function appendHumanChatEntry(projectPath, text) {
+  const chatFile = path.join(projectPath, 'seeding-chat.jsonl');
+  // Read current discipline so the chat entry is tagged the same way
+  // the dashboard tags HTTP-submitted human messages.
+  let discipline = 'brainstorming';
+  try {
+    const ss = JSON.parse(fs.readFileSync(path.join(projectPath, 'seeding-state.json'), 'utf8'));
+    if (ss.current_discipline) discipline = ss.current_discipline;
+  } catch {
+    /* fall through with default */
+  }
+  const entry = {
+    id: genSeedMsgId(),
+    role: 'human',
+    content: text,
+    timestamp: new Date().toISOString(),
+    metadata: { discipline },
+  };
+  fs.appendFileSync(chatFile, JSON.stringify(entry) + '\n', 'utf8');
+}
+
+function enqueueSeedMessage(projectPath, text) {
+  const entry = {
+    id: genSeedMsgId(),
+    text,
+    enqueuedAt: new Date().toISOString(),
+    humanAlreadyPersisted: true,
+  };
+  fs.appendFileSync(path.join(projectPath, 'seed-queue.jsonl'), JSON.stringify(entry) + '\n', 'utf8');
+  return entry.id;
+}
+
+function readAliveSeedPid(projectPath) {
+  const pidFile = path.join(projectPath, '.seed-pid');
+  if (!fs.existsSync(pidFile)) return null;
+  try {
+    const info = JSON.parse(fs.readFileSync(pidFile, 'utf8'));
+    if (typeof info.pid !== 'number') return null;
+    try {
+      process.kill(info.pid, 0);
+      return info.pid;
+    } catch {
+      // Dead — let the dashboard-side readSeedPid clean it up the
+      // next time state-repair runs. We just treat it as absent.
+      return null;
+    }
+  } catch {
+    return null;
+  }
+}
+
+function spawnSeedDaemon(projectPath) {
+  // The daemon lives in the dashboard's TypeScript tree and is run
+  // via `tsx`. tsx is a dashboard devDependency.
+  const tsxCandidates = [
+    path.resolve(ROUGE_ROOT, 'dashboard/node_modules/.bin/tsx'),
+    path.resolve(ROUGE_ROOT, 'dashboard/ROUGE_STANDALONE/node_modules/.bin/tsx'),
+    process.env.ROUGE_TSX_BIN,
+  ].filter(Boolean);
+  const tsx = tsxCandidates.find((c) => fs.existsSync(c));
+  if (!tsx) {
+    return {
+      ok: false,
+      error:
+        'tsx binary not found. Install dashboard deps with `cd dashboard && npm install`, or set ROUGE_TSX_BIN.',
+    };
+  }
+  const daemonScript = path.resolve(ROUGE_ROOT, 'dashboard/src/bridge/seed-daemon.ts');
+  if (!fs.existsSync(daemonScript)) {
+    return { ok: false, error: `seed-daemon.ts not found at ${daemonScript}` };
+  }
+  const dashboardDir = path.resolve(ROUGE_ROOT, 'dashboard');
+  let logFd;
+  try {
+    logFd = fs.openSync(path.join(projectPath, 'seed-daemon.log'), 'a');
+  } catch (err) {
+    return { ok: false, error: `failed to open seed-daemon.log: ${err.message || err}` };
+  }
+  let child;
+  try {
+    child = spawn(tsx, [daemonScript, projectPath], {
+      detached: true,
+      stdio: ['ignore', logFd, logFd],
+      cwd: dashboardDir,
+      env: { ...process.env },
+    });
+  } catch (err) {
+    return { ok: false, error: err.message || String(err) };
+  }
+  child.unref();
+  if (!child.pid) return { ok: false, error: 'spawn returned no PID' };
+  return { ok: true, pid: child.pid };
+}
+
+async function tailSeedingChat(projectPath) {
+  const chatFile = path.join(projectPath, 'seeding-chat.jsonl');
+  const pidFile = path.join(projectPath, '.seed-pid');
+  const stateFile = path.join(projectPath, 'seeding-state.json');
+
+  // Start tailing from the current end so the user's just-enqueued
+  // human message isn't re-printed below the "Tailing..." line (they
+  // already saw their own input on the command line).
+  let lastSize = 0;
+  try {
+    lastSize = fs.statSync(chatFile).size;
+  } catch {
+    /* file may not exist yet */
+  }
+
+  let signalled = false;
+  const onSignal = () => {
+    signalled = true;
+    console.log('\n(Detached — daemon keeps running. Re-run to continue or open the dashboard.)');
+  };
+  process.on('SIGINT', onSignal);
+
+  try {
+    while (!signalled) {
+      // Read new chat content.
+      try {
+        const currentSize = fs.statSync(chatFile).size;
+        if (currentSize > lastSize) {
+          const fd = fs.openSync(chatFile, 'r');
+          const buf = Buffer.alloc(currentSize - lastSize);
+          fs.readSync(fd, buf, 0, currentSize - lastSize, lastSize);
+          fs.closeSync(fd);
+          const content = buf.toString('utf8');
+          for (const line of content.split('\n')) {
+            if (!line.trim()) continue;
+            try {
+              printSeedChatEntry(JSON.parse(line));
+            } catch {
+              /* skip malformed line */
+            }
+          }
+          lastSize = currentSize;
+        }
+      } catch {
+        /* ignore read errors; chat file may appear/disappear briefly */
+      }
+
+      // Check terminal conditions.
+      try {
+        const ss = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+        if (ss.seeding_complete || ss.status === 'complete') {
+          console.log('\n→ Seeding complete! The project is ready to build.');
+          console.log(`  Next: \`rouge build ${path.basename(projectPath)}\``);
+          break;
+        }
+        if (ss.mode === 'awaiting_gate' || (ss.pending_gate && ss.pending_gate.discipline)) {
+          console.log('\n→ Rouge is waiting for your answer.');
+          console.log(`  Re-run: rouge seed ${path.basename(projectPath)} "<your reply>"`);
+          break;
+        }
+      } catch {
+        /* state file may be mid-write */
+      }
+
+      // Daemon gone? Exit the tail.
+      if (!fs.existsSync(pidFile)) {
+        console.log('\n→ Daemon idle-exited. Queue drained.');
+        break;
+      }
+
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+  } finally {
+    process.removeListener('SIGINT', onSignal);
+  }
+}
+
+function printSeedChatEntry(entry) {
+  const role = entry.role;
+  const kind = entry.kind;
+  let prefix;
+  if (role === 'human') {
+    prefix = '\n  \x1b[1;36mYou:\x1b[0m';
+  } else if (kind === 'system_note') {
+    prefix = '\n  \x1b[2;37m[system]\x1b[0m';
+  } else if (kind === 'gate_question') {
+    prefix = '\n  \x1b[1;33mRouge asks:\x1b[0m';
+  } else if (kind === 'autonomous_decision') {
+    prefix = '\n  \x1b[1;35mRouge decided:\x1b[0m';
+  } else if (kind === 'wrote_artifact') {
+    prefix = '\n  \x1b[1;32mRouge wrote:\x1b[0m';
+  } else if (kind === 'heartbeat') {
+    prefix = '\n  \x1b[2;37mRouge:\x1b[0m';
+  } else {
+    prefix = '\n  \x1b[1;34mRouge:\x1b[0m';
+  }
+  const body = (entry.content || '').split('\n').map((l) => '    ' + l).join('\n');
+  console.log(prefix);
+  console.log(body);
 }
 
 function cmdBuild(name) {
@@ -999,7 +1239,12 @@ if (command === 'doctor') {
 } else if (command === 'init') {
   cmdInit(args[1]);
 } else if (command === 'seed') {
-  cmdSeed(args[1]);
+  // args[1] = project slug, args[2..] = first message (joined so unquoted
+  // multi-word messages still work: `rouge seed foo hello there`)
+  cmdSeed(args[1], args.slice(2).join(' ')).catch((err) => {
+    console.error('[rouge seed] fatal:', err?.stack || err);
+    process.exit(1);
+  });
 } else if (command === 'build') {
   cmdBuild(args[1]);
 } else if (command === 'status') {
@@ -1493,7 +1738,7 @@ if (command === 'doctor') {
 
   EXPERIMENTAL (no longer the recommended path — use the dashboard instead)
     rouge init <name>               Create a new project directory
-    rouge seed <name>                Start interactive seeding via claude -p
+    rouge seed <name> "<message>"   Seed a project via the detached daemon; tails chat
     rouge build [name]              Start the Karpathy Loop
     rouge slack setup               Print Slack setup guide
     rouge slack start               Start the Slack bot

@@ -34,6 +34,9 @@ The Rouge CLI
     rouge secrets expiry set <s/K> <date>  Set expiry for a secret
     rouge feasibility <description> Assess feasibility of a proposed change
     rouge contribute <path>         Contribute a draft integration pattern via PR
+    rouge resume-escalation <slug>  Prime a direct Claude Code session for an
+                                    escalation hand-off. Parks the project,
+                                    prints the claude command + context.
     rouge improve                   Run one self-improvement iteration
     rouge improve --max-iterations 5  Run up to 5 iterations
     rouge improve --explore         Enable exploration when no issues remain
@@ -41,7 +44,7 @@ The Rouge CLI
 
   EXPERIMENTAL (no longer the recommended path — use the dashboard instead)
     rouge init <name>               Create a new project directory
-    rouge seed <name>                Start interactive seeding via claude -p
+    rouge seed <name> "<message>"   Seed a project via the detached daemon; tails chat
     rouge build [name]              Start the Karpathy Loop
     rouge slack setup               Print Slack setup guide
     rouge slack start               Start the Slack bot
