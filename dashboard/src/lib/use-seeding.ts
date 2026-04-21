@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { fetchSeedingMessages, fetchSeedingStatus, sendSeedMessage, type SeedingChatMessage, type SeedingLivenessStatus } from './bridge-client'
+import { stallThresholdMsForDiscipline } from './discipline-timing'
 
 // Phase 2 of the seed-loop architecture plan (see
 // docs/plans/2026-04-19-seed-loop-architecture.md). This hook polls
@@ -14,9 +15,14 @@ import { fetchSeedingMessages, fetchSeedingStatus, sendSeedMessage, type Seeding
 // turns it tracks.
 const POLL_INTERVAL_MS = 2000
 
-// How recently must a heartbeat have fired for the daemon to be
-// considered actively ticking? Above this, treat as stale.
-const HEARTBEAT_FRESHNESS_MS = 30_000
+// Default heartbeat freshness window — the daemon's background
+// ticker writes every 5s, so anything older than this means the
+// ticker isn't running (daemon dead or event loop pinned). The
+// per-discipline override below relaxes this on disciplines whose
+// typical turn duration is long enough that even a hiccup in the
+// ticker could look like staleness during normal work (spec,
+// design). See `stallThresholdMsForDiscipline` in discipline-timing.
+const DEFAULT_HEARTBEAT_FRESHNESS_MS = 30_000
 
 export type DaemonLiveness =
   /** Daemon not running, no session state on disk, or seeding complete. */
@@ -185,7 +191,17 @@ export function useSeeding(slug: string): UseSeedingResult {
     const d = status.daemon
     if (!d) return 'idle'
     if (!d.alive) return 'idle'
-    if (heartbeatAgeMs !== null && heartbeatAgeMs > HEARTBEAT_FRESHNESS_MS) {
+    // Per-discipline stall threshold: spec/design can legitimately
+    // take 8–10 min for a single turn, so a flat 30s window would
+    // false-alarm when the background ticker skips (which happens
+    // during large sync operations in the Node event loop). The
+    // lookup widens the window for long disciplines without
+    // weakening detection for short ones.
+    const threshold = stallThresholdMsForDiscipline(
+      status.current_discipline,
+      DEFAULT_HEARTBEAT_FRESHNESS_MS,
+    )
+    if (heartbeatAgeMs !== null && heartbeatAgeMs > threshold) {
       return 'stalled'
     }
     if (d.activity === 'processing') return 'processing'

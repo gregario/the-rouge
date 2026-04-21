@@ -32,6 +32,7 @@ import { drainQueue, hasQueuedMessages, requeueFront, type QueueEntry } from './
 import { writeSeedPid, clearSeedPid, stillOwned, readSeedPid } from './seed-daemon-pid'
 import { readSeedingState, effectiveMode } from './seeding-state'
 import { readChatLog, appendChatMessage } from './chat-reader'
+import { recoveryPromptFor } from './recovery-prompts'
 
 const HEARTBEAT_FILENAME = 'seed-heartbeat.json'
 const POLL_INTERVAL_MS = 1000
@@ -379,12 +380,15 @@ async function maybeFireRecovery(projectDir: string, sessionId: string): Promise
     sessionId,
     pid: process.pid,
   })
+  // Pull a discipline-specific recovery prompt so the turn isn't
+  // just told "continue" — it's told what markers are expected at
+  // this point in the discipline's flow. Falls back to generic for
+  // unknown / null disciplines.
+  const recoveryPrompt = recoveryPromptFor(state.current_discipline)
   try {
-    await handleSeedMessage(
-      projectDir,
-      '[SYSTEM] Recovery: the previous turn returned without markers. Continue the current discipline — emit [DECISION:], [WROTE:], [HEARTBEAT:], [GATE:], or [DISCIPLINE_COMPLETE:] as appropriate.',
-      { humanMessageAlreadyPersisted: true },
-    )
+    await handleSeedMessage(projectDir, recoveryPrompt.text, {
+      humanMessageAlreadyPersisted: true,
+    })
   } catch (err) {
     console.error(`[seed-daemon] recovery turn failed:`, err)
     appendChatMessage(projectDir, {

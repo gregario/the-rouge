@@ -11,21 +11,10 @@ import { cn } from '@/lib/utils'
 import { isBridgeEnabled } from '@/lib/bridge-client'
 import { useSeeding } from '@/lib/use-seeding'
 import { SeedingProgressIndicator } from '@/components/seeding-progress-indicator'
-
-// Rough per-discipline expected durations for an agent turn, derived
-// from observed runs. Used to give the elapsed-time display a baseline
-// so "2 minutes" means "on track for spec" rather than "alarming".
-// Tune as we collect more data.
-const TYPICAL_DURATION_SEC: Record<string, { low: number; high: number }> = {
-  brainstorming: { low: 60, high: 180 },
-  competition: { low: 90, high: 240 },
-  taste: { low: 60, high: 150 },
-  spec: { low: 180, high: 480 },
-  infrastructure: { low: 60, high: 180 },
-  design: { low: 240, high: 600 },
-  'legal-privacy': { low: 60, high: 180 },
-  marketing: { low: 120, high: 300 },
-}
+// Typical per-discipline durations + stall-threshold math live in a
+// shared module so use-seeding can derive per-discipline stall
+// windows without duplicating the table.
+import { TYPICAL_DURATION_SEC } from '@/lib/discipline-timing'
 
 interface ChatPanelProps {
   messages: ChatMessageType[]
