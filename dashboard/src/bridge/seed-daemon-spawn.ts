@@ -23,35 +23,48 @@ import { readSeedPid, type SeedPidInfo } from './seed-daemon-pid'
  * diagnose crashes without keeping the dashboard open.
  */
 
-const DAEMON_RELATIVE_PATH = 'src/bridge/seed-daemon.ts'
-const TSX_RELATIVE_PATHS = [
-  // Dev: dashboard/node_modules/.bin/tsx
-  '../../node_modules/.bin/tsx',
-  // Prod (standalone): dashboard/ROUGE_STANDALONE/node_modules/.bin/tsx
-  '../../ROUGE_STANDALONE/node_modules/.bin/tsx',
-]
-
-function resolveTsxBinary(fromDir: string): string | null {
-  for (const rel of TSX_RELATIVE_PATHS) {
-    const candidate = resolve(fromDir, rel)
-    if (existsSync(candidate)) return candidate
-  }
-  // Environment override for test environments or unusual layouts.
+// Path resolution strategy: in Next 16 dev (Turbopack), `__dirname`
+// points at a compiled bundle path deep under `.next/`, so a
+// `resolve(__dirname, '../../node_modules/.bin/tsx')` walk lands
+// somewhere that doesn't exist. Same gotcha `resolveOrchestratorPromptPath`
+// in seed-handler.ts already works around. Use process.cwd() anchored
+// candidates (which are stable across dev/prod) with __dirname as a
+// fallback for node-run tests. Also check an env override.
+function resolveTsxBinary(): string | null {
   const envHint = process.env.ROUGE_TSX_BIN
   if (envHint && existsSync(envHint)) return envHint
+
+  const candidates: string[] = [
+    // Dashboard invoked from repo root (`npm run dashboard`).
+    resolve(process.cwd(), 'dashboard/node_modules/.bin/tsx'),
+    // Dashboard invoked from its own dir (`cd dashboard && npm run dev`).
+    resolve(process.cwd(), 'node_modules/.bin/tsx'),
+    // Production standalone build.
+    resolve(process.cwd(), 'dashboard/ROUGE_STANDALONE/node_modules/.bin/tsx'),
+    resolve(process.cwd(), 'ROUGE_STANDALONE/node_modules/.bin/tsx'),
+    // __dirname-based fallback for node-run tests (not Turbopack).
+    resolve(__dirname, '../../node_modules/.bin/tsx'),
+    resolve(__dirname, '../../../node_modules/.bin/tsx'),
+  ]
+
+  for (const c of candidates) {
+    if (existsSync(c)) return c
+  }
   return null
 }
 
-function resolveDaemonScript(fromDir: string): string {
-  // __dirname is the compiled location at runtime. Under Next, that
-  // points at a bundled path; under node+tsx (tests), it points at
-  // dashboard/src/bridge. Try both layouts.
-  const candidates = [
-    // Source layout: this file at dashboard/src/bridge, daemon sibling.
-    resolve(fromDir, 'seed-daemon.ts'),
-    // Env hint for unusual layouts.
-    process.env.ROUGE_SEED_DAEMON_SCRIPT,
-  ].filter((p): p is string => typeof p === 'string' && p.length > 0)
+function resolveDaemonScript(): string {
+  const envHint = process.env.ROUGE_SEED_DAEMON_SCRIPT
+  if (envHint && existsSync(envHint)) return envHint
+
+  const candidates: string[] = [
+    // Dashboard invoked from repo root.
+    resolve(process.cwd(), 'dashboard/src/bridge/seed-daemon.ts'),
+    // Dashboard invoked from its own dir.
+    resolve(process.cwd(), 'src/bridge/seed-daemon.ts'),
+    // __dirname-based fallback (tests, node direct).
+    resolve(__dirname, 'seed-daemon.ts'),
+  ]
 
   for (const c of candidates) {
     if (existsSync(c)) return c
@@ -59,6 +72,29 @@ function resolveDaemonScript(fromDir: string): string {
   // Fall through to the first candidate so the spawn error message
   // points at a real-looking path.
   return candidates[0]
+}
+
+function resolveDashboardDir(): string {
+  // The daemon has to run with cwd = dashboard/ so `tsx` can find
+  // `dashboard/tsconfig.json` and resolve the `@/*` path aliases used
+  // by seeding-state.ts and friends. First attempt made the mistake
+  // of setting cwd to the repo root; tsx then ignored the tsconfig
+  // aliases and the daemon crashed on `Cannot find module @/lib/...`
+  // right after import.
+  //
+  // Downstream code (e.g. resolveOrchestratorPromptPath in
+  // seed-handler.ts) already handles both cwd layouts via a
+  // candidate list — cwd = dashboard/ is the layout that matches
+  // `cd dashboard && npm run dev`, which IS how the user runs the
+  // dashboard in practice.
+  const cwd = process.cwd()
+  if (existsSync(resolve(cwd, 'tsconfig.json')) && existsSync(resolve(cwd, 'src/bridge/seed-daemon.ts'))) {
+    return cwd
+  }
+  if (existsSync(resolve(cwd, 'dashboard/tsconfig.json'))) {
+    return resolve(cwd, 'dashboard')
+  }
+  return cwd
 }
 
 export interface SpawnResult {
@@ -86,7 +122,7 @@ export function ensureSeedDaemon(projectDir: string): SpawnResult {
     return { ok: true, pid: existing.pid, alreadyRunning: true }
   }
 
-  const tsxBin = resolveTsxBinary(__dirname)
+  const tsxBin = resolveTsxBinary()
   if (!tsxBin) {
     return {
       ok: false,
@@ -95,7 +131,7 @@ export function ensureSeedDaemon(projectDir: string): SpawnResult {
     }
   }
 
-  const daemonScript = resolveDaemonScript(__dirname)
+  const daemonScript = resolveDaemonScript()
   if (!existsSync(daemonScript)) {
     return { ok: false, error: `seed-daemon.ts not found at ${daemonScript}` }
   }
@@ -115,10 +151,11 @@ export function ensureSeedDaemon(projectDir: string): SpawnResult {
     child = spawn(tsxBin, [daemonScript, projectDir], {
       detached: true,
       stdio: ['ignore', logFd, logFd],
-      // Run from the repo root so relative paths inside the daemon
-      // resolve the same way the HTTP handler's do (orchestrator
-      // prompt path, etc.).
-      cwd: resolve(__dirname, DAEMON_RELATIVE_PATH, '..', '..', '..'),
+      // Run from the dashboard dir so tsx finds dashboard/tsconfig.json
+      // and resolves `@/*` aliases (seeding-state.ts → @/lib/safe-read-json
+      // etc.). Downstream prompt-path resolvers already try both cwd
+      // layouts so the orchestrator prompt still loads correctly.
+      cwd: resolveDashboardDir(),
       env: { ...process.env },
     })
   } catch (err) {

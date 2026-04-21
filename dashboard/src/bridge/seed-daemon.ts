@@ -201,7 +201,16 @@ async function processBatch(
       // marker parsing, state mutations, auto-continuation (up to
       // MAX_CHUNK_DEPTH internally). All we add is the process
       // lifecycle around it.
-      await handleSeedMessage(projectDir, entry.text)
+      //
+      // `humanMessageAlreadyPersisted` is forwarded from the queue
+      // entry (Fix B). When the HTTP handler wrote the human chat
+      // message at enqueue time, this flag is true and the turn
+      // suppresses its own human-append. Legacy entries (pre-Fix-B,
+      // shouldn't exist after deploy) fall back to false → daemon
+      // appends.
+      await handleSeedMessage(projectDir, entry.text, {
+        humanMessageAlreadyPersisted: entry.humanAlreadyPersisted === true,
+      })
     } catch (err) {
       console.error(`[seed-daemon] handleSeedMessage failed for ${entry.id}:`, err)
       // The message was already dequeued. Only re-queue if it was

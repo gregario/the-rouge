@@ -138,15 +138,20 @@ describe('seeding-state', () => {
       expect(readDisciplineStatus('taste')).toBe('pending')
     })
 
-    it('does not advance currentDiscipline when only going to in-progress', async () => {
+    it('sets currentDiscipline to the promoted discipline on in-progress', async () => {
+      // Originally this test asserted currentDiscipline was unchanged
+      // on in-progress promotion — that behaviour was a bug: nobody
+      // else wrote currentDiscipline during active work, so it stayed
+      // stale/null the whole time a discipline was in-progress. The
+      // dashboard stepper and the bridge watcher both key off
+      // currentDiscipline; without this the dashboard never learned
+      // a daemon turn completed (no watcher event, no client refetch).
+      // The correct semantic is: currentDiscipline ALWAYS points at
+      // whichever discipline is actively being worked on.
       seedProjectWithDisciplines()
       await markDisciplinePrompted(testDir, 'competition')
-      // currentDiscipline is controlled by the seed-handler's prompt
-      // flow; markDisciplinePrompted must not clobber it when just
-      // promoting to in-progress. (It DOES advance on 'complete', which
-      // is the existing markDisciplineComplete behaviour.)
       const state = JSON.parse(readFileSync(statePath(testDir), 'utf-8'))
-      expect(state.seedingProgress.currentDiscipline).toBe('brainstorming')
+      expect(state.seedingProgress.currentDiscipline).toBe('competition')
     })
 
     it('is idempotent — calling twice leaves status at in-progress', async () => {

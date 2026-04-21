@@ -233,6 +233,65 @@ describe('ProjectWatcher', () => {
     expect(stateChanges.length).toBe(1)
   })
 
+  // Fix for the daemon-path "Rouge replied but I don't see it" bug:
+  // when a seeding turn writes a chat response without a watcher-
+  // visible state.json diff (e.g. a gate question inside an already-
+  // in-progress discipline), no SSE event fired, no client refetch,
+  // UI stayed stuck. The watcher now ALSO watches seeding-chat.jsonl
+  // per project and emits `chat-appended` on growth.
+  it('emits chat-appended when seeding-chat.jsonl grows', async () => {
+    mkdirSync(projectDir, { recursive: true })
+    const stateFile = join(projectDir, 'state.json')
+    writeFileSync(stateFile, JSON.stringify({ current_state: 'seeding' }))
+    const chatFile = join(projectDir, 'seeding-chat.jsonl')
+    // Seed with one entry so the size cache picks up a non-zero
+    // baseline — proves the growth detection, not a first-write one.
+    writeFileSync(chatFile, '{"id":"seed","role":"human","content":"hi","timestamp":"2026-04-21T00:00:00Z"}\n')
+
+    watcher = new ProjectWatcher(testDir)
+    const events: unknown[] = []
+    watcher.on('event', (e) => events.push(e))
+    watcher.start()
+    await new Promise((r) => setTimeout(r, 200))
+
+    // Append a new rouge reply — mimics what handleSeedMessage does
+    // after runClaude returns.
+    const { appendFileSync } = await import('fs')
+    appendFileSync(
+      chatFile,
+      '{"id":"reply","role":"rouge","content":"response","timestamp":"2026-04-21T00:00:01Z"}\n',
+    )
+
+    await new Promise((r) => setTimeout(r, 600))
+    watcher.stop()
+
+    const chatEvents = events.filter((e: any) => e.type === 'chat-appended')
+    expect(chatEvents.length).toBeGreaterThan(0)
+    expect((chatEvents[0] as any).project).toBe('test-project')
+    expect((chatEvents[0] as any).data.delta).toBeGreaterThan(0)
+  })
+
+  it('does not emit chat-appended for a pre-existing chat log on startup', async () => {
+    // The chat-size cache is seeded on initProject so we don't
+    // spuriously fire for content that existed before the watcher
+    // booted.
+    mkdirSync(projectDir, { recursive: true })
+    writeFileSync(join(projectDir, 'state.json'), JSON.stringify({ current_state: 'seeding' }))
+    writeFileSync(
+      join(projectDir, 'seeding-chat.jsonl'),
+      '{"id":"old","role":"human","content":"preexisting","timestamp":"2026-04-21T00:00:00Z"}\n',
+    )
+
+    watcher = new ProjectWatcher(testDir)
+    const events: unknown[] = []
+    watcher.on('event', (e) => events.push(e))
+    watcher.start()
+    await new Promise((r) => setTimeout(r, 600))
+    watcher.stop()
+
+    expect(events.filter((e: any) => e.type === 'chat-appended')).toEqual([])
+  })
+
   // Regression for the "all stories pending" bug: the launcher mutates
   // state.json via atomic rename (write to `<target>.<uuid>.tmp`, then
   // rename(2) into place). On macOS, fs.watch bound directly to the file

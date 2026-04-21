@@ -12,7 +12,17 @@ import { statePath } from './state-path'
 export class ProjectWatcher extends EventEmitter {
   private projectsRoot: string
   private watchers: Map<string, FSWatcher> = new Map()
+  // Second fs.watch per project, watching the project root for
+  // seeding-chat.jsonl changes. The chat log is in the project root,
+  // not `.rouge/`, so the state-json watcher (above) doesn't cover it.
+  // Without this, a daemon turn that produces a chat response but no
+  // watcher-visible state.json diff (e.g. Rouge asks a gate question
+  // inside an already-in-progress discipline) writes to disk but the
+  // client never learns — no event fires, no refetch, UI stays stuck
+  // on whatever it rendered last.
+  private chatWatchers: Map<string, FSWatcher> = new Map()
   private stateCache: Map<string, string> = new Map()
+  private chatSizeCache: Map<string, number> = new Map()
   private rootWatcher: FSWatcher | null = null
   private debounceTimers: Map<string, ReturnType<typeof setTimeout>> = new Map()
   private static readonly DEBOUNCE_MS = 100
@@ -80,6 +90,11 @@ export class ProjectWatcher extends EventEmitter {
       w.close()
     }
     this.watchers.clear()
+    for (const w of this.chatWatchers.values()) {
+      w.close()
+    }
+    this.chatWatchers.clear()
+    this.chatSizeCache.clear()
 
     // Close root watcher
     if (this.rootWatcher) {
@@ -100,6 +115,21 @@ export class ProjectWatcher extends EventEmitter {
       this.stateCache.set(projectDir, content)
     } catch {
       return
+    }
+
+    // Seed chat-size cache so the first growth event fires only for
+    // writes that happen AFTER the watcher started. Without this, a
+    // project with an existing chat log would emit a spurious
+    // chat-appended event when the watcher's first tick reads the
+    // pre-existing size.
+    try {
+      const chatFile = join(projectDir, 'seeding-chat.jsonl')
+      if (existsSync(chatFile)) {
+        this.chatSizeCache.set(projectDir, statSync(chatFile).size)
+      }
+    } catch {
+      // Size cache defaults to 0 on any error — first real write will
+      // look like growth from 0, which is correct.
     }
 
     this.watchProject(projectDir)
@@ -181,6 +211,56 @@ export class ProjectWatcher extends EventEmitter {
     } catch {
       // Parent directory may have been removed.
     }
+
+    // Chat-log watch: the chat file is the most reliable signal that
+    // Rouge produced content the user cares about. Watching it ensures
+    // a refetch fires even when the turn wrote no watcher-visible
+    // state.json diff (gate questions inside an already-in-progress
+    // discipline, prose returns, system notes, etc.).
+    try {
+      const chatWatcher = watch(projectDir, (_eventType, filename) => {
+        if (filename && filename !== 'seeding-chat.jsonl') return
+        this.debounce(`${projectDir}::chat`, () => {
+          this.handleChatChange(projectDir, projectName)
+        })
+      })
+      this.chatWatchers.set(projectDir, chatWatcher)
+    } catch {
+      // Project root may not exist yet. watchProject only runs after
+      // initProject confirmed state.json exists, so the dir exists
+      // too — this catch is defensive.
+    }
+  }
+
+  private handleChatChange(projectDir: string, projectName: string): void {
+    const chatFile = join(projectDir, 'seeding-chat.jsonl')
+    let size = 0
+    try {
+      size = statSync(chatFile).size
+    } catch {
+      // File may not exist yet (first write in flight, or chat log
+      // never created for this project). Treat as no-op.
+      return
+    }
+    const previous = this.chatSizeCache.get(projectDir) ?? 0
+    if (size === previous) return // spurious event (touch / metadata)
+    this.chatSizeCache.set(projectDir, size)
+
+    // Only emit on GROWTH. A shrink means someone truncated/rotated
+    // the file (possible in tests or manual cleanup); we don't want
+    // to fire a chat-appended event for that.
+    if (size < previous) return
+
+    const event: BridgeEvent = {
+      type: 'chat-appended',
+      project: projectName,
+      timestamp: new Date().toISOString(),
+      data: {
+        bytes: size,
+        delta: size - previous,
+      },
+    }
+    this.emit('event', event)
   }
 
   private handleStateChange(projectDir: string, projectName: string): void {

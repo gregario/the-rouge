@@ -31,6 +31,22 @@ export interface QueueEntry {
   id: string
   text: string
   enqueuedAt: string
+  /**
+   * Set by the HTTP handler under Fix B — the human chat message for
+   * this text has already been appended to seeding-chat.jsonl at
+   * enqueue time, so the daemon's call to handleSeedMessage MUST NOT
+   * re-append. Without this flag we'd double-write the user's message
+   * on every turn.
+   *
+   * Absent on legacy pre-Fix-B entries — in that case the daemon
+   * falls back to appending (matching pre-Fix-B behaviour) to avoid
+   * silently losing the message.
+   *
+   * See docs/plans/2026-04-19-seed-loop-architecture.md and the
+   * Fix B audit for why this lives on the queue entry rather than
+   * being inferred from an env flag in the daemon.
+   */
+  humanAlreadyPersisted?: boolean
 }
 
 function queuePath(projectDir: string): string {
@@ -40,12 +56,25 @@ function queuePath(projectDir: string): string {
 /**
  * Append one user message to the queue. Returns the id of the entry so
  * the HTTP handler can echo it back and the daemon can log it.
+ *
+ * `opts.humanAlreadyPersisted` signals that the HTTP handler has
+ * already written this message's human chat entry to
+ * seeding-chat.jsonl — the daemon should suppress its own human
+ * append when processing this queue entry. Fix B contract: under the
+ * daemon path, the HTTP handler pre-persists synchronously so the
+ * client's refetch-after-POST immediately sees the user message
+ * rather than blanking until runClaude returns.
  */
-export function enqueueMessage(projectDir: string, text: string): string {
+export function enqueueMessage(
+  projectDir: string,
+  text: string,
+  opts: { humanAlreadyPersisted?: boolean } = {},
+): string {
   const entry: QueueEntry = {
     id: `msg-${Date.now()}-${randomUUID().slice(0, 8)}`,
     text,
     enqueuedAt: new Date().toISOString(),
+    ...(opts.humanAlreadyPersisted ? { humanAlreadyPersisted: true } : {}),
   }
   const line = JSON.stringify(entry) + '\n'
   appendFileSync(queuePath(projectDir), line, 'utf-8')

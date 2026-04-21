@@ -24,6 +24,15 @@ export type BridgeEventType =
   // without this event the milestone timeline, current-story card,
   // and escalation panel would all lag behind reality.
   | 'build-progress'
+  // Fires when seeding-chat.jsonl grows (the daemon or inline handler
+  // wrote a new chat entry). Critical under the daemon path (Fix B,
+  // seed-loop phase 1) because some turns produce a chat response
+  // without a watcher-visible state.json diff — e.g. Rouge asks a
+  // gate question inside an already-in-progress discipline, no
+  // currentDiscipline flip, no completed markers. Without this event
+  // the UI would render the user's pre-persisted message but never
+  // refetch to see Rouge's reply.
+  | 'chat-appended'
 
 export interface BridgeEvent {
   type: BridgeEventType

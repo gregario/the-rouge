@@ -85,6 +85,43 @@ describe('handleSeedMessageRouted — flag ON (daemon path)', () => {
     expect(content).toContain('hello from test')
   })
 
+  // Fix B: the HTTP handler pre-persists the human chat message
+  // synchronously so the client's refetch-after-POST never sees an
+  // empty chat log during the daemon's runClaude window. These tests
+  // lock in that contract.
+  it('pre-persists the human chat message to seeding-chat.jsonl before returning 202', async () => {
+    vi.resetModules()
+    vi.stubEnv('ROUGE_USE_SEED_DAEMON', '1')
+    vi.doMock('../seed-daemon-spawn', () => ({
+      ensureSeedDaemon: vi.fn().mockReturnValue({ ok: true, pid: 99999 }),
+    }))
+
+    const { handleSeedMessageRouted } = await import('../seed-handler')
+    const { readChatLog } = await import('../chat-reader')
+    const result = await handleSeedMessageRouted(testDir, 'pre-persist me')
+
+    expect(result.status).toBe(202)
+    const chat = readChatLog(testDir)
+    const humans = chat.filter((m) => m.role === 'human')
+    expect(humans).toHaveLength(1)
+    expect(humans[0].content).toBe('pre-persist me')
+  })
+
+  it('queue entry carries humanAlreadyPersisted: true so the daemon skips re-append', async () => {
+    vi.resetModules()
+    vi.stubEnv('ROUGE_USE_SEED_DAEMON', '1')
+    vi.doMock('../seed-daemon-spawn', () => ({
+      ensureSeedDaemon: vi.fn().mockReturnValue({ ok: true, pid: 99999 }),
+    }))
+
+    const { handleSeedMessageRouted } = await import('../seed-handler')
+    const { drainQueue } = await import('../seed-queue')
+    await handleSeedMessageRouted(testDir, 'carry the flag')
+    const batch = drainQueue(testDir)
+    expect(batch).toHaveLength(1)
+    expect(batch[0].humanAlreadyPersisted).toBe(true)
+  })
+
   it('returns 500 with clear error when daemon spawn fails', async () => {
     vi.resetModules()
     vi.stubEnv('ROUGE_USE_SEED_DAEMON', '1')
@@ -105,6 +142,24 @@ describe('handleSeedMessageRouted — flag ON (daemon path)', () => {
     expect(existsSync(join(testDir, 'seed-queue.jsonl'))).toBe(true)
   })
 
+  it('spawn failure still leaves the human chat message visible to the user', async () => {
+    // Key UX improvement of Fix B: even when the daemon fails to
+    // spawn, the user sees their message in the chat rather than it
+    // vanishing into the void.
+    vi.resetModules()
+    vi.stubEnv('ROUGE_USE_SEED_DAEMON', '1')
+    vi.doMock('../seed-daemon-spawn', () => ({
+      ensureSeedDaemon: vi.fn().mockReturnValue({ ok: false, error: 'no tsx' }),
+    }))
+
+    const { handleSeedMessageRouted } = await import('../seed-handler')
+    const { readChatLog } = await import('../chat-reader')
+    await handleSeedMessageRouted(testDir, 'visible despite spawn fail')
+    const chat = readChatLog(testDir)
+    const human = chat.find((m) => m.role === 'human' && m.content === 'visible despite spawn fail')
+    expect(human).toBeDefined()
+  })
+
   it('multiple messages all land in the queue in order', async () => {
     vi.resetModules()
     vi.stubEnv('ROUGE_USE_SEED_DAEMON', '1')
@@ -120,5 +175,25 @@ describe('handleSeedMessageRouted — flag ON (daemon path)', () => {
     const { drainQueue } = await import('../seed-queue')
     const batch = drainQueue(testDir)
     expect(batch.map((e) => e.text)).toEqual(['first', 'second', 'third'])
+  })
+
+  it('all three pre-persisted messages appear in chat before the daemon ever runs', async () => {
+    vi.resetModules()
+    vi.stubEnv('ROUGE_USE_SEED_DAEMON', '1')
+    vi.doMock('../seed-daemon-spawn', () => ({
+      ensureSeedDaemon: vi.fn().mockReturnValue({ ok: true, pid: 99999 }),
+    }))
+
+    const { handleSeedMessageRouted } = await import('../seed-handler')
+    const { readChatLog } = await import('../chat-reader')
+    await handleSeedMessageRouted(testDir, 'one')
+    await handleSeedMessageRouted(testDir, 'two')
+    await handleSeedMessageRouted(testDir, 'three')
+
+    // All three human messages should be on disk BEFORE any daemon
+    // tick — the HTTP handler persists each one synchronously.
+    const chat = readChatLog(testDir)
+    const humanContents = chat.filter((m) => m.role === 'human').map((m) => m.content)
+    expect(humanContents).toEqual(['one', 'two', 'three'])
   })
 })
