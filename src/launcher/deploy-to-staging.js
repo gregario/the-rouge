@@ -194,6 +194,85 @@ function deployDockerCompose(projectDir) {
  * For the static-site use case this is acceptable; if you need
  * rollback guarantees, pick Cloudflare Pages or Vercel.
  */
+function sleepSync(ms) {
+  // Same sleep primitive the rollback path uses. Blocks the current
+  // thread cleanly without requiring async/await plumbing up through
+  // deployGithubPages' sync callers.
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+/**
+ * Idempotently enable GitHub Pages on `owner/repo`. Returns `true` if
+ * this call enabled it (first-time deploy), `false` if it was already
+ * enabled OR we couldn't enable it (in which case the deploy proceeds
+ * but the caller skips the propagation wait — the human will need to
+ * enable Pages manually).
+ *
+ * Why this exists: the deploy handler was logging an advisory
+ * "enable Pages in repo settings" note and treating the health-check
+ * 404 as a deploy failure. First-time Pages deploys then escalated
+ * the build after 3 retries (uat-test, 2026-04-22). `gh` CLI is a
+ * Rouge prerequisite — `rouge doctor` won't pass without it — so we
+ * can do the toggle ourselves.
+ */
+function ensureGithubPagesEnabled(owner, repo) {
+  try {
+    execSync(`gh api repos/${owner}/${repo}/pages`, {
+      timeout: 10000,
+      stdio: 'pipe',
+    });
+    // 200 OK — Pages is already enabled. Not a first-time deploy.
+    return false;
+  } catch {
+    // Non-zero exit covers 404 (not enabled), 401 (no auth), and
+    // gh-CLI-missing. We try to enable; if that fails, we log and
+    // fall through so the push still happens.
+  }
+  try {
+    execSync(
+      `gh api -X POST repos/${owner}/${repo}/pages -f 'source[branch]=gh-pages' -f 'source[path]=/'`,
+      { timeout: 15000, stdio: 'pipe' },
+    );
+    log(`Enabled GitHub Pages for ${owner}/${repo} (source: gh-pages branch, path /)`);
+    return true;
+  } catch (err) {
+    const detail = ((err && (err.stderr || err.stdout || err.message)) || '').toString();
+    log(`Could not auto-enable Pages: ${detail.slice(0, 200).trim()}`);
+    log(
+      `Enable manually: gh api -X POST repos/${owner}/${repo}/pages -f 'source[branch]=gh-pages' -f 'source[path]=/'`,
+    );
+    return false;
+  }
+}
+
+/**
+ * Block up to MAX_WAIT_MS waiting for the freshly-enabled Pages site
+ * to start serving. GitHub's CDN typically needs 60-120s after the
+ * first-ever Pages enable before the `<owner>.github.io/<repo>/` URL
+ * stops 404'ing. Returning early on the first healthy response keeps
+ * the common case fast.
+ */
+function waitForGithubPagesPropagation(url) {
+  const MAX_WAIT_MS = 150000;
+  const POLL_INTERVAL_MS = 15000;
+  const start = Date.now();
+  log(`First-time Pages deploy — waiting up to ${MAX_WAIT_MS / 1000}s for GitHub CDN to serve ${url} ...`);
+  // Don't poll immediately; CDN provisioning takes at least 30s.
+  sleepSync(30000);
+  while (Date.now() - start < MAX_WAIT_MS) {
+    if (healthCheck(url)) {
+      const elapsed = Math.round((Date.now() - start) / 1000);
+      log(`Pages is serving (${elapsed}s after enable)`);
+      return true;
+    }
+    sleepSync(POLL_INTERVAL_MS);
+  }
+  log(
+    `Pages did not respond within ${MAX_WAIT_MS / 1000}s — proceeding; the caller's health check may still fail on this deploy.`,
+  );
+  return false;
+}
+
 function deployGithubPages(projectDir) {
   // Fail fast on a missing / non-GitHub remote. Previously we ran the
   // full build and push, then returned `url=null` when the remote
@@ -224,6 +303,12 @@ function deployGithubPages(projectDir) {
     );
   }
   const [, owner, repo] = remoteMatch;
+
+  // Enable Pages before the push so the very first deploy doesn't
+  // land on a disabled repo (uat-test 2026-04-22: 3 consecutive
+  // health-check failures, all because Pages was never toggled on).
+  // Idempotent — a no-op if Pages is already enabled.
+  const firstTimeDeploy = ensureGithubPagesEnabled(owner, repo);
 
   const manifest = readJson(path.join(projectDir, 'infrastructure_manifest.json'));
   const vision = readJson(path.join(projectDir, 'vision.json'));
@@ -280,7 +365,11 @@ function deployGithubPages(projectDir) {
   // https://<owner>.github.io/ without the repo suffix.
   const url = `https://${owner}.github.io/${repo}/`;
   log(`Deployed to ${url}`);
-  log('⚠️  First-time deploy: enable GitHub Pages in repo settings (Source: Deploy from a branch → gh-pages) if not already. Propagation takes ~1 min.');
+  if (firstTimeDeploy) {
+    // Block inside the handler so the shared post-deploy health check
+    // (in the caller at deployToStaging) lands on a warm site.
+    waitForGithubPagesPropagation(url);
+  }
   return url;
 }
 

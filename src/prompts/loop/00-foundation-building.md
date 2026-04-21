@@ -123,7 +123,7 @@ When `infrastructure_manifest.json.deploy.target` (or `vision.json.infrastructur
 
 5. **Health check that works without a server.** Since there's no runtime to call, the "health check" for a static-export product is a build-time assertion: the deploy handler confirms the output directory exists and contains at least an `index.html`. Foundation should NOT scaffold a runtime `/api/health` route — those won't exist on Pages.
 
-6. **README note on prerequisites.** Add one line reminding whoever runs the first deploy that GitHub Pages must be enabled for the repo with Source = "Deploy from a branch" → `gh-pages`. The launcher can't enable this for them; Rouge's staging push to the `gh-pages` branch is a no-op from the user's perspective until the setting is toggled.
+6. **README note on Pages setup (backup only).** Rouge's deploy handler auto-enables GitHub Pages on first deploy via `gh api -X POST /repos/OWNER/REPO/pages` with `source.branch = gh-pages`, `source.path = /`, and blocks up to 150s for CDN propagation before running the health check. Add a README line describing where the site lives (`https://<owner>.github.io/<repo>/`) and the manual enable command as a fallback in case `gh` auth is scoped too narrowly to create Pages sites — don't phrase it as a required human step, it's the exception path now.
 
 **What foundation MUST NOT scaffold for a static-export target:**
 
