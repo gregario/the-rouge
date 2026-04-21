@@ -179,4 +179,47 @@ describe('repairProjectState', () => {
     const after = readFileSync(join(dir, '.rouge', 'state.json'), 'utf-8')
     expect(after).toBe(before)
   })
+
+  // Phase 5 — orphan daemon detection. Scenarios:
+  //   (a) No PID file, queue has work → respawn is normal; repair
+  //       appends a system_note telling the user their queued work
+  //       is waiting.
+  //   (b) Stale PID file (PID dead), no queue → just clean up the file.
+  it('surfaces orphan-daemon-with-queue when daemon crashed mid-work', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'repair-'))
+    seedProject(
+      { current_state: 'seeding', name: 'orphan-test' },
+      { session_id: null, status: 'active' },
+    )
+    // Write a stranded queue entry: daemon was running, crashed
+    // without draining, queue still has work.
+    writeFileSync(
+      join(dir, 'seed-queue.jsonl'),
+      JSON.stringify({ id: 'orphaned', text: 'please process me', enqueuedAt: '2026-04-21T00:00:00Z' }) + '\n',
+    )
+    // No .seed-pid — daemon exited unexpectedly and didn't clean
+    // up, OR it was never there and a message got queued without
+    // spawn (shouldn't happen post-Fix-B but defensive).
+
+    const report = await repairProjectState(dir)
+    expect(report.fixes.some((f) => f.startsWith('orphan-daemon-with-queue'))).toBe(true)
+
+    // Verify the compensating system_note exists.
+    const chat = readFileSync(join(dir, 'seeding-chat.jsonl'), 'utf-8')
+    expect(chat).toContain('seeding daemon appears to have crashed')
+    expect(chat).toContain('Send any message')
+  })
+
+  it('is a no-op when there is no seed-queue even if no PID file', async () => {
+    // Ordinary healthy project state between turns: no daemon, no
+    // queue. Repair should not emit anything for the daemon shape.
+    dir = mkdtempSync(join(tmpdir(), 'repair-'))
+    seedProject(
+      { current_state: 'seeding', name: 'healthy' },
+      { session_id: null, status: 'active' },
+    )
+    const report = await repairProjectState(dir)
+    expect(report.fixes.filter((f) => f.startsWith('orphan-daemon'))).toEqual([])
+    expect(report.fixes.filter((f) => f.startsWith('stale-seed-pid'))).toEqual([])
+  })
 })

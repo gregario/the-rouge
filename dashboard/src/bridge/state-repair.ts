@@ -5,6 +5,9 @@ import { withStateLock } from './state-lock'
 import { finalizeSeeding } from './seeding-finalize'
 import { markSeedingComplete, readSeedingState } from './seeding-state'
 import { DISCIPLINE_SEQUENCE } from './types'
+import { readSeedPid, clearSeedPid } from './seed-daemon-pid'
+import { hasQueuedMessages } from './seed-queue'
+import { appendChatMessage } from './chat-reader'
 
 export interface RepairReport {
   slug: string
@@ -129,6 +132,53 @@ export async function repairProjectState(projectDir: string): Promise<RepairRepo
   })
   if (shape3Fixed) {
     fixes.push('empty-escalation: current_state=escalation with no pending escalation → synthesised placeholder')
+  }
+
+  // Shape 4: orphan .seed-pid — the file claims a PID that's dead.
+  // `readSeedPid` already cleans up the file and returns null in that
+  // case, but we do the explicit call here for the report AND surface
+  // stranded queue entries (messages enqueued but the daemon died
+  // before processing them). The user sees a system_note telling
+  // them exactly that happened — otherwise the stranded messages
+  // just sit there until the next user message respawns the daemon.
+  //
+  // Phase 5 of the seed-loop architecture plan: make silent failures
+  // visible. A crashed daemon with queued work is exactly the kind of
+  // state the UI should surface rather than hide.
+  const priorPid = readSeedPid(projectDir) // side-effect: cleans stale file
+  const pidExistsOnDisk = existsSync(join(projectDir, '.seed-pid'))
+  // If readSeedPid returned null but the on-disk file existed before
+  // that call, it means readSeedPid evicted a stale entry.
+  // We can also detect stale indirectly: the file went from present
+  // to absent across the call. Simpler: inspect the queue and heartbeat.
+  const queueHasWork = hasQueuedMessages(projectDir)
+  if (priorPid === null && !pidExistsOnDisk && queueHasWork) {
+    // Stranded entries with no daemon and no PID file. The user's
+    // next message will respawn a daemon that drains them, but they
+    // should know their prior messages are waiting — especially if
+    // it's been minutes since the crash.
+    try {
+      appendChatMessage(projectDir, {
+        id: `repair-stranded-${Date.now()}`,
+        role: 'rouge',
+        content:
+          'The seeding daemon appears to have crashed with pending messages still in the queue. ' +
+          'Send any message (or click Continue) to respawn the daemon — your queued work will drain first.',
+        timestamp: new Date().toISOString(),
+        kind: 'system_note',
+      })
+      fixes.push('orphan-daemon-with-queue: surfaced stranded-queue system note')
+    } catch {
+      // Chat write failed — not worth escalating the repair itself.
+    }
+  }
+
+  // Sometimes readSeedPid silently evicts a stale entry without any
+  // log surface. Call clearSeedPid again as a no-op belt-and-braces
+  // so the file is definitely gone if it was stale.
+  if (priorPid === null && pidExistsOnDisk) {
+    clearSeedPid(projectDir)
+    fixes.push('stale-seed-pid: removed PID file for dead process')
   }
 
   return { slug, fixes }
