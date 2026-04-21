@@ -1,7 +1,9 @@
 # Seeding Loop Architecture — Design & Phased Rollout
 
-> **Status:** design approved 2026-04-19, ready to execute in phases.
-> **Driver:** the seeding flow has been the source of repeated silent-failure bugs (colourcontrast stall, stackrank pending-status, testimonial-style watcher misses). After ~8 hours of tactical patches shipped across PRs #187–#192, the pattern became clear: we are repeatedly working around an architectural flaw rather than fixing it.
+> **Status:** all five phases shipped on 2026-04-21 in PR #196.
+> **Driver:** the seeding flow was the source of repeated silent-failure bugs (colourcontrast stall, stackrank pending-status, testimonial-style watcher misses). After ~8 hours of tactical patches shipped across PRs #187–#192, the pattern became clear: we were repeatedly working around an architectural flaw rather than fixing it.
+>
+> **What the user validated at the end:** "The back and forth is much better now. It's taken through the decisions, and that looks good. The UI of the decisions is pretty good. The UI of the 'Needs your answer' is pretty good. On the whole it's in a pretty good place."
 
 ## Problem statement
 
@@ -89,6 +91,21 @@ These were considered and rejected. Future sessions should not re-propose them w
 ## Phased rollout
 
 Six phases. Each is a separate PR. Each is independently shippable and valuable. We can pause between any two phases and still be better than today. No phase is a prerequisite for rolling back its predecessor.
+
+---
+
+### Shipped status (2026-04-21)
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| 0 | ✅ shipped | PR #195 — one-line writer fix + 7 tests. Merged ahead of the big PR. |
+| 1 | ✅ shipped | PR #196 — daemon + queue + PID + Fix B pre-persist + chat-appended watcher event + markDisciplinePrompted writing currentDiscipline. All behind `ROUGE_USE_SEED_DAEMON=1`. |
+| 2 | ✅ shipped | PR #196 — 2s client poll of `/seed/messages` + `/seed/status`, useBridgeEvents removed from seeding path, daemonLiveness derived field, "Rouge is thinking" bar stays visible across whole daemon turn. |
+| 3 | ✅ shipped | PR #196 — daemon detects bare-prose returns, fires recovery turn with visible system_note. Bounded to 3 per hour per project. |
+| 4 | ✅ shipped (partial) | PR #196 — SeedingRelay + its test deleted. `claude-runner.ts` kept (used by derive-title). `rouge seed` CLI kept (user-facing surface, no explicit deletion signal). |
+| 5 | ✅ shipped (minimum) | PR #196 — state-repair shapes for `stale-seed-pid` + `orphan-daemon-with-queue`, both surface a visible chat system_note when detected. Background heartbeat ticker inside the daemon keeps the "last tick" fresh during long runClaude calls (fixes false-stall UX surfaced during UAT). Formal daemon-crash escalation + project-card daemon chip deferred — no observed pain signal yet. |
+
+The user validated the end-to-end flow as "pretty good" after phases 1–3 + ticker fix. Phases 4 and 5 shipped as light cleanup + observability hardening in the same PR rather than waiting.
 
 ---
 
