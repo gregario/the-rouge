@@ -57,6 +57,16 @@ const RECOVERY_WINDOW_MS = 60 * 60 * 1000
 // prior "stuck" state is resolved).
 const recoveryLog: Array<{ projectDir: string; at: number }> = []
 
+// Shared heartbeat state. `main()` creates a setInterval that writes
+// the current snapshot every 5s; processBatch + maybeFireRecovery
+// mutate it as they transition between 'processing' and 'idle'. This
+// keeps the heartbeat fresh during long `await runClaude` blocks
+// without requiring explicit checkpointing inside the main loop.
+const heartbeatSnapshot = {
+  lastTurnId: null as string | null,
+  status: 'idle' as 'idle' | 'processing',
+}
+
 interface HeartbeatPayload {
   lastTickAt: string
   lastTurnId: string | null
@@ -120,11 +130,33 @@ async function main(): Promise<void> {
     pid: process.pid,
   })
 
+  // Background heartbeat ticker. Without this the daemon only writes
+  // heartbeats between messages — inside `await handleSeedMessage →
+  // await runClaude`, the main loop is blocked on the claude subprocess
+  // for the full turn (30s–several min). The UI's stall-detection fires
+  // a false "Rouge hasn't ticked in 246s" warning during long turns
+  // because it can't distinguish "blocked on subprocess I/O" from
+  // "crashed". Solution: a setInterval that fires from the Node event
+  // loop during subprocess I/O idle moments, keeping the heartbeat
+  // fresh regardless of where the main loop is. Module-level
+  // `heartbeatSnapshot` above is mutated by the main loop / recovery
+  // as they transition between 'processing' and 'idle'.
+  const backgroundTicker = setInterval(() => {
+    writeHeartbeat(projectDir, {
+      lastTurnId: heartbeatSnapshot.lastTurnId,
+      status: heartbeatSnapshot.status,
+      sessionId,
+      pid: process.pid,
+    })
+  }, 5000)
+  backgroundTicker.unref()
+
   let idleSince: number | null = null
   let terminalSignalReceived = false
 
   const cleanExit = (reason: string, code = 0) => {
     console.log(`[seed-daemon] exiting (${reason})`)
+    clearInterval(backgroundTicker)
     // Only remove the PID file if WE still own it. If another daemon
     // took over, its PID file is theirs to manage.
     if (stillOwned(projectDir, sessionId)) {
@@ -163,6 +195,8 @@ async function main(): Promise<void> {
       const batch = drainQueue(projectDir)
       if (batch.length === 0) {
         // Idle tick — check if we should shut down.
+        heartbeatSnapshot.lastTurnId = null
+        heartbeatSnapshot.status = 'idle'
         writeHeartbeat(projectDir, {
           lastTurnId: null,
           status: 'idle',
@@ -211,6 +245,8 @@ async function processBatch(
 ): Promise<void> {
   for (let i = 0; i < batch.length; i++) {
     const entry = batch[i]
+    heartbeatSnapshot.lastTurnId = entry.id
+    heartbeatSnapshot.status = 'processing'
     writeHeartbeat(projectDir, {
       lastTurnId: entry.id,
       status: 'processing',
@@ -335,6 +371,8 @@ async function maybeFireRecovery(projectDir: string, sessionId: string): Promise
   // Fire the recovery turn. Use humanMessageAlreadyPersisted:true so
   // the handler doesn't try to append our [SYSTEM] text as a human
   // chat entry.
+  heartbeatSnapshot.lastTurnId = `recovery-${recoveryLog.length}`
+  heartbeatSnapshot.status = 'processing'
   writeHeartbeat(projectDir, {
     lastTurnId: `recovery-${recoveryLog.length}`,
     status: 'processing',
