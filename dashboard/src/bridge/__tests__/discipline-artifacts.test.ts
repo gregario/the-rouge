@@ -78,17 +78,26 @@ describe('verifyDisciplineArtifact', () => {
     expect(verifyDisciplineArtifact(PROJECT_DIR, 'taste').ok).toBe(true)
   })
 
-  it('accepts spec via seed_spec/milestones.json', () => {
+  // Spec contract is narrative AND decomposition. Accepting just one
+  // (uat-test, 2026-04-21) lets foundation kick off with an empty ledger.
+  it('rejects spec when only seed_spec/milestones.json exists (no narrative)', () => {
     writeFile('seed_spec/milestones.json', LONG_BODY)
-    expect(verifyDisciplineArtifact(PROJECT_DIR, 'spec').ok).toBe(true)
+    expect(verifyDisciplineArtifact(PROJECT_DIR, 'spec').ok).toBe(false)
   })
 
-  it('accepts spec via seed_spec/spec.md when agent inlines', () => {
+  it('rejects spec when only seed_spec/spec.md exists (no decomposition)', () => {
+    writeFile('seed_spec/spec.md', LONG_BODY)
+    expect(verifyDisciplineArtifact(PROJECT_DIR, 'spec').ok).toBe(false)
+  })
+
+  it('accepts spec when both seed_spec/milestones.json AND seed_spec/spec.md exist', () => {
+    writeFile('seed_spec/milestones.json', LONG_BODY)
     writeFile('seed_spec/spec.md', LONG_BODY)
     expect(verifyDisciplineArtifact(PROJECT_DIR, 'spec').ok).toBe(true)
   })
 
-  it('accepts spec via docs/spec.md when agent improvises', () => {
+  it('accepts spec when milestones.json pairs with docs/spec.md (agent improv)', () => {
+    writeFile('seed_spec/milestones.json', LONG_BODY)
     writeFile('docs/spec.md', LONG_BODY)
     expect(verifyDisciplineArtifact(PROJECT_DIR, 'spec').ok).toBe(true)
   })

@@ -52,9 +52,28 @@ const ARTIFACT_SPECS: Record<Discipline, ArtifactSpec[]> = {
     { kind: 'file', path: 'docs/taste_verdict.md', minBytes: 300 },
   ],
   spec: [
-    { kind: 'file', path: 'seed_spec/milestones.json', minBytes: 500 },
-    { kind: 'file', path: 'seed_spec/spec.md', minBytes: 500 },
-    { kind: 'file', path: 'docs/spec.md', minBytes: 500 },
+    // Spec contract is both narrative AND machine-readable decomposition.
+    // Accepting the narrative alone (as we did pre-2026-04-21) meant
+    // `[DISCIPLINE_COMPLETE: spec]` could land while `milestones.json`
+    // was never written — foundation then ran against an empty
+    // task_ledger and the build escalated with "no milestones". The
+    // `files` kind ANDs everything in `paths`; two alternatives cover
+    // the canonical location and the `docs/`-variant agents sometimes
+    // improvise into.
+    {
+      kind: 'files',
+      paths: [
+        { path: 'seed_spec/milestones.json', minBytes: 500 },
+        { path: 'seed_spec/spec.md', minBytes: 500 },
+      ],
+    },
+    {
+      kind: 'files',
+      paths: [
+        { path: 'seed_spec/milestones.json', minBytes: 500 },
+        { path: 'docs/spec.md', minBytes: 500 },
+      ],
+    },
   ],
   infrastructure: [
     { kind: 'file', path: 'infrastructure_manifest.json', minBytes: 200 },

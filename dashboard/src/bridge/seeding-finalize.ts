@@ -120,8 +120,56 @@ export async function finalizeSeeding(projectDir: string): Promise<FinalizeResul
   const missing: string[] = []
 
   // Task ledger — V3 story/milestone tracking the launcher consumes.
-  if (!existsSync(join(projectDir, 'task_ledger.json'))) {
+  //
+  // Two historical footguns:
+  //
+  // 1. The state-migration step writes `{"milestones": []}` at project
+  //    init, so a bare existence check passes even when SPEC never
+  //    wrote its decomposition.
+  //
+  // 2. CLAUDE.md restricts task_ledger writes to `generating-change-spec`,
+  //    so SPEC writes `seed_spec/milestones.json` and relies on the
+  //    launcher to copy milestones across. If finalize ran before that
+  //    copy, foundation kicked off with an empty ledger and the build
+  //    escalated with "no milestones".
+  //
+  // We fix both here: if the ledger is empty but `seed_spec/milestones.json`
+  // exists, copy its milestones into the ledger. Then assert milestones
+  // is non-empty — so finalize cannot succeed against an undecomposed
+  // spec.
+  const ledgerPath = join(projectDir, 'task_ledger.json')
+  if (!existsSync(ledgerPath)) {
     missing.push('task_ledger.json')
+  } else {
+    try {
+      const ledger = JSON.parse(readFileSync(ledgerPath, 'utf-8')) as {
+        milestones?: unknown[]
+      }
+      if (!Array.isArray(ledger.milestones) || ledger.milestones.length === 0) {
+        const milestonesJsonPath = join(projectDir, 'seed_spec', 'milestones.json')
+        if (existsSync(milestonesJsonPath)) {
+          try {
+            const decomposition = JSON.parse(
+              readFileSync(milestonesJsonPath, 'utf-8'),
+            ) as { milestones?: unknown[] }
+            if (Array.isArray(decomposition.milestones) && decomposition.milestones.length > 0) {
+              writeJsonAtomic(ledgerPath, { ...ledger, milestones: decomposition.milestones })
+            }
+          } catch {
+            // malformed milestones.json — fall through to the missing-check.
+          }
+        }
+        // Re-read after the possible repopulate.
+        const after = JSON.parse(readFileSync(ledgerPath, 'utf-8')) as {
+          milestones?: unknown[]
+        }
+        if (!Array.isArray(after.milestones) || after.milestones.length === 0) {
+          missing.push('task_ledger.json (empty milestones — seed_spec/milestones.json missing or malformed)')
+        }
+      }
+    } catch {
+      missing.push('task_ledger.json (unreadable)')
+    }
   }
 
   // Seed spec directory — per-feature spec files.

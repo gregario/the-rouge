@@ -113,13 +113,17 @@ When `infrastructure_manifest.json.deploy.target` (or `vision.json.infrastructur
    - **Astro** — `astro.config.{mjs,ts}` must set `site: 'https://<owner>.github.io'` and `base: '/<repo-name>'`. Default `npm run build` produces `dist/`.
    - **SvelteKit** — use `@sveltejs/adapter-static` with `fallback: 'index.html'` for SPA mode and `paths: { base: '/<repo-name>' }` in `svelte.config.js`.
 
-2. **Empty `.nojekyll` at the project root.** Without it, GitHub Pages' Jekyll processor strips files whose names start with `_` (which hits Next.js's `_next/` folder in particular). The deploy handler runs `gh-pages@6 --dotfiles` so this file is copied through.
+2. **`@types/node` in `devDependencies`.** Any TypeScript file that references `process.env.*`, `import.meta.env`, or a `node:*` module (`node:path`, `node:url`, `node:fs`) needs Node's type declarations to compile under `tsc --noEmit`. The static-export stacks above (Vite, Astro, SvelteKit, CRA, Next) all produce scaffolds where `vite.config.ts`, `playwright.config.ts`, `astro.config.mjs`, test setup files, and build scripts touch `process` — CI's typecheck fails on `Cannot find name 'process'` and `Cannot find module 'node:path'` without the types. Add it alongside `typescript` itself; don't wait for a story to discover the gap.
 
-3. **Optional `CNAME` file** if the product has a custom domain in the infrastructure manifest (`github_pages.custom_domain`). Single line, the domain only, no scheme. `--dotfiles` also propagates this.
+   Also add the runtime's test-runner + framework types the scaffolds import: `@types/react` / `@types/react-dom` for React stacks, `@playwright/test` for Playwright (covers its global `test`/`expect`), and `vitest/globals` in `tsconfig.compilerOptions.types` if Vitest globals are used without explicit imports.
 
-4. **Health check that works without a server.** Since there's no runtime to call, the "health check" for a static-export product is a build-time assertion: the deploy handler confirms the output directory exists and contains at least an `index.html`. Foundation should NOT scaffold a runtime `/api/health` route — those won't exist on Pages.
+3. **Empty `.nojekyll` at the project root.** Without it, GitHub Pages' Jekyll processor strips files whose names start with `_` (which hits Next.js's `_next/` folder in particular). The deploy handler runs `gh-pages@6 --dotfiles` so this file is copied through.
 
-5. **README note on prerequisites.** Add one line reminding whoever runs the first deploy that GitHub Pages must be enabled for the repo with Source = "Deploy from a branch" → `gh-pages`. The launcher can't enable this for them; Rouge's staging push to the `gh-pages` branch is a no-op from the user's perspective until the setting is toggled.
+4. **Optional `CNAME` file** if the product has a custom domain in the infrastructure manifest (`github_pages.custom_domain`). Single line, the domain only, no scheme. `--dotfiles` also propagates this.
+
+5. **Health check that works without a server.** Since there's no runtime to call, the "health check" for a static-export product is a build-time assertion: the deploy handler confirms the output directory exists and contains at least an `index.html`. Foundation should NOT scaffold a runtime `/api/health` route — those won't exist on Pages.
+
+6. **README note on prerequisites.** Add one line reminding whoever runs the first deploy that GitHub Pages must be enabled for the repo with Source = "Deploy from a branch" → `gh-pages`. The launcher can't enable this for them; Rouge's staging push to the `gh-pages` branch is a no-op from the user's perspective until the setting is toggled.
 
 **What foundation MUST NOT scaffold for a static-export target:**
 

@@ -364,6 +364,11 @@ describe('handleSeedMessage — auto-kickoff on marker acceptance', () => {
         mkdirSync(join(full, '..'), { recursive: true })
         // 2500 bytes clears the largest verifier floor (design = 2000).
         writeFileSync(full, 'x'.repeat(2500))
+        // Spec now requires BOTH milestones.json AND a narrative — write
+        // the companion narrative so the marker verifier accepts.
+        if (d === 'spec') {
+          writeFileSync(join(PROJECT_DIR, 'seed_spec', 'spec.md'), 'x'.repeat(2500))
+        }
         return { result: `[DISCIPLINE_COMPLETE: ${d}]`, session_id: 's1' }
       })
     }

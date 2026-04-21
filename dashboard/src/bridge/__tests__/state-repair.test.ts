@@ -17,10 +17,12 @@ function seedProject(state: Record<string, unknown>, seeding: Record<string, unk
 }
 
 function seedArtifacts(): void {
-  // Satisfy finalizeSeeding's artifact checks.
+  // Satisfy finalizeSeeding's artifact checks. task_ledger + milestones
+  // must now have a non-empty milestones array (uat-test regression fix).
   mkdirSync(join(dir, 'seed_spec'), { recursive: true })
-  writeFileSync(join(dir, 'task_ledger.json'), '{}')
-  writeFileSync(join(dir, 'seed_spec', 'milestones.json'), '{}')
+  const ms = { milestones: [{ name: 'core', stories: [{ id: 'core-1', status: 'pending' }] }] }
+  writeFileSync(join(dir, 'task_ledger.json'), JSON.stringify(ms))
+  writeFileSync(join(dir, 'seed_spec', 'milestones.json'), JSON.stringify(ms))
   writeFileSync(join(dir, 'vision.json'), 'x'.repeat(500))
   writeFileSync(join(dir, 'product_standard.json'), 'x'.repeat(500))
 }

@@ -13,11 +13,22 @@ describe('finalizeSeeding', () => {
 
   const LONG = 'x'.repeat(500)
 
+  const SAMPLE_MILESTONE = {
+    name: 'core',
+    stories: [{ id: 'core-1', name: 'scaffold', status: 'pending', acceptance_criteria: [] }],
+  }
+
   function seedCompleteProject(): void {
     mkdirSync(join(testDir, 'seed_spec'), { recursive: true })
     mkdirSync(join(testDir, '.rouge'), { recursive: true })
-    writeFileSync(join(testDir, 'task_ledger.json'), '{}')
-    writeFileSync(join(testDir, 'seed_spec', 'milestones.json'), '{}')
+    writeFileSync(
+      join(testDir, 'task_ledger.json'),
+      JSON.stringify({ milestones: [SAMPLE_MILESTONE] }),
+    )
+    writeFileSync(
+      join(testDir, 'seed_spec', 'milestones.json'),
+      JSON.stringify({ milestones: [SAMPLE_MILESTONE] }),
+    )
     writeFileSync(join(testDir, 'vision.json'), LONG)
     writeFileSync(join(testDir, 'product_standard.json'), LONG)
     // state.json lives under .rouge/ (#135 / #143). Previous test
@@ -104,6 +115,45 @@ describe('finalizeSeeding', () => {
     expect(result.ok).toBe(true)
     const state = JSON.parse(readFileSync(join(testDir, '.rouge', 'state.json'), 'utf-8'))
     expect(state.foundation).toEqual({ status: 'complete' })
+  })
+
+  // uat-test (2026-04-21) reached state=foundation with task_ledger.json
+  // = {"milestones": []} because finalize passed on bare existence,
+  // not on content. Guard against regression.
+  it('returns missingArtifacts when task_ledger.json has an empty milestones array AND no seed_spec/milestones.json', async () => {
+    seedCompleteProject()
+    writeFileSync(join(testDir, 'task_ledger.json'), JSON.stringify({ milestones: [] }))
+    rmSync(join(testDir, 'seed_spec', 'milestones.json'))
+    // keep a different seed_spec file so the directory-exists check still passes
+    writeFileSync(join(testDir, 'seed_spec', 'spec.md'), LONG)
+
+    const result = await finalizeSeeding(testDir)
+    expect(result.ok).toBe(false)
+    expect(result.missingArtifacts?.join(' ')).toMatch(/empty milestones/)
+  })
+
+  it('auto-populates task_ledger.json from seed_spec/milestones.json when ledger is empty', async () => {
+    seedCompleteProject()
+    // Simulate the common path: SPEC wrote milestones.json, task_ledger
+    // was the migration stub.
+    writeFileSync(join(testDir, 'task_ledger.json'), JSON.stringify({ milestones: [] }))
+
+    const result = await finalizeSeeding(testDir)
+    expect(result.ok).toBe(true)
+
+    const ledger = JSON.parse(readFileSync(join(testDir, 'task_ledger.json'), 'utf-8'))
+    expect(ledger.milestones).toHaveLength(1)
+    expect(ledger.milestones[0].name).toBe('core')
+  })
+
+  it('returns missingArtifacts when both task_ledger and seed_spec/milestones.json have empty milestones', async () => {
+    seedCompleteProject()
+    writeFileSync(join(testDir, 'task_ledger.json'), JSON.stringify({ milestones: [] }))
+    writeFileSync(join(testDir, 'seed_spec', 'milestones.json'), JSON.stringify({ milestones: [] }))
+
+    const result = await finalizeSeeding(testDir)
+    expect(result.ok).toBe(false)
+    expect(result.missingArtifacts?.join(' ')).toMatch(/empty milestones/)
   })
 
   it('is idempotent — a second call on an already-finalized project is a no-op', async () => {
