@@ -31,10 +31,31 @@ import { handleSeedMessage } from './seed-handler'
 import { drainQueue, hasQueuedMessages, requeueFront, type QueueEntry } from './seed-queue'
 import { writeSeedPid, clearSeedPid, stillOwned, readSeedPid } from './seed-daemon-pid'
 import { readSeedingState, effectiveMode } from './seeding-state'
+import { readChatLog, appendChatMessage } from './chat-reader'
 
 const HEARTBEAT_FILENAME = 'seed-heartbeat.json'
 const POLL_INTERVAL_MS = 1000
 const IDLE_EXIT_MS = 5000  // how long queue must be empty before we shut down
+
+// Phase 3 self-heal bounds. A turn that returns bare prose (no gate,
+// no discipline-complete, no autonomous markers) is a "stall" — Rouge
+// ended the turn without telling us what's next, and no code path
+// automatically re-fires it. Without self-heal this is the colourcontrast
+// symptom: session sits for 1h 40m with no progress, user has no idea
+// what's happening.
+//
+// Recovery fires `[SYSTEM] Continue the current discipline with markers.`
+// and lets handleSeedMessage run the turn again. Bounded so a
+// persistently misbehaving discipline can't consume infinite tokens.
+const MAX_RECOVERIES_PER_HOUR = 3
+const RECOVERY_WINDOW_MS = 60 * 60 * 1000
+
+// In-memory recovery bookkeeping. Keyed by projectDir. Resets on
+// daemon restart, which is fine — daemons idle-exit in ~5s of
+// inactivity, and a restart is the right moment to reset the counter
+// (operator intervention or a fresh user message implies the
+// prior "stuck" state is resolved).
+const recoveryLog: Array<{ projectDir: string; at: number }> = []
 
 interface HeartbeatPayload {
   lastTickAt: string
@@ -211,6 +232,14 @@ async function processBatch(
       await handleSeedMessage(projectDir, entry.text, {
         humanMessageAlreadyPersisted: entry.humanAlreadyPersisted === true,
       })
+      // Phase 3 self-heal. Check if the turn stalled (bare prose
+      // return, no markers, no gate, not complete). If so and we're
+      // under the hourly cap, fire a recovery turn — the same
+      // `[SYSTEM] continue` pattern the inline path's autonomous-chunk
+      // continuation uses, but triggered when Claude returns
+      // without ANY markers (a case the handler's own continuation
+      // logic doesn't cover).
+      await maybeFireRecovery(projectDir, sessionId)
     } catch (err) {
       console.error(`[seed-daemon] handleSeedMessage failed for ${entry.id}:`, err)
       // The message was already dequeued. Only re-queue if it was
@@ -224,6 +253,109 @@ async function processBatch(
       }
       return
     }
+  }
+}
+
+/**
+ * Phase 3 — stall detection + recovery.
+ *
+ * After a turn completes, inspect whether Rouge left the session in
+ * a stalled state. Stalled = all of:
+ *   - seeding isn't complete
+ *   - session is still in `running_autonomous` mode (NOT awaiting a
+ *     human gate — that's the user's problem to answer)
+ *   - the most recent rouge chat message has kind='prose' (or no
+ *     kind at all). Bare prose means no [GATE:], no [DECISION:],
+ *     no [HEARTBEAT:], no [WROTE:], no [DISCIPLINE_COMPLETE:]. The
+ *     handler's own auto-continuation logic skips turns like this
+ *     because it can't tell if the user was about to speak — but
+ *     under the daemon path we CAN tell: if the turn sat idle for
+ *     its whole duration (no queue action from the user), it's a
+ *     genuine stall.
+ *
+ * If detected, append a chat system note ("Detected stall, firing
+ * recovery") and run a new turn with a [SYSTEM] prompt asking Rouge
+ * to continue the current discipline. Bounded by recoveryLog to
+ * MAX_RECOVERIES_PER_HOUR so a persistently misbehaving discipline
+ * can't burn infinite tokens.
+ */
+async function maybeFireRecovery(projectDir: string, sessionId: string): Promise<void> {
+  const state = readSeedingState(projectDir)
+  if (state.seeding_complete) return
+  if (state.status === 'complete') return
+  if (state.status === 'paused') return // rate-limited — don't pile on
+  if (effectiveMode(state) === 'awaiting_gate') return // user's turn
+
+  const messages = readChatLog(projectDir)
+  if (messages.length === 0) return
+  const last = messages[messages.length - 1]
+  if (last.role !== 'rouge') return
+  // Stall shape: prose (or undefined kind = legacy prose). Any of
+  // the structured kinds means the turn actually did something
+  // actionable.
+  const kind = last.kind
+  if (kind && kind !== 'prose') return
+
+  const now = Date.now()
+  // Trim expired entries from the recovery log.
+  while (recoveryLog.length > 0 && now - recoveryLog[0].at > RECOVERY_WINDOW_MS) {
+    recoveryLog.shift()
+  }
+  const recentForProject = recoveryLog.filter((r) => r.projectDir === projectDir).length
+  if (recentForProject >= MAX_RECOVERIES_PER_HOUR) {
+    console.log(
+      `[seed-daemon] recovery cap reached for ${projectDir} (${recentForProject}/${MAX_RECOVERIES_PER_HOUR} per hour) — manual intervention needed`,
+    )
+    appendChatMessage(projectDir, {
+      id: `recovery-cap-${randomUUID().slice(0, 8)}`,
+      role: 'rouge',
+      content:
+        `Rouge has returned without progress markers ${recentForProject} times in the last hour. ` +
+        `Auto-recovery is capped to avoid burning tokens on a misbehaving turn. ` +
+        `Send a message to continue — describe what you expected Rouge to do next.`,
+      timestamp: new Date().toISOString(),
+      kind: 'system_note',
+    })
+    return
+  }
+
+  console.log(`[seed-daemon] stall detected in ${projectDir} — firing recovery turn`)
+  recoveryLog.push({ projectDir, at: now })
+
+  // Append a visible system note so the user sees we noticed + acted.
+  appendChatMessage(projectDir, {
+    id: `recovery-${randomUUID().slice(0, 8)}`,
+    role: 'rouge',
+    content:
+      'Rouge returned without a gate, decision, or completion marker. Automatically continuing the current discipline…',
+    timestamp: new Date().toISOString(),
+    kind: 'system_note',
+  })
+
+  // Fire the recovery turn. Use humanMessageAlreadyPersisted:true so
+  // the handler doesn't try to append our [SYSTEM] text as a human
+  // chat entry.
+  writeHeartbeat(projectDir, {
+    lastTurnId: `recovery-${recoveryLog.length}`,
+    status: 'processing',
+    sessionId,
+    pid: process.pid,
+  })
+  try {
+    await handleSeedMessage(
+      projectDir,
+      '[SYSTEM] Recovery: the previous turn returned without markers. Continue the current discipline — emit [DECISION:], [WROTE:], [HEARTBEAT:], [GATE:], or [DISCIPLINE_COMPLETE:] as appropriate.',
+      { humanMessageAlreadyPersisted: true },
+    )
+  } catch (err) {
+    console.error(`[seed-daemon] recovery turn failed:`, err)
+    appendChatMessage(projectDir, {
+      id: `recovery-err-${randomUUID().slice(0, 8)}`,
+      role: 'rouge',
+      content: `Recovery turn failed: ${err instanceof Error ? err.message : String(err)}. Please send a message to continue.`,
+      timestamp: new Date().toISOString(),
+      kind: 'system_note',
+    })
   }
 }
 
