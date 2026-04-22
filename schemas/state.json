@@ -119,7 +119,7 @@
         "phase_cost_usd": { "type": "number" },
         "cumulative_tokens": { "type": "number" },
         "cumulative_cost_usd": { "type": "number" },
-        "phase_cost_source": { "type": "string", "enum": ["parsed", "heuristic"] }
+        "phase_cost_source": { "type": "string", "enum": ["parsed", "parsed-tokens", "heuristic", "estimated"] }
       }
     },
     "budget_cap_usd": { "type": "number", "minimum": 0 },

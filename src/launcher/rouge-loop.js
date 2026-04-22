@@ -885,13 +885,40 @@ async function advanceState(projectDir) {
       } catch (err) {
         log(`[${projectName}] Provisioning failed: ${(err.message || '').slice(0, 200)}`);
         log(`[${projectName}] Escalating — can't build without infrastructure`);
+        // Dynamic escalation message — name only the providers the
+        // project actually targets, not a generic "Check both" string.
+        // irish-planning's hard-coded "Check CLOUDFLARE_API_TOKEN,
+        // SUPABASE_ACCESS_TOKEN" message was misleading because the
+        // project targeted vercel — it didn't need a CF token at all.
+        const deployTarget = infra?.deployment_target || state.deployment_target;
+        const needsDb = !!infra?.needs_database;
+        const missingHints = [];
+        if (deployTarget) {
+          const { getManifest } = require('./integration-catalog.js');
+          const m = getManifest(deployTarget);
+          if (m && Array.isArray(m.secrets_required)) {
+            for (const sec of m.secrets_required) {
+              if (sec.optional) continue;
+              missingHints.push(`${sec.key} (for ${deployTarget})`);
+            }
+          }
+        }
+        if (needsDb) {
+          // Supabase is the only database provider currently supported;
+          // if that expands, read from a database-kind manifest.
+          missingHints.push('SUPABASE_ACCESS_TOKEN (for database)');
+        }
+        const reason = (err.message || '').slice(0, 150);
+        const summary = missingHints.length > 0
+          ? `Infrastructure provisioning for ${deployTarget || 'this project'} failed: ${reason}. Verify: ${missingHints.join(', ')}. Store via \`rouge setup <provider>\` if missing.`
+          : `Infrastructure provisioning failed: ${reason}`;
         next = 'escalation';
         if (!state.escalations) state.escalations = [];
         state.escalations.push({
-          id: 'esc-provisioning-failed',
+          id: `esc-provisioning-failed-${Date.now()}`,
           tier: 1,
           classification: 'infrastructure-gap',
-          summary: 'Cloud infrastructure provisioning failed. Check CLOUDFLARE_API_TOKEN, SUPABASE_ACCESS_TOKEN env vars.',
+          summary,
           story_id: null,
           status: 'pending',
           created_at: new Date().toISOString(),

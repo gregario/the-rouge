@@ -85,15 +85,35 @@ function parseRealCostFromLog(logPath) {
   }
 }
 
-function trackPhaseCost(state, phaseTokens, model) {
+function initCosts(state) {
   if (!state.costs) {
-    state.costs = { cumulative_tokens: 0, cumulative_cost_usd: 0 };
+    state.costs = {
+      cumulative_tokens: 0,
+      cumulative_cost_usd: 0,
+      // Split tracking (added 2026-04-22): cap enforcement uses the
+      // 'real' stream only so heuristic fallback estimates can't trip
+      // the cap. Total = real + estimated for display.
+      cumulative_cost_usd_real: 0,
+      cumulative_cost_usd_estimated: 0,
+    };
+  } else {
+    // Backfill the split fields for pre-existing state.json files so
+    // callers can rely on them being present after any trackPhase call.
+    if (state.costs.cumulative_cost_usd_real == null) state.costs.cumulative_cost_usd_real = 0;
+    if (state.costs.cumulative_cost_usd_estimated == null) state.costs.cumulative_cost_usd_estimated = 0;
   }
+}
+
+function trackPhaseCost(state, phaseTokens, model) {
+  initCosts(state);
   const phaseCost = estimatePhaseCost(phaseTokens, model);
   state.costs.phase_tokens = phaseTokens;
   state.costs.phase_cost_usd = phaseCost;
   state.costs.cumulative_tokens += phaseTokens;
   state.costs.cumulative_cost_usd += phaseCost;
+  // trackPhaseCost is heuristic-only (no log to parse) — label as estimated.
+  state.costs.cumulative_cost_usd_estimated += phaseCost;
+  state.costs.phase_cost_source = 'estimated';
 }
 
 /**
@@ -101,25 +121,35 @@ function trackPhaseCost(state, phaseTokens, model) {
  * token heuristic. If parseRealCostFromLog returns a real costUsd,
  * use it directly (bypass the estimate). Otherwise fall back to the
  * token-based estimate.
+ *
+ * Labels the cost source so cap enforcement can exclude heuristic
+ * fallbacks: `parsed` (real costUsd from log) → counted toward
+ * cumulative_cost_usd_real. `parsed-tokens` (real tokens only,
+ * priced via the model table) → also counted as real. `heuristic`
+ * (log-size proxy) → counted as estimated, excluded from cap.
  */
 function trackPhaseCostFromLog(state, logPath, fallbackTokens, model) {
-  if (!state.costs) {
-    state.costs = { cumulative_tokens: 0, cumulative_cost_usd: 0 };
-  }
+  initCosts(state);
   const real = parseRealCostFromLog(logPath);
   const tokens = real?.tokens || fallbackTokens;
   const cost = (real?.costUsd !== null && real?.costUsd !== undefined)
     ? real.costUsd
     : estimatePhaseCost(tokens, model);
-  state.costs.phase_tokens = tokens;
-  state.costs.phase_cost_usd = cost;
-  state.costs.cumulative_tokens += tokens;
-  state.costs.cumulative_cost_usd += cost;
-  state.costs.phase_cost_source = real?.costUsd != null
+  const source = real?.costUsd != null
     ? 'parsed'
     : real?.tokens
       ? 'parsed-tokens'
       : 'heuristic';
+  state.costs.phase_tokens = tokens;
+  state.costs.phase_cost_usd = cost;
+  state.costs.cumulative_tokens += tokens;
+  state.costs.cumulative_cost_usd += cost;
+  if (source === 'parsed' || source === 'parsed-tokens') {
+    state.costs.cumulative_cost_usd_real += cost;
+  } else {
+    state.costs.cumulative_cost_usd_estimated += cost;
+  }
+  state.costs.phase_cost_source = source;
 }
 
 /**
@@ -128,9 +158,21 @@ function trackPhaseCostFromLog(state, logPath, fallbackTokens, model) {
  * than after. Previously `cumulative >= cap` fired only after a phase
  * had already pushed past — typical phase cost is a few dollars on
  * Opus, so caps could miss by a meaningful amount.
+ *
+ * Uses the REAL cumulative stream only (parsed / parsed-tokens), not
+ * the heuristic fallback. Prior to 2026-04-22 the cap was tripped by
+ * heuristic estimates that inflated with log size — a pattern that
+ * could halt a project on "budget exceeded" without having actually
+ * spent the money. If a project exclusively produces heuristic costs
+ * (old state.json with no real-cost split), fall back to the total
+ * so we don't silently disable the cap for legacy data.
  */
 function checkBudgetCap(state, budgetCapUsd) {
-  const cumulative = state.costs?.cumulative_cost_usd || 0;
+  const cumulativeReal = state.costs?.cumulative_cost_usd_real;
+  const cumulativeTotal = state.costs?.cumulative_cost_usd || 0;
+  // If the split-tracking fields aren't populated yet (pre-split state),
+  // use the total. Otherwise prefer real.
+  const cumulative = (cumulativeReal == null) ? cumulativeTotal : cumulativeReal;
   const margin = Math.max(budgetCapUsd * CAP_SAFETY_FRACTION, CAP_SAFETY_MIN_USD);
   return cumulative >= (budgetCapUsd - margin);
 }
@@ -138,10 +180,12 @@ function checkBudgetCap(state, budgetCapUsd) {
 /**
  * Strict cap check — true only when the cumulative has actually
  * exceeded the cap. Use for logging / alerting; use `checkBudgetCap`
- * for the pre-phase gate.
+ * for the pre-phase gate. Uses real cumulative, matching checkBudgetCap.
  */
 function isOverBudget(state, budgetCapUsd) {
-  const cumulative = state.costs?.cumulative_cost_usd || 0;
+  const cumulativeReal = state.costs?.cumulative_cost_usd_real;
+  const cumulativeTotal = state.costs?.cumulative_cost_usd || 0;
+  const cumulative = (cumulativeReal == null) ? cumulativeTotal : cumulativeReal;
   return cumulative >= budgetCapUsd;
 }
 
