@@ -200,21 +200,39 @@ function readJson(filePath) {
 }
 
 function writeJson(filePath, data) {
-  // Schema validation (warn-only). Matches filenames to the schemas
-  // that live in the repo's `schemas/` dir. Failures don't block the
-  // write — we prefer a bad shape on disk over a loop that refuses
-  // to progress because validation found a nitpick.
+  // Schema validation. state.json writes are strict — a drift here
+  // causes phase-loop pathologies (see stack-rank's 94-cycle foundation
+  // -eval spiral on `status='evaluating'` absent from the enum). Better
+  // to halt the loop on the offending write than let it compound across
+  // every future iteration.
+  //
+  // cycle_context.json and task_ledger.json stay warn-only for now —
+  // they have historical drift we haven't finished auditing, and a
+  // halted cycle-context write strands the whole project. Those will
+  // be promoted to strict once the schemas are fully reconciled.
   try {
-    const { validate } = require('./schema-validator.js');
+    const { validate, SchemaViolationError } = require('./schema-validator.js');
     const base = path.basename(filePath);
     if (base === 'state.json') {
-      validate('state.json', data, `write ${filePath}`);
+      try {
+        validate('state.json', data, `write ${filePath}`, { strict: true });
+      } catch (err) {
+        if (err instanceof SchemaViolationError) {
+          // Re-throw so the caller halts rather than persisting the
+          // bad shape. The stack trace identifies the assignment site.
+          throw err;
+        }
+        throw err;
+      }
     } else if (base === 'cycle_context.json') {
       validate('cycle-context-v3.json', data, `write ${filePath}`);
     } else if (base === 'task_ledger.json') {
       validate('task-ledger-v3.json', data, `write ${filePath}`);
     }
-  } catch {
+  } catch (err) {
+    // Only swallow the "validator unavailable" case. A schema violation
+    // must propagate so the write doesn't happen.
+    if (err && err.name === 'SchemaViolationError') throw err;
     /* validator unavailable — skip silently */
   }
   const tmp = filePath + '.tmp';

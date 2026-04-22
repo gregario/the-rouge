@@ -38,7 +38,7 @@
       "type": ["object", "null"],
       "additionalProperties": true,
       "properties": {
-        "status": { "type": "string", "enum": ["pending", "not-needed", "in-progress", "complete"] },
+        "status": { "type": "string", "enum": ["pending", "not-needed", "in-progress", "evaluating", "complete"] },
         "scope": { "type": "array", "items": { "type": "string" } },
         "completed_at": { "type": "string" }
       }

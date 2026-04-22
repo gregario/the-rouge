@@ -1,11 +1,23 @@
 /**
- * Shared schema validator (warn-only).
+ * Shared schema validator.
  *
- * ajv + the JSON Schemas in `schemas/` catch shape violations that
- * silent-swallow catches in readers couldn't. The violation surfaces
- * as a warn log (with file path + first error) so the operator has a
- * trail — but the read/write still proceeds so a bad shape on disk
- * can't take the whole loop down.
+ * Two modes:
+ *
+ * - Warn (default) — violation logs + returns `{valid: false, errors}`,
+ *   caller decides. Used by reads where a bad shape on disk shouldn't
+ *   block forward progress.
+ *
+ * - Strict — violation throws a `SchemaViolationError`. Used by writes
+ *   where letting the bad shape land would corrupt state for later
+ *   readers. Callers opt in via `{strict: true}` or the env var
+ *   `ROUGE_STRICT_SCHEMA=1`.
+ *
+ * Rationale: stack-rank looped foundation-eval 94× because a write of
+ * `foundation.status='evaluating'` (not in the schema enum) was logged
+ * as a warn and proceeded, and no downstream reader could distinguish
+ * "schema-violating state" from "normal state." Strict-mode writes
+ * surface the drift immediately at the site of introduction, which is
+ * where the stack trace is useful.
  *
  * Scope: used from launcher paths that read/write state.json,
  * cycle_context.json, task_ledger.json, and checkpoint entries.
@@ -56,23 +68,42 @@ function loadValidator(schemaName) {
   }
 }
 
+class SchemaViolationError extends Error {
+  constructor(schemaName, context, errors) {
+    super(`[schema:${schemaName}] ${context}: ${errors[0] || 'unknown violation'}`);
+    this.name = 'SchemaViolationError';
+    this.schemaName = schemaName;
+    this.context = context;
+    this.errors = errors;
+  }
+}
+
 /**
- * Validate a JSON value against a schema file. Warn-only.
+ * Validate a JSON value against a schema file.
  *
  * @param {string} schemaName — filename inside `schemas/` (e.g. 'state.json').
  * @param {unknown} data — value to validate.
  * @param {string} context — for log tag ('state.json write', 'cycle_context read', etc).
+ * @param {{ strict?: boolean }} [opts] — strict mode throws on violation.
+ *   Env var `ROUGE_STRICT_SCHEMA=1` promotes all calls to strict.
  * @returns {{ valid: boolean, errors: string[] }}
+ * @throws {SchemaViolationError} when strict mode is on and validation fails.
  */
-function validate(schemaName, data, context) {
+function validate(schemaName, data, context, opts) {
   const v = loadValidator(schemaName);
   if (!v) return { valid: true, errors: [] };
   const ok = v(data);
   if (ok) return { valid: true, errors: [] };
   const errors = (v.errors || []).map((e) => `${e.instancePath || '<root>'} ${e.message}`);
+  const strict = (opts && opts.strict) || process.env.ROUGE_STRICT_SCHEMA === '1';
+  if (strict) {
+    // No warn log — the thrown error carries the same payload and the
+    // caller's stack is more useful than a stray warn line.
+    throw new SchemaViolationError(schemaName, context, errors);
+  }
   const first = errors[0] || 'unknown violation';
   console.warn(`[schema:${schemaName}] ${context}: ${first}`);
   return { valid: false, errors };
 }
 
-module.exports = { validate };
+module.exports = { validate, SchemaViolationError };
