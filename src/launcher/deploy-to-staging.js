@@ -225,6 +225,28 @@ function deployGithubPages(projectDir) {
   }
   const [, owner, repo] = remoteMatch;
 
+  // Catalog-driven prerequisite handling. The github-pages manifest
+  // declares "pages-enabled" with a gh-api-post auto_remediate, so a
+  // first-time deploy against a repo without Pages enabled gets
+  // auto-toggled in the green zone. Any prerequisite without
+  // auto_remediate that fails raises a prerequisite-failed error.
+  const { getManifest, ensurePrerequisites } = require('./integration-catalog.js');
+  const manifestDef = getManifest('github-pages');
+  const prereqCtx = { projectDir, owner, repo, project: path.basename(projectDir) };
+  let firstTimeDeploy = false;
+  if (manifestDef) {
+    const prereq = ensurePrerequisites(manifestDef, prereqCtx);
+    if (prereq.remediated.length > 0) {
+      firstTimeDeploy = prereq.remediated.includes('pages-enabled');
+      log(`Auto-remediated prerequisites: ${prereq.remediated.join(', ')}`);
+    }
+    if (!prereq.ok) {
+      throw new Error(
+        `GitHub Pages prerequisites failed: ${prereq.failed.map((f) => `${f.label} (${f.detail})`).join('; ')}`,
+      );
+    }
+  }
+
   const manifest = readJson(path.join(projectDir, 'infrastructure_manifest.json'));
   const vision = readJson(path.join(projectDir, 'vision.json'));
   const configuredOutput =
@@ -232,7 +254,7 @@ function deployGithubPages(projectDir) {
     vision?.infrastructure?.github_pages?.output_dir;
   const outputCandidates = configuredOutput
     ? [configuredOutput]
-    : ['dist', 'build', 'out', 'public'];
+    : (manifestDef?.build_output_dirs || ['dist', 'build', 'out', 'public']);
 
   // Build — same timeout profile as Cloudflare since a cold Vite/Next
   // build on a fresh runner can crest 2 min.
@@ -280,7 +302,19 @@ function deployGithubPages(projectDir) {
   // https://<owner>.github.io/ without the repo suffix.
   const url = `https://${owner}.github.io/${repo}/`;
   log(`Deployed to ${url}`);
-  log('⚠️  First-time deploy: enable GitHub Pages in repo settings (Source: Deploy from a branch → gh-pages) if not already. Propagation takes ~1 min.');
+  // If we just enabled Pages for the first time, use the manifest's
+  // first-deploy grace + poll window to wait for CDN propagation
+  // before the shared post-deploy health check lands. On subsequent
+  // deploys, no wait — the site is already serving.
+  if (firstTimeDeploy && manifestDef) {
+    const { runHealthCheck } = require('./integration-catalog.js');
+    const probe = runHealthCheck(manifestDef, url, { firstDeploy: true });
+    if (probe.ok) {
+      log(`Pages serving (${probe.attempts} probe${probe.attempts === 1 ? '' : 's'}, ${Math.round(probe.elapsedMs / 1000)}s after enable)`);
+    } else {
+      log(`Pages did not respond within the first-deploy window (${probe.attempts} probes, last status ${probe.status}); the caller health check will surface this.`);
+    }
+  }
   return url;
 }
 

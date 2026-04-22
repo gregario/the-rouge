@@ -1,0 +1,43 @@
+{
+  "target": "cloudflare-pages",
+  "aliases": ["cloudflare", "cloudflare-workers"],
+  "kind": "deploy",
+  "version": 1,
+  "human_name": "Cloudflare Pages / Workers",
+  "summary": "Edge-deployed site + Workers API. Low-latency global CDN, KV/R2/D1 bundled integrations.",
+  "prerequisites": [
+    {
+      "id": "wrangler-available",
+      "label": "`wrangler` CLI is available on PATH or via npx",
+      "check": { "kind": "shell", "command": "npx --yes wrangler --version" }
+    },
+    {
+      "id": "cloudflare-token",
+      "label": "Cloudflare API token is configured",
+      "check": { "kind": "secret-present", "secret_key": "CLOUDFLARE_API_TOKEN" }
+    },
+    {
+      "id": "cloudflare-account-id",
+      "label": "Cloudflare account ID is configured",
+      "check": { "kind": "secret-present", "secret_key": "CLOUDFLARE_ACCOUNT_ID" }
+    }
+  ],
+  "build_output_dirs": ["dist", "build", ".next", ".open-next"],
+  "env_vars": [
+    { "name": "CLOUDFLARE_API_TOKEN", "required": true, "secret_provider": "cloudflare" },
+    { "name": "CLOUDFLARE_ACCOUNT_ID", "required": true, "secret_provider": "cloudflare" }
+  ],
+  "secrets_required": [
+    { "provider": "cloudflare", "key": "CLOUDFLARE_API_TOKEN" },
+    { "provider": "cloudflare", "key": "CLOUDFLARE_ACCOUNT_ID" }
+  ],
+  "health_check": {
+    "kind": "http-200",
+    "url_template": "https://{project}.pages.dev",
+    "timeout_ms": 10000,
+    "first_deploy_grace_ms": 15000,
+    "first_deploy_poll_window_ms": 90000,
+    "poll_interval_ms": 10000
+  },
+  "notes_for_prompt": "Edge workers reuse instances across concurrent requests (Fluid-Compute-style). For Next.js deploys use `@opennextjs/cloudflare` adapter. For rollback, wrangler retains version history — `wrangler rollback <version>` is available."
+}

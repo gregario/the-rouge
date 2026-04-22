@@ -25,6 +25,7 @@ const { loadProjectSecrets } = require('./secrets.js');
 const { writeCheckpoint, readLatestCheckpoint, readAllCheckpoints } = require('./checkpoint.js');
 const { checkMilestoneLock, promoteMilestone, shouldEscalateForSpin, getCompletedStoryNames, isStoryDuplicate } = require('./safety.js');
 const { trackPhaseCost, trackPhaseCostFromLog, checkBudgetCap } = require('./cost-tracker.js');
+const { recordAndCheck: recordEvalFingerprint } = require('./spin-detector.js');
 const { deployWithRetry, shouldBlockMilestoneCheck } = require('./deploy-blocking.js');
 const { migrateV2StateToV3 } = require('./state-migration.js');
 const { injectPreamble } = require('./preamble-injector.js');
@@ -732,6 +733,40 @@ async function advanceState(projectDir) {
       const verdict = ctx?.foundation_eval_report?.verdict || 'PASS';
 
       if (verdict !== 'PASS') {
+        // Record + check for semantic spin. Three identical
+        // foundation_eval_reports in a row means the foundation phase
+        // can't move the needle on what the evaluator is flagging —
+        // this is the stack-rank pattern (94× loop on a schema enum
+        // drift the foundation phase couldn't fix). Escalate rather
+        // than continue the retry spiral.
+        const { isSpin, recent } = recordEvalFingerprint(
+          projectDir,
+          'foundation-eval',
+          ctx?.foundation_eval_report,
+          { meta: { cycle_number: state.cycle_number || 0 } },
+        );
+        if (isSpin) {
+          if (!state.escalations) state.escalations = [];
+          state.escalations.push({
+            id: `esc-semantic-spin-foundation-${Date.now()}`,
+            tier: 1,
+            classification: 'semantic-spin',
+            phase: 'foundation-eval',
+            summary:
+              `Foundation-eval has returned identical findings ${recent.length} times in a row. ` +
+              `Verdict: ${verdict}. The foundation phase cannot fix what the evaluator is flagging — ` +
+              `a human needs to inspect. Findings repeat exactly; Wave-3 triage will route this to ` +
+              `self-heal when Rouge-side bugs are identifiable, or escalate when not.`,
+            story_id: null,
+            status: 'pending',
+            created_at: new Date().toISOString(),
+            recent_fingerprints: recent.map((e) => ({ ts: e.ts, verdict: e.verdict })),
+          });
+          writeJson(stateFile, state);
+          next = 'escalation';
+          log(`[${projectName}] Foundation-eval semantic spin (${recent.length} identical cycles) — escalating`);
+          break;
+        }
         next = 'foundation';
         log(`[${projectName}] Foundation eval FAIL — retrying`);
         break;
@@ -1192,6 +1227,39 @@ async function advanceState(projectDir) {
         poVerdict === 'NOT_READY' || poVerdict === 'NEEDS_IMPROVEMENT';
 
       if (lensFail) {
+        // Record + check for semantic spin. Testimonial ran
+        // milestone-check/milestone-fix 87× in a row with identical
+        // PO NEEDS_IMPROVEMENT findings; milestone-fix couldn't move
+        // the score. Escalate the loop instead of continuing to burn
+        // budget on a verdict that isn't going to change.
+        const { isSpin, recent } = recordEvalFingerprint(
+          projectDir,
+          'milestone-check',
+          ctx?.evaluation_report,
+          { meta: { cycle_number: state.cycle_number || 0 } },
+        );
+        if (isSpin) {
+          if (!state.escalations) state.escalations = [];
+          state.escalations.push({
+            id: `esc-semantic-spin-milestone-${Date.now()}`,
+            tier: 1,
+            classification: 'semantic-spin',
+            phase: 'milestone-check',
+            summary:
+              `Milestone-check has returned identical findings ${recent.length} times in a row ` +
+              `(qa=${qaVerdict}, design=${designVerdict}, po=${poVerdict}). milestone-fix cannot ` +
+              `move the score. This is either a 1-bit taste call (accept/reject at this quality) ` +
+              `or a miscalibrated evaluator — a human needs to break the tie.`,
+            story_id: null,
+            status: 'pending',
+            created_at: new Date().toISOString(),
+            recent_fingerprints: recent.map((e) => ({ ts: e.ts, verdict: e.verdict })),
+          });
+          writeJson(stateFile, state);
+          next = 'escalation';
+          log(`[${projectName}] Milestone-check semantic spin (${recent.length} identical cycles) — escalating`);
+          break;
+        }
         next = 'milestone-fix';
         log(`[${projectName}] Milestone evaluation FAIL (qa=${qaVerdict}, design=${designVerdict}, po=${poVerdict}) — fixing`);
       } else {
