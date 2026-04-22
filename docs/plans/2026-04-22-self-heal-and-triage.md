@@ -123,6 +123,61 @@ Parallel-safe, can ship together.
 
 All 458 launcher tests pass (one CLI-probe test skipped — external claude-cli behavior, unrelated).
 
-### Wave 2 — pending
-### Wave 3 — pending
-### Wave 4 — pending
+### Wave 2 — complete (2026-04-22)
+
+- 1.2 ✓ `src/launcher/spin-detector.js` + `phase-fingerprints.jsonl` — 17 tests pass. Wired into foundation-eval + milestone-check in rouge-loop; 3 identical cycles → semantic-spin escalation.
+- 4.2 ✓ Four manifests at `library/integrations/tier-2/{github-pages,vercel,cloudflare-pages,docker-compose}/manifest.json`. Prereqs with auto_remediate, env_vars, secrets_required, health_check.
+- 4.3 ✓ `src/launcher/integration-catalog.js` — `getManifest` / `runCheck` / `runPrerequisites` / `runAutoRemediate` / `ensurePrerequisites` / `runHealthCheck`. 22 tests pass.
+- 4.4 ✓ `deployGithubPages` rewritten to call `ensurePrerequisites` + `runHealthCheck`. GH-Pages auto-enable + CDN propagation wait expressed entirely in the manifest.
+- 5.1/5.2 ✓ Provisioner reads secrets via `getSecret` with keychain fallback. `getCloudflareToken` + `getCloudflareAccountId` added. `mergeSecretsIntoEnv` merges at main() entry.
+- 5.3 ✓ `rouge-loop.js:894` hard-coded token list replaced with target-aware message derived from the integration manifest's `secrets_required`.
+- 6.2/6.3 ✓ Cost-tracker splits `cumulative_cost_usd` into `_real` + `_estimated`. Cap enforcement uses real only; heuristic-fallback estimates cannot trip the cap. Schema enum for `phase_cost_source` extended. 8 tests pass.
+
+### Wave 3 — complete (2026-04-22)
+
+- 2.1/2.2/2.3 ✓ `src/launcher/triage.js` — 4-class rule-based classifier. Schema-warn detection in build.log; fingerprint-history inspection; infrastructure-gap routing. 14 tests.
+- 3.1 ✓ `src/launcher/self-heal-planner.js` — AST-walks launcher source to find the offending literal assignment, proposes an `add-enum-value` plan. 7 tests.
+- 3.2 ✓ `src/launcher/self-heal-zones.js` — green/yellow/red classification. Multi-file → yellow. Safety modules / prompts / CI → red. 29 adversarial tests.
+- 3.3 ✓ `src/launcher/self-heal-applier.js` — branch + patch + test + commit / revert. 17 tests.
+- 3.4 ✓ Rollback via `git checkout <start-branch> && git branch -D <self-heal-branch>` on test failure. Audit log records every action.
+- 3.5 ✓ `rouge doctor` now includes a Self-heal activity section (pending branches, drafts, recent audit events) via `summariseSelfHeal()` in `doctor.js`.
+- 3.6 ✓ Kill switch in `rouge.config.json` — `self_heal: { enabled: true, zones: ['green'] }`. Default is enabled; user can set `enabled: false` or `zones: []` to disable.
+
+Wiring: `attemptSelfHeal()` helper in rouge-loop invoked when foundation-eval semantic-spin fires. Runs triage → plan → apply, embeds outcome in the escalation summary.
+
+### Wave 4 — complete (2026-04-22)
+
+- 8.1 ✓ Stuck-loop early warning — `fingerprintRepeats()` counts trailing identical cycles per phase; `rouge health` surfaces any phase at `repeats >= 2` (default threshold) BEFORE the spin escalation fires at 3.
+- 8.2 ✓ Self-heal activity surface — covered by the `rouge doctor` integration in 3.5 plus `selfHealStats()` in the health report (applied/drafted/refused/reverted lifetime totals).
+- 8.3 ✓ Escalation-category trend — `buildReport()` aggregates escalations across all projects into a histogram, sorted by count. Smoke-tested against the 10 real projects on disk.
+
+New command: `rouge health [--json]` surfaces the whole fleet view. 16 tests.
+
+## Final status
+
+**All four waves shipped. 458 existing launcher tests pass, plus 11 new test files adding ~175 assertions across the new modules:**
+
+| Module | Tests |
+|---|---|
+| schema-assignments | 8 |
+| schema-validator | 11 |
+| findings-fingerprint | 21 |
+| integration-manifest | 8 |
+| spin-detector | 17 |
+| integration-catalog | 22 |
+| cost-tracker | 8 |
+| triage | 14 |
+| self-heal-zones | 29 |
+| self-heal-planner | 7 |
+| self-heal-applier | 17 |
+| health-report | 16 |
+
+**Architectural summary:**
+
+- The loop no longer retries indefinitely. Semantic-spin is detected at 3 identical cycles and routed to triage.
+- Triage classifies the owning layer (Rouge-code / product-taste / missing-automation / unknown) and routes accordingly.
+- Self-heal auto-applies green-zone fixes within tight bounds (single file in `src/launcher/*.js`, ≤30 lines, tests pass, dedicated branch, full audit trail). Yellow-zone plans are drafted for human review. Red-zone refused outright (safety modules, prompts, schemas, CI).
+- Budget cap enforces only on parsed real costs. Heuristic-fallback estimates cannot trip the cap.
+- Deploy-target knowledge lives in `library/integrations/tier-2/*/manifest.json` catalog; launcher consumes via `integration-catalog.js` — no hardcoded target logic in the deploy handler.
+- Secrets unified through the provisioner's `mergeSecretsIntoEnv` at startup. Missing tokens escalate with the specific provider name, not a generic list.
+- Observability: `rouge doctor` shows self-heal activity; `rouge health` gives the fleet-wide stuck-loop + escalation-trend view.
