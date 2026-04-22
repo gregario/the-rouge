@@ -27,6 +27,7 @@ The Rouge CLI
   ADVANCED / AUTOMATION
     rouge status <name>             Show state for a single project
     rouge cost <name> [--actual]    Show cost estimate or actuals
+    rouge health [--json]           Cross-project loop-health report (stuck loops, escalations, self-heal)
     rouge secrets list              List stored secret names
     rouge secrets check <dir>       Check project against stored secrets
     rouge secrets validate <target> Validate keys against API endpoints
