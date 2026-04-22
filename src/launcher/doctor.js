@@ -132,13 +132,61 @@ function runDoctor({ ROUGE_ROOT, getSecret } = {}) {
   const blockers = checks.filter((c) => c.status === 'blocker').map((c) => c.id);
   const warnings = checks.filter((c) => c.status === 'warning').map((c) => c.id);
 
+  // Self-heal activity summary. Reads audit log + in-repo git branches
+  // so the user can see what Rouge has auto-applied or drafted since
+  // last time they looked. Non-blocking: any failure to read just
+  // omits the section.
+  const selfHeal = summariseSelfHeal(ROUGE_ROOT);
+
   return {
     checks,
     blockers,
     warnings,
+    selfHeal,
     allGreen: blockers.length === 0 && warnings.length === 0,
     allRequired: blockers.length === 0,
   };
+}
+
+function summariseSelfHeal(ROUGE_ROOT) {
+  const summary = { branches: [], drafts: [], recent: [] };
+  try {
+    // Count self-heal branches waiting for merge.
+    const { execSync } = require('child_process');
+    const out = execSync('git branch --list "rouge-self-heal/*"', {
+      cwd: ROUGE_ROOT || process.cwd(),
+      encoding: 'utf8',
+      stdio: 'pipe',
+    });
+    summary.branches = out.trim().split('\n').map((l) => l.replace(/^[* ]+/, '')).filter(Boolean);
+  } catch {
+    // not a git repo / git missing — fine.
+  }
+  try {
+    const draftsDir = path.join(ROUGE_ROOT || process.cwd(), '.rouge', 'self-heal-drafts');
+    if (fs.existsSync(draftsDir)) {
+      summary.drafts = fs.readdirSync(draftsDir).filter((f) => f.endsWith('.json'));
+    }
+  } catch { /* ignore */ }
+  try {
+    // Last 5 self-heal audit entries. Reads from ~/.rouge/audit-log.jsonl.
+    const auditPath = path.join(process.env.HOME || '/tmp', '.rouge', 'audit-log.jsonl');
+    if (fs.existsSync(auditPath)) {
+      const raw = fs.readFileSync(auditPath, 'utf8');
+      const lines = raw.trim().split('\n').filter(Boolean);
+      const entries = [];
+      for (let i = lines.length - 1; i >= 0 && entries.length < 5; i--) {
+        try {
+          const e = JSON.parse(lines[i]);
+          if (e && typeof e.kind === 'string' && e.kind.startsWith('self-heal')) {
+            entries.unshift({ ts: e.ts, kind: e.kind, plan_kind: e.plan_kind, zone: e.zone });
+          }
+        } catch { /* skip */ }
+      }
+      summary.recent = entries;
+    }
+  } catch { /* ignore */ }
+  return summary;
 }
 
 function formatDoctorText(result) {
@@ -167,8 +215,32 @@ function formatDoctorText(result) {
       lines.push(`    - ${c.label}: ${c.detail}`);
     }
   }
+  // Self-heal activity section.
+  if (result.selfHeal) {
+    const sh = result.selfHeal;
+    const hasAny = (sh.branches && sh.branches.length > 0) || (sh.drafts && sh.drafts.length > 0) || (sh.recent && sh.recent.length > 0);
+    if (hasAny) {
+      lines.push('');
+      lines.push('  Self-heal activity');
+      lines.push(`  ${'─'.repeat(40)}`);
+      if (sh.branches.length > 0) {
+        lines.push(`  \u{1F527} ${sh.branches.length} pending self-heal branch${sh.branches.length > 1 ? 'es' : ''} (ready to merge):`);
+        for (const b of sh.branches) lines.push(`     - ${b}`);
+      }
+      if (sh.drafts.length > 0) {
+        lines.push(`  \u{1F4DD} ${sh.drafts.length} draft plan${sh.drafts.length > 1 ? 's' : ''} awaiting review in .rouge/self-heal-drafts/`);
+      }
+      if (sh.recent.length > 0) {
+        lines.push(`  Recent self-heal events:`);
+        for (const e of sh.recent) {
+          lines.push(`     - ${e.ts} ${e.kind}${e.plan_kind ? ` (${e.plan_kind})` : ''}${e.zone ? ` [${e.zone}]` : ''}`);
+        }
+      }
+      lines.push('');
+    }
+  }
   lines.push('');
   return lines.join('\n');
 }
 
-module.exports = { runDoctor, formatDoctorText };
+module.exports = { runDoctor, formatDoctorText, summariseSelfHeal };

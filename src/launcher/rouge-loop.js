@@ -26,6 +26,29 @@ const { writeCheckpoint, readLatestCheckpoint, readAllCheckpoints } = require('.
 const { checkMilestoneLock, promoteMilestone, shouldEscalateForSpin, getCompletedStoryNames, isStoryDuplicate } = require('./safety.js');
 const { trackPhaseCost, trackPhaseCostFromLog, checkBudgetCap } = require('./cost-tracker.js');
 const { recordAndCheck: recordEvalFingerprint } = require('./spin-detector.js');
+const { classify: triageClassify, CLASSES: TRIAGE_CLASSES } = require('./triage.js');
+const { planFix: selfHealPlan } = require('./self-heal-planner.js');
+const { applyPlan: selfHealApply } = require('./self-heal-applier.js');
+
+// When a stuck-loop signal fires, run triage → self-heal. Returns
+// either the self-heal result (for note-writing) or null if the caller
+// should fall through to the normal escalation path.
+function attemptSelfHeal(projectDir, phase, escalation) {
+  try {
+    const triage = triageClassify({ projectDir, phase, escalation });
+    if (triage.class !== TRIAGE_CLASSES.SELF_HEAL_CANDIDATE) {
+      return { triage, attempted: false };
+    }
+    const planResult = selfHealPlan(triage);
+    if (!planResult.ok) {
+      return { triage, attempted: false, plan_reason: planResult.reason };
+    }
+    const applyResult = selfHealApply(planResult.plan);
+    return { triage, attempted: true, plan: planResult.plan, result: applyResult };
+  } catch (err) {
+    return { triage: null, attempted: false, error: (err.message || '').slice(0, 200) };
+  }
+}
 const { deployWithRetry, shouldBlockMilestoneCheck } = require('./deploy-blocking.js');
 const { migrateV2StateToV3 } = require('./state-migration.js');
 const { injectPreamble } = require('./preamble-injector.js');
@@ -746,25 +769,45 @@ async function advanceState(projectDir) {
           { meta: { cycle_number: state.cycle_number || 0 } },
         );
         if (isSpin) {
+          // Before escalating, attempt triage + self-heal. If triage
+          // classifies this as a Rouge-side bug (schema drift,
+          // identical foundation-eval) and the planner can produce a
+          // bounded fix, the applier runs it on a self-heal branch.
+          // Green-zone fixes auto-apply; yellow-zone get drafted for
+          // review; red-zone refused. Either way, the project's own
+          // loop continues past this point with the findings noted.
+          const healResult = attemptSelfHeal(projectDir, 'foundation-eval', {
+            id: `esc-semantic-spin-foundation-${Date.now()}`,
+            classification: 'semantic-spin',
+            phase: 'foundation-eval',
+            summary: `Foundation-eval identical ${recent.length}x, verdict=${verdict}`,
+          });
           if (!state.escalations) state.escalations = [];
-          state.escalations.push({
+          const esc = {
             id: `esc-semantic-spin-foundation-${Date.now()}`,
             tier: 1,
             classification: 'semantic-spin',
             phase: 'foundation-eval',
             summary:
               `Foundation-eval has returned identical findings ${recent.length} times in a row. ` +
-              `Verdict: ${verdict}. The foundation phase cannot fix what the evaluator is flagging — ` +
-              `a human needs to inspect. Findings repeat exactly; Wave-3 triage will route this to ` +
-              `self-heal when Rouge-side bugs are identifiable, or escalate when not.`,
+              `Verdict: ${verdict}. ` +
+              (healResult.attempted
+                ? (healResult.result && healResult.result.applied
+                    ? `Self-heal auto-applied fix on branch ${healResult.result.branch} — review and merge when ready.`
+                    : healResult.result && healResult.result.draft_path
+                      ? `Self-heal produced a draft plan at ${path.relative(ROUGE_ROOT, healResult.result.draft_path)} (yellow-zone, needs review).`
+                      : `Self-heal attempted but could not apply: ${healResult.result ? healResult.result.reason : 'unknown'}.`)
+                : `Self-heal did not run (${healResult.plan_reason || healResult.triage?.reason || healResult.error || 'no candidate'}).`),
             story_id: null,
             status: 'pending',
             created_at: new Date().toISOString(),
             recent_fingerprints: recent.map((e) => ({ ts: e.ts, verdict: e.verdict })),
-          });
+            self_heal: healResult,
+          };
+          state.escalations.push(esc);
           writeJson(stateFile, state);
           next = 'escalation';
-          log(`[${projectName}] Foundation-eval semantic spin (${recent.length} identical cycles) — escalating`);
+          log(`[${projectName}] Foundation-eval semantic spin (${recent.length} identical cycles) — escalating (self-heal: ${healResult.attempted ? (healResult.result && healResult.result.applied ? 'applied' : 'drafted') : 'n/a'})`);
           break;
         }
         next = 'foundation';
