@@ -65,7 +65,7 @@ Parallel-safe, can ship together.
 - **1.3** Promote schema validation from warn to enforce (safe once 7.1/7.2 land).
 - **1.1** Findings-fingerprint contract — deterministic hash of evaluator findings, added to eval-report schemas.
 - **4.1** Integration-manifest schema (`schemas/integration-manifest.json`). Fields: `target`, `kind`, `prerequisites`, `auto_remediate`, `health_check`, `build_output_dirs`, `env_vars`, `secrets_required`.
-- **6.1** Budget-cap enforcement audit — trace testimonial's $522 path, confirm whether cap actually halts. Fix so cap = hard stop.
+- **6.1** Checkpoint proliferation fix — `advanceState` writes a checkpoint unconditionally at its top; for escalation/no-transition ticks, this produces hundreds of identical snapshots. Gate the write on `if (next)` so only real transitions checkpoint. (Audit correction: testimonial's "$522 spend" was phantom — it came from summing `phase_cost_usd` across 500 stale escalation snapshots. Real spend was $90.38, exactly at cap. Cap IS halting; checkpoint proliferation was the only real bug.)
 
 ### Wave 2 — Build on contracts
 
@@ -112,4 +112,17 @@ Parallel-safe, can ship together.
 
 ## Progress log
 
-_Update at the end of each merged Wave._
+### Wave 1 — complete (2026-04-22)
+
+- 7.1 ✓ `foundation.status='evaluating'` added to `schemas/state.json` enum.
+- 7.2 ✓ `tests/schema-assignments.test.js` — acorn-based CI invariant walks literal-string assignments to enum-constrained paths. 8 checks, passes. Verified to fail when the schema reverts.
+- 1.3 ✓ `schema-validator.js` gains strict mode (opts in via `{strict: true}` or `ROUGE_STRICT_SCHEMA=1`). `SchemaViolationError` throws instead of warns. `rouge-loop.js:writeJson` uses strict for state.json writes. 11 unit-test checks pass.
+- 1.1 ✓ `src/launcher/findings-fingerprint.js` + 21 tests. Deterministic SHA-256 of eval-report content; ignores transient fields (timestamps, session IDs), case-insensitive verdicts, whitespace-normalised findings, 2-decimal confidence rounding. `hasIdenticalTail(fps, n)` helper for Wave-2 spin detection.
+- 4.1 ✓ `schemas/integration-manifest.json` — structured knowledge schema for deploy/database/auth/payment/observability/storage/queue targets. Fields: prerequisites (with auto_remediate), env_vars, secrets_required, health_check with first-deploy grace window. 8 tests pass.
+- 6.1 ✓ `advanceState` no longer writes a checkpoint on no-op ticks. Gated on `if (next)`. Corrects the checkpoint-proliferation pattern that produced testimonial's 500 identical escalation snapshots.
+
+All 458 launcher tests pass (one CLI-probe test skipped — external claude-cli behavior, unrelated).
+
+### Wave 2 — pending
+### Wave 3 — pending
+### Wave 4 — pending

@@ -683,13 +683,23 @@ async function advanceState(projectDir) {
   const flat = flatStories(state);
   let next = null;
 
-  // V3: Write checkpoint before state transition
-  // Include story_results (derived from flat stories) for dedup detection
+  // V3: Checkpoint payload prepared here but written conditionally
+  // below, only when the tick actually produces a state transition.
+  //
+  // Previously this was unconditional at the top of advanceState.
+  // That produced checkpoint proliferation: testimonial's 500 escalation
+  // checkpoints were 500 no-op outer-loop ticks, each writing an
+  // identical snapshot because no state advanced. Inflated
+  // checkpoints.jsonl size, inflated the dashboard's phase-histogram,
+  // and (because `phase_cost_usd` carries the last-real-phase cost
+  // forward in state.costs) made phantom spend look like real spend
+  // when any consumer summed phase_cost_usd across checkpoints.
+  // Include story_results (derived from flat stories) for dedup detection.
   const storyResults = flat
     .filter(s => s.status === 'done' || s.status === 'blocked')
     .map(s => ({ name: s.name || s.id, outcome: s.status === 'done' ? 'pass' : 'blocked' }));
 
-  writeCheckpoint(checkpointsFile, {
+  const pendingCheckpoint = {
     phase: current,
     state: {
       current_milestone: state.current_milestone,
@@ -700,7 +710,7 @@ async function advanceState(projectDir) {
       story_results: storyResults,
     },
     costs: state.costs || {},
-  });
+  };
 
   switch (current) {
 
@@ -1687,6 +1697,11 @@ async function advanceState(projectDir) {
   }
 
   if (next) {
+    // Write the pre-transition checkpoint only now that we know a
+    // transition is actually happening. No-op ticks (escalation with
+    // no feedback, terminal states, etc.) skip the write.
+    writeCheckpoint(checkpointsFile, pendingCheckpoint);
+
     log(`[${projectName}] ${current} → ${next}`);
 
     // Self-heal: if a case block set next='escalation' without pushing
