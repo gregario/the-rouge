@@ -31,6 +31,10 @@
     ],
     "test_budget_usd": 5
   },
+  "self_heal": {
+    "enabled": true,
+    "zones": ["green"]
+  },
   "linked_projects": {
     "max_depth": 3,
     "registry_path": "~/.rouge/registry.json"

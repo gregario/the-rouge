@@ -1159,6 +1159,21 @@ function cmdDoctor() {
 
 
 // ---------------------------------------------------------------------------
+// Health — cross-project loop-health report
+// ---------------------------------------------------------------------------
+
+function cmdHealth() {
+  const { buildReport, formatReport } = require('./health-report.js');
+  const report = buildReport();
+  if (process.argv.includes('--json')) {
+    console.log(JSON.stringify(report, null, 2));
+    return;
+  }
+  console.log(formatReport(report));
+}
+
+
+// ---------------------------------------------------------------------------
 // Feasibility assessment
 // ---------------------------------------------------------------------------
 
@@ -1260,6 +1275,8 @@ if (command === 'doctor') {
   });
 } else if (command === 'cost') {
   cmdCost(args[1]);
+} else if (command === 'health') {
+  cmdHealth();
 } else if (command === 'setup') {
   cmdSetup(args[1]).catch((err) => {
     console.error(err.message);
@@ -1721,6 +1738,7 @@ if (command === 'doctor') {
   ADVANCED / AUTOMATION
     rouge status <name>             Show state for a single project
     rouge cost <name> [--actual]    Show cost estimate or actuals
+    rouge health [--json]           Cross-project loop-health report (stuck loops, escalations, self-heal)
     rouge secrets list              List stored secret names
     rouge secrets check <dir>       Check project against stored secrets
     rouge secrets validate <target> Validate keys against API endpoints

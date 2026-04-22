@@ -25,6 +25,30 @@ const { loadProjectSecrets } = require('./secrets.js');
 const { writeCheckpoint, readLatestCheckpoint, readAllCheckpoints } = require('./checkpoint.js');
 const { checkMilestoneLock, promoteMilestone, shouldEscalateForSpin, getCompletedStoryNames, isStoryDuplicate } = require('./safety.js');
 const { trackPhaseCost, trackPhaseCostFromLog, checkBudgetCap } = require('./cost-tracker.js');
+const { recordAndCheck: recordEvalFingerprint } = require('./spin-detector.js');
+const { classify: triageClassify, CLASSES: TRIAGE_CLASSES } = require('./triage.js');
+const { planFix: selfHealPlan } = require('./self-heal-planner.js');
+const { applyPlan: selfHealApply } = require('./self-heal-applier.js');
+
+// When a stuck-loop signal fires, run triage → self-heal. Returns
+// either the self-heal result (for note-writing) or null if the caller
+// should fall through to the normal escalation path.
+function attemptSelfHeal(projectDir, phase, escalation) {
+  try {
+    const triage = triageClassify({ projectDir, phase, escalation });
+    if (triage.class !== TRIAGE_CLASSES.SELF_HEAL_CANDIDATE) {
+      return { triage, attempted: false };
+    }
+    const planResult = selfHealPlan(triage);
+    if (!planResult.ok) {
+      return { triage, attempted: false, plan_reason: planResult.reason };
+    }
+    const applyResult = selfHealApply(planResult.plan);
+    return { triage, attempted: true, plan: planResult.plan, result: applyResult };
+  } catch (err) {
+    return { triage: null, attempted: false, error: (err.message || '').slice(0, 200) };
+  }
+}
 const { deployWithRetry, shouldBlockMilestoneCheck } = require('./deploy-blocking.js');
 const { migrateV2StateToV3 } = require('./state-migration.js');
 const { injectPreamble } = require('./preamble-injector.js');
@@ -200,21 +224,39 @@ function readJson(filePath) {
 }
 
 function writeJson(filePath, data) {
-  // Schema validation (warn-only). Matches filenames to the schemas
-  // that live in the repo's `schemas/` dir. Failures don't block the
-  // write — we prefer a bad shape on disk over a loop that refuses
-  // to progress because validation found a nitpick.
+  // Schema validation. state.json writes are strict — a drift here
+  // causes phase-loop pathologies (see stack-rank's 94-cycle foundation
+  // -eval spiral on `status='evaluating'` absent from the enum). Better
+  // to halt the loop on the offending write than let it compound across
+  // every future iteration.
+  //
+  // cycle_context.json and task_ledger.json stay warn-only for now —
+  // they have historical drift we haven't finished auditing, and a
+  // halted cycle-context write strands the whole project. Those will
+  // be promoted to strict once the schemas are fully reconciled.
   try {
-    const { validate } = require('./schema-validator.js');
+    const { validate, SchemaViolationError } = require('./schema-validator.js');
     const base = path.basename(filePath);
     if (base === 'state.json') {
-      validate('state.json', data, `write ${filePath}`);
+      try {
+        validate('state.json', data, `write ${filePath}`, { strict: true });
+      } catch (err) {
+        if (err instanceof SchemaViolationError) {
+          // Re-throw so the caller halts rather than persisting the
+          // bad shape. The stack trace identifies the assignment site.
+          throw err;
+        }
+        throw err;
+      }
     } else if (base === 'cycle_context.json') {
       validate('cycle-context-v3.json', data, `write ${filePath}`);
     } else if (base === 'task_ledger.json') {
       validate('task-ledger-v3.json', data, `write ${filePath}`);
     }
-  } catch {
+  } catch (err) {
+    // Only swallow the "validator unavailable" case. A schema violation
+    // must propagate so the write doesn't happen.
+    if (err && err.name === 'SchemaViolationError') throw err;
     /* validator unavailable — skip silently */
   }
   const tmp = filePath + '.tmp';
@@ -665,13 +707,23 @@ async function advanceState(projectDir) {
   const flat = flatStories(state);
   let next = null;
 
-  // V3: Write checkpoint before state transition
-  // Include story_results (derived from flat stories) for dedup detection
+  // V3: Checkpoint payload prepared here but written conditionally
+  // below, only when the tick actually produces a state transition.
+  //
+  // Previously this was unconditional at the top of advanceState.
+  // That produced checkpoint proliferation: testimonial's 500 escalation
+  // checkpoints were 500 no-op outer-loop ticks, each writing an
+  // identical snapshot because no state advanced. Inflated
+  // checkpoints.jsonl size, inflated the dashboard's phase-histogram,
+  // and (because `phase_cost_usd` carries the last-real-phase cost
+  // forward in state.costs) made phantom spend look like real spend
+  // when any consumer summed phase_cost_usd across checkpoints.
+  // Include story_results (derived from flat stories) for dedup detection.
   const storyResults = flat
     .filter(s => s.status === 'done' || s.status === 'blocked')
     .map(s => ({ name: s.name || s.id, outcome: s.status === 'done' ? 'pass' : 'blocked' }));
 
-  writeCheckpoint(checkpointsFile, {
+  const pendingCheckpoint = {
     phase: current,
     state: {
       current_milestone: state.current_milestone,
@@ -682,7 +734,7 @@ async function advanceState(projectDir) {
       story_results: storyResults,
     },
     costs: state.costs || {},
-  });
+  };
 
   switch (current) {
 
@@ -704,6 +756,60 @@ async function advanceState(projectDir) {
       const verdict = ctx?.foundation_eval_report?.verdict || 'PASS';
 
       if (verdict !== 'PASS') {
+        // Record + check for semantic spin. Three identical
+        // foundation_eval_reports in a row means the foundation phase
+        // can't move the needle on what the evaluator is flagging —
+        // this is the stack-rank pattern (94× loop on a schema enum
+        // drift the foundation phase couldn't fix). Escalate rather
+        // than continue the retry spiral.
+        const { isSpin, recent } = recordEvalFingerprint(
+          projectDir,
+          'foundation-eval',
+          ctx?.foundation_eval_report,
+          { meta: { cycle_number: state.cycle_number || 0 } },
+        );
+        if (isSpin) {
+          // Before escalating, attempt triage + self-heal. If triage
+          // classifies this as a Rouge-side bug (schema drift,
+          // identical foundation-eval) and the planner can produce a
+          // bounded fix, the applier runs it on a self-heal branch.
+          // Green-zone fixes auto-apply; yellow-zone get drafted for
+          // review; red-zone refused. Either way, the project's own
+          // loop continues past this point with the findings noted.
+          const healResult = attemptSelfHeal(projectDir, 'foundation-eval', {
+            id: `esc-semantic-spin-foundation-${Date.now()}`,
+            classification: 'semantic-spin',
+            phase: 'foundation-eval',
+            summary: `Foundation-eval identical ${recent.length}x, verdict=${verdict}`,
+          });
+          if (!state.escalations) state.escalations = [];
+          const esc = {
+            id: `esc-semantic-spin-foundation-${Date.now()}`,
+            tier: 1,
+            classification: 'semantic-spin',
+            phase: 'foundation-eval',
+            summary:
+              `Foundation-eval has returned identical findings ${recent.length} times in a row. ` +
+              `Verdict: ${verdict}. ` +
+              (healResult.attempted
+                ? (healResult.result && healResult.result.applied
+                    ? `Self-heal auto-applied fix on branch ${healResult.result.branch} — review and merge when ready.`
+                    : healResult.result && healResult.result.draft_path
+                      ? `Self-heal produced a draft plan at ${path.relative(ROUGE_ROOT, healResult.result.draft_path)} (yellow-zone, needs review).`
+                      : `Self-heal attempted but could not apply: ${healResult.result ? healResult.result.reason : 'unknown'}.`)
+                : `Self-heal did not run (${healResult.plan_reason || healResult.triage?.reason || healResult.error || 'no candidate'}).`),
+            story_id: null,
+            status: 'pending',
+            created_at: new Date().toISOString(),
+            recent_fingerprints: recent.map((e) => ({ ts: e.ts, verdict: e.verdict })),
+            self_heal: healResult,
+          };
+          state.escalations.push(esc);
+          writeJson(stateFile, state);
+          next = 'escalation';
+          log(`[${projectName}] Foundation-eval semantic spin (${recent.length} identical cycles) — escalating (self-heal: ${healResult.attempted ? (healResult.result && healResult.result.applied ? 'applied' : 'drafted') : 'n/a'})`);
+          break;
+        }
         next = 'foundation';
         log(`[${projectName}] Foundation eval FAIL — retrying`);
         break;
@@ -822,13 +928,40 @@ async function advanceState(projectDir) {
       } catch (err) {
         log(`[${projectName}] Provisioning failed: ${(err.message || '').slice(0, 200)}`);
         log(`[${projectName}] Escalating — can't build without infrastructure`);
+        // Dynamic escalation message — name only the providers the
+        // project actually targets, not a generic "Check both" string.
+        // irish-planning's hard-coded "Check CLOUDFLARE_API_TOKEN,
+        // SUPABASE_ACCESS_TOKEN" message was misleading because the
+        // project targeted vercel — it didn't need a CF token at all.
+        const deployTarget = infra?.deployment_target || state.deployment_target;
+        const needsDb = !!infra?.needs_database;
+        const missingHints = [];
+        if (deployTarget) {
+          const { getManifest } = require('./integration-catalog.js');
+          const m = getManifest(deployTarget);
+          if (m && Array.isArray(m.secrets_required)) {
+            for (const sec of m.secrets_required) {
+              if (sec.optional) continue;
+              missingHints.push(`${sec.key} (for ${deployTarget})`);
+            }
+          }
+        }
+        if (needsDb) {
+          // Supabase is the only database provider currently supported;
+          // if that expands, read from a database-kind manifest.
+          missingHints.push('SUPABASE_ACCESS_TOKEN (for database)');
+        }
+        const reason = (err.message || '').slice(0, 150);
+        const summary = missingHints.length > 0
+          ? `Infrastructure provisioning for ${deployTarget || 'this project'} failed: ${reason}. Verify: ${missingHints.join(', ')}. Store via \`rouge setup <provider>\` if missing.`
+          : `Infrastructure provisioning failed: ${reason}`;
         next = 'escalation';
         if (!state.escalations) state.escalations = [];
         state.escalations.push({
-          id: 'esc-provisioning-failed',
+          id: `esc-provisioning-failed-${Date.now()}`,
           tier: 1,
           classification: 'infrastructure-gap',
-          summary: 'Cloud infrastructure provisioning failed. Check CLOUDFLARE_API_TOKEN, SUPABASE_ACCESS_TOKEN env vars.',
+          summary,
           story_id: null,
           status: 'pending',
           created_at: new Date().toISOString(),
@@ -1164,6 +1297,39 @@ async function advanceState(projectDir) {
         poVerdict === 'NOT_READY' || poVerdict === 'NEEDS_IMPROVEMENT';
 
       if (lensFail) {
+        // Record + check for semantic spin. Testimonial ran
+        // milestone-check/milestone-fix 87× in a row with identical
+        // PO NEEDS_IMPROVEMENT findings; milestone-fix couldn't move
+        // the score. Escalate the loop instead of continuing to burn
+        // budget on a verdict that isn't going to change.
+        const { isSpin, recent } = recordEvalFingerprint(
+          projectDir,
+          'milestone-check',
+          ctx?.evaluation_report,
+          { meta: { cycle_number: state.cycle_number || 0 } },
+        );
+        if (isSpin) {
+          if (!state.escalations) state.escalations = [];
+          state.escalations.push({
+            id: `esc-semantic-spin-milestone-${Date.now()}`,
+            tier: 1,
+            classification: 'semantic-spin',
+            phase: 'milestone-check',
+            summary:
+              `Milestone-check has returned identical findings ${recent.length} times in a row ` +
+              `(qa=${qaVerdict}, design=${designVerdict}, po=${poVerdict}). milestone-fix cannot ` +
+              `move the score. This is either a 1-bit taste call (accept/reject at this quality) ` +
+              `or a miscalibrated evaluator — a human needs to break the tie.`,
+            story_id: null,
+            status: 'pending',
+            created_at: new Date().toISOString(),
+            recent_fingerprints: recent.map((e) => ({ ts: e.ts, verdict: e.verdict })),
+          });
+          writeJson(stateFile, state);
+          next = 'escalation';
+          log(`[${projectName}] Milestone-check semantic spin (${recent.length} identical cycles) — escalating`);
+          break;
+        }
         next = 'milestone-fix';
         log(`[${projectName}] Milestone evaluation FAIL (qa=${qaVerdict}, design=${designVerdict}, po=${poVerdict}) — fixing`);
       } else {
@@ -1669,6 +1835,11 @@ async function advanceState(projectDir) {
   }
 
   if (next) {
+    // Write the pre-transition checkpoint only now that we know a
+    // transition is actually happening. No-op ticks (escalation with
+    // no feedback, terminal states, etc.) skip the write.
+    writeCheckpoint(checkpointsFile, pendingCheckpoint);
+
     log(`[${projectName}] ${current} → ${next}`);
 
     // Self-heal: if a case block set next='escalation' without pushing

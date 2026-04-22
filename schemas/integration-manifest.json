@@ -1,0 +1,157 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Rouge Integration Manifest",
+  "description": "Structured knowledge for a deployment target, database, auth provider, or observability service. Consumed by src/launcher/integration-catalog.js. Phase prompts read resolved manifest content via cycle_context.json rather than parsing YAML/JSON directly — the launcher is the only manifest consumer.",
+  "type": "object",
+  "required": ["target", "kind", "version"],
+  "additionalProperties": false,
+  "properties": {
+    "target": {
+      "type": "string",
+      "description": "Canonical slug for this integration — must match exactly the value that appears in vision.json.infrastructure.deployment_target (or the analogous field for non-deploy kinds). Lowercase, hyphen-separated.",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "aliases": {
+      "type": "array",
+      "description": "Alternate slugs that resolve to this manifest. e.g. github-pages manifests should alias 'gh-pages'. Lets the resolver accept variants without duplicating the file.",
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["deploy", "database", "auth", "payment", "observability", "storage", "queue"],
+      "description": "Which Rouge subsystem consumes this. 'deploy' → deploy-to-staging.js. 'database' → provision-infrastructure.js. 'auth' → foundation prompt. etc."
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Manifest schema version. Bump when the manifest's contract changes in a breaking way. The catalog refuses to load manifests whose version exceeds what the runtime supports."
+    },
+    "human_name": {
+      "type": "string",
+      "description": "Pretty name for UI surfaces (dashboard badges, escalation text)."
+    },
+    "summary": {
+      "type": "string",
+      "description": "One-line description of the target, shown to users during infrastructure-discipline selection."
+    },
+    "prerequisites": {
+      "type": "array",
+      "description": "Ordered checks Rouge runs before attempting to use this integration. Each prerequisite has a machine-readable `check` that returns pass/fail and a human-readable `label` for surfacing in escalations. If `auto_remediate` is set on a prerequisite, the launcher may attempt it green-zone when the check fails (see self-heal zones).",
+      "items": {
+        "type": "object",
+        "required": ["id", "label", "check"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "label": { "type": "string" },
+          "check": {
+            "type": "object",
+            "description": "How to verify this prerequisite. The launcher dispatches on 'kind'.",
+            "required": ["kind"],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["shell", "gh-api", "secret-present", "file-exists", "env-var-present"]
+              },
+              "command": { "type": "string", "description": "For kind=shell. Non-zero exit = fail." },
+              "endpoint": { "type": "string", "description": "For kind=gh-api. e.g. 'repos/{owner}/{repo}/pages'." },
+              "secret_key": { "type": "string", "description": "For kind=secret-present. Key in the Rouge secrets store." },
+              "env_var": { "type": "string", "description": "For kind=env-var-present." },
+              "path": { "type": "string", "description": "For kind=file-exists. Relative to project dir." }
+            }
+          },
+          "auto_remediate": {
+            "type": "object",
+            "description": "Green-zone auto-remediation. Runs only if the prerequisite check fails AND self-heal green-zone is enabled. Omit to disable auto-remediation for this prerequisite.",
+            "required": ["kind"],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["shell", "gh-api-post"]
+              },
+              "command": { "type": "string" },
+              "endpoint": { "type": "string", "description": "For kind=gh-api-post." },
+              "body": { "type": "object", "description": "For kind=gh-api-post. JSON body to POST." },
+              "grace_seconds": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "After remediation, wait up to this long (polling) before the next check. 0 = don't wait. GitHub Pages first-enable needs ~90s for CDN provisioning, for instance."
+              }
+            }
+          }
+        }
+      }
+    },
+    "build_output_dirs": {
+      "type": "array",
+      "description": "For kind=deploy: candidate directories the framework writes static build output to. Probed in order. First match wins. If the project declares an explicit output dir in its infrastructure_manifest.json, that takes precedence over this list.",
+      "items": { "type": "string" }
+    },
+    "env_vars": {
+      "type": "array",
+      "description": "Environment variables the integration's CLI expects in process.env at spawn time. Rouge merges these from the secrets store before launching the integration tool. A missing var is escalated with the specific name, not a generic 'missing token' message.",
+      "items": {
+        "type": "object",
+        "required": ["name", "required"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+          "required": { "type": "boolean" },
+          "description": { "type": "string" },
+          "secret_provider": {
+            "type": "string",
+            "description": "Which provider in the secrets store holds this. Lets the secret lookup know which keychain namespace to read from."
+          }
+        }
+      }
+    },
+    "secrets_required": {
+      "type": "array",
+      "description": "Secrets the integration needs. Each maps to a key in Rouge's secrets.js store. Missing secrets escalate with 'run rouge setup <provider>'.",
+      "items": {
+        "type": "object",
+        "required": ["provider", "key"],
+        "additionalProperties": false,
+        "properties": {
+          "provider": { "type": "string", "description": "Secrets-store provider slug (e.g. 'cloudflare', 'supabase')." },
+          "key": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+          "optional": { "type": "boolean", "default": false }
+        }
+      }
+    },
+    "health_check": {
+      "type": "object",
+      "description": "How to determine if a deploy succeeded. The deploy handler calls this after push.",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["http-200", "http-status-any-2xx", "none"]
+        },
+        "url_template": {
+          "type": "string",
+          "description": "Templated URL with {owner}, {repo}, {project} placeholders the deploy handler fills in."
+        },
+        "timeout_ms": { "type": "integer", "minimum": 1000, "default": 10000 },
+        "first_deploy_grace_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "On first-time deploys (after prerequisite auto_remediate fired), wait this long before the first probe. GitHub Pages CDN provisioning needs ~30s initial delay."
+        },
+        "first_deploy_poll_window_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Total time to keep polling on first-time deploys before giving up."
+        },
+        "poll_interval_ms": { "type": "integer", "minimum": 500, "default": 15000 }
+      }
+    },
+    "notes_for_prompt": {
+      "type": "string",
+      "description": "Free-form text the foundation/ship prompt should surface. Keep short — prompts already carry a lot of context. Use this for target-specific gotchas the prompt can't derive."
+    }
+  }
+}

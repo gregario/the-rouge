@@ -1,0 +1,42 @@
+{
+  "target": "docker-compose",
+  "aliases": ["docker"],
+  "kind": "deploy",
+  "version": 1,
+  "human_name": "Docker Compose (self-hosted)",
+  "summary": "Self-hosted containerised stack — the product ships its own Dockerfile + compose file and Rouge runs them on localhost for staging.",
+  "prerequisites": [
+    {
+      "id": "docker-available",
+      "label": "Docker daemon is running",
+      "check": { "kind": "shell", "command": "docker info" }
+    },
+    {
+      "id": "compose-available",
+      "label": "docker compose subcommand is available",
+      "check": { "kind": "shell", "command": "docker compose version" }
+    },
+    {
+      "id": "dockerfile-present",
+      "label": "Project has a Dockerfile",
+      "check": { "kind": "file-exists", "path": "Dockerfile" }
+    },
+    {
+      "id": "compose-file-present",
+      "label": "Project has docker-compose.yml",
+      "check": { "kind": "file-exists", "path": "docker-compose.yml" }
+    }
+  ],
+  "build_output_dirs": [],
+  "env_vars": [],
+  "secrets_required": [],
+  "health_check": {
+    "kind": "http-200",
+    "url_template": "http://localhost:{port}",
+    "timeout_ms": 10000,
+    "first_deploy_grace_ms": 5000,
+    "first_deploy_poll_window_ms": 60000,
+    "poll_interval_ms": 5000
+  },
+  "notes_for_prompt": "Staging runs locally via `docker compose up -d --build`. Port resolves from infrastructure_manifest.staging.port → vision.infrastructure.staging_port → 3000. Multi-arch image publishing to GHCR is the product's CI responsibility (via a GitHub Actions workflow foundation scaffolds), not a Rouge staging-deploy concern. No rollback — the previous compose run is torn down before the new one starts."
+}

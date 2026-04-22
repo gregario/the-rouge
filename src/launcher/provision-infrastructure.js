@@ -148,8 +148,20 @@ export default config;
 
 // --- Supabase setup ---
 
-function getSupabaseToken() {
-  // V1 (macOS): extract from keychain
+function getSupabaseToken(projectDir) {
+  // Preferred path: Rouge's own secrets store. If the user ran
+  // `rouge setup supabase`, the token is there under the 'supabase'
+  // service namespace. Check this first so we find tokens stored via
+  // Rouge's CLI rather than falling through to the Supabase CLI's
+  // own keychain (a pre-unification bug that stranded irish-planning
+  // on 2026-04-10 even though the secret was saved).
+  try {
+    const { getSecret } = require('./secrets.js');
+    const rouge = getSecret('supabase', 'SUPABASE_ACCESS_TOKEN');
+    if (rouge) return rouge;
+  } catch {}
+  // V1 (macOS): extract from the Supabase CLI's own keychain entry,
+  // shared when the user authenticated via `supabase login`.
   // Keychain stores: "go-keyring-base64:<base64-encoded-token>"
   // Strip prefix, base64 decode to get the actual token (sbp_...)
   try {
@@ -157,8 +169,49 @@ function getSupabaseToken() {
     const b64 = raw.replace('go-keyring-base64:', '');
     return Buffer.from(b64, 'base64').toString('utf8');
   } catch {}
-  // V2 (Linux/Docker): env var
+  // V2 (Linux/Docker): env var.
   return process.env.SUPABASE_ACCESS_TOKEN || null;
+}
+
+// Cloudflare API token lookup — symmetric with getSupabaseToken. Prior
+// to 2026-04-22 there was no helper; wrangler relied on the token
+// already being in process.env, so a token stored via `rouge setup
+// cloudflare` was unreachable. Now we merge from the secrets store.
+function getCloudflareToken(projectDir) {
+  try {
+    const { getSecret } = require('./secrets.js');
+    const rouge = getSecret('cloudflare', 'CLOUDFLARE_API_TOKEN');
+    if (rouge) return rouge;
+  } catch {}
+  return process.env.CLOUDFLARE_API_TOKEN || null;
+}
+
+function getCloudflareAccountId(projectDir) {
+  try {
+    const { getSecret } = require('./secrets.js');
+    const rouge = getSecret('cloudflare', 'CLOUDFLARE_ACCOUNT_ID');
+    if (rouge) return rouge;
+  } catch {}
+  return process.env.CLOUDFLARE_ACCOUNT_ID || null;
+}
+
+// Called at the top of main() so every provisioner (supabase,
+// cloudflare, sentry, stripe) sees the keychain-backed secrets as
+// ambient env vars. Equivalent of what rouge-loop.js does for phase
+// spawns, but for the direct provisioner path.
+function mergeSecretsIntoEnv(projectDir) {
+  try {
+    const { loadProjectSecrets } = require('./secrets.js');
+    const { env, loaded } = loadProjectSecrets(projectDir);
+    for (const [k, v] of Object.entries(env)) {
+      if (!process.env[k] && v) process.env[k] = v;
+    }
+    if (loaded.length > 0) {
+      log(`Loaded ${loaded.length} secret${loaded.length === 1 ? '' : 's'} from secrets store: ${loaded.join(', ')}`);
+    }
+  } catch (err) {
+    log(`Secrets store unavailable: ${(err.message || '').slice(0, 120)}`);
+  }
 }
 
 function supabaseApi(method, path, token) {
@@ -318,6 +371,15 @@ function main() {
   }
 
   const projectName = path.basename(projectDir);
+  // Unify keychain-backed secrets into process.env BEFORE any
+  // provisioner reads. Previously the provisioner's per-provider
+  // lookups bypassed the Rouge secrets store; tokens stored via
+  // `rouge setup <provider>` were unreachable (irish-planning was
+  // stuck here for 12 days). With this merge, every subsequent tool
+  // spawn (wrangler, supabase, sentry-cli, stripe) inherits the
+  // tokens automatically.
+  mergeSecretsIntoEnv(projectDir);
+
   const ctxFile = path.join(projectDir, 'cycle_context.json');
   const ctx = readJson(ctxFile);
   if (!ctx) {
@@ -456,6 +518,9 @@ module.exports = {
   provisionCloudflare,
   provisionSupabase,
   getSupabaseToken,
+  getCloudflareToken,
+  getCloudflareAccountId,
+  mergeSecretsIntoEnv,
   supabaseApi,
 };
 

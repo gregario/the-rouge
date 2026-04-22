@@ -30,7 +30,7 @@
     "ajv": "^8.18.0"
   },
   "scripts": {
-    "test": "node tests/secrets.test.js && node tests/cli.test.js && node tests/self-improve.test.js && node tests/auth-mode.test.js && node --test test/launcher/*.test.js test/prompts/*.test.js test/integration/*.test.js",
+    "test": "node tests/secrets.test.js && node tests/cli.test.js && node tests/self-improve.test.js && node tests/auth-mode.test.js && node tests/schema-assignments.test.js && node tests/schema-validator.test.js && node tests/findings-fingerprint.test.js && node tests/integration-manifest.test.js && node tests/spin-detector.test.js && node tests/integration-catalog.test.js && node tests/cost-tracker.test.js && node tests/triage.test.js && node tests/self-heal-zones.test.js && node tests/self-heal-planner.test.js && node tests/self-heal-applier.test.js && node tests/health-report.test.js && node --test test/launcher/*.test.js test/prompts/*.test.js test/integration/*.test.js",
     "test:all": "npm test && npm run dashboard:test",
     "dashboard": "cd dashboard && npm run dev",
     "dashboard:install": "cd dashboard && npm install",

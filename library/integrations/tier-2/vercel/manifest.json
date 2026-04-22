@@ -1,0 +1,35 @@
+{
+  "target": "vercel",
+  "kind": "deploy",
+  "version": 1,
+  "human_name": "Vercel",
+  "summary": "Managed deployment platform with Fluid Compute functions, ISR, and AI Gateway integration.",
+  "prerequisites": [
+    {
+      "id": "vercel-cli-available",
+      "label": "`vercel` CLI is available on PATH or via npx",
+      "check": { "kind": "shell", "command": "npx --yes vercel --version" }
+    },
+    {
+      "id": "project-linked",
+      "label": "Project is linked (.vercel/project.json exists)",
+      "check": { "kind": "file-exists", "path": ".vercel/project.json" }
+    }
+  ],
+  "build_output_dirs": [".vercel/output", ".next", "dist"],
+  "env_vars": [
+    { "name": "VERCEL_TOKEN", "required": false, "description": "OAuth token for non-interactive `vercel deploy`. If absent, falls back to the user's linked CLI session." },
+    { "name": "VERCEL_ORG_ID", "required": false },
+    { "name": "VERCEL_PROJECT_ID", "required": false }
+  ],
+  "secrets_required": [],
+  "health_check": {
+    "kind": "http-200",
+    "url_template": "https://{project}.vercel.app",
+    "timeout_ms": 10000,
+    "first_deploy_grace_ms": 10000,
+    "first_deploy_poll_window_ms": 60000,
+    "poll_interval_ms": 10000
+  },
+  "notes_for_prompt": "Hobby plan preview URLs return 401 (auth required); deploys use --prod for accessible health checks. Use `vercel.ts` for project config (TypeScript; replaces vercel.json). Default to AI Gateway via `provider/model` strings, not direct provider SDKs unless explicitly requested. Middleware and functions run on Fluid Compute with full Node.js — not edge-only."
+}

@@ -1,0 +1,43 @@
+{
+  "target": "github-pages",
+  "aliases": ["gh-pages"],
+  "kind": "deploy",
+  "version": 1,
+  "human_name": "GitHub Pages",
+  "summary": "Static site hosting on the gh-pages branch of the project's GitHub repo. No backend, no SSR, no API routes.",
+  "prerequisites": [
+    {
+      "id": "gh-cli-authenticated",
+      "label": "`gh` CLI is installed and authenticated",
+      "check": { "kind": "shell", "command": "gh auth status" }
+    },
+    {
+      "id": "origin-is-github",
+      "label": "origin remote points at github.com",
+      "check": { "kind": "shell", "command": "git config --get remote.origin.url | grep -q github.com" }
+    },
+    {
+      "id": "pages-enabled",
+      "label": "GitHub Pages is enabled on the repo",
+      "check": { "kind": "gh-api", "endpoint": "repos/{owner}/{repo}/pages" },
+      "auto_remediate": {
+        "kind": "gh-api-post",
+        "endpoint": "repos/{owner}/{repo}/pages",
+        "body": { "source": { "branch": "gh-pages", "path": "/" } },
+        "grace_seconds": 30
+      }
+    }
+  ],
+  "build_output_dirs": ["dist", "build", "out", "public"],
+  "env_vars": [],
+  "secrets_required": [],
+  "health_check": {
+    "kind": "http-200",
+    "url_template": "https://{owner}.github.io/{repo}/",
+    "timeout_ms": 10000,
+    "first_deploy_grace_ms": 30000,
+    "first_deploy_poll_window_ms": 150000,
+    "poll_interval_ms": 15000
+  },
+  "notes_for_prompt": "Static-only. No `/api/*` routes. No server components reading secrets at request time. All data baked in at build time or fetched client-side with public keys only."
+}
