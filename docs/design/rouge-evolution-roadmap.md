@@ -71,6 +71,32 @@ Every harness-dependent step above carries a "blocks on P5.9" note in its entry.
 
 ---
 
+## Governance corrections (from LLM-judge literature review, 2026-04-23)
+
+These close a gap the research surfaced. Do first — tightening the boundary costs almost nothing and prevents a real drift class.
+
+### GC.1 — Tighten self-improve allowlist: exclude judge/rubric prompts ⭐
+- **What lands:** `rouge.config.json` self-improvement allowlist narrowed to exclude prompts that function as measurement instruments (judges, rubrics, thresholds). Pipeline can propose amendments to *generation* prompts only. Principle (generic software-engineering hygiene): a system should not author changes to the instrument it is measured by, because sequences of individually-defensible edits can emergently soften the instrument until real failures stop being caught. This is the classic boiling-frog risk in self-improving systems.
+- **Files:** `rouge.config.json`, `src/launcher/self-improve-safety.js` (tests to enforce), `tests/self-improve.test.js`
+- **Current allowlist problem:** `src/prompts/loop/*.md` includes judge-nature files (`02c`, `02d`, `02e`, `02f`, `06`, `10`). Library heuristic files (`library/global/*.json`) are neither allowed nor blocked — undefined behavior.
+- **Proposed split:**
+  - **Explicit allow** (generation/operational): `src/prompts/loop/01-building.md`, `00-foundation-building.md`, `03-qa-fixing.md`, `04-analyzing.md`, `05-change-spec-generation.md`, `07-ship-promote.md`, `08-document-release.md`, `09-cycle-retrospective.md`, `src/prompts/seeding/*.md` except `03-taste.md`, `docs/design/*.md`
+  - **Explicit block** (instruments): `src/prompts/loop/02*.md`, `06-vision-check.md`, `10-final-review.md`, `src/prompts/final/*.md`, `src/prompts/seeding/03-taste.md`, `library/global/*.json`, `library/domain/**`, `library/templates/*.json`, `library/rules/**`, `library/rubrics/**`, `schemas/library-entry-v*.json`
+- **Verify:** add test — attempted self-improve edit to `02e-evaluation.md` or `library/global/lcp.json` is rejected with "judge-prompt modifications must be human-authored."
+- **Depends on:** nothing
+- **ROI:** highest governance ROI per unit of work
+- **Risk:** low — purely restrictive; no existing feature relied on self-improve editing these files.
+
+### GC.2 — Document the judge/pipeline boundary
+- **What lands:** CLAUDE.md + VISION.md explicitly name the judge/pipeline boundary. New contributors (human or Claude) see the principle in the first doc they read.
+- **Files:** `CLAUDE.md` (extend "What NOT to do" or add "Governance boundary" section), `VISION.md` (add to "How decisions get made")
+- **Verify:** docs read-through; the principle is findable on first pass without archaeology.
+- **Depends on:** GC.1
+- **ROI:** medium
+- **Risk:** none
+
+---
+
 ## Part 0 — Finish the floor
 
 Close the loop on work already started. These block Part I because live traffic will reveal bugs here.
@@ -272,6 +298,75 @@ Part 0 wires _what we have_. Part I grows the intelligence surface itself.
 - **Depends on:** P1.5 (per-FA iterative spec)
 - **ROI:** high — closes the "tests don't actually test the spec" gap
 - **Risk:** medium — auto-generated scaffolds can mislead; stubs must be non-passing until impl lands
+
+### P1.14 — Rouge-native evaluation rubric (product-quality domain) ⭐
+- **What lands:** Rouge's 02e-evaluation PO lens rewritten with a Rouge-native rubric scoped to product-quality judgement (not research-document judgement). Dimensions derived from Rouge's own evidence surface — what a real user would see, click, and feel when using the shipped product. Ordinal anchors per dimension (public pattern from G-Eval). Human-authored; never edited by self-improve (GC.1 blocks).
+- **Proposed Rouge-native dimensions (draft — iterate before adopting):**
+  - **Journey completeness** — does the observed product walk cover every acceptance criterion the spec committed to?
+  - **Interaction fidelity** — does every interactive element do what a user would expect (button actually submits, form validation surfaces, state updates flow)?
+  - **Visual coherence** — do the screens look like one product, not a stitched-together demo? (typography / spacing / component consistency)
+  - **Content grounding** — does every piece of copy (labels, empty states, error messages) sound like a human wrote it for a real use-case, not a generic template?
+  - **Edge resilience** — does the product behave under empty / error / overflow / loading states, not just the happy path?
+  - **Vision fit** — does the observed product match the stated north star, or has it drifted?
+- Each dimension: 0|1|2|3 ordinal with behavioral anchors describing what a 0 looks like vs a 3. Naming and grouping native to Rouge's product-build domain.
+- **Files:** `library/rubrics/product-quality-v1.md` (the rubric as a standalone instrument, versioned independently of prompts), `src/prompts/loop/02e-evaluation.md` (references the rubric, doesn't inline it)
+- **Verify:** re-score a past cycle under the new rubric side-by-side with old; differences explained per dimension. Inter-run variance dropped (same cycle evaluated twice → same verdict ± 1 point on any dimension).
+- **Depends on:** GC.1 (block self-improve from editing the rubric first), P1.10 (structured output)
+- **ROI:** highest measurement-quality delta
+- **Risk:** medium — 02e is load-bearing. Mitigation: shadow-run 3 cycles before promoting active; preserve old scoring in parallel for comparison.
+
+### P1.15 — Closed-vocabulary confidence tags on findings
+- **What lands:** Every finding in Rouge's evaluation phases carries a confidence tag from `high | moderate | low | unverified` (Anthropic's own agent-eval guidance uses this shape). Tag maps to evidence type: direct product-walk observation with screenshot = `high`; code-review inference without walk evidence = `moderate`; pattern-matched without direct observation = `low`; speculation without evidence = `unverified` (don't emit — use escape hatch in P1.20 instead).
+- **Files:** `src/prompts/loop/02c-code-review.md`, `02e-evaluation.md`, schema update for finding shape
+- **Verify:** schema test — every finding has a confidence tag; `high` findings must include `evidence_span` citing the specific observation.
+- **Depends on:** P1.14
+- **ROI:** medium — reduces false-positive gating
+- **Risk:** low
+
+### P1.16 — Quote-evidence-before-verdict pattern (G-Eval)
+- **What lands:** Eval judges quote the specific product-walk evidence into `<evidence>` XML tags before writing the verdict. Pattern from G-Eval (public, Liu et al. EMNLP 2023) + Anthropic's long-doc guidance. Structurally in the prompt: first an `<evidence>` block of verbatim product-walk quotes, then a verdict grounded only in what was quoted.
+- **Files:** `src/prompts/loop/02c-code-review.md`, `02d-product-walk.md` (producer side), `02e-evaluation.md` (judge side)
+- **Verify:** inspect 02e output on a real cycle — every `criteria_results[].evidence` is a verbatim product-walk quote, not paraphrase or reconstruction.
+- **Depends on:** P1.14
+- **ROI:** high — cuts a hallucinated-finding class
+- **Risk:** low
+
+### P1.17 — Isolated-dimension judge calls (Anthropic agent-eval guidance)
+- **What lands:** Rouge's 02e currently judges QA + Design + PO + security in one invocation. Anthropic's published agent-eval guide explicitly recommends: "grade each dimension with an isolated LLM-as-judge rather than using one to grade all dimensions." Split 02e into per-dimension sub-invocations; each gets a focused prompt and isolated rubric.
+- **Files:** split `02e-evaluation.md` → `02e-qa-lens.md`, `02e-design-lens.md`, `02e-po-lens.md`; orchestrator 02 invokes each in parallel; update contract test asserting prompt count.
+- **Verify:** total tokens roughly equal to single-call (dimensional focus offsets preamble repetition once prompt caching P0.11a lands). Inter-call variance drops on repeated eval of same cycle.
+- **Depends on:** P1.14, P0.11a (prompt caching makes parallel dimension calls cheap)
+- **ROI:** medium-high — reduces variance, enables dimension-specific tuning
+- **Risk:** medium — splits the 17-prompt contract test; update assertion.
+
+### P1.18 — Gold set + Cohen's Kappa calibration for Rouge judges
+- **What lands:** Build a 20–50 item gold set of past cycles with human-labeled "correct" verdicts per dimension. After any eval-prompt change, re-run against gold set, compute Cohen's Kappa between new-prompt verdicts and human labels. Require ≥ 0.75 before promoting. Standard MT-Bench / G-Eval / Anthropic calibration practice.
+- **Files:** new `library/gold-sets/product-eval/*.json` (20–50 entries: past cycle_context snapshot + human verdict per dimension), new `src/launcher/gold-set-calibrator.js` + tests, `rouge eval-calibrate` CLI.
+- **Verify:** CLI runs gold set against current 02e prompt, reports Kappa per dimension. Intentionally-bad prompt change → Kappa drops → CLI reports drop, blocks promotion if below threshold.
+- **Depends on:** P1.14
+- **ROI:** highest long-term — this is the instrument Rouge uses to measure whether its own measurement is improving
+- **Risk:** medium — requires human-labeled bootstrap data
+
+### P1.19 — Opus 4.7 / modern-model prompt modernization pass
+- **What lands:** Sweep all Rouge prompts for patterns the current model generation treats differently from older ones:
+  - Remove "think step by step", "reason carefully" scaffolding — Anthropic's published Opus 4.7 guidance: "raise effort to xhigh" instead for intelligence-sensitive tasks
+  - Replace "CRITICAL:", "YOU MUST", all-caps emphasis with calm declaratives — Opus 4.7 over-triggers on shouty language
+  - Convert "don't do X" to "do Y" formulations (Anthropic's own recommendation)
+  - State scope explicitly ("apply this to every section") — Opus 4.7 is literal and won't silently generalize
+  - Add XML tag structure with consistent vocabulary: `<instructions>`, `<context>`, `<input>`, `<example>`, `<candidate>`, `<rubric>`, `<verdict>`, `<evidence>`
+- **Files:** every `src/prompts/**/*.md` (~30 files) — one prompt per PR
+- **Verify:** per-prompt, shadow-run against a reference cycle. Output quality stable or improved. Token count stable or down.
+- **Depends on:** GC.1 (don't modernize judge prompts until allowlist tightened)
+- **ROI:** high compounding
+- **Risk:** medium — prompt changes at scale. Mitigation: one prompt per PR.
+
+### P1.20 — "Unknown" escape hatch for insufficient-evidence findings
+- **What lands:** Every judge prompt in Rouge instructs: "If the evidence does not let you reach a defensible verdict, emit `verdict: unknown` with the reason. Do not guess." Distinct from `env_limited` (code exists, can't verify in headless) — `unknown` is "I can't tell either way from what I was given." Directly from Anthropic's published agent-eval guidance.
+- **Files:** `02c-code-review.md`, `02d-product-walk.md`, `02e-evaluation.md`, `02f-re-walk.md`, seeding `03-taste.md`
+- **Verify:** synthetic adversarial test — feed judge evidence that genuinely doesn't resolve; output should be `unknown`, not a guessed verdict.
+- **Depends on:** P1.14
+- **ROI:** medium
+- **Risk:** low
 
 ### P1.13 — Research-before-solving detector (meta-principle)
 - **What lands:** Rouge detects when it's about to enter "burst of PRs" mode (3+ consecutive similar fix stories) and escalates for a systematic audit instead of continuing to patch. Borrowed from the owner's explicit preference.
