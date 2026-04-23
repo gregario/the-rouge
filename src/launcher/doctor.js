@@ -129,6 +129,50 @@ function runDoctor({ ROUGE_ROOT, getSecret } = {}) {
     }
   }
 
+  // P0.6: MCP health check. Surfaces configured MCPs + env-var state so
+  // users on a fresh install see what's configured vs what still needs
+  // secrets. Module from Phase 3. Never blocks doctor — missing env for
+  // an MCP shows as a warning, not a blocker (user may not need that MCP).
+  try {
+    const { checkAll } = require('./mcp-health-check.js');
+    const report = checkAll({ env: process.env });
+    if (report.count === 0) {
+      push({ id: 'mcps', label: 'MCPs', status: 'warning', detail: 'no MCP manifests found', installHint: 'see mcp-configs/' });
+    } else {
+      const ready = report.results.filter((r) => r.ok).length;
+      const missing = report.results.filter((r) => !r.ok && r.manifest_status === 'active' && r.missing_env && r.missing_env.length > 0);
+      const drafts = report.results.filter((r) => r.manifest_status === 'draft').length;
+      if (missing.length > 0) {
+        const missingSummary = missing
+          .slice(0, 5)
+          .map((r) => `${r.name} (missing: ${r.missing_env.join(', ')})`)
+          .join('; ');
+        push({
+          id: 'mcps',
+          label: 'MCPs',
+          status: 'warning',
+          detail: `${ready}/${report.count} ready · ${missing.length} missing env${drafts ? ` · ${drafts} draft` : ''} — ${missingSummary}`,
+          installHint: 'run `rouge setup` or set the listed env vars; MCPs without env stay inactive but don\'t block builds',
+        });
+      } else {
+        push({
+          id: 'mcps',
+          label: 'MCPs',
+          status: 'ok',
+          detail: `${ready}/${report.count} ready${drafts ? ` · ${drafts} draft` : ''}`,
+        });
+      }
+    }
+  } catch (e) {
+    // mcp-configs missing or module error: warn, don't block
+    push({
+      id: 'mcps',
+      label: 'MCPs',
+      status: 'warning',
+      detail: `check unavailable: ${(e.message || '').slice(0, 100)}`,
+    });
+  }
+
   const blockers = checks.filter((c) => c.status === 'blocker').map((c) => c.id);
   const warnings = checks.filter((c) => c.status === 'warning').map((c) => c.id);
 
