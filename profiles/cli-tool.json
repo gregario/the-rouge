@@ -1,0 +1,43 @@
+{
+  "name": "cli-tool",
+  "description": "Command-line utility distributed via npm/brew/cargo. No browser, no server.",
+  "stack_hints": {
+    "primary_language": "typescript",
+    "targets_browser": false,
+    "uses_db": false,
+    "typical_stack": "TypeScript + commander / Rust + clap / Go + cobra"
+  },
+  "seeding_phases": [
+    "brainstorm",
+    "taste",
+    "spec",
+    "infrastructure"
+  ],
+  "loop_phases": [
+    "foundation-building",
+    "building",
+    "evaluation-orchestrator",
+    "analyzing",
+    "change-spec-generation",
+    "vision-check",
+    "ship-promote",
+    "document-release",
+    "cycle-retrospective"
+  ],
+  "rules_to_load": ["common", "typescript"],
+  "agents_to_enable": [
+    "typescript-reviewer"
+  ],
+  "mcps_to_enable": [
+    "github",
+    "context7"
+  ],
+  "skills_to_load": [
+    "tdd-workflow",
+    "language-specific-review"
+  ],
+  "quality_bar": {
+    "coverage_min": 80,
+    "cold_start_ms": 200
+  }
+}
