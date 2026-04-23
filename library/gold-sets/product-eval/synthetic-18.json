@@ -1,0 +1,143 @@
+{
+  "schema_version": "gold-set-entry-v1",
+  "id": "synthetic-18",
+  "rubric_id": "product-quality",
+  "rubric_version": 1,
+  "source": {
+    "project": "synthetic",
+    "cycle_id": "synthetic-18",
+    "captured_at": "2026-04-23T00:00:00Z"
+  },
+  "cycle_context_excerpt": {
+    "product_walk": {
+      "journeys": [
+        {
+          "id": "journey-1",
+          "steps": 1,
+          "reached_success_state": false,
+          "result": "blocked at step 1 — button returns no response"
+        },
+        {
+          "id": "journey-2",
+          "steps": 1,
+          "reached_success_state": false,
+          "result": "blocked at step 1 — button returns no response"
+        },
+        {
+          "id": "journey-3",
+          "steps": 1,
+          "reached_success_state": false,
+          "result": "blocked at step 1 — button returns no response"
+        }
+      ],
+      "screens": [
+        {
+          "name": "screen-1",
+          "interactive_elements": [
+            {
+              "kind": "button",
+              "result": "no visible response",
+              "loading_indicator": false
+            },
+            {
+              "kind": "link",
+              "result": "no visible response",
+              "loading_indicator": false
+            },
+            {
+              "kind": "button",
+              "result": "no visible response",
+              "loading_indicator": false
+            },
+            {
+              "kind": "link",
+              "result": "no visible response",
+              "loading_indicator": false
+            },
+            {
+              "kind": "button",
+              "result": "no visible response",
+              "loading_indicator": false
+            }
+          ],
+          "edge_states_handled": {
+            "handled": [
+              "empty",
+              "error",
+              "loading",
+              "overflow"
+            ],
+            "unhandled": [],
+            "note": "every observed edge state has explicit handling with user guidance"
+          }
+        },
+        {
+          "name": "screen-2",
+          "interactive_elements": [
+            {
+              "kind": "button",
+              "result": "no visible response",
+              "loading_indicator": false
+            },
+            {
+              "kind": "link",
+              "result": "no visible response",
+              "loading_indicator": false
+            },
+            {
+              "kind": "button",
+              "result": "no visible response",
+              "loading_indicator": false
+            },
+            {
+              "kind": "link",
+              "result": "no visible response",
+              "loading_indicator": false
+            },
+            {
+              "kind": "button",
+              "result": "no visible response",
+              "loading_indicator": false
+            }
+          ],
+          "edge_states_handled": {
+            "handled": [
+              "empty",
+              "error",
+              "loading",
+              "overflow"
+            ],
+            "unhandled": [],
+            "note": "every observed edge state has explicit handling with user guidance"
+          }
+        }
+      ]
+    },
+    "design_review": {
+      "category_scores": {
+        "typography": "mostly-consistent",
+        "color": "mostly-consistent",
+        "spacing": "mostly-consistent",
+        "layout": "mostly-consistent",
+        "components": "mostly-consistent"
+      },
+      "copy_quality": "mostly grounded, one or two generic phrases slipped in",
+      "ai_slop_score": 0.3
+    },
+    "functional_correctness": "FAIL",
+    "console_errors": 5,
+    "active_spec_fit": "on-vision with minor scope movement; soul intact"
+  },
+  "human_labels": {
+    "journey_completeness": 0,
+    "interaction_fidelity": 0,
+    "visual_coherence": 2,
+    "content_grounding": 2,
+    "edge_resilience": 3,
+    "vision_fit": 2
+  },
+  "human_verdict": "NOT_READY",
+  "labeler": "synthetic-v1",
+  "labeled_at": "2026-04-23T00:00:00Z",
+  "notes": "Synthetic fixture. cycle_context_excerpt fields are rule-derived from the target scores via src/launcher/gold-set-synth.js — regenerate when the rubric or generator changes."
+}

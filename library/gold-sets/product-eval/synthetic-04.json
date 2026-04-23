@@ -1,0 +1,143 @@
+{
+  "schema_version": "gold-set-entry-v1",
+  "id": "synthetic-04",
+  "rubric_id": "product-quality",
+  "rubric_version": 1,
+  "source": {
+    "project": "synthetic",
+    "cycle_id": "synthetic-04",
+    "captured_at": "2026-04-23T00:00:00Z"
+  },
+  "cycle_context_excerpt": {
+    "product_walk": {
+      "journeys": [
+        {
+          "id": "journey-1",
+          "steps": 4,
+          "reached_success_state": true,
+          "result": "visible success state reached"
+        },
+        {
+          "id": "journey-2",
+          "steps": 4,
+          "reached_success_state": true,
+          "result": "visible success state reached"
+        },
+        {
+          "id": "journey-3",
+          "steps": 4,
+          "reached_success_state": true,
+          "result": "visible success state reached"
+        }
+      ],
+      "screens": [
+        {
+          "name": "screen-1",
+          "interactive_elements": [
+            {
+              "kind": "button",
+              "result": "expected state change observed (toast, navigation, or update)",
+              "loading_indicator": true
+            },
+            {
+              "kind": "link",
+              "result": "expected state change observed (toast, navigation, or update)",
+              "loading_indicator": true
+            },
+            {
+              "kind": "button",
+              "result": "expected state change observed (toast, navigation, or update)",
+              "loading_indicator": true
+            },
+            {
+              "kind": "link",
+              "result": "expected state change observed (toast, navigation, or update)",
+              "loading_indicator": true
+            },
+            {
+              "kind": "button",
+              "result": "expected state change observed (toast, navigation, or update)",
+              "loading_indicator": true
+            }
+          ],
+          "edge_states_handled": {
+            "handled": [
+              "empty",
+              "error",
+              "loading",
+              "overflow"
+            ],
+            "unhandled": [],
+            "note": "every observed edge state has explicit handling with user guidance"
+          }
+        },
+        {
+          "name": "screen-2",
+          "interactive_elements": [
+            {
+              "kind": "button",
+              "result": "expected state change observed (toast, navigation, or update)",
+              "loading_indicator": true
+            },
+            {
+              "kind": "link",
+              "result": "expected state change observed (toast, navigation, or update)",
+              "loading_indicator": true
+            },
+            {
+              "kind": "button",
+              "result": "expected state change observed (toast, navigation, or update)",
+              "loading_indicator": true
+            },
+            {
+              "kind": "link",
+              "result": "expected state change observed (toast, navigation, or update)",
+              "loading_indicator": true
+            },
+            {
+              "kind": "button",
+              "result": "expected state change observed (toast, navigation, or update)",
+              "loading_indicator": true
+            }
+          ],
+          "edge_states_handled": {
+            "handled": [
+              "empty",
+              "error",
+              "loading",
+              "overflow"
+            ],
+            "unhandled": [],
+            "note": "every observed edge state has explicit handling with user guidance"
+          }
+        }
+      ]
+    },
+    "design_review": {
+      "category_scores": {
+        "typography": "mostly-consistent",
+        "color": "mostly-consistent",
+        "spacing": "mostly-consistent",
+        "layout": "mostly-consistent",
+        "components": "mostly-consistent"
+      },
+      "copy_quality": "mostly grounded, one or two generic phrases slipped in",
+      "ai_slop_score": 0.3
+    },
+    "functional_correctness": "PASS",
+    "console_errors": 0,
+    "active_spec_fit": "on-vision with minor scope movement; soul intact"
+  },
+  "human_labels": {
+    "journey_completeness": 3,
+    "interaction_fidelity": 3,
+    "visual_coherence": 2,
+    "content_grounding": 2,
+    "edge_resilience": 3,
+    "vision_fit": 2
+  },
+  "human_verdict": "PRODUCTION_READY",
+  "labeler": "synthetic-v1",
+  "labeled_at": "2026-04-23T00:00:00Z",
+  "notes": "Synthetic fixture. cycle_context_excerpt fields are rule-derived from the target scores via src/launcher/gold-set-synth.js — regenerate when the rubric or generator changes."
+}

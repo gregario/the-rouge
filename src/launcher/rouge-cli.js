@@ -1388,8 +1388,16 @@ Exit codes:
   if (result.insufficientData) {
     console.log(`  Verdict:  INSUFFICIENT DATA — ${result.reason}`);
     console.log('');
-    console.log('  Add more gold-set entries to library/gold-sets/product-eval/.');
-    console.log('  See library/gold-sets/product-eval/README.md for the entry shape.');
+    if (gold.entries.length >= minEntries && paired.length < minEntries) {
+      console.log(`  Gold set has ${gold.entries.length} entries (≥ ${minEntries}).`);
+      console.log('  Supply --model-labels <file>. Shape: JSON object keyed by');
+      console.log('  gold-entry id, each value {labels: {...dim:score}, verdict: "..."}.');
+      console.log('  Typical source: run 02e-evaluation against each fixture\'s');
+      console.log('  cycle_context_excerpt and extract evaluation_report.po.rubric_scores.');
+    } else {
+      console.log('  Regenerate the default synthetic gold set with `rouge eval-seed-gold`,');
+      console.log('  or hand-author additional entries per library/gold-sets/product-eval/README.md.');
+    }
     console.log('');
     process.exit(2);
   }
@@ -1435,6 +1443,85 @@ Exit codes:
   console.log('');
 
   process.exit(result.passed ? 0 : 1);
+}
+
+function cmdEvalSeedGold(rawArgs) {
+  let goldSetDir = null;
+  let dryRun = false;
+  let force = false;
+
+  for (let i = 0; i < rawArgs.length; i++) {
+    const a = rawArgs[i];
+    if (a === '--gold-set' && i + 1 < rawArgs.length) {
+      goldSetDir = rawArgs[++i];
+    } else if (a === '--dry-run') {
+      dryRun = true;
+    } else if (a === '--force') {
+      force = true;
+    } else if (a === '--help' || a === '-h') {
+      console.log(`Usage: rouge eval-seed-gold [flags]
+
+Regenerate the synthetic gold set for product-quality evaluation.
+Produces 20 deterministic fixtures whose cycle_context_excerpt fields
+carry signals that map to the target rubric scores. Ground truth is
+encoded in generator rules, not human labor.
+
+By default, refuses to clobber any entry whose labeler is not
+'synthetic-v1' — so hand-authored / cross-model / human-labeled entries
+are preserved. Pass --force to override.
+
+Flags:
+  --gold-set <dir>        Target directory (default: library/gold-sets/product-eval)
+  --dry-run               Show what would be written without writing
+  --force                 Clobber non-synthetic entries too (use with care)
+`);
+      process.exit(0);
+    } else {
+      console.error(`Unknown flag: ${a}`);
+      console.error('Run `rouge eval-seed-gold --help` for usage.');
+      process.exit(2);
+    }
+  }
+
+  const repoRoot = path.resolve(__dirname, '..', '..');
+  if (goldSetDir == null) {
+    goldSetDir = path.join(repoRoot, 'library', 'gold-sets', 'product-eval');
+  } else if (!path.isAbsolute(goldSetDir)) {
+    goldSetDir = path.resolve(process.cwd(), goldSetDir);
+  }
+
+  const { generateDefaultSet, writeEntries } = require('./gold-set-synth.js');
+  const set = generateDefaultSet();
+  const r = writeEntries(set, goldSetDir, { overwriteNonSynthetic: force, dryRun });
+
+  console.log('');
+  console.log('  Eval Seed Gold');
+  console.log(`  ${'─'.repeat(35)}`);
+  console.log('');
+  console.log(`  Target:  ${goldSetDir}`);
+  console.log(`  Plan:    ${set.length} deterministic synthetic entries`);
+  console.log(`  Mode:    ${dryRun ? 'dry-run (no files written)' : force ? 'overwrite-all' : 'preserve-non-synthetic'}`);
+  console.log('');
+  if (r.written.length > 0) {
+    console.log(`  Wrote ${r.written.length} file(s).`);
+  }
+  if (r.skipped.length > 0) {
+    console.log(`  Would write ${r.skipped.length} file(s) (dry-run).`);
+  }
+  if (r.refused.length > 0) {
+    console.log(`  Refused ${r.refused.length} file(s) (preserved non-synthetic entries):`);
+    for (const x of r.refused) {
+      console.log(`    - ${path.basename(x.file)}: ${x.reason}`);
+    }
+    console.log('');
+    console.log('  Pass --force to overwrite.');
+  }
+  console.log('');
+
+  // Exit non-zero if anything was refused AND not in dry-run mode, so CI
+  // knows the seeder didn't fully succeed.
+  if (r.refused.length > 0 && !dryRun) process.exit(1);
+  process.exit(0);
 }
 
 // ---------------------------------------------------------------------------
@@ -1913,6 +2000,8 @@ if (command === 'doctor') {
   }
 } else if (command === 'eval-calibrate') {
   cmdEvalCalibrate(args.slice(1));
+} else if (command === 'eval-seed-gold') {
+  cmdEvalSeedGold(args.slice(1));
 } else {
   console.log(`
   The Rouge CLI
@@ -1945,6 +2034,8 @@ if (command === 'doctor') {
     rouge contribute <path>         Contribute a draft integration pattern via PR
     rouge eval-calibrate            Gate: quadratic-weighted Kappa between gold-set labels and model output
                                     --gold-set <dir>, --model-labels <file>, --min-kappa <float>, --verbose
+    rouge eval-seed-gold            Regenerate the synthetic gold set (refuses to clobber non-synthetic entries).
+                                    --gold-set <dir>, --dry-run, --force
     rouge resume-escalation <slug>  Prime a direct Claude Code session for an
                                     escalation hand-off. Parks the project,
                                     prints the claude command + context.

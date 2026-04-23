@@ -1,0 +1,145 @@
+{
+  "schema_version": "gold-set-entry-v1",
+  "id": "synthetic-09",
+  "rubric_id": "product-quality",
+  "rubric_version": 1,
+  "source": {
+    "project": "synthetic",
+    "cycle_id": "synthetic-09",
+    "captured_at": "2026-04-23T00:00:00Z"
+  },
+  "cycle_context_excerpt": {
+    "product_walk": {
+      "journeys": [
+        {
+          "id": "journey-1",
+          "steps": 4,
+          "reached_success_state": true,
+          "result": "visible success state reached"
+        },
+        {
+          "id": "journey-2",
+          "steps": 4,
+          "reached_success_state": true,
+          "result": "visible success state reached"
+        },
+        {
+          "id": "journey-3",
+          "steps": 3,
+          "reached_success_state": false,
+          "result": "dead-end at final step; success state not observed"
+        }
+      ],
+      "screens": [
+        {
+          "name": "screen-1",
+          "interactive_elements": [
+            {
+              "kind": "button",
+              "result": "expected state change observed (toast, navigation, or update)",
+              "loading_indicator": true
+            },
+            {
+              "kind": "link",
+              "result": "expected state change observed (toast, navigation, or update)",
+              "loading_indicator": true
+            },
+            {
+              "kind": "button",
+              "result": "expected state change observed (toast, navigation, or update)",
+              "loading_indicator": true
+            },
+            {
+              "kind": "link",
+              "result": "expected state change observed (toast, navigation, or update)",
+              "loading_indicator": true
+            },
+            {
+              "kind": "button",
+              "result": "expected state change observed (toast, navigation, or update)",
+              "loading_indicator": true
+            }
+          ],
+          "edge_states_handled": {
+            "handled": [
+              "empty"
+            ],
+            "unhandled": [
+              "error",
+              "loading",
+              "overflow"
+            ],
+            "note": "most edges handled, a couple rough"
+          }
+        },
+        {
+          "name": "screen-2",
+          "interactive_elements": [
+            {
+              "kind": "button",
+              "result": "expected state change observed (toast, navigation, or update)",
+              "loading_indicator": true
+            },
+            {
+              "kind": "link",
+              "result": "expected state change observed (toast, navigation, or update)",
+              "loading_indicator": true
+            },
+            {
+              "kind": "button",
+              "result": "expected state change observed (toast, navigation, or update)",
+              "loading_indicator": true
+            },
+            {
+              "kind": "link",
+              "result": "expected state change observed (toast, navigation, or update)",
+              "loading_indicator": true
+            },
+            {
+              "kind": "button",
+              "result": "expected state change observed (toast, navigation, or update)",
+              "loading_indicator": true
+            }
+          ],
+          "edge_states_handled": {
+            "handled": [
+              "empty"
+            ],
+            "unhandled": [
+              "error",
+              "loading",
+              "overflow"
+            ],
+            "note": "most edges handled, a couple rough"
+          }
+        }
+      ]
+    },
+    "design_review": {
+      "category_scores": {
+        "typography": "visibly-inconsistent",
+        "color": "visibly-inconsistent",
+        "spacing": "visibly-inconsistent",
+        "layout": "visibly-inconsistent",
+        "components": "visibly-inconsistent"
+      },
+      "copy_quality": "labels specific to what button does; errors name what went wrong and what user can do next",
+      "ai_slop_score": 0.7
+    },
+    "functional_correctness": "PASS",
+    "console_errors": 2,
+    "active_spec_fit": "on-vision with minor scope movement; soul intact"
+  },
+  "human_labels": {
+    "journey_completeness": 2,
+    "interaction_fidelity": 3,
+    "visual_coherence": 1,
+    "content_grounding": 3,
+    "edge_resilience": 1,
+    "vision_fit": 2
+  },
+  "human_verdict": "NEEDS_IMPROVEMENT",
+  "labeler": "synthetic-v1",
+  "labeled_at": "2026-04-23T00:00:00Z",
+  "notes": "Synthetic fixture. cycle_context_excerpt fields are rule-derived from the target scores via src/launcher/gold-set-synth.js — regenerate when the rubric or generator changes."
+}
