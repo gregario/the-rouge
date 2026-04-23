@@ -65,6 +65,10 @@
     "enabled": true,
     "zones": ["green"]
   },
+  "config_protection": {
+    "mode": "warn",
+    "_note": "P0.5 — rouge-safety-check.sh pre-write hook calls config-protection.js to flag weakening edits to linter/type/test/CI configs (strict:false, eslint-disable, lowered coverage, etc.) without a '// rationale:' marker. Modes: 'off' (skip), 'warn' (log but allow — default), 'block' (deny with reason). Fail-open: any check error allows the write."
+  },
   "capability_check": {
     "enabled": true,
     "_note": "P1.21 — pre-analyzer gate that assesses whether Rouge's capabilities can produce a fix for each blocking finding before routing to milestone-fix. Set enabled:false for emergency rollback (pre-P1.21 behavior). Audit-recommender P1.13 remains active as the N=3 backstop regardless. See src/launcher/capability-check.js and capability-check-runner.js.",

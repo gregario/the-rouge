@@ -274,6 +274,93 @@ pre_write() {
     fi
   done
 
+  # --- P0.5: config-protection check (optional, fail-open) ---
+  #
+  # Calls node src/launcher/config-protection.js to detect edits that
+  # weaken linter/type/test/CI configs (strict:false, eslint-disable,
+  # lowered coverage thresholds) without a "rationale:" marker.
+  #
+  # Mode from rouge.config.json → config_protection.mode:
+  #   "off"   → skip entirely
+  #   "warn"  → log the warning but allow (default)
+  #   "block" → deny with reason
+  #
+  # FAIL-OPEN: any error in the node invocation (module missing, timeout,
+  # malformed JSON) → log and allow. Never deny due to a check crash.
+  # The existing safety-blocklist above is the hard floor; this adds a
+  # softer, rationale-aware layer on top.
+  config_check_mode="warn"
+  if [[ -f "$CONFIG_FILE" ]]; then
+    cpm=$(jq -r '.config_protection.mode // "warn"' "$CONFIG_FILE" 2>/dev/null || echo "warn")
+    if [[ "$cpm" == "off" || "$cpm" == "warn" || "$cpm" == "block" ]]; then
+      config_check_mode="$cpm"
+    fi
+  fi
+
+  if [[ "$config_check_mode" != "off" ]]; then
+    local content
+    content=$(echo "$tool_input" | jq -r '.content // .new_string // empty' 2>/dev/null || echo "")
+    if [[ -n "$content" ]]; then
+      # Module lives in the same directory as this script (src/launcher/).
+      local script_dir
+      script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+      local cp_module="$script_dir/config-protection.js"
+
+      if [[ -f "$cp_module" ]]; then
+        # Portable timeout — macOS ships no `timeout`; coreutils provides
+        # `gtimeout`. If neither available, run without timeout (pure-JS
+        # regex check shouldn't hang, but fail-open is safer than block-
+        # on-hang).
+        local _timeout_cmd=""
+        if command -v timeout >/dev/null 2>&1; then
+          _timeout_cmd="timeout 5"
+        elif command -v gtimeout >/dev/null 2>&1; then
+          _timeout_cmd="gtimeout 5"
+        fi
+
+        local cp_result
+        # 5s ceiling (where available) — the check is pure-JS regex, runs
+        # in <100ms. Timeout or node failure → fall-through to allow.
+        cp_result=$(
+          ROUGE_CP_FILE="$file_path" \
+          ROUGE_CP_CONTENT="$content" \
+          ROUGE_CP_MODE="$config_check_mode" \
+          ROUGE_CP_MODULE="$cp_module" \
+          $_timeout_cmd node -e '
+            try {
+              const { check } = require(process.env.ROUGE_CP_MODULE);
+              const r = check({
+                filePath: process.env.ROUGE_CP_FILE,
+                newContent: process.env.ROUGE_CP_CONTENT,
+                mode: process.env.ROUGE_CP_MODE,
+              });
+              process.stdout.write(JSON.stringify(r));
+            } catch (e) {
+              process.stdout.write(JSON.stringify({ allow: true, severity: "ok", reason: "check error: " + e.message }));
+            }
+          ' 2>/dev/null || echo '{"allow":true,"severity":"ok","reason":"check failed"}'
+        )
+
+        # Parse result. Only severity is consulted for routing (avoids
+        # jq's `// default` gotcha where `.allow // true` returns true
+        # for a literal `false` value — it defaults on null/false).
+        # Severity is an enum string, unambiguous.
+        local cp_severity cp_reason
+        cp_severity=$(echo "$cp_result" | jq -r '.severity // "ok"' 2>/dev/null || echo "ok")
+        cp_reason=$(echo "$cp_result" | jq -r '.reason // ""' 2>/dev/null || echo "")
+
+        if [[ "$cp_severity" == "warn" ]]; then
+          # Log as notable event but allow. Warning gets into audit log
+          # via log_entry for retrospective visibility.
+          log_entry "pre-write" "ALLOW-WITH-WARNING" "$summary" "config-protection: $cp_reason"
+          echo "[rouge-safety] WARNING (config-protection): $cp_reason" >&2
+        elif [[ "$cp_severity" == "block" ]]; then
+          block "pre-write" "$summary" "config-protection (block mode): $cp_reason"
+        fi
+      fi
+    fi
+  fi
+
   allow "pre-write" "$summary"
 }
 
