@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "governance-event.json",
+  "title": "Governance Event — audit record for decisions that matter",
+  "description": "Append-only record of high-signal governance decisions: human approvals, safety overrides, factory decisions diverging from spec, policy exceptions. Borrowed in shape from everything-claude-code's governanceEvent entity.",
+  "type": "object",
+  "required": ["event_id", "timestamp", "category", "summary"],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "pattern": "^gov-[0-9]{8}-[a-z0-9]+$",
+      "description": "Unique event id, e.g. gov-20260423-ab3d"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "category": {
+      "enum": [
+        "approval",
+        "safety-override",
+        "self-improve-proposal",
+        "self-improve-promotion",
+        "amendment-promotion",
+        "factory-divergence",
+        "policy-exception",
+        "secret-exposure",
+        "milestone-promotion",
+        "deploy-override",
+        "escalation-resolved"
+      ]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 5
+    },
+    "project": {
+      "type": "string",
+      "description": "Rouge project name"
+    },
+    "cycle": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "phase": {
+      "type": "string"
+    },
+    "actor": {
+      "type": "string",
+      "description": "'human' | 'rouge-launcher' | 'rouge-factory' | 'rouge-retrospective' | specific user/agent id"
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Pointers to source of truth: checkpoint ids, commit SHAs, PR URLs, issue URLs"
+    },
+    "severity": {
+      "enum": ["info", "notice", "warning", "critical"]
+    },
+    "detail": {
+      "type": "object",
+      "description": "Category-specific structured fields"
+    }
+  }
+}
