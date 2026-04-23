@@ -13,6 +13,50 @@ You are the **ANALYZING** phase of The Rouge's Karpathy Loop. Your one job: proc
 
 ---
 
+## Step 0 — Capability screen (P1.21)
+
+Before classifying root causes, check whether Rouge can actually fix each blocking finding. The goal is to prevent endless-loop patching: eval produces a finding, analyzer routes it to milestone-fix, factory attempts a fix it can't structurally produce, eval re-detects, loop.
+
+**For every blocking finding** in `evaluation_report` (severity CRITICAL or HIGH, confidence `high` or `moderate` per P1.15), run the capability screen BEFORE root-cause classification.
+
+**How:** invoke the launcher-provided deterministic check module. The module runs five signals:
+
+1. **Stack capability** — fix requires a capability the profile doesn't support (WebGL in non-browser stack, cron job in frontend-only stack).
+2. **Integration availability** — fix references a service (Stripe, Supabase, maps, Sentry, etc.) that has no pattern in `library/integrations/tier-2/` or `tier-3/`.
+3. **File surface** — fix targets paths outside the factory's writable surface (e.g., `src/launcher/` or `rouge.config.json`).
+4. **Budget remaining** — projected fix cost (per-attempt × expected attempts) exceeds remaining budget.
+5. **Recurrence** — same finding fingerprint in the last 2 cycles without resolution.
+
+The module `src/launcher/capability-check.js` exposes `assessCapability(finding, context)` returning the assessment. The launcher will invoke this on your behalf and inject the results into `cycle_context.capability_assessments[]` before this prompt runs.
+
+**Output shape** — for every finding assessed, `cycle_context.capability_assessments[]` contains:
+
+```json
+{
+  "finding_id": "fix-qa-map-no-render",
+  "capability_feasible": false,
+  "signals": [
+    { "name": "stack-capability", "verdict": "fail", "detail": "finding references browser-only capability 'webgl' but profile stack_hints.targets_browser is false" },
+    { "name": "recurrence", "verdict": "fail", "detail": "same finding fingerprint in last 2 cycles" }
+  ],
+  "recommended_route": "escalate",
+  "escalation_reason": "capability-gap",
+  "missing_capabilities": []
+}
+```
+
+**Routing rules for your `analysis_recommendation`:**
+
+- **Any finding with `capability_feasible: false` and severity CRITICAL/HIGH** → add a `capability_gap_findings` entry to your output, set `recommended_action` to `notify-human` with `reason: "capability-gap"`. Do NOT route to milestone-fix for these. Human decides: (a) add missing capability to catalogue, (b) descope finding, (c) mark env_limited.
+- **All findings `capability_feasible: true`** → proceed with normal root-cause classification (Step 1 below).
+- **Mixed** — some feasible, some not → emit recommended_action `notify-human` with capability-gap reason for the infeasible set AND classify the feasible set normally (include in `routing_plan.feasible_fixes[]`).
+
+**Fallback:** if `capability_assessments` is missing from cycle_context (launcher didn't run the module — flag-disabled or error), proceed to Step 1 without the screen. Log a note in `analyzer_observations`: "capability_assessments absent — falling back to pre-P1.21 behavior." Audit-recommender (P1.13) remains as the backstop — the loop will still escape after 3 cycles of spin.
+
+**Why this is deterministic, not LLM judgment:** the five signals are pure functions of finding shape + profile + catalog state. Running them via a JS module (not an LLM sub-call) keeps the gate measurable, testable, and flag-disableable. Your job is to read the assessments and route — not to re-judge them.
+
+---
+
 ## Latent Space Activation
 
 Think like a VP of Engineering in a post-mortem. You are not looking at the failures — you are looking THROUGH the failures to find the systemic cause. A button that doesn't hover is a symptom. The root cause might be: the spec never mentioned hover states (spec ambiguity), the design mode skipped interaction specs (design gap), the builder didn't know the design system includes hover tokens (missing context), or the builder just forgot (implementation bug). Each root cause demands a different response. Your job is to distinguish them.
