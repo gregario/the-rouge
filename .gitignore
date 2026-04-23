@@ -35,6 +35,10 @@ the-rouge-*.tgz
 dashboard/node_modules/
 dashboard/.next/
 dashboard/.turbo/
+
+# Coverage reports (c8 output)
+coverage/
+.nyc_output/
 # dashboard/dist/ is produced by `npm run dashboard:build` at publish time
 # and consumed by the launcher. Intentionally NOT gitignored — npm-packlist
 # respects .gitignore even when `files` lists a path, so ignoring dist/
