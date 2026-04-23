@@ -73,6 +73,30 @@ Flag files over 300 lines. Emit: `Large files: <N> over 300 lines`
 
 **Degradation Detection:** Compare against previous cycle's `code_quality_baseline` from `previous_cycles`. Set `degraded: true` if ANY metric worsened beyond threshold (coverage -2%, duplication +1%, circular deps increased, dead code +5 items, large files increased).
 
+### Step 1.5: Language-Specific Review (additive, graceful)
+
+Before the generic AI audit runs, dispatch a language-specific reviewer if one exists for this product's stack.
+
+**Logic:**
+
+```
+lang = active_spec.infrastructure.primary_language (e.g. "typescript", "python", "rust", "golang")
+agent_path = library/agents/<lang>-reviewer.md
+
+if the agent file exists:
+  load library/rules/common/*.md + library/rules/<lang>/*.md + (library/rules/web/*.md if stack targets browser)
+  invoke the reviewer with those rules + the changed files
+  write findings to code_review_report.language_review
+else:
+  skip silently; note "no agent for language '<lang>'" in language_review.skipped_reason
+```
+
+The generic AI Code Audit (Step 2 below) **always runs regardless** — language-specific review is extra signal, not a replacement.
+
+See `library/skills/language-specific-review/SKILL.md` for the full dispatch contract. Never fail the cycle because no language-specific agent exists.
+
+Emit: `Language review: <language|skipped>, <N> blocking, <N> warnings`
+
 ### Step 2: AI Code Audit
 
 Audit ALL changed files across seven dimensions. Score each 0-100 with concrete findings.
@@ -151,8 +175,26 @@ To `cycle_context.json`, write a `code_review_report` key (NOT `evaluation_repor
       },
       "critical_findings": []
     },
+    "language_review": {
+      "language": "typescript",
+      "agent": "library/agents/typescript-reviewer.md",
+      "rules_loaded": ["common", "typescript", "web"],
+      "blocking": [],
+      "warnings": [],
+      "informational": [],
+      "uncertain": []
+    },
     "changed_files": ["src/foo.ts", "src/bar.tsx"],
     "evaluator_observations": "Summary of key findings"
+  }
+}
+```
+
+When language-specific review is skipped (no agent for this language):
+```json
+{
+  "language_review": {
+    "skipped_reason": "no agent for language 'elixir'"
   }
 }
 ```
