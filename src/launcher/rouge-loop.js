@@ -1281,6 +1281,25 @@ async function advanceState(projectDir) {
 
     case 'milestone-check': {
       const ctx = readJson(contextFile);
+
+      // P0.9: persist heuristic variant runs to sidecar. Never throws — if
+      // the persister errors, the loop continues and only the run log is
+      // missing. Aggregation tooling (P2.1) reads this sidecar later.
+      try {
+        const { persistHeuristicRuns } = require('./persist-heuristic-runs.js');
+        const pr = persistHeuristicRuns(projectDir, ctx, state);
+        if (pr.persisted > 0) {
+          log(`[${projectName}] Persisted ${pr.persisted} heuristic run(s) to .rouge/heuristic-runs.jsonl${pr.skipped ? ` (${pr.skipped} skipped)` : ''}`);
+        }
+        if (pr.errors.length > 0) {
+          for (const e of pr.errors.slice(0, 3)) {
+            log(`[${projectName}] heuristic-runs warning: ${e}`);
+          }
+        }
+      } catch (e) {
+        log(`[${projectName}] heuristic-runs persistence error (non-fatal): ${e.message}`);
+      }
+
       const qaVerdict = ctx?.evaluation_report?.qa?.verdict || 'PASS';
       const designVerdict = ctx?.evaluation_report?.design?.verdict || 'PASS';
       const poVerdict = ctx?.evaluation_report?.po?.verdict || 'READY';

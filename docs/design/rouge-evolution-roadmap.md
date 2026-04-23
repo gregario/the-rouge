@@ -738,8 +738,18 @@ We stop working on a roadmap item and come back if:
 
 ## Where we are on 2026-04-23
 
-**Completed:** `feat/ecc-dna-transplant` branch, 6 commits. Phases 1-6 from the ECC comparison landed as infrastructure. 103 new tests passing. No wiring to the live loop yet.
+**Completed:**
+- `feat/ecc-dna-transplant` branch: Phases 1–6 infrastructure (6 commits, 103 new tests)
+- `feat/ecc-dna-transplant` branch: **P0.3** — profile-aware preamble-injector (10 new tests, 972-char section for saas-webapp)
+- `feat/ecc-dna-transplant` branch: **P0.9** — variant tracker in eval phase (13 new tests, 02e emits heuristic_runs[], launcher persists to .rouge/heuristic-runs.jsonl sidecar)
+- `feat/escalation-ux-polish` branch: **P0.1** — dashboard escalation UX (4 files, 477 dashboard tests green)
 
-**Next unblocked steps:** P0.1 (dashboard UX WIP merge) and P0.2 (MCP spawn wiring) in parallel. P0.1 is frontend-only, P0.2 is launcher-only — no conflict.
+**Test count:** 471 launcher tests + 477 dashboard tests + 116 standalone module tests all passing except 1 pre-existing `claude -p` flake.
 
-**What we are not doing right now:** anything further down the list. The discipline is: do one step, verify, move on.
+**Next unblocked steps:**
+- P0.10 — structured retro + amendify in retrospective phase (builds on P0.9 data layer)
+- P1.5 — per-FA iterative spec (owner's explicit "one task at a time" ask)
+- P0.4 prompt side — language-reviewer dispatch instructions in evaluation-orchestrator
+- P5.1 — flip coverage gate on
+
+**What we are not doing right now:** harness-dependent items (listed in "Harness-dependent items" section). Those wait for P5.9's PoC + decision, scheduled after substantial independent work has landed.

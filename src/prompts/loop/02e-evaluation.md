@@ -114,6 +114,26 @@ Emit: `Design: <score>/100`
 
 **Heuristic evaluation:** Apply Nielsen's 10 usability heuristics against walk observations. Add any `library_heuristics` from cycle_context. Each heuristic: pass/fail with evidence.
 
+**Library heuristic evaluation (with variant tracking):** In addition to the per-cycle pass/fail verdict, Rouge's Library heuristics may define multiple *variants* — e.g. a baseline threshold plus a shadow variant proposed by the retrospective phase. Evaluate both the active variant (which gates) and any shadow variants (measured but non-gating) against the same product-walk evidence, and record outcomes in `cycle_context.heuristic_runs[]`. The launcher persists this to a per-project sidecar (`.rouge/heuristic-runs.jsonl`) so future aggregation tooling can compare variants across cycles and products.
+
+For each `library_heuristic` you evaluate, emit one `heuristic_runs[]` entry per variant present on the entry (baseline + any shadow):
+
+```json
+{
+  "entry_id": "page-load-time",
+  "variant_id": "baseline",
+  "outcome": "pass" | "fail" | "env_limited",
+  "evidence": { "measured_value": 1800, "threshold": 2000, "source": "lighthouse.lcp_ms" }
+}
+```
+
+Rules:
+- Only the `active` variant counts toward the heuristic pass/fail verdict used in PO lens scoring.
+- Shadow variant outcomes MUST be recorded alongside. They do not affect routing.
+- If an entry has no `variants[]` (v1 shape), emit a single entry with `variant_id: "baseline"`.
+- Use `env_limited` when the environment can't produce the measurement (e.g. WebGL heuristic in headless).
+- `evidence.measured_value` + `evidence.threshold` let aggregation tools recompute outcomes against proposed amendments without re-running the evaluation.
+
 **Confidence (raw):** 0.0-1.0 computed from:
 - QA criteria pass rate (weight: 30%)
 - Design overall score (weight: 20%)
@@ -143,6 +163,8 @@ Emit: `PO: confidence <raw_score> (adjusted: <adjusted_score>)`
 > **Verdict vs confidence:** The PO verdict (PRODUCTION_READY / NEEDS_IMPROVEMENT / NOT_READY) is the AUTHORITATIVE signal for routing. The confidence score (0.0-1.0) is used by the analyzing phase for trend analysis only. When in doubt, the categorical verdict wins.
 
 **Output fields:** `journey_quality[]`, `screen_quality[]`, `heuristic_results` (total, passed, pass_rate_pct), `verdict` (PRODUCTION_READY / NEEDS_IMPROVEMENT / NOT_READY), `confidence` (raw), `confidence_adjusted` (env_limited excluded), `env_limited_impact` (what was excluded and why), `recommended_action`, `improvement_items[]`
+
+**Also write at the top level of cycle_context.json (not inside evaluation_report):** `heuristic_runs[]` — the variant-tracking record described above. The launcher reads this after the milestone-check phase and persists to `.rouge/heuristic-runs.jsonl`. Emit `[]` if no library heuristics were evaluated (Nielsen heuristics alone don't require variant tracking).
 
 **Improvement items:** During the PO lens, you will notice things that are not blocking (confidence >= 0.9 is still possible) but that a real product should fix before shipping: a missing logout button, user identity not shown, inconsistent mobile layout, missing navigation breadcrumbs, etc. These are not quality gaps that drag down confidence — they are product completeness observations.
 
@@ -279,7 +301,21 @@ To `cycle_context.json`, write a single `evaluation_report` key containing all t
     },
     "health_score": 82,
     "re_walk_requests": []
-  }
+  },
+  "heuristic_runs": [
+    {
+      "entry_id": "page-load-time",
+      "variant_id": "baseline",
+      "outcome": "pass",
+      "evidence": { "measured_value": 1800, "threshold": 2000, "source": "lighthouse.lcp_ms" }
+    },
+    {
+      "entry_id": "page-load-time",
+      "variant_id": "amendment-2026-04-15-lcp-2500",
+      "outcome": "pass",
+      "evidence": { "measured_value": 1800, "threshold": 2500, "source": "lighthouse.lcp_ms" }
+    }
+  ]
 }
 ```
 
