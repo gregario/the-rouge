@@ -319,6 +319,90 @@ The launcher reads `trend_snapshot` to make macro decisions:
 
 ---
 
+### Step 7.7 — Structured Retro + Amendment Proposals
+
+In addition to the narrative trend snapshot in Step 7.5, emit a *structured* retrospective that the launcher's post-retrospective hook can consume programmatically. This feeds the variant-tracker and governance log.
+
+#### Classify observations (worked / failed / untried)
+
+Each observation in the cycle falls into exactly one bucket:
+
+```json
+{
+  "structured_retro": {
+    "cycle_id": "<cycle_number>",
+    "timestamp": "<ISO 8601>",
+    "worked": [
+      { "area": "auth", "observation": "Supabase RLS handles row-level access correctly", "evidence_refs": ["commit:abc123", "product_walk.screens[/dashboard]"] }
+    ],
+    "failed": [
+      {
+        "area": "forms",
+        "observation": "Validation errors not surfacing to user",
+        "evidence_refs": ["product_walk.journeys[checkout].steps[3]"],
+        "root_cause": "missing_context | spec_ambiguity | impl_bug | design_gap",
+        "confidence": 0.8
+      }
+    ],
+    "untried": [
+      { "area": "rate-limiting", "observation": "Spec required but no implementation attempt detected", "evidence_refs": ["active_spec.AC-rate-limit-1"] }
+    ],
+    "amendments_proposed": [],
+    "notes": ["<freeform observations that don't fit above>"]
+  }
+}
+```
+
+Rules:
+- `worked` — things that functioned well; future cycles should preserve these patterns
+- `failed` — observed quality gaps with evidence; each gets a root_cause from the taxonomy above
+- `untried` — spec items where no attempt was detected (distinct from attempted-and-failed)
+- Confidence ≥ 0.5 required to include a `failed` entry. Lower confidence goes in `notes`.
+
+#### Amendment proposals (evidence-gated)
+
+When a `failed_pattern` area recurs in ≥3 consecutive cycles (check `trend_snapshot.debt_indicators.recurring_quality_gaps` and `.rouge/heuristic-runs.jsonl` for variant evidence), emit an amendment proposal. Two types:
+
+**Heuristic variant** (when a library heuristic's threshold appears miscalibrated given the shadow-variant evidence):
+
+```json
+{
+  "target": "library/global/page-load-time.json",
+  "type": "heuristic-variant",
+  "amendment_id": "amendment-<YYYY-MM-DD>-<heuristic-id>-<short-label>",
+  "rationale": "Shadow variant with threshold 2500ms passed 5/5 cycles where baseline 2000ms failed 3/5; real-user LCP distribution for this product family sits at 2200ms p75.",
+  "evidence_refs": [".rouge/heuristic-runs.jsonl cycle 3-7", "previous_cycles[*].evaluation_report.po.heuristic_results"],
+  "proposed_variant": {
+    "variant_id": "amendment-<YYYY-MM-DD>-<heuristic-id>-<short-label>",
+    "status": "shadow",
+    "threshold": 2500,
+    "rationale": "<same as above, for the variant record>"
+  }
+}
+```
+
+**Prompt amendment** (when a recurring failure suggests the prompt itself needs adjustment):
+
+```json
+{
+  "target": "src/prompts/loop/01-building.md",
+  "type": "prompt-amendment",
+  "amendment_id": "amendment-<YYYY-MM-DD>-building-<short-label>",
+  "rationale": "Factory re-reads same 3 files across stories — 40% of token budget spent re-loading context. Suggest adding 'use iterative-retrieval skill before broad grep' instruction.",
+  "evidence_refs": ["tools.jsonl cycles 5-8 show repeat reads"],
+  "proposed_edit": "Add instruction in Building phase step 2: 'Before any broad codebase read, invoke iterative-retrieval skill for scoped context lookup.'"
+}
+```
+
+Append each amendment to `structured_retro.amendments_proposed[]` AND at the top level of cycle_context.json as `amendments_proposed[]` (the launcher hook reads either location).
+
+Rules:
+- **Evidence-gated only**: ≥3 cycles of consistent signal, documented in `evidence_refs`. No speculative amendments.
+- **Never promote to active**: amendments are always drafted as `shadow` status or as "proposed" — promotion is a human-reviewed PR, not an autonomous step.
+- **amendment_id format**: `amendment-YYYY-MM-DD-<target-slug>-<short-label>`, e.g., `amendment-2026-04-23-page-load-time-lcp-2500`. The launcher uses this as the event key in governance.jsonl.
+
+The launcher writes each amendment to `.rouge/amendments-proposed.jsonl` and a governance event to `.rouge/governance.jsonl`.
+
 ### Step 8 — Prompt Improvement Proposals (Level 3 Learning Bridge)
 
 Review all process insights from Step 7.5. For each insight that implies a change to Rouge's own prompts, catalogue, or evaluation criteria, write a proposal. These are NOT product changes — they are changes to THE ROUGE ITSELF.
@@ -356,6 +440,8 @@ The launcher reads these on project completion and creates GitHub issues tagged 
 To `cycle_context.json` (the only file this prompt writes):
 - `retro_metrics` — the aggregate metrics object from Step 7
 - `trend_snapshot` — the cross-cycle trend analysis from Step 7.5
+- `structured_retro` — the worked/failed/untried classification from Step 7.7
+- `amendments_proposed` — evidence-gated amendment proposals from Step 7.7 (may be empty). The launcher queues these to `.rouge/amendments-proposed.jsonl` and writes governance events.
 - `prompt_improvement_proposals` — Level 3 learning proposals from Step 8 (may be empty)
 - `journey_entry` — the full journey entry from Step 6 (with `trend_at_this_point` attached from Step 7.5). The launcher's post-retrospective hook appends this to `journey.json` and commits both files together.
 - Append to `previous_cycles` — a summary of this cycle for future reference

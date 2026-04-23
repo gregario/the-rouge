@@ -742,14 +742,15 @@ We stop working on a roadmap item and come back if:
 - `feat/ecc-dna-transplant` branch: Phases 1–6 infrastructure (6 commits, 103 new tests)
 - `feat/ecc-dna-transplant` branch: **P0.3** — profile-aware preamble-injector (10 new tests, 972-char section for saas-webapp)
 - `feat/ecc-dna-transplant` branch: **P0.9** — variant tracker in eval phase (13 new tests, 02e emits heuristic_runs[], launcher persists to .rouge/heuristic-runs.jsonl sidecar)
+- `feat/ecc-dna-transplant` branch: **P0.10** — structured retro + amendment proposals (16 new tests, 09-retro emits structured_retro + amendments_proposed, launcher queues to .rouge/amendments-proposed.jsonl + writes governance events)
 - `feat/escalation-ux-polish` branch: **P0.1** — dashboard escalation UX (4 files, 477 dashboard tests green)
 
 **Test count:** 471 launcher tests + 477 dashboard tests + 116 standalone module tests all passing except 1 pre-existing `claude -p` flake.
 
 **Next unblocked steps:**
-- P0.10 — structured retro + amendify in retrospective phase (builds on P0.9 data layer)
 - P1.5 — per-FA iterative spec (owner's explicit "one task at a time" ask)
 - P0.4 prompt side — language-reviewer dispatch instructions in evaluation-orchestrator
 - P5.1 — flip coverage gate on
+- P1.13 — research-before-solving detector (codifies owner's "no partial solutions" memory)
 
 **What we are not doing right now:** harness-dependent items (listed in "Harness-dependent items" section). Those wait for P5.9's PoC + decision, scheduled after substantial independent work has landed.

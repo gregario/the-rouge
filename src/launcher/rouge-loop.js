@@ -1934,6 +1934,26 @@ async function advanceState(projectDir) {
         log(`[${projectName}] Journey append failed: ${(err.message || '').slice(0, 100)}`);
       }
 
+      // P0.10: post-retrospective hook — queue any amendment proposals
+      // from the retrospective into .rouge/amendments-proposed.jsonl and
+      // write governance events. Promotion itself is gated human review
+      // (P2.2 future). Never throws; errors are logged and loop continues.
+      try {
+        const { runPostRetrospective } = require('./post-retrospective-hook.js');
+        const ctx = readJson(path.join(projectDir, 'cycle_context.json'));
+        const summary = runPostRetrospective(projectDir, ctx, { ...state, project_name: projectName });
+        if (summary.amendments_queued > 0) {
+          log(`[${projectName}] Queued ${summary.amendments_queued} amendment proposal(s), wrote ${summary.governance_events} governance event(s)`);
+        }
+        if (summary.errors.length > 0) {
+          for (const e of summary.errors.slice(0, 3)) {
+            log(`[${projectName}] post-retro warning: ${e}`);
+          }
+        }
+      } catch (err) {
+        log(`[${projectName}] post-retrospective hook error (non-fatal): ${(err.message || '').slice(0, 100)}`);
+      }
+
       // Create prompt improvement proposals from learnings. Each
       // proposal that ships with `files_touched` is validated against
       // self-improve-safety's allowlist/blocklist — out-of-scope files
