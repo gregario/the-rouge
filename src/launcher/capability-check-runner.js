@@ -128,6 +128,21 @@ function buildCapabilityContext(projectDir, state, config, cycleContext) {
     budgetRemaining = Math.max(0, cap - spent);
   }
 
+  // Capability-check tunables from config. Each falls back to the
+  // module's default if not present or not numeric.
+  const ccConfig = isObj(config) && isObj(config.capability_check)
+    ? config.capability_check : {};
+  const ccTunables = {};
+  if (typeof ccConfig.recurrence_threshold === 'number') {
+    ccTunables.recurrenceThreshold = ccConfig.recurrence_threshold;
+  }
+  if (typeof ccConfig.estimated_fix_cost_usd === 'number') {
+    ccTunables.estimated_fix_cost_usd = ccConfig.estimated_fix_cost_usd;
+  }
+  if (typeof ccConfig.estimated_attempts === 'number') {
+    ccTunables.estimated_attempts = ccConfig.estimated_attempts;
+  }
+
   // Prior cycle findings — walk previous_cycles (last 3) collecting the
   // blocking findings from each, so recurrence signal can fingerprint-
   // match. Returns Array<object[]>: one inner array per prior cycle.
@@ -146,6 +161,7 @@ function buildCapabilityContext(projectDir, state, config, cycleContext) {
     availableIntegrations,
     budget_remaining_usd: budgetRemaining,
     priorCycleFindings,
+    ...ccTunables,
   };
 }
 

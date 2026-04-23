@@ -223,3 +223,38 @@ test('buildCapabilityContext: handles null state gracefully', () => {
   // No cumulative_cost_usd → spent defaults to 0 → remaining = 50
   assert.equal(out.budget_remaining_usd, 50);
 });
+
+test('buildCapabilityContext: plumbs capability_check tunables from config', () => {
+  const config = {
+    capability_check: {
+      recurrence_threshold: 5,
+      estimated_fix_cost_usd: 4.50,
+      estimated_attempts: 3,
+    },
+  };
+  const out = buildCapabilityContext('/tmp', {}, config, {});
+  assert.equal(out.recurrenceThreshold, 5);
+  assert.equal(out.estimated_fix_cost_usd, 4.50);
+  assert.equal(out.estimated_attempts, 3);
+});
+
+test('buildCapabilityContext: omits tunable keys when not configured (signals use module defaults)', () => {
+  const out = buildCapabilityContext('/tmp', {}, {}, {});
+  assert.equal(out.recurrenceThreshold, undefined);
+  assert.equal(out.estimated_fix_cost_usd, undefined);
+  assert.equal(out.estimated_attempts, undefined);
+});
+
+test('buildCapabilityContext: non-numeric tunables ignored, module defaults win', () => {
+  const config = {
+    capability_check: {
+      recurrence_threshold: 'two',  // bad
+      estimated_fix_cost_usd: null,  // bad
+      estimated_attempts: true,       // bad
+    },
+  };
+  const out = buildCapabilityContext('/tmp', {}, config, {});
+  assert.equal(out.recurrenceThreshold, undefined);
+  assert.equal(out.estimated_fix_cost_usd, undefined);
+  assert.equal(out.estimated_attempts, undefined);
+});
