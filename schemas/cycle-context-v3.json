@@ -76,7 +76,11 @@
         "story_result",
         "foundation_eval_report",
         "ship_result"
-      ]
+      ],
+      "optional_input_keys": [
+        "capability_assessments"
+      ],
+      "_capability_assessments_note": "P1.21 — launcher pre-populates capability_assessments[] from the evaluation_report's blocking findings before the analyzer runs. Each entry follows the shape documented in src/launcher/capability-check.js. The analyzer reads this key in Step 0 (see 04-analyzing.md) and routes infeasible findings to notify-human with escalation_reason: capability-gap. Key is optional — if absent (flag-disabled, launcher error, or old-format ctx), analyzer falls back to pre-P1.21 routing behavior."
     },
     "generating-change-spec": {
       "required_output_keys": [

@@ -65,6 +65,13 @@
     "enabled": true,
     "zones": ["green"]
   },
+  "capability_check": {
+    "enabled": true,
+    "_note": "P1.21 — pre-analyzer gate that assesses whether Rouge's capabilities can produce a fix for each blocking finding before routing to milestone-fix. Set enabled:false for emergency rollback (pre-P1.21 behavior). Audit-recommender P1.13 remains active as the N=3 backstop regardless. See src/launcher/capability-check.js and capability-check-runner.js.",
+    "recurrence_threshold": 2,
+    "estimated_fix_cost_usd": 2.0,
+    "estimated_attempts": 2
+  },
   "linked_projects": {
     "max_depth": 3,
     "registry_path": "~/.rouge/registry.json"
