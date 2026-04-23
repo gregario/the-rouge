@@ -8,6 +8,7 @@ const path = require('node:path');
 
 const {
   runPostRetrospective,
+  readRecentCycles,
   amendmentsLogPath,
   governanceLogPath,
   validateAmendment,
@@ -177,6 +178,73 @@ test('amendments log and governance log land in .rouge subdir', () => {
          || amendmentsLogPath('/tmp/x').endsWith('.rouge\\amendments-proposed.jsonl'));
   assert.ok(governanceLogPath('/tmp/x').endsWith('.rouge/governance.jsonl')
          || governanceLogPath('/tmp/x').endsWith('.rouge\\governance.jsonl'));
+});
+
+test('readRecentCycles reads journey.json when present', () => {
+  const dir = tmpProject();
+  const journey = [
+    { cycle: 1, commit_breakdown: { fix: 2, feature: 8 } },
+    { cycle: 2, commit_breakdown: { fix: 3, feature: 7 } },
+  ];
+  fs.writeFileSync(path.join(dir, 'journey.json'), JSON.stringify(journey));
+  const cycles = readRecentCycles(dir, {});
+  assert.equal(cycles.length, 2);
+  assert.equal(cycles[0].cycle, 1);
+});
+
+test('readRecentCycles falls back to cycle_context.previous_cycles', () => {
+  const dir = tmpProject();
+  const ctx = { previous_cycles: [{ cycle: 1 }, { cycle: 2 }] };
+  const cycles = readRecentCycles(dir, ctx);
+  assert.equal(cycles.length, 2);
+});
+
+test('readRecentCycles appends current cycle_context.journey_entry', () => {
+  const dir = tmpProject();
+  fs.writeFileSync(path.join(dir, 'journey.json'), JSON.stringify([{ cycle: 1 }, { cycle: 2 }]));
+  const ctx = { journey_entry: { cycle: 3, commit_breakdown: { fix: 5, feature: 5 } } };
+  const cycles = readRecentCycles(dir, ctx);
+  assert.equal(cycles.length, 3);
+  assert.equal(cycles[2].cycle, 3);
+});
+
+test('runPostRetrospective: no audit signal when cycles are healthy', () => {
+  const dir = tmpProject();
+  const journey = [
+    { cycle: 1, commit_breakdown: { fix: 1, feature: 9 } },
+    { cycle: 2, commit_breakdown: { fix: 2, feature: 8 } },
+    { cycle: 3, commit_breakdown: { fix: 0, feature: 10 } },
+  ];
+  fs.writeFileSync(path.join(dir, 'journey.json'), JSON.stringify(journey));
+  const result = runPostRetrospective(dir, {}, { cycle_number: 4, project_name: 'p' });
+  assert.equal(result.audit_recommended, false);
+});
+
+test('runPostRetrospective: audit signal fires on 3 cycles of fix-mode', () => {
+  const dir = tmpProject();
+  const journey = [
+    { cycle: 1, commit_breakdown: { fix: 8, feature: 2 } },
+    { cycle: 2, commit_breakdown: { fix: 9, feature: 1 } },
+    { cycle: 3, commit_breakdown: { fix: 7, feature: 3 } },
+  ];
+  fs.writeFileSync(path.join(dir, 'journey.json'), JSON.stringify(journey));
+  const result = runPostRetrospective(dir, {}, { cycle_number: 4, project_name: 'p' });
+  assert.equal(result.audit_recommended, true);
+  assert.ok(result.governance_events >= 1);
+  const gov = readJsonl(governanceLogPath(dir));
+  const auditEvent = gov.find((e) => e.detail && e.detail.type === 'audit-recommended');
+  assert.ok(auditEvent, 'expected an audit-recommended governance event');
+  assert.equal(auditEvent.severity, 'warning');
+  assert.ok(auditEvent.detail.signals.length >= 1);
+});
+
+test('runPostRetrospective: audit recommender never crashes the hook', () => {
+  const dir = tmpProject();
+  // Malformed journey — the recommender should cope
+  fs.writeFileSync(path.join(dir, 'journey.json'), 'not valid json');
+  const result = runPostRetrospective(dir, {}, { cycle_number: 1, project_name: 'p' });
+  // Should not throw; may or may not recommend depending on fallback data
+  assert.ok(typeof result.audit_recommended === 'boolean');
 });
 
 test('immutable append: running twice accumulates entries', () => {

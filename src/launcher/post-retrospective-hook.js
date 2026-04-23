@@ -33,6 +33,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const governance = require('./governance.js');
+const { recommendAudit } = require('./audit-recommender.js');
 
 function amendmentsLogPath(projectDir) {
   return path.join(projectDir, '.rouge', 'amendments-proposed.jsonl');
@@ -59,13 +60,47 @@ function validateAmendment(a) {
 }
 
 /**
+ * Read journey entries from journey.json, falling back to previous_cycles
+ * in cycle_context. Returns most-recent-last.
+ */
+function readRecentCycles(projectDir, cycleContext, limit = 10) {
+  const journeyPath = path.join(projectDir, 'journey.json');
+  let entries = [];
+  if (fs.existsSync(journeyPath)) {
+    try {
+      const journey = JSON.parse(fs.readFileSync(journeyPath, 'utf8'));
+      if (Array.isArray(journey)) entries = journey;
+      else if (Array.isArray(journey.entries)) entries = journey.entries;
+      else if (Array.isArray(journey.cycles)) entries = journey.cycles;
+    } catch {
+      // fall through
+    }
+  }
+  if (entries.length === 0 && cycleContext && Array.isArray(cycleContext.previous_cycles)) {
+    entries = cycleContext.previous_cycles;
+  }
+  // Include the current cycle if journey_entry is present (retrospective
+  // just wrote it, launcher's journey append may run right after this)
+  if (cycleContext && cycleContext.journey_entry) {
+    entries = [...entries, cycleContext.journey_entry];
+  }
+  return entries.slice(-limit);
+}
+
+/**
  * @param {string} projectDir
  * @param {object} cycleContext
  * @param {object} state
- * @returns {{ amendments_queued: number, governance_events: number, skipped: number, errors: string[] }}
+ * @returns {{ amendments_queued: number, governance_events: number, skipped: number, audit_recommended: boolean, errors: string[] }}
  */
 function runPostRetrospective(projectDir, cycleContext, state) {
-  const summary = { amendments_queued: 0, governance_events: 0, skipped: 0, errors: [] };
+  const summary = {
+    amendments_queued: 0,
+    governance_events: 0,
+    skipped: 0,
+    audit_recommended: false,
+    errors: [],
+  };
   if (!projectDir) {
     summary.errors.push('projectDir required');
     return summary;
@@ -133,6 +168,36 @@ function runPostRetrospective(projectDir, cycleContext, state) {
     }
   }
 
+  // P1.13: research-before-solving detector — check if we've entered
+  // "whack-a-mole fix mode" across the last N cycles. If so, write an
+  // audit-recommendation governance event. The analyzer phase can read
+  // this via governance.query() next cycle and factor it into routing.
+  try {
+    const recentCycles = readRecentCycles(projectDir, ctx);
+    const audit = recommendAudit(recentCycles);
+    if (audit.recommended) {
+      summary.audit_recommended = true;
+      governance.write(govPath, {
+        category: 'self-improve-proposal',
+        summary: `Audit recommended: ${audit.signals.length} signal(s) — ${audit.signals[0].slice(0, 80)}`,
+        project: projectName,
+        cycle: cycleNum,
+        phase: 'cycle-retrospective',
+        actor: 'rouge-audit-recommender',
+        severity: 'warning',
+        detail: {
+          type: 'audit-recommended',
+          reason: audit.reason,
+          signals: audit.signals,
+          evidence: audit.evidence,
+        },
+      });
+      summary.governance_events += 1;
+    }
+  } catch (e) {
+    summary.errors.push(`audit recommender failed: ${e.message}`);
+  }
+
   // Also emit a governance event summarizing the retro if it's high-signal
   if (hasHighSignalRetro(ctx.structured_retro)) {
     try {
@@ -163,6 +228,7 @@ function runPostRetrospective(projectDir, cycleContext, state) {
 
 module.exports = {
   runPostRetrospective,
+  readRecentCycles,
   amendmentsLogPath,
   governanceLogPath,
   validateAmendment,

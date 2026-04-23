@@ -743,6 +743,7 @@ We stop working on a roadmap item and come back if:
 - `feat/ecc-dna-transplant` branch: **P0.3** — profile-aware preamble-injector (10 new tests, 972-char section for saas-webapp)
 - `feat/ecc-dna-transplant` branch: **P0.9** — variant tracker in eval phase (13 new tests, 02e emits heuristic_runs[], launcher persists to .rouge/heuristic-runs.jsonl sidecar)
 - `feat/ecc-dna-transplant` branch: **P0.10** — structured retro + amendment proposals (16 new tests, 09-retro emits structured_retro + amendments_proposed, launcher queues to .rouge/amendments-proposed.jsonl + writes governance events)
+- `feat/ecc-dna-transplant` branch: **P1.13** — research-before-solving detector (18 + 6 new tests, audit-recommender module + post-retro integration. Detects whack-a-mole via fix-ratio / recurring root_cause / rising escalations across last N cycles. Writes audit-recommended governance event when ≥1 signal fires. Codifies owner's "no partial solutions" preference.)
 - `feat/escalation-ux-polish` branch: **P0.1** — dashboard escalation UX (4 files, 477 dashboard tests green)
 
 **Test count:** 471 launcher tests + 477 dashboard tests + 116 standalone module tests all passing except 1 pre-existing `claude -p` flake.
