@@ -73,6 +73,7 @@ Rouge itself should:
 2. **The human approves changes** via PR review. Nothing auto-merges to Rouge's own codebase.
 3. **Rouge can propose changes** (issues, PRs, exploration findings) but the human decides.
 4. **Taste is a gradient.** The human defines "what good looks like" via the Library. Rouge gets better at interpreting it over time. This is delegation, not abdication.
+5. **The judge never edits itself.** Rouge's measurement instruments — judge prompts, rubrics, library heuristics, reviewer agents, schemas — are human-authored only. Rouge's self-improvement pipeline can propose changes to generation/operational prompts; it cannot edit the instruments that evaluate its output. This prevents the boiling-frog drift where sequences of individually-defensible edits soften the instrument until real failures stop being caught. See `CLAUDE.md` → "Judge / pipeline boundary" for the enforced file list.
 
 ## Feature areas
 

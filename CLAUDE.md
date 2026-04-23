@@ -136,3 +136,16 @@ docs/           — guides, design docs, diagrams
 - Don't hardcode API keys or personal paths.
 - Don't write to `task_ledger.json` from phase prompts — only `generating-change-spec` is permitted to modify the task ledger. All other prompts write to `cycle_context.json` only.
 - Don't modify safety mechanism logic from prompts — `safety.js`, `deploy-blocking.js`, `self-improve-safety.js`, and `audit-trail.js` are launcher-layer modules. Changes require code review and a PR, not a prompt edit.
+
+## Judge / pipeline boundary (GC.1)
+
+Rouge distinguishes between two kinds of prompts and artifacts:
+
+- **Generation / operational** — tell Claude what to build, fix, document, or report. Examples: `src/prompts/loop/01-building.md`, `03-qa-fixing.md`, `04-analyzing.md`, `05-change-spec-generation.md`, `07-ship-promote.md`, `08-document-release.md`, `09-cycle-retrospective.md`, all seeding disciplines except `03-taste.md`.
+- **Judge / instrument** — define what "good" looks like, how to score it, and when to gate. Examples: every `02*` sub-phase, `06-vision-check.md`, `10-final-review.md`, `seeding/03-taste.md`, `src/prompts/loop/_preamble.md`, every `library/global/*.json` heuristic, `library/rubrics/**`, `library/rules/**`, `library/agents/**` reviewer personas, `library/templates/**`, `schemas/library-entry-v*.json`.
+
+**Rouge's self-improvement pipeline may propose changes only to generation/operational prompts.** Judge/instrument surfaces are human-authored. This is enforced in `rouge.config.json` → `self_improvement.allowlist`/`blocklist`, and tested in `test/launcher/self-improve-safety.test.js`.
+
+**Why:** a self-improving system that can edit its own measurement instrument will, over time, soften the instrument through sequences of individually-defensible edits until real failures stop being caught. This is the classic boiling-frog drift. Separating the surfaces keeps Rouge's measurements honest.
+
+When a judge surface genuinely needs an update (a heuristic is miscalibrated, a rubric is wrong), the path is: human edits file → PR → review → merge. Not: retrospective drafts amendment → auto-applied.
