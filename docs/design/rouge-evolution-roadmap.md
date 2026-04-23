@@ -368,6 +368,15 @@ Part 0 wires _what we have_. Part I grows the intelligence surface itself.
 - **ROI:** medium
 - **Risk:** low
 
+### P1.16b — Quote-match validator (enforce quote-before-score structurally)
+
+- **What lands:** Post-phase validator that fuzzy-matches every `evidence_span` in `code_review_report` and `evaluation_report` against the actual `product_walk` text and the source files referenced. If no match is found at ≥ 80% trigram similarity, downgrade confidence to `low` (matching the P1.15 invariant) and log a governance event. Closes the gap where P1.16's quote-before-score is prompt-aspirational only.
+- **Files:** `src/launcher/quote-match-validator.js`, integrate with `finding-validator.js` at the same post-phase hook in rouge-loop.js milestone-check.
+- **Verify:** synthetic test — finding with fabricated quote not in product_walk → downgraded. Finding with verbatim quote → passes unchanged.
+- **Depends on:** P1.16 (prompt-level quote discipline), P1.15 (confidence tags + finding-validator).
+- **ROI:** medium-high — closes the only aspirational-not-enforced discipline from the thin-evidence layer.
+- **Risk:** medium — fuzzy matching can false-positive-block legitimate paraphrase; use conservative threshold (80% trigram); can be flag-disabled via `rouge.config.json`.
+
 ### P1.21 — Capability-check gate (pre-analyzer) ⭐
 
 **The failure mode being prevented.** Loop enters this pattern:
