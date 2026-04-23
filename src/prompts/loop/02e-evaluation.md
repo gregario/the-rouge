@@ -122,15 +122,26 @@ Emit: `Design: <score>/100`
 
 ### Lens 3: PO (Product Quality)
 
-*"Will this delight customers?"*
+*"Would you put this in front of a real user without hedging?"*
 
-**Journey quality:** From `product_walk.journeys`, assess each journey step on clarity, feedback, efficiency, delight (each 0-10). Compute per-journey verdict.
+**Primary rubric — score against `library/rubrics/product-quality-v1.md`.**
 
-**Screen quality:** From screenshots, assess each screen on information hierarchy, visual balance, and density.
+Read the rubric file. Score the product against each of its six dimensions (Journey completeness, Interaction fidelity, Visual coherence, Content grounding, Edge resilience, Vision fit) on a 0–3 ordinal scale using the rubric's anchors. Each score carries:
+- `score`: 0 | 1 | 2 | 3
+- `rationale`: one sentence citing specific product_walk evidence — NOT a restatement of the anchor
+- `evidence_ref`: structured reference per P1.15 + P1.16b (`{ type, path, quote }`)
 
-**Vision alignment:** Compare observed product against `vision`. Flag gaps where the product diverges from the stated direction.
+Write to `evaluation_report.po.rubric_scores[<dimension_snake_case>]`. See the rubric file for the full output shape, aggregation rules (verdict + confidence), and discipline notes ("anchors are visceral not checklisty", "preserve strong opinions", "don't soften scores to be polite").
 
-**Heuristic evaluation:** Apply Nielsen's 10 usability heuristics against walk observations. Add any `library_heuristics` from cycle_context. Each heuristic: pass/fail with evidence.
+**Supplementary signals (additive, not replacing the rubric):**
+
+The rubric produces the PO verdict and confidence. These supplementary signals are logged alongside for retrospective trend analysis:
+
+- **Journey quality per-step:** from `product_walk.journeys`, note which steps were smooth, which had friction, which env_limited. Feed the Journey completeness dimension; also logged separately in `journey_quality[]`.
+- **Screen quality per-screen:** information hierarchy, visual balance, density observations — feed Visual coherence dimension; logged in `screen_quality[]`.
+- **Library heuristic evaluation (with variant tracking):** evaluate Library heuristics (from `library/global/*.json`) against walk evidence and record in `cycle_context.heuristic_runs[]` (see separate section below). These feed Edge resilience and Visual coherence dimensions where applicable. They do NOT replace the rubric score — they inform it.
+
+**Library heuristic evaluation (with variant tracking):** In addition to the rubric score, evaluate active + shadow variants of each Library heuristic against product_walk. Record outcomes in `cycle_context.heuristic_runs[]`; launcher persists to `.rouge/heuristic-runs.jsonl` for variant-tracker aggregation (P0.9).
 
 **Library heuristic evaluation (with variant tracking):** In addition to the per-cycle pass/fail verdict, Rouge's Library heuristics may define multiple *variants* — e.g. a baseline threshold plus a shadow variant proposed by the retrospective phase. Evaluate both the active variant (which gates) and any shadow variants (measured but non-gating) against the same product-walk evidence, and record outcomes in `cycle_context.heuristic_runs[]`. The launcher persists this to a per-project sidecar (`.rouge/heuristic-runs.jsonl`) so future aggregation tooling can compare variants across cycles and products.
 
@@ -152,22 +163,18 @@ Rules:
 - Use `env_limited` when the environment can't produce the measurement (e.g. WebGL heuristic in headless).
 - `evidence.measured_value` + `evidence.threshold` let aggregation tools recompute outcomes against proposed amendments without re-running the evaluation.
 
-**Confidence (raw):** 0.0-1.0 computed from:
-- QA criteria pass rate (weight: 30%)
-- Design overall score (weight: 20%)
-- Heuristic pass rate (weight: 20%)
-- Journey quality average (weight: 15%)
-- Trend vs previous cycles (weight: 15%)
+**Confidence (raw):** per the rubric aggregation rule in `library/rubrics/product-quality-v1.md` — mean of the six dimension scores normalized to 0.0–1.0: `(sum of rubric_scores) / (6 × 3)`. Equal dimension weights in v1.
 
-**Confidence (adjusted):** The same calculation but with `env_limited` features excluded from the inputs:
-- QA criteria pass rate: exclude `env_limited` criteria (they already count as passed in QA, apply the same here)
-- Journey quality: exclude journey steps that depend on env_limited features (e.g., "view live map" when WebGL is unavailable). Score only the journeys/steps that CAN be evaluated.
-- Screen quality: exclude screens whose primary purpose is an env_limited feature (e.g., the map screen when WebGL is unavailable). Score screens that render real content.
-- Design and heuristic scores: apply as normal (these evaluate what IS visible, not what's missing)
+**Confidence (adjusted):** same calculation, excluding dimensions that are entirely env_limited (e.g. a WebGL-rendering product evaluated in headless with the map dimension unmeasurable). Shrink the denominator accordingly.
 
-The adjusted confidence is what the analyzing phase uses for threshold decisions (>= 0.7 for deepen, >= 0.9 for promote). The raw confidence is preserved for human reference.
+**PO verdict** per the rubric's aggregation rule:
+- **PRODUCTION_READY** — every dimension ≥ 2, at least one at 3, zero dimensions at 0, AND (QA verdict PASS, security PASS, a11y PASS).
+- **NEEDS_IMPROVEMENT** — any dimension at 1, none at 0. Route to milestone-fix.
+- **NOT_READY** — any dimension at 0. Route to milestone-fix OR escalate via capability-check (P1.21) if the hole is out of Rouge's capability surface.
 
-**Why both:** The evaluation should see everything and record everything honestly — including that the map shows an error boundary. But the score that drives autonomous decisions shouldn't be dragged down by environment limitations that can't be fixed by the loop. The observation is valuable. The penalty isn't.
+The adjusted confidence drives analyzing-phase threshold decisions (≥ 0.7 for deepen, ≥ 0.9 for promote). Raw confidence is preserved for human reference and retrospective trend analysis.
+
+**Why env_limited matters:** the evaluation should record everything honestly — including that the map shows an error boundary. But the score that drives autonomous decisions shouldn't be dragged down by limitations the loop can't fix. The observation is valuable. The penalty isn't.
 
 Emit: `PO: confidence <raw_score> (adjusted: <adjusted_score>)`
 
