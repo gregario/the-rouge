@@ -368,6 +368,86 @@ Part 0 wires _what we have_. Part I grows the intelligence surface itself.
 - **ROI:** medium
 - **Risk:** low
 
+### P1.21 — Capability-check gate (pre-analyzer) ⭐
+
+**The failure mode being prevented.** Loop enters this pattern:
+- Eval produces blocking finding F with `confidence: high` ("map doesn't render")
+- Analyzer classifies as `impl_bug`, routes to milestone-fix
+- Factory tries to fix but the real cause is structural (WebGL not available in headless; spec requires GPS not in profile; integration pattern missing from catalogue)
+- Fix fails in ways eval re-detects as F
+- N cycles later, same finding, same attempt, same failure
+- Dollars burn
+
+Existing mitigations (spin-detector, P1.13 audit-recommender) catch this eventually — after 3+ cycles of spin. The capability-check gate should catch it **before the first fix attempt** when the gap is detectable upfront.
+
+**Placement decision.** New first step inside `04-analyzing.md`, NOT a new sub-phase. Reasoning:
+- Keeps the 17-prompt contract intact (no breaking the `contract-validation.test.js` count assertion)
+- Lets analyzer produce a single coherent `analysis_recommendation` that already knows capability-feasible vs capability-gap — no cross-phase state threading
+- Matches analyzer's existing role (it's already the "route this cycle" phase)
+- Risk: analyzer becomes heavier. Mitigation: deterministic check is a JS module call (`src/launcher/capability-check.js`), not prompt bloat.
+
+**Deterministic checks (JS module, not LLM judgment).** For every blocking finding (severity CRITICAL or HIGH, confidence high or moderate):
+
+1. **Stack capability.** Does the fix require code in a language/framework the profile declares? Cross-reference `active_spec.infrastructure.primary_language` + `profile.stack_hints`. If finding needs language X and profile declares Y with no cross-language integration pattern → capability gap.
+2. **Integration availability.** If the fix requires service X (Supabase RLS, Stripe webhooks, maps), does `library/integrations/tier-2/` or `tier-3/` have a pattern for it? Cross-reference with `integration-catalog.js`. No pattern → capability gap.
+3. **File surface.** Does the fix require writing to files outside the factory's allowed surface (`self_improvement.allowlist` for Rouge-internal; profile-declared surface for product builds)? If yes → capability gap.
+4. **Budget remaining.** Is `cost-tracker`'s projected fix cost (historical avg fix tokens × estimated attempts) within the remaining `budget_cap_usd`? If no → capability gap (escalate for budget increase).
+5. **Recurrence signal.** Has the same finding fingerprint appeared in the last N cycles without resolution? Reuse `findings-fingerprint.js` + `spin-detector.js` at per-finding granularity. N=2 (not 3 — catch earlier than audit-recommender which fires at N=3).
+
+**LLM advisory (one judgment, weighted low).** After deterministic checks, one narrow LLM call: "Given this finding + profile + catalog, does any prior-cycle evidence suggest Rouge has solved similar problems?" Advisory signal only — never overrides deterministic checks. Weighted low because the same judge family produced the finding (self-preference bias).
+
+**Output shape (written to cycle_context by the analyzer):**
+
+```json
+"capability_assessment": {
+  "finding_id": "fix-qa-map-no-render",
+  "capability_feasible": false,
+  "signals": [
+    { "name": "integration-availability", "verdict": "fail",
+      "detail": "No maplibre/mapbox pattern in tier-3; stack Next.js+Supabase; no prior product shipped map rendering." },
+    { "name": "recurrence", "verdict": "fail",
+      "detail": "Same finding fingerprint in cycles 4, 5." }
+  ],
+  "recommended_route": "escalate",
+  "escalation_reason": "capability-gap",
+  "missing_capabilities": ["maplibre-nextjs-integration-pattern"]
+}
+```
+
+**Routing.**
+- `capability_feasible: true` → analyzer proceeds as today (classify root cause, route).
+- `capability_feasible: false` → escalate immediately with `classification: capability-gap`. No fix attempt. Human sees escalation with options: (a) add missing capability to catalogue, (b) descope finding, (c) mark as `env_limited` if truly beyond environment.
+
+**Integration with existing systems.**
+- P1.15 confidence tags — gate runs only on findings with `confidence: high` OR `moderate` (don't burn cycles gating low-confidence advisories).
+- P1.20 `unknown` — unknown findings skip the gate entirely (already routed to re-walk).
+- P1.13 audit-recommender — complements rather than replaces. Gate fires cycle 1 when gap is detectable upfront; audit-recommender fires cycle 3+ when gap was missed.
+- Integration escalation (`library/integrations/tier-*`) — gate subsumes and formalizes the ad-hoc hard-block pattern.
+
+**Failure modes of the gate itself.**
+- **False positive** (gate says "can't fix" but we can): blocks a legitimate fix attempt. Mitigation: deterministic checks are conservative (all-five-fail required); LLM advisory weighted low; when in doubt, default to `feasible`.
+- **False negative** (gate says "can fix" but we can't): loop still enters endless-patching, but audit-recommender P1.13 catches it at cycle 3. Defense in depth.
+- **Catalogue lies** (pattern exists in tier-3 but is broken): gate passes; fix fails. Mitigation: P2.8 (cross-project library contributions with evidence gate) eventually validates patterns against real usage.
+- **Budget projection wrong** (historical averages mislead): mitigated by audit-recommender's "rising cost per cycle" signal.
+
+**Files:**
+- new `src/launcher/capability-check.js` — deterministic signal functions + orchestrator
+- new `tests/capability-check.test.js` — per-signal unit tests + integration tests with synthetic fixtures
+- `src/prompts/loop/04-analyzing.md` — new "Step 0: Capability screen" before existing root-cause classification
+- `schemas/cycle-context-v3.json` — add `capability_assessment` output key to analyzing phase contract
+- `rouge-loop.js` — analyzer post-phase: if `capability_feasible === false`, route directly to escalation, not milestone-fix
+
+**Verify:**
+- Synthetic fixture: cycle_context with a finding that requires GPS + profile with no geolocation integration → gate returns feasible:false with signals including integration-availability and (if cycle ≥ 2) recurrence.
+- Synthetic fixture: finding for a real TypeScript issue + profile with typescript stack + tier-3 pattern exists → feasible:true, passes through to analyzer classification.
+- End-to-end: staged project with induced capability gap runs one cycle — escalation fires, no milestone-fix attempted.
+
+**Depends on:** nothing new. Uses existing `findings-fingerprint.js`, `spin-detector.js`, `integration-catalog.js`, `cost-tracker.js`, `profile-loader.js`.
+
+**ROI:** highest dollar-savings per unit of work in the entire roadmap. Every endless-loop incident this gate prevents is budget saved + trust preserved. Owner has explicitly named this as a recurring cost ("burned hundreds of dollars").
+
+**Risk:** medium. The gate sits on the critical eval→fix routing path; a bug here routes wrong. Mitigation: every signal is a pure function with unit tests; gate can be flag-disabled (`rouge.config.json` → `capability_check.enabled: false`) for rollback; audit-recommender P1.13 remains as the backstop.
+
 ### P1.13 — Research-before-solving detector (meta-principle)
 - **What lands:** Rouge detects when it's about to enter "burst of PRs" mode (3+ consecutive similar fix stories) and escalates for a systematic audit instead of continuing to patch. Borrowed from the owner's explicit preference.
 - **Files:** `src/launcher/spin-detector.js` (extend), retrospective phase wiring
