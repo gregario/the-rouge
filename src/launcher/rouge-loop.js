@@ -1300,6 +1300,22 @@ async function advanceState(projectDir) {
         log(`[${projectName}] heuristic-runs persistence error (non-fatal): ${e.message}`);
       }
 
+      // B2: enforce P1.15 + P1.16 invariants. Mutates ctx to downgrade
+      // high-confidence findings without evidence_span and defaults
+      // missing confidence to moderate. Writes validation_warnings to
+      // cycle_context for retrospective visibility. Never throws.
+      try {
+        const { validateCycleContext } = require('./finding-validator.js');
+        const vSummary = validateCycleContext(ctx);
+        if (vSummary.warnings.length > 0) {
+          // Persist the mutated ctx so downstream phases see downgrades
+          writeJson(contextFile, ctx);
+          log(`[${projectName}] Finding validator: ${vSummary.downgraded} downgraded, ${vSummary.defaulted} defaulted, ${vSummary.invalid} invalid`);
+        }
+      } catch (e) {
+        log(`[${projectName}] finding-validator error (non-fatal): ${e.message}`);
+      }
+
       const qaVerdict = ctx?.evaluation_report?.qa?.verdict || 'PASS';
       const designVerdict = ctx?.evaluation_report?.design?.verdict || 'PASS';
       const poVerdict = ctx?.evaluation_report?.po?.verdict || 'READY';
