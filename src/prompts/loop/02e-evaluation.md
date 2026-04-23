@@ -187,7 +187,7 @@ Emit: `PO: confidence <raw_score> (adjusted: <adjusted_score>)`
 
 > **Verdict vs confidence:** The PO verdict (PRODUCTION_READY / NEEDS_IMPROVEMENT / NOT_READY) is the AUTHORITATIVE signal for routing. The confidence score (0.0-1.0) is used by the analyzing phase for trend analysis only. When in doubt, the categorical verdict wins.
 
-**Output fields:** `journey_quality[]`, `screen_quality[]`, `heuristic_results` (total, passed, pass_rate_pct), `verdict` (PRODUCTION_READY / NEEDS_IMPROVEMENT / NOT_READY), `confidence` (raw), `confidence_adjusted` (env_limited excluded), `env_limited_impact` (what was excluded and why), `recommended_action`, `improvement_items[]`
+**Output fields:** `rubric_scores` (P1.14 — 6 dimensions from product-quality-v1.md, each with score/rationale/evidence_ref), `journey_quality[]`, `screen_quality[]`, `heuristic_results` (total, passed, pass_rate_pct — supplementary signal), `verdict` (PRODUCTION_READY / NEEDS_IMPROVEMENT / NOT_READY per rubric aggregation), `confidence` (raw — sum of rubric scores / 18), `confidence_adjusted` (env_limited dimensions excluded), `env_limited_impact` (what was excluded and why), `recommended_action`, `improvement_items[]`
 
 **Also write at the top level of cycle_context.json (not inside evaluation_report):** `heuristic_runs[]` — the variant-tracking record described above. The launcher reads this after the milestone-check phase and persists to `.rouge/heuristic-runs.jsonl`. Emit `[]` if no library heuristics were evaluated (Nielsen heuristics alone don't require variant tracking).
 

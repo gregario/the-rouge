@@ -80,7 +80,8 @@ From `cycle_context.json`, extract:
    - `recommended_action`: the Evaluation phase's suggestion (you validate or override this)
    - `journey_quality[]`: per-journey, per-step quality assessments
    - `screen_quality[]`: per-screen quality assessments
-   - `heuristic_results`: which Library heuristics passed and failed
+   - `heuristic_results`: which Library heuristics passed and failed (supplementary signal)
+   - `rubric_scores`: P1.14 — 6 Rouge-native product-quality dimensions (journey_completeness, interaction_fidelity, visual_coherence, content_grounding, edge_resilience, vision_fit), each 0–3 with rationale + evidence_ref. This is the PRIMARY PO signal; heuristic_results is supplementary. If rubric_scores is absent on a given cycle (older 02e output, or env failure), fall back to heuristic_results + journey_quality as before.
 
 2. **`evaluation_report.qa`** — The QA lens from the Evaluation phase. Provides:
    - `verdict`: PASS or FAIL
