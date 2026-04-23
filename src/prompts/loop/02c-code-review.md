@@ -217,6 +217,18 @@ git add -A
 git commit -m "eval(code-review): cycle <N> — audit <score>/100"
 ```
 
+## Quote-before-score discipline (P1.16)
+
+Before writing any finding, quote the specific source-code span or static-analysis output you're grounding it in. Pattern from G-Eval (Liu et al., EMNLP 2023). Structurally separate "what I looked at" from "what I concluded" to prevent hallucinated findings.
+
+For every finding (ai_code_audit, security_review, language_review):
+
+1. Quote the specific code span (with file path + line range) or the specific static-analyzer output row into an `evidence_span` field on the finding. Verbatim, ≤50 words.
+2. Then write the finding's description + severity + suggested_fix grounded only in what was quoted.
+3. If no quoteable source exists for the finding, downgrade confidence to `low` (per P1.15) — don't invent line references.
+
+Anti-pattern: generic findings like "security is weak throughout" without a pinned file:line + quoted span. Downstream phases cannot act on unpinned findings; the factory can't fix what it can't locate.
+
 ## Confidence tags (P1.15)
 
 Every finding in `ai_code_audit.dimensions[].findings`, `security_review.categories[].findings`, `critical_findings[]`, and `language_review.blocking[]|warnings[]` carries a `confidence` tag from `high | moderate | low`. Rules mirror 02e-evaluation.md § Confidence tags:

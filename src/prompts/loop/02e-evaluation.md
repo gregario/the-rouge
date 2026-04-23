@@ -22,6 +22,18 @@ From `cycle_context.json`:
 - `previous_cycles` — past evaluation results for trend comparison
 - `_cycle_number` — current cycle number
 
+## Quote-before-score discipline (P1.16)
+
+Before writing any verdict, quote the specific evidence you are grounding it in. Pattern from G-Eval (Liu et al., EMNLP 2023) + Anthropic's long-document guidance: structurally separate the "what I am looking at" step from the "what I conclude" step to reduce hallucinated or reconstructed findings.
+
+For every criterion or finding you produce:
+
+1. First collect verbatim quotes from `product_walk` and `code_review_report` into an internal `<evidence>` list. Each quote ≤50 words, specific and citeable (screen route, element, file:line, or journey-step reference).
+2. Then write the verdict grounded only in what you quoted. If no quote exists that resolves the criterion, emit `unknown` (see escape-hatch section) — do not fabricate evidence.
+3. Every `high`-confidence finding (per P1.15) MUST reference one or more of these quoted spans in its `evidence_span` field — verbatim, not paraphrased.
+
+Anti-pattern: writing a verdict first and then back-filling evidence to justify it. This is the mechanism by which judges hallucinate specific-sounding findings that don't match the actual product_walk.
+
 ## Three Lenses (Applied in Sequence)
 
 ### Lens 1: QA (Spec Compliance)

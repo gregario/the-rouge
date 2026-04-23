@@ -844,6 +844,7 @@ We stop working on a roadmap item and come back if:
 - main: **P5.1** — coverage gate enabled at baseline (lines 56 / branches 70 / functions 68 / statements 56 — 3 points below actual 59/74/71/59). Blocks regressions without demanding immediate improvement. Aspirational 80/80/75/80 target documented in .c8rc.json for ratchet-up.
 - main: **P1.15** — closed-vocabulary confidence tags on all findings (high | moderate | low). High requires evidence_span. Low doesn't deduct from health score. Rules added to both 02c-code-review.md and 02e-evaluation.md.
 - main: **P0.4 prompt side** — language-reviewer dispatch instruction added as Sub-Phase 1.5 of 02-evaluation-orchestrator.md. Activates the 4 existing reviewer agents (ts/py/rust/go) in 02c flow when active_spec.infrastructure.primary_language matches. Falls back silently if no matching agent. Dispatch mechanism (Task-tool vs spawn vs SDK) refines post-P5.9.
+- main: **P1.16** — quote-before-score discipline (G-Eval pattern). 02e and 02c now explicitly separate "collect verbatim quoted evidence" from "write verdict grounded in those quotes." Prevents hallucinated-evidence verdicts; enforces file:line + ≤50-word quote for high-confidence findings.
 - `feat/escalation-ux-polish` branch: **P0.1** — dashboard escalation UX (4 files, 477 dashboard tests green)
 
 **Test count:** 471 launcher tests + 477 dashboard tests + 116 standalone module tests all passing except 1 pre-existing `claude -p` flake.
