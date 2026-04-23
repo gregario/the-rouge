@@ -28,7 +28,13 @@ From `cycle_context.json`:
 
 *"Did the devs deliver what was asked?"*
 
-**Criteria verification:** For each criterion in `active_spec`, find matching observations in `product_walk.screens[].interactive_elements` and `product_walk.journeys`. Verdict per criterion: `pass` / `fail` / `partial` / `env_limited` with evidence referencing specific screen route and element.
+**Criteria verification:** For each criterion in `active_spec`, find matching observations in `product_walk.screens[].interactive_elements` and `product_walk.journeys`. Verdict per criterion: `pass` / `fail` / `partial` / `env_limited` / `unknown` with evidence referencing specific screen route and element.
+
+**When to use `unknown` (escape hatch):** If the product-walk evidence genuinely does not let you reach a defensible pass/fail/partial verdict — the screen wasn't captured at the right state, the interactive element's outcome wasn't recorded, the journey step was skipped — emit `unknown` with a short reason citing what's missing. Do NOT guess. `unknown` criteria count as **neither passed nor failed** for the pass-rate calculation — excluded from the denominator with an explicit `unknown_count` in the output. Also add a `re_walk_requests` entry so the next cycle can capture the missing evidence.
+
+Distinction from `env_limited`:
+- `env_limited` = code exists and is structurally correct, but the test environment physically cannot produce the observation (WebGL in headless, hardware features). Counts as passed.
+- `unknown` = evidence was not produced; judge has no defensible verdict either way. Counts as neither. Re-walk required.
 
 **Environment limitations:** Some criteria cannot be verified due to the test environment (e.g., WebGL unavailable in headless browser, hardware-dependent features, third-party service dependencies). When the product walk notes an environment limitation, OR when the criterion requires visual rendering that headless Chrome cannot provide (WebGL, canvas, GPU-accelerated CSS):
 
@@ -61,7 +67,7 @@ Emit: `QA lens: <passed>/<total> criteria pass (<env_limited> env-limited)`
 - `broken_links` — navigation elements leading to error pages or 404s
 - `pages_checked` — total screens walked
 
-**Output fields:** `criteria_results[]` (each with verdict: `pass`/`fail`/`partial`/`env_limited`), `functional_correctness`, `criteria_pass_rate`, `env_limited_count`
+**Output fields:** `criteria_results[]` (each with verdict: `pass`/`fail`/`partial`/`env_limited`/`unknown`), `functional_correctness`, `criteria_pass_rate` (excludes `unknown` from denominator), `env_limited_count`, `unknown_count`
 
 ### Lens 2: Design (UI/UX Quality)
 
