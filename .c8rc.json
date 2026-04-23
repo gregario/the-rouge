@@ -1,4 +1,5 @@
 {
+  "_comment_baseline": "Baseline measured 2026-04-23: lines 59.42, branches 74.10, functions 71.09. Gate is set ~3 points below baseline — blocks regressions, not improvements. Ratchet up as coverage improves (P5.1 follow-ups).",
   "reporter": ["text", "text-summary", "html", "json"],
   "include": ["src/launcher/**/*.js"],
   "exclude": [
@@ -12,9 +13,16 @@
   ],
   "all": true,
   "reports-dir": "coverage",
-  "check-coverage": false,
-  "lines": 80,
-  "functions": 80,
-  "branches": 75,
-  "statements": 80
+  "check-coverage": true,
+  "lines": 56,
+  "functions": 68,
+  "branches": 70,
+  "statements": 56,
+  "aspirational": {
+    "note": "Target thresholds to ratchet toward. Raise the active thresholds above when the suite sustainably hits these.",
+    "lines": 80,
+    "functions": 80,
+    "branches": 75,
+    "statements": 80
+  }
 }
