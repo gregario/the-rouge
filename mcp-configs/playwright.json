@@ -1,0 +1,13 @@
+{
+  "name": "playwright",
+  "description": "Browser automation for product-walk. Replaces or augments gstack-based browser QA with a first-class MCP interface.",
+  "origin": "ECC",
+  "status": "draft",
+  "command": "npx",
+  "args": ["-y", "@playwright/mcp@latest"],
+  "env_required": [],
+  "env_optional": ["PLAYWRIGHT_BROWSERS_PATH"],
+  "wire_into_phases": ["loop.product-walk", "loop.re-walk"],
+  "profiles_recommended": ["saas-webapp", "internal-dashboard"],
+  "notes": "Requires Playwright browsers installed (npx playwright install). Doctor should check for this in Phase 3 follow-up. For now, gstack remains the primary browser QA path."
+}

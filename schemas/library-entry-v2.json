@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "library-entry-v2.json",
+  "title": "Library entry v2 — heuristic/rule with variant tracking",
+  "description": "Extends v1 library entry shape with a variants[] array that supports shadow evaluation, baseline-vs-amended A/B comparison, and auditable promotion. v1 entries (no variants[]) are treated as having a single implicit baseline variant.",
+  "type": "object",
+  "required": ["id", "name", "rule", "type", "tier", "version"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "name": { "type": "string", "minLength": 3 },
+    "rule": { "type": "string", "minLength": 5 },
+    "measurement": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" }
+      }
+    },
+    "type": { "enum": ["functional", "non-functional", "design", "accessibility", "security", "performance"] },
+    "tier": { "enum": ["global", "domain", "personal"] },
+    "domain": { "type": "string" },
+    "version": { "type": "integer", "minimum": 1 },
+    "threshold": {
+      "description": "V1 back-compat: top-level threshold is the baseline variant's threshold when variants[] is absent.",
+      "oneOf": [ { "type": "number" }, { "type": "string" } ]
+    },
+    "status": {
+      "description": "V1 back-compat: top-level status. Ignored when variants[] is present.",
+      "enum": ["active", "shadow", "retired", "draft"]
+    },
+    "variants": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["variant_id", "status"],
+        "properties": {
+          "variant_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "description": "Unique within this entry. 'baseline' reserved for the original."
+          },
+          "status": { "enum": ["active", "shadow", "retired", "draft"] },
+          "threshold": { "oneOf": [ { "type": "number" }, { "type": "string" }, { "type": "boolean" } ] },
+          "config": { "type": "object", "description": "Variant-specific configuration override" },
+          "created_at": { "type": "string", "format": "date" },
+          "rationale": { "type": "string" },
+          "proposed_by": { "type": "string" },
+          "proposal_link": { "type": "string", "format": "uri" },
+          "amendment_id": { "type": "string" },
+          "stats": {
+            "type": "object",
+            "properties": {
+              "runs": { "type": "integer", "minimum": 0 },
+              "passes": { "type": "integer", "minimum": 0 },
+              "fails": { "type": "integer", "minimum": 0 },
+              "env_limited": { "type": "integer", "minimum": 0 },
+              "last_run_at": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$comment": "V1 compatibility: entries without 'variants[]' are loaded by variant-tracker.js as if they had a single variant named 'baseline' with status/threshold taken from the top-level fields."
+}

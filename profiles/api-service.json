@@ -1,0 +1,49 @@
+{
+  "name": "api-service",
+  "description": "Headless HTTP API. No browser UI. Focus on request/response correctness, latency, and security.",
+  "stack_hints": {
+    "primary_language": "typescript",
+    "targets_browser": false,
+    "uses_db": true,
+    "typical_stack": "Hono / Fastify / FastAPI / Go net-http"
+  },
+  "seeding_phases": [
+    "brainstorm",
+    "competition",
+    "taste",
+    "spec",
+    "legal",
+    "infrastructure"
+  ],
+  "loop_phases": [
+    "foundation-building",
+    "building",
+    "evaluation-orchestrator",
+    "analyzing",
+    "change-spec-generation",
+    "vision-check",
+    "ship-promote",
+    "document-release",
+    "cycle-retrospective"
+  ],
+  "rules_to_load": ["common", "typescript"],
+  "agents_to_enable": [
+    "typescript-reviewer",
+    "security-reviewer"
+  ],
+  "mcps_to_enable": [
+    "github",
+    "context7",
+    "supabase"
+  ],
+  "skills_to_load": [
+    "iterative-retrieval",
+    "tdd-workflow",
+    "language-specific-review"
+  ],
+  "quality_bar": {
+    "coverage_min": 85,
+    "p95_latency_ms": 200,
+    "error_rate_max": 0.01
+  }
+}

@@ -1281,6 +1281,25 @@ async function advanceState(projectDir) {
 
     case 'milestone-check': {
       const ctx = readJson(contextFile);
+
+      // P0.9: persist heuristic variant runs to sidecar. Never throws — if
+      // the persister errors, the loop continues and only the run log is
+      // missing. Aggregation tooling (P2.1) reads this sidecar later.
+      try {
+        const { persistHeuristicRuns } = require('./persist-heuristic-runs.js');
+        const pr = persistHeuristicRuns(projectDir, ctx, state);
+        if (pr.persisted > 0) {
+          log(`[${projectName}] Persisted ${pr.persisted} heuristic run(s) to .rouge/heuristic-runs.jsonl${pr.skipped ? ` (${pr.skipped} skipped)` : ''}`);
+        }
+        if (pr.errors.length > 0) {
+          for (const e of pr.errors.slice(0, 3)) {
+            log(`[${projectName}] heuristic-runs warning: ${e}`);
+          }
+        }
+      } catch (e) {
+        log(`[${projectName}] heuristic-runs persistence error (non-fatal): ${e.message}`);
+      }
+
       const qaVerdict = ctx?.evaluation_report?.qa?.verdict || 'PASS';
       const designVerdict = ctx?.evaluation_report?.design?.verdict || 'PASS';
       const poVerdict = ctx?.evaluation_report?.po?.verdict || 'READY';
@@ -1913,6 +1932,26 @@ async function advanceState(projectDir) {
         }
       } catch (err) {
         log(`[${projectName}] Journey append failed: ${(err.message || '').slice(0, 100)}`);
+      }
+
+      // P0.10: post-retrospective hook — queue any amendment proposals
+      // from the retrospective into .rouge/amendments-proposed.jsonl and
+      // write governance events. Promotion itself is gated human review
+      // (P2.2 future). Never throws; errors are logged and loop continues.
+      try {
+        const { runPostRetrospective } = require('./post-retrospective-hook.js');
+        const ctx = readJson(path.join(projectDir, 'cycle_context.json'));
+        const summary = runPostRetrospective(projectDir, ctx, { ...state, project_name: projectName });
+        if (summary.amendments_queued > 0) {
+          log(`[${projectName}] Queued ${summary.amendments_queued} amendment proposal(s), wrote ${summary.governance_events} governance event(s)`);
+        }
+        if (summary.errors.length > 0) {
+          for (const e of summary.errors.slice(0, 3)) {
+            log(`[${projectName}] post-retro warning: ${e}`);
+          }
+        }
+      } catch (err) {
+        log(`[${projectName}] post-retrospective hook error (non-fatal): ${(err.message || '').slice(0, 100)}`);
       }
 
       // Create prompt improvement proposals from learnings. Each

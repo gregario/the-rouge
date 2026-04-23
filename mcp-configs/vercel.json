@@ -1,0 +1,14 @@
+{
+  "name": "vercel",
+  "description": "Vercel deployment ops — list projects, inspect deployments, promote previews. Replaces vercel-cli shelling where MCP coverage is sufficient.",
+  "origin": "ECC",
+  "status": "draft",
+  "command": "http",
+  "args": [],
+  "http_url": "https://mcp.vercel.com/",
+  "env_required": ["VERCEL_API_TOKEN"],
+  "env_optional": ["VERCEL_TEAM_ID"],
+  "wire_into_phases": ["loop.ship-promote", "loop.foundation"],
+  "profiles_recommended": ["saas-webapp", "internal-dashboard"],
+  "notes": "HTTP MCP (not stdio). User memory flag: Vercel hobby tier preview deploys don't work — prod deploys required via --prod. Draft status until verified with real deploys."
+}

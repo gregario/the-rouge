@@ -1,0 +1,49 @@
+{
+  "name": "internal-dashboard",
+  "description": "Internal tooling UI, authenticated via SSO, not public-facing. Lower a11y/SEO bar than public SaaS.",
+  "stack_hints": {
+    "primary_language": "typescript",
+    "targets_browser": true,
+    "uses_db": true,
+    "typical_stack": "Next.js + Supabase / Postgres"
+  },
+  "seeding_phases": [
+    "brainstorm",
+    "taste",
+    "spec",
+    "design",
+    "infrastructure"
+  ],
+  "loop_phases": [
+    "foundation-building",
+    "building",
+    "evaluation-orchestrator",
+    "analyzing",
+    "change-spec-generation",
+    "vision-check",
+    "ship-promote",
+    "cycle-retrospective"
+  ],
+  "rules_to_load": ["common", "typescript", "web"],
+  "agents_to_enable": [
+    "typescript-reviewer",
+    "security-reviewer",
+    "silent-failure-hunter"
+  ],
+  "mcps_to_enable": [
+    "supabase",
+    "github",
+    "playwright",
+    "context7"
+  ],
+  "skills_to_load": [
+    "iterative-retrieval",
+    "tdd-workflow",
+    "language-specific-review"
+  ],
+  "quality_bar": {
+    "lighthouse_performance_min": 80,
+    "lighthouse_accessibility_min": 85,
+    "coverage_min": 75
+  }
+}

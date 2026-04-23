@@ -1,0 +1,20 @@
+{
+  "reporter": ["text", "text-summary", "html", "json"],
+  "include": ["src/launcher/**/*.js"],
+  "exclude": [
+    "src/launcher/**/*.test.js",
+    "src/launcher/**/*.sh",
+    "tests/**",
+    "test/**",
+    "scripts/**",
+    "dashboard/**",
+    "node_modules/**"
+  ],
+  "all": true,
+  "reports-dir": "coverage",
+  "check-coverage": false,
+  "lines": 80,
+  "functions": 80,
+  "branches": 75,
+  "statements": 80
+}

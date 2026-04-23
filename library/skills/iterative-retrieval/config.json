@@ -1,0 +1,5 @@
+{
+  "max_cycles": 3,
+  "min_acceptable_score": 0.6,
+  "top_n": 5
+}

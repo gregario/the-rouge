@@ -1,0 +1,13 @@
+{
+  "name": "github",
+  "description": "GitHub repo, PR, issue, workflow operations. Replaces ad-hoc gh CLI shelling with structured tool calls.",
+  "origin": "ECC",
+  "status": "active",
+  "command": "npx",
+  "args": ["-y", "@modelcontextprotocol/server-github"],
+  "env_required": ["GITHUB_PERSONAL_ACCESS_TOKEN"],
+  "env_optional": [],
+  "wire_into_phases": ["loop.ship-promote", "loop.document-release", "seeding.brainstorm"],
+  "profiles_recommended": ["saas-webapp", "api-service", "mcp-server", "cli-tool", "internal-dashboard"],
+  "notes": "Token scope: repo, workflow, read:org. Never use a token with admin permissions. Rotate quarterly."
+}
