@@ -217,6 +217,16 @@ git add -A
 git commit -m "eval(code-review): cycle <N> — audit <score>/100"
 ```
 
+## Confidence tags (P1.15)
+
+Every finding in `ai_code_audit.dimensions[].findings`, `security_review.categories[].findings`, `critical_findings[]`, and `language_review.blocking[]|warnings[]` carries a `confidence` tag from `high | moderate | low`. Rules mirror 02e-evaluation.md § Confidence tags:
+
+- `high` — direct static-analyzer output or source-code line match with `evidence_span` containing verbatim quoted code (≤50 words)
+- `moderate` — AI audit inference across multiple files; pattern recognized
+- `low` — possibly slop / tentative; advisory only, doesn't deduct from health score
+
+Every `high`-confidence finding MUST include `evidence_span`. Lower-confidence findings surface observations without gating.
+
 ## Anti-Patterns
 
 - **Never modify production code.** You are a reviewer, not a fixer. Log findings; the builder fixes them.

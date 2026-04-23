@@ -192,9 +192,26 @@ For each such observation, emit an `improvement_item` with:
 
 **Grounding rule:** Every improvement item MUST reference a specific acceptance criterion, vision statement, or usability heuristic. "It would be nice if..." is not grounded. "Vision states the dashboard should feel complete and professional; a missing logout forces users to clear cookies" IS grounded. This prevents scope creep and the "designed by committee" problem — only real, grounded improvements make it through.
 
+## Confidence tags on findings (P1.15)
+
+Every finding produced by any lens carries a `confidence` tag from this closed vocabulary:
+
+| Tag | When to use | Example |
+|-----|-------------|---------|
+| `high` | Direct observation in product_walk + specific screen:element reference. Evidence_span required. | "Button at /checkout line 142 triggered no state change — console_errors[3] captured." |
+| `moderate` | Inferred from code_review_report without direct walk evidence, or pattern observed on multiple screens. | "Error handling pattern inconsistent across 4 components per ai_code_audit." |
+| `low` | Pattern-matched but without structural confirmation. Finding is advisory; does NOT gate. | "Copy reads as possibly AI-generated in hero section." |
+| `unverified` | Avoid emitting this. Use `unknown` verdict instead (see escape-hatch section). | — |
+
+Rules:
+- Every entry in `fix_tasks[]`, `critical_findings[]`, `improvement_items[]`, `copy_findings[]`, `a11y_review.findings[]` MUST have a `confidence` field.
+- `high` findings MUST include an `evidence_span` — a verbatim quote from product_walk or code_review_report (≤50 words).
+- `low` findings are informational only. The health-score deduction table below applies to findings with `confidence: high` OR `moderate`. `low` findings are listed in the report but don't deduct.
+- Reviewer agents (from P0.4) inherit this vocabulary. Their `uncertain[]` array maps to `confidence: low` or `unverified` — migrate toward the closed vocabulary on next sweep.
+
 ## Health Score
 
-Start at 100. Collect ALL findings from all three lenses. Apply severity-based deductions:
+Start at 100. Collect ALL findings from all three lenses with `confidence: high` OR `moderate`. Apply severity-based deductions (`low`-confidence findings are listed but don't deduct):
 
 | Severity | Deduction | Cap |
 |----------|-----------|-----|
@@ -231,6 +248,8 @@ On FAIL, compile `fix_tasks[]`:
   "source": "qa | design | po",
   "description": "What needs fixing",
   "evidence": "Screen /settings, element Save button — no response on click",
+  "evidence_span": "<verbatim quote from product_walk or code_review_report, ≤50 words. REQUIRED when confidence is 'high'.>",
+  "confidence": "high | moderate | low",
   "severity": "CRITICAL | HIGH | MEDIUM | LOW",
   "suggested_fix": "Add onClick handler to Save button in SettingsForm component"
 }
