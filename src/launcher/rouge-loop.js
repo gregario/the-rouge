@@ -2166,6 +2166,39 @@ async function runPhase(projectDir) {
     log(`[${projectName}] Context assembly failed (non-blocking): ${(err.message || '').slice(0, 200)}`);
   }
 
+  // P1.21: capability-check gate. Runs before the analyzing phase so the
+  // analyzer sees capability_assessments[] in cycle_context and can route
+  // infeasible findings to escalation instead of milestone-fix. Pure
+  // deterministic signals (capability-check.js module) + collected I/O
+  // in capability-check-runner.js. Flag-disable via rouge.config.json →
+  // capability_check.enabled: false. Never throws; audit-recommender
+  // P1.13 is the N=3 backstop.
+  if (currentState === 'analyzing') {
+    try {
+      const ccConfig = (config && config.capability_check) || {};
+      if (ccConfig.enabled !== false) {
+        const { assessCapability } = require('./capability-check.js');
+        const { collectBlockingFindings, buildCapabilityContext } = require('./capability-check-runner.js');
+        const ctx = readJson(contextFile) || {};
+        const findings = collectBlockingFindings(ctx);
+        if (findings.length > 0) {
+          const checkContext = buildCapabilityContext(projectDir, state, config, ctx);
+          const assessments = findings.map((f) => assessCapability(f, checkContext));
+          ctx.capability_assessments = assessments;
+          writeJson(contextFile, ctx);
+          const infeasible = assessments.filter((a) => !a.capability_feasible).length;
+          if (infeasible > 0) {
+            log(`[${projectName}] Capability screen: ${infeasible}/${assessments.length} finding(s) flagged capability-gap`);
+          } else {
+            log(`[${projectName}] Capability screen: ${assessments.length} finding(s) all feasible`);
+          }
+        }
+      }
+    } catch (e) {
+      log(`[${projectName}] Capability check error (non-fatal, proceeding without assessment): ${e.message}`);
+    }
+  }
+
   const promptRelPath = STATE_TO_PROMPT[currentState];
   if (!promptRelPath) {
     log(`[${projectName}] Unknown state "${currentState}" — no prompt mapping. Halting phase.`);
