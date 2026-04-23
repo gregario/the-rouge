@@ -127,6 +127,22 @@ describe('Self-Improvement Safety', () => {
       }
     });
 
+    test('gold-sets are blocked (ground truth for the calibrator)', () => {
+      // P1.18 — gold sets are human-labeled ground truth. If self-improve
+      // could edit them, the calibrator's Kappa gate becomes gameable:
+      // pipeline-authored edits could quietly retune labels to match
+      // drifting model output, making "calibration passed" meaningless.
+      const goldSetFiles = [
+        'library/gold-sets/product-eval/entry-001.json',
+        'library/gold-sets/product-eval/README.md',
+        'library/gold-sets/some-future-domain/entry.json',
+        'schemas/gold-set-entry-v1.json',
+      ];
+      for (const f of goldSetFiles) {
+        assert.equal(isFileBlocked(f, REAL_CONFIG.blocklist), true, `${f} must be blocked`);
+      }
+    });
+
     test('library-entry schema is blocked', () => {
       assert.equal(isFileBlocked('schemas/library-entry-v1.json', REAL_CONFIG.blocklist), true);
       assert.equal(isFileBlocked('schemas/library-entry-v2.json', REAL_CONFIG.blocklist), true);

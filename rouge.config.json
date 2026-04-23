@@ -56,8 +56,10 @@
       "library/rules/**",
       "library/rubrics/**",
       "library/agents/**",
+      "library/gold-sets/**",
       "schemas/library-entry-v*.json",
-      "schemas/cycle-context-v*.json"
+      "schemas/cycle-context-v*.json",
+      "schemas/gold-set-entry-v*.json"
     ],
     "test_budget_usd": 5
   },
@@ -68,6 +70,11 @@
   "config_protection": {
     "mode": "warn",
     "_note": "P0.5 — rouge-safety-check.sh pre-write hook calls config-protection.js to flag weakening edits to linter/type/test/CI configs (strict:false, eslint-disable, lowered coverage, etc.) without a '// rationale:' marker. Modes: 'off' (skip), 'warn' (log but allow — default), 'block' (deny with reason). Fail-open: any check error allows the write."
+  },
+  "eval_calibration": {
+    "min_kappa": 0.75,
+    "min_entries": 20,
+    "_note": "P1.18 — gates prompt changes to the judgment layer (02*, rubrics). `rouge eval-calibrate` reads library/gold-sets/product-eval/ plus model-produced labels and requires quadratic-weighted Cohen's Kappa ≥ min_kappa on every rubric dimension, across at least min_entries paired entries. Gold-sets are human-authored (blocklisted from self-improve). See src/launcher/gold-set-calibrator.js and library/gold-sets/product-eval/README.md."
   },
   "capability_check": {
     "enabled": true,

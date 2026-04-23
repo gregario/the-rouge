@@ -1,0 +1,110 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Gold Set Entry (Product-Eval)",
+  "description": "One human-labeled calibration entry for the product-quality rubric (library/rubrics/product-quality-v1.md). The calibrator (src/launcher/gold-set-calibrator.js) reads these entries + model-produced labels for the same cycle and computes quadratic-weighted Cohen's Kappa per dimension. Entries are human-authored and blocklisted from self-improve (see rouge.config.json). Schema v1 targets the 6-dimension product-quality rubric; other rubrics would get their own schema.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "id",
+    "rubric_id",
+    "rubric_version",
+    "source",
+    "human_labels",
+    "human_verdict",
+    "labeler",
+    "labeled_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "gold-set-entry-v1",
+      "description": "Version tag so downstream consumers can branch on entry shape."
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable identifier — e.g. 'proj-foo-cycle-7'. Used to pair with model-produced labels."
+    },
+    "rubric_id": {
+      "type": "string",
+      "const": "product-quality",
+      "description": "Which rubric the labels apply to. Only product-quality in v1."
+    },
+    "rubric_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Rubric version the labeler scored against. Calibrator skips entries where rubric_version doesn't match the rubric currently in play."
+    },
+    "source": {
+      "type": "object",
+      "required": ["project", "cycle_id", "captured_at"],
+      "description": "Provenance of the cycle this entry was derived from.",
+      "properties": {
+        "project": {
+          "type": "string",
+          "description": "Project name from task_ledger / state."
+        },
+        "cycle_id": {
+          "type": "string",
+          "description": "Cycle identifier from checkpoints.jsonl."
+        },
+        "captured_at": {
+          "type": "string",
+          "description": "When the cycle ran (ISO 8601 date-time)."
+        }
+      }
+    },
+    "cycle_context_excerpt": {
+      "type": ["object", "null"],
+      "description": "Optional inline snapshot of the cycle_context fields relevant to scoring (product_walk, code_review_report, active_spec, etc.). May be null if the full cycle is stored separately; the calibrator only needs the labels and ID for Kappa, the excerpt is for human reviewers."
+    },
+    "human_labels": {
+      "type": "object",
+      "required": [
+        "journey_completeness",
+        "interaction_fidelity",
+        "visual_coherence",
+        "content_grounding",
+        "edge_resilience",
+        "vision_fit"
+      ],
+      "additionalProperties": false,
+      "description": "Scores for each rubric dimension. 0-3 ordinal; null = abstain (evidence insufficient — excluded from Kappa for that dimension).",
+      "properties": {
+        "journey_completeness": { "$ref": "#/definitions/dimensionScore" },
+        "interaction_fidelity": { "$ref": "#/definitions/dimensionScore" },
+        "visual_coherence": { "$ref": "#/definitions/dimensionScore" },
+        "content_grounding": { "$ref": "#/definitions/dimensionScore" },
+        "edge_resilience": { "$ref": "#/definitions/dimensionScore" },
+        "vision_fit": { "$ref": "#/definitions/dimensionScore" }
+      }
+    },
+    "human_verdict": {
+      "type": "string",
+      "enum": ["PRODUCTION_READY", "NEEDS_IMPROVEMENT", "NOT_READY"],
+      "description": "Labeler's overall verdict. Aggregates with the rubric rules but may override (e.g. labeler knows a dimension=0 is truly env_limited)."
+    },
+    "labeler": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Who labeled this entry. Single labeler in v1; multi-labeler + inter-rater reliability is v2."
+    },
+    "labeled_at": {
+      "type": "string",
+      "description": "When the label was assigned (ISO 8601 date-time)."
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Free-text rationale — why these scores. Read by humans reviewing whether a Kappa regression reflects real drift or labeler drift."
+    }
+  },
+  "definitions": {
+    "dimensionScore": {
+      "oneOf": [
+        { "type": "integer", "minimum": 0, "maximum": 3 },
+        { "type": "null" }
+      ],
+      "description": "0-3 ordinal score, or null to abstain. Abstain means evidence didn't resolve — dimension excluded from Kappa for this entry."
+    }
+  }
+}

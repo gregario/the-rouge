@@ -1243,6 +1243,201 @@ function cmdFeasibility(rawArgs) {
 }
 
 // ---------------------------------------------------------------------------
+// Eval calibration (P1.18)
+// ---------------------------------------------------------------------------
+
+function cmdEvalCalibrate(rawArgs) {
+  // Parse flags.
+  let goldSetDir = null;
+  let modelLabelsPath = null;
+  let minKappa = null;
+  let minEntries = null;
+  let verbose = false;
+
+  for (let i = 0; i < rawArgs.length; i++) {
+    const a = rawArgs[i];
+    if (a === '--gold-set' && i + 1 < rawArgs.length) {
+      goldSetDir = rawArgs[++i];
+    } else if (a === '--model-labels' && i + 1 < rawArgs.length) {
+      modelLabelsPath = rawArgs[++i];
+    } else if (a === '--min-kappa' && i + 1 < rawArgs.length) {
+      const n = Number(rawArgs[++i]);
+      if (Number.isNaN(n)) {
+        console.error('--min-kappa expects a number');
+        process.exit(2);
+      }
+      minKappa = n;
+    } else if (a === '--min-entries' && i + 1 < rawArgs.length) {
+      const n = Number(rawArgs[++i]);
+      if (!Number.isInteger(n) || n < 1) {
+        console.error('--min-entries expects a positive integer');
+        process.exit(2);
+      }
+      minEntries = n;
+    } else if (a === '--verbose' || a === '-v') {
+      verbose = true;
+    } else if (a === '--help' || a === '-h') {
+      console.log(`Usage: rouge eval-calibrate [flags]
+
+Gate prompt changes to the judgment layer by computing quadratic-weighted
+Cohen's Kappa between human-labeled gold entries and model-produced labels
+for the same cycles. If every rubric dimension meets the minimum Kappa
+threshold AND enough entries exist, exits 0 (passed). Otherwise exits 1
+(failed) or 2 (insufficient data).
+
+Flags:
+  --gold-set <dir>        Directory of gold-set entries (default: library/gold-sets/product-eval)
+  --model-labels <file>   JSON file mapping gold-entry-id → {labels, verdict}
+  --min-kappa <float>     Minimum per-dimension Kappa (default from rouge.config.json eval_calibration.min_kappa, else 0.75)
+  --min-entries <int>     Minimum paired entries (default from rouge.config.json eval_calibration.min_entries, else 20)
+  --verbose, -v           Print per-entry details and matrix diagnostics
+
+Exit codes:
+  0 — calibration passed
+  1 — calibration failed (one or more dimensions below threshold, or dimension collapsed)
+  2 — insufficient data (fewer paired entries than min_entries) or usage error
+`);
+      process.exit(0);
+    } else {
+      console.error(`Unknown flag: ${a}`);
+      console.error('Run `rouge eval-calibrate --help` for usage.');
+      process.exit(2);
+    }
+  }
+
+  // Resolve defaults.
+  const repoRoot = path.resolve(__dirname, '..', '..');
+  const config = readRougeConfig();
+  const calConfig = (config && config.eval_calibration) || {};
+  if (goldSetDir == null) {
+    goldSetDir = path.join(repoRoot, 'library', 'gold-sets', 'product-eval');
+  } else if (!path.isAbsolute(goldSetDir)) {
+    goldSetDir = path.resolve(process.cwd(), goldSetDir);
+  }
+  if (modelLabelsPath && !path.isAbsolute(modelLabelsPath)) {
+    modelLabelsPath = path.resolve(process.cwd(), modelLabelsPath);
+  }
+  if (minKappa == null) minKappa = calConfig.min_kappa ?? 0.75;
+  if (minEntries == null) minEntries = calConfig.min_entries ?? 20;
+
+  const {
+    loadGoldSet,
+    pairEntries,
+    evaluateCalibration,
+    RUBRIC_DIMENSIONS,
+  } = require('./gold-set-calibrator.js');
+
+  // Load gold set.
+  const gold = loadGoldSet(goldSetDir);
+  console.log('');
+  console.log('  Eval Calibration');
+  console.log(`  ${'─'.repeat(35)}`);
+  console.log('');
+  console.log(`  Gold set: ${goldSetDir}`);
+  if (gold.reason) {
+    console.log(`  Status:   ${gold.reason}`);
+  }
+  console.log(`  Entries:  ${gold.entries.length}`);
+  if (gold.errors.length > 0) {
+    console.log(`  Errors:   ${gold.errors.length}`);
+    for (const err of gold.errors) {
+      console.log(`    - ${err.file}: ${err.reason}`);
+    }
+  }
+
+  // Load model labels.
+  let modelLabels = {};
+  if (modelLabelsPath) {
+    if (!fs.existsSync(modelLabelsPath)) {
+      console.error(`\n  Model labels file not found: ${modelLabelsPath}`);
+      process.exit(2);
+    }
+    try {
+      modelLabels = JSON.parse(fs.readFileSync(modelLabelsPath, 'utf8'));
+    } catch (err) {
+      console.error(`\n  Invalid JSON in model labels: ${err.message}`);
+      process.exit(2);
+    }
+    if (!modelLabels || typeof modelLabels !== 'object' || Array.isArray(modelLabels)) {
+      console.error('\n  Model labels must be a JSON object mapping entry-id → {labels, verdict}');
+      process.exit(2);
+    }
+  }
+
+  console.log(`  Model labels: ${modelLabelsPath || '<none>'}`);
+  console.log(`  Thresholds:   min_kappa=${minKappa}, min_entries=${minEntries}`);
+  console.log('');
+
+  // Pair.
+  const { paired, unmatchedGold, unmatchedModel } = pairEntries(gold.entries, modelLabels);
+  if (unmatchedGold.length > 0 || unmatchedModel.length > 0) {
+    console.log('  Pairing:');
+    console.log(`    Paired:          ${paired.length}`);
+    console.log(`    Gold w/o model:  ${unmatchedGold.length}`);
+    console.log(`    Model w/o gold:  ${unmatchedModel.length}`);
+    if (verbose) {
+      if (unmatchedGold.length > 0) console.log(`      gold-only IDs: ${unmatchedGold.join(', ')}`);
+      if (unmatchedModel.length > 0) console.log(`      model-only IDs: ${unmatchedModel.join(', ')}`);
+    }
+    console.log('');
+  }
+
+  // Evaluate.
+  const result = evaluateCalibration(paired, { minKappa, minEntries });
+
+  if (result.insufficientData) {
+    console.log(`  Verdict:  INSUFFICIENT DATA — ${result.reason}`);
+    console.log('');
+    console.log('  Add more gold-set entries to library/gold-sets/product-eval/.');
+    console.log('  See library/gold-sets/product-eval/README.md for the entry shape.');
+    console.log('');
+    process.exit(2);
+  }
+
+  // Per-dimension table.
+  console.log('  Per-dimension Kappa:');
+  for (const dim of RUBRIC_DIMENSIONS) {
+    const r = result.perDimension[dim];
+    const label = dim.padEnd(24);
+    if (r.kappa === null) {
+      console.log(`    ✗ ${label} COLLAPSED (${r.reason})`);
+    } else {
+      const icon = r.kappa >= minKappa ? '✓' : '✗';
+      console.log(`    ${icon} ${label} κ = ${r.kappa.toFixed(4)}  (n=${r.n})`);
+      if (verbose && r.rowSums && r.colSums) {
+        console.log(`        rowSums=${JSON.stringify(r.rowSums)}  colSums=${JSON.stringify(r.colSums)}`);
+      }
+    }
+  }
+
+  console.log('');
+  const va = result.verdictAgreement;
+  if (va.agreement !== null) {
+    console.log(`  Verdict agreement: ${(va.agreement * 100).toFixed(1)}% (${va.matches}/${va.n})`);
+  } else {
+    console.log('  Verdict agreement: n/a');
+  }
+
+  console.log('');
+  console.log(`  Verdict: ${result.passed ? 'PASSED' : 'FAILED'}`);
+  if (!result.passed) {
+    if (result.failedDimensions.length > 0) {
+      for (const f of result.failedDimensions) {
+        console.log(`    - ${f.dim} κ=${f.kappa.toFixed(4)} < ${minKappa}`);
+      }
+    }
+    if (result.collapsedDimensions.length > 0) {
+      for (const c of result.collapsedDimensions) {
+        console.log(`    - ${c.dim} collapsed (${c.reason})`);
+      }
+    }
+  }
+  console.log('');
+
+  process.exit(result.passed ? 0 : 1);
+}
+
+// ---------------------------------------------------------------------------
 // CLI router
 // ---------------------------------------------------------------------------
 
@@ -1716,6 +1911,8 @@ if (command === 'doctor') {
     console.error('Usage: rouge secrets <list|check|validate|expiry>');
     process.exit(1);
   }
+} else if (command === 'eval-calibrate') {
+  cmdEvalCalibrate(args.slice(1));
 } else {
   console.log(`
   The Rouge CLI
@@ -1746,6 +1943,8 @@ if (command === 'doctor') {
     rouge secrets expiry set <s/K> <date>  Set expiry for a secret
     rouge feasibility <description> Assess feasibility of a proposed change
     rouge contribute <path>         Contribute a draft integration pattern via PR
+    rouge eval-calibrate            Gate: quadratic-weighted Kappa between gold-set labels and model output
+                                    --gold-set <dir>, --model-labels <file>, --min-kappa <float>, --verbose
     rouge resume-escalation <slug>  Prime a direct Claude Code session for an
                                     escalation hand-off. Parks the project,
                                     prints the claude command + context.
