@@ -1,0 +1,14 @@
+{
+  "name": "cloudflare-workers",
+  "description": "Cloudflare Workers + Pages deployment ops and observability. Useful when product deploys to CF infra.",
+  "origin": "ECC",
+  "status": "draft",
+  "command": "http",
+  "args": [],
+  "http_url": "https://mcp.cloudflare.com/workers",
+  "env_required": ["CLOUDFLARE_API_TOKEN"],
+  "env_optional": ["CLOUDFLARE_ACCOUNT_ID"],
+  "wire_into_phases": ["loop.ship-promote", "loop.foundation"],
+  "profiles_recommended": ["saas-webapp", "api-service"],
+  "notes": "ECC has 4 Cloudflare MCPs (docs/workers/observability/radar). Starting with workers only; add others as needed. Pairs with wrangler CLI."
+}

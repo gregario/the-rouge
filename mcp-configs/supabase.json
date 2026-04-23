@@ -1,0 +1,13 @@
+{
+  "name": "supabase",
+  "description": "Supabase schema introspection, RLS policy inspection, auth config discovery. Lets the factory introspect the live DB instead of guessing table shapes.",
+  "origin": "ECC",
+  "status": "active",
+  "command": "npx",
+  "args": ["-y", "@supabase/mcp-server-supabase@latest", "--read-only"],
+  "env_required": ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"],
+  "env_optional": ["SUPABASE_PROJECT_REF"],
+  "wire_into_phases": ["loop.building", "loop.foundation", "loop.code-review"],
+  "profiles_recommended": ["saas-webapp", "api-service"],
+  "notes": "Read-only by default. For schema migrations, factory still uses Supabase CLI, not MCP. Secret: SUPABASE_SERVICE_ROLE_KEY is privileged — scope MCP to a read-only key when possible."
+}

@@ -1,0 +1,13 @@
+{
+  "name": "firecrawl",
+  "description": "Web scraping for seeding research. Used by brainstorm and competition disciplines to gather competitive landscape content.",
+  "origin": "ECC",
+  "status": "active",
+  "command": "npx",
+  "args": ["-y", "firecrawl-mcp"],
+  "env_required": ["FIRECRAWL_API_KEY"],
+  "env_optional": [],
+  "wire_into_phases": ["seeding.brainstorm", "seeding.competition", "seeding.taste"],
+  "profiles_recommended": ["saas-webapp", "mcp-server", "internal-dashboard"],
+  "notes": "Pairs well with iterative-retrieval skill in seeding. Without this MCP, brainstorm falls back to WebFetch/WebSearch at lower quality."
+}

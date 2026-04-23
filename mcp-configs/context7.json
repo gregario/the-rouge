@@ -1,0 +1,13 @@
+{
+  "name": "context7",
+  "description": "Live documentation lookup for frameworks and libraries. Highest-ROI MCP for the factory phase: prevents the invented-API hallucination class.",
+  "origin": "ECC",
+  "status": "active",
+  "command": "npx",
+  "args": ["-y", "@upstash/context7-mcp@latest"],
+  "env_required": [],
+  "env_optional": ["CONTEXT7_API_KEY"],
+  "wire_into_phases": ["loop.building", "loop.foundation", "loop.code-review", "seeding.spec"],
+  "profiles_recommended": ["saas-webapp", "api-service", "mcp-server", "cli-tool", "internal-dashboard"],
+  "notes": "Without an API key, rate-limited free tier applies. Recommended to set CONTEXT7_API_KEY for any production Rouge use. Biggest single borrow from ECC for Rouge's factory quality."
+}
