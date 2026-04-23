@@ -183,6 +183,24 @@ export default function ProjectPage({
   }, [name, verboseActivity])
   useBridgeEvents(refetch, name)
 
+  // Just-resolved banner. After the user submits an escalation
+  // resolution the card disappears (refetch clears it) but there was
+  // no acknowledgement that Rouge actually picked it up — the 2s
+  // phase-event poll eventually surfaces activity, but until then
+  // the screen looks idle. Flash a "Rouge is processing your
+  // guidance" banner for 6s so the handoff is legible. Cleared early
+  // if real phase-event activity arrives.
+  const [justResolvedAt, setJustResolvedAt] = useState<number | null>(null)
+  const handleEscalationResolved = useCallback(() => {
+    setJustResolvedAt(Date.now())
+    refetch()
+  }, [refetch])
+  useEffect(() => {
+    if (!justResolvedAt) return
+    const id = setTimeout(() => setJustResolvedAt(null), 6000)
+    return () => clearTimeout(id)
+  }, [justResolvedAt])
+
   // Latest tool call / assistant text, for the Current Focus hero. We
   // tail just the last couple of phase events at 2s cadence while the
   // build is running; the full event feed lives inside the diagnostics
@@ -470,7 +488,7 @@ export default function ProjectPage({
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-8 pb-20 sm:px-6 lg:px-8">
-      <ProjectHeader project={project} infrastructure={infrastructure} />
+      <ProjectHeader project={project} infrastructure={infrastructure} onBudgetSaved={refetch} />
 
       {pendingEscalations.length > 0 && (
         <div className="mt-6 space-y-4">
@@ -484,9 +502,26 @@ export default function ProjectPage({
               key={esc.id}
               escalation={esc}
               slug={project.slug}
-              onResolved={refetch}
+              onResolved={handleEscalationResolved}
             />
           ))}
+        </div>
+      )}
+
+      {pendingEscalations.length === 0 && justResolvedAt && (
+        <div
+          className="mt-6 flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900"
+          data-testid="escalation-just-resolved-banner"
+        >
+          <svg className="h-4 w-4 animate-spin text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+          <div className="flex-1">
+            <p className="font-medium">Rouge is processing your guidance</p>
+            <p className="text-xs text-blue-900/70">
+              The build loop has been notified and should start activity within a few seconds. Watch the Current Focus card and Activity tab below for progress.
+            </p>
+          </div>
         </div>
       )}
 

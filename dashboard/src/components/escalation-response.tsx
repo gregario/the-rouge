@@ -73,6 +73,13 @@ export function EscalationResponse({
   const [showHandOff, setShowHandOff] = useState(false)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Action-label state for post-submit feedback. Previously the user
+  // clicked Send, the message bubble appeared, and nothing else changed
+  // — no sign that the server took it, that the loop resumed, or that
+  // anything was in flight. Now each button surfaces its own action
+  // phase (sending → delivered) and the parent's refetch clears the
+  // card. See 2026-04-23 UAT notes.
+  const [lastAction, setLastAction] = useState<null | 'guidance' | 'dismiss' | 'manual-fix' | 'abort' | 'handoff'>(null)
 
   // Escalation may have been handed off in a prior session. Backend
   // sets `handoff_started_at` on the escalation when `hand-off`
@@ -130,8 +137,16 @@ export function EscalationResponse({
     setInputValue('')
 
     if (!slug) return
+    // Send posts guidance AND asks the server to resume — same as
+    // "Respond & Resume". Previously Send persisted the guidance and
+    // auto-started the loop server-side but didn't tell the UI, so
+    // the card stayed on screen and the user could only tell their
+    // message had gone through by refreshing. Unify them: there's no
+    // meaningful server-side distinction between Send and Resume, so
+    // the UI shouldn't pretend there is.
     setSending(true)
-    void submitResponse(text, false, 'guidance').finally(() => setSending(false))
+    setLastAction('guidance')
+    void submitResponse(text, true, 'guidance').finally(() => setSending(false))
   }, [inputValue, slug, submitResponse])
 
   const handleResume = useCallback(() => {
@@ -183,16 +198,19 @@ export function EscalationResponse({
   // resumes the loop.
   const handleDismiss = useCallback(() => {
     setResuming(true)
+    setLastAction('dismiss')
     void submitResponse(inputValue.trim(), true, 'dismiss-false-positive').finally(() => setResuming(false))
   }, [inputValue, submitResponse])
 
   const handleManualFix = useCallback(() => {
     setResuming(true)
+    setLastAction('manual-fix')
     void submitResponse(inputValue.trim(), true, 'manual-fix-applied').finally(() => setResuming(false))
   }, [inputValue, submitResponse])
 
   const handleAbort = useCallback(() => {
     setResuming(true)
+    setLastAction('abort')
     void submitResponse(inputValue.trim(), true, 'abort-story').finally(() => setResuming(false))
   }, [inputValue, submitResponse])
 
@@ -359,7 +377,7 @@ export function EscalationResponse({
                   data-testid="escalation-dismiss-button"
                 >
                   <CheckCheck className="size-3.5" />
-                  Dismiss as false positive
+                  {lastAction === 'dismiss' && resuming ? 'Dismissing…' : 'Dismiss as false positive'}
                 </Button>
                 <Button
                   variant="outline"
@@ -371,7 +389,7 @@ export function EscalationResponse({
                   data-testid="escalation-manual-fix-button"
                 >
                   <CheckCircle2 className="size-3.5" />
-                  I fixed it manually
+                  {lastAction === 'manual-fix' && resuming ? 'Marking resolved…' : 'I fixed it manually'}
                 </Button>
                 <Button
                   variant="outline"
@@ -383,7 +401,7 @@ export function EscalationResponse({
                   data-testid="escalation-abort-button"
                 >
                   <SkipForward className="size-3.5" />
-                  Abort this story
+                  {lastAction === 'abort' && resuming ? 'Aborting…' : 'Abort this story'}
                 </Button>
               </div>
 
@@ -409,7 +427,7 @@ export function EscalationResponse({
                   data-testid="escalation-send-button"
                 >
                   <Send className="size-3.5" />
-                  Send
+                  {sending ? 'Sending…' : 'Send'}
                 </Button>
                 <Button
                   size="sm"

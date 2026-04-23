@@ -49,9 +49,11 @@ function HealthRingSmall({ health }: { health: number }) {
 export function ProjectHeader({
   project,
   infrastructure,
+  onBudgetSaved,
 }: {
   project: ProjectDetail
   infrastructure?: InfrastructureManifest | null
+  onBudgetSaved?: () => void
 }) {
 
   return (
@@ -101,6 +103,7 @@ export function ProjectHeader({
               slug={project.slug}
               cap={project.cost.budgetCap}
               totalSpend={project.cost.totalSpend}
+              onSaved={onBudgetSaved}
             />
           )}
         </div>

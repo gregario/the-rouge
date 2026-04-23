@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Check, Loader2, Pencil, X } from 'lucide-react'
 
@@ -17,16 +17,28 @@ export function ProjectBudgetCapInline({
   slug,
   cap,
   totalSpend,
+  onSaved,
 }: {
   slug: string
   cap: number
   totalSpend: number
+  /** Called after a successful cap save. Used by the client-side
+   *  project page to trigger its own refetch, since `router.refresh()`
+   *  alone doesn't re-run the page's useEffect-driven fetches. */
+  onSaved?: () => void
 }) {
   const router = useRouter()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(String(cap))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Resync the draft whenever the cap prop changes (e.g. after a
+  // save → parent refetch → new cap value). Without this, clicking
+  // edit after a save shows the old number in the input.
+  useEffect(() => {
+    setDraft(String(cap))
+  }, [cap])
 
   async function save() {
     const n = Number(draft)
@@ -52,6 +64,10 @@ export function ProjectBudgetCapInline({
       }
       setEditing(false)
       router.refresh()
+      // Client-side pages with their own useState-driven fetches
+      // (like /projects/[name]/page.tsx) won't re-run on
+      // router.refresh() alone — they need their own refetch.
+      onSaved?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
