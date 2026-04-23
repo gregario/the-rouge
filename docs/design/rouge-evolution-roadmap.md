@@ -368,14 +368,38 @@ Part 0 wires _what we have_. Part I grows the intelligence surface itself.
 - **ROI:** medium
 - **Risk:** low
 
-### P1.16b — Quote-match validator (enforce quote-before-score structurally)
+### P1.16b — Structured evidence references (quote-match validator)
 
-- **What lands:** Post-phase validator that fuzzy-matches every `evidence_span` in `code_review_report` and `evaluation_report` against the actual `product_walk` text and the source files referenced. If no match is found at ≥ 80% trigram similarity, downgrade confidence to `low` (matching the P1.15 invariant) and log a governance event. Closes the gap where P1.16's quote-before-score is prompt-aspirational only.
-- **Files:** `src/launcher/quote-match-validator.js`, integrate with `finding-validator.js` at the same post-phase hook in rouge-loop.js milestone-check.
-- **Verify:** synthetic test — finding with fabricated quote not in product_walk → downgraded. Finding with verbatim quote → passes unchanged.
+**Revised 2026-04-23** — original design used fuzzy trigram match on free-form `evidence_span` against the whole product_walk haystack. Analysis showed that design would: catch 70–80% of fabrications but false-positive-downgrade 10–20% of legitimate paraphrases (source uses "missing user_id" but judge says "missing user identifier" — same meaning, low textual overlap), be threshold-brittle (79% vs 82% similarity isn't a meaningful quality difference), and be gameable over time (judges learn to verbatim-copy irrelevant chunks to pass the check). Structured references close those holes.
+
+- **What lands:** Replace free-form `evidence_span` with structured `evidence_ref: { type, path, quote }`. Judge must name the specific location in cycle_context (or source file) that grounds the finding, plus the quoted text from that location. Validator resolves the path; if it doesn't exist, confidence downgrades to moderate. If it exists, validator checks `quote` is a substring (or fuzzy near-match, high threshold) of the resolved field's text.
+- **Shape:**
+  ```json
+  {
+    "evidence_ref": {
+      "type": "cycle_context" | "file",
+      "path": "product_walk.screens[2].interactive_elements[1].result"
+            OR "src/auth.ts:42-48",
+      "quote": "verbatim text from the resolved location (≤ 250 chars)"
+    },
+    "confidence": "high"
+  }
+  ```
+- **Files:**
+  - `src/prompts/loop/02e-evaluation.md`, `02c-code-review.md` — update P1.16 section to require `evidence_ref` instead of `evidence_span`
+  - new `src/launcher/quote-match-validator.js` — pure module that resolves a path (JSON path into cycle_context OR file:lines), compares quote against resolved text
+  - `src/launcher/finding-validator.js` — update to consume `evidence_ref` instead of `evidence_span`, call quote-match-validator on high-confidence findings, downgrade on no-match
+  - new `tests/quote-match-validator.test.js`
+  - update `tests/finding-validator.test.js` for the new field shape
+- **Verify:**
+  - Synthetic: finding with `evidence_ref.path` that doesn't resolve → confidence downgraded to moderate, validation_warnings records the reason.
+  - Synthetic: finding with `evidence_ref.path` that resolves but `quote` is absent from the resolved text → downgraded.
+  - Synthetic: finding with valid path + quote that IS a substring → passes unchanged.
+  - Synthetic: finding with valid path + quote that is a near-paraphrase of resolved text (≥ 90% similarity on the single field, not the whole haystack) → passes; paraphrase within one field is legitimate.
 - **Depends on:** P1.16 (prompt-level quote discipline), P1.15 (confidence tags + finding-validator).
-- **ROI:** medium-high — closes the only aspirational-not-enforced discipline from the thin-evidence layer.
-- **Risk:** medium — fuzzy matching can false-positive-block legitimate paraphrase; use conservative threshold (80% trigram); can be flag-disabled via `rouge.config.json`.
+- **ROI:** high — closes the only aspirational-not-enforced discipline from the thin-evidence layer. Structured references also push judges toward a better behavior (locate evidence, don't just describe it).
+- **Risk:** low-medium. Migration: this session is the only place where `evidence_span` exists in prompts; swap cost is small. New prompt-engineering work: judges must learn the `evidence_ref` shape — easier with structured-output enforcement (P1.10, harness-dependent) but teachable via explicit examples now.
+- **Why structured over fuzzy:** paraphrase-within-one-field is legitimate and scoped (validator knows exactly which field). Paraphrase-across-entire-haystack was the unsolvable problem. Separating locate-evidence from describe-it makes both steps checkable.
 
 ### P1.21 — Capability-check gate (pre-analyzer) ⭐
 

@@ -1300,13 +1300,15 @@ async function advanceState(projectDir) {
         log(`[${projectName}] heuristic-runs persistence error (non-fatal): ${e.message}`);
       }
 
-      // B2: enforce P1.15 + P1.16 invariants. Mutates ctx to downgrade
-      // high-confidence findings without evidence_span and defaults
+      // B2 + P1.16b: enforce P1.15 + P1.16 invariants + structured evidence
+      // refs. Mutates ctx to downgrade high-confidence findings without a
+      // resolvable evidence_ref (or back-compat evidence_span), defaults
       // missing confidence to moderate. Writes validation_warnings to
-      // cycle_context for retrospective visibility. Never throws.
+      // cycle_context for retrospective visibility. Passes projectDir so
+      // file-type evidence refs can be resolved against the product tree.
       try {
         const { validateCycleContext } = require('./finding-validator.js');
-        const vSummary = validateCycleContext(ctx);
+        const vSummary = validateCycleContext(ctx, { projectDir });
         if (vSummary.warnings.length > 0) {
           // Persist the mutated ctx so downstream phases see downgrades
           writeJson(contextFile, ctx);
