@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const { buildPreamble, injectPreamble } = require('../../src/launcher/preamble-injector.js');
+const { buildPreamble, injectPreamble, buildProfileContextSection } = require('../../src/launcher/preamble-injector.js');
 
 describe('Preamble Injector', () => {
   let tmpDir;
@@ -197,6 +197,165 @@ describe('Preamble Injector', () => {
           requiredOutputKeys: [],
         }),
       );
+    });
+  });
+
+  describe('profile context injection', () => {
+    test('omits profile context section when no profile specified', () => {
+      const result = injectPreamble({
+        projectDir: tmpDir,
+        phaseName: 'story-building',
+        phaseDescription: 'Build',
+        modelName: 'opus',
+        requiredOutputKeys: [],
+      });
+      assert.ok(!result.includes('Active profile:'));
+      assert.ok(!result.includes('Profile context'));
+    });
+
+    test('injects profile context when profileName param is provided (real profile)', () => {
+      const result = injectPreamble({
+        projectDir: tmpDir,
+        phaseName: 'story-building',
+        phaseDescription: 'Build',
+        modelName: 'opus',
+        requiredOutputKeys: [],
+        profileName: 'saas-webapp',
+      });
+      assert.match(result, /Active profile: `saas-webapp`/);
+      assert.match(result, /Rules in scope/);
+      assert.match(result, /Skills available/);
+      assert.match(result, /Reviewer agents/);
+      assert.match(result, /MCPs configured/);
+      // catalog entries from the real saas-webapp profile
+      assert.match(result, /typescript/);
+    });
+
+    test('reads profile from cycle_context.profile when param not supplied', () => {
+      fs.writeFileSync(
+        path.join(tmpDir, 'cycle_context.json'),
+        JSON.stringify({ profile: 'api-service' }),
+      );
+      const result = injectPreamble({
+        projectDir: tmpDir,
+        phaseName: 'story-building',
+        phaseDescription: 'Build',
+        modelName: 'opus',
+        requiredOutputKeys: [],
+      });
+      assert.match(result, /Active profile: `api-service`/);
+    });
+
+    test('reads profile from cycle_context.active_spec.profile when top-level missing', () => {
+      fs.writeFileSync(
+        path.join(tmpDir, 'cycle_context.json'),
+        JSON.stringify({ active_spec: { profile: 'cli-tool' } }),
+      );
+      const result = injectPreamble({
+        projectDir: tmpDir,
+        phaseName: 'story-building',
+        phaseDescription: 'Build',
+        modelName: 'opus',
+        requiredOutputKeys: [],
+      });
+      assert.match(result, /Active profile: `cli-tool`/);
+    });
+
+    test('explicit profileName wins over cycle_context', () => {
+      fs.writeFileSync(
+        path.join(tmpDir, 'cycle_context.json'),
+        JSON.stringify({ profile: 'cli-tool' }),
+      );
+      const result = injectPreamble({
+        projectDir: tmpDir,
+        phaseName: 'story-building',
+        phaseDescription: 'Build',
+        modelName: 'opus',
+        requiredOutputKeys: [],
+        profileName: 'saas-webapp',
+      });
+      assert.match(result, /Active profile: `saas-webapp`/);
+      assert.ok(!result.includes('`cli-tool`'));
+    });
+
+    test('unknown profile → falls back to "all", no crash, no section', () => {
+      // profile-loader returns the "all" fallback with a warning when the
+      // profile file isn't found. buildProfileContextSection returns '' for
+      // profile.name === 'all', so the preamble has no profile section.
+      const result = injectPreamble({
+        projectDir: tmpDir,
+        phaseName: 'story-building',
+        phaseDescription: 'Build',
+        modelName: 'opus',
+        requiredOutputKeys: [],
+        profileName: 'nonexistent-profile-xyz',
+      });
+      assert.ok(!result.includes('Active profile:'));
+    });
+
+    test('buildProfileContextSection returns empty string for "all" profile', () => {
+      const out = buildProfileContextSection({ name: 'all' }, { rules: [], skills: [], agents: [], mcps: [] });
+      assert.equal(out, '');
+    });
+
+    test('buildProfileContextSection handles missing fields gracefully', () => {
+      const out = buildProfileContextSection(
+        { name: 'minimal' },
+        { rules: [], skills: [], agents: [], mcps: [] }
+      );
+      assert.match(out, /Active profile: `minimal`/);
+      assert.ok(!out.includes('Rules in scope'));
+      assert.ok(!out.includes('Skills available'));
+    });
+
+    test('buildProfileContextSection lists each resolved entry', () => {
+      const out = buildProfileContextSection(
+        {
+          name: 'test',
+          description: 'test profile',
+          stack_hints: { primary_language: 'typescript', targets_browser: true },
+          quality_bar: { coverage_min: 80 },
+        },
+        {
+          rules: ['common', 'typescript'],
+          skills: ['tdd-workflow'],
+          agents: ['typescript-reviewer'],
+          mcps: ['github', 'context7'],
+        }
+      );
+      assert.match(out, /Active profile: `test` — test profile/);
+      assert.match(out, /primary_language=typescript/);
+      assert.match(out, /coverage_min/);
+      assert.match(out, /`common\/`/);
+      assert.match(out, /`typescript\/`/);
+      assert.match(out, /`tdd-workflow`/);
+      assert.match(out, /`typescript-reviewer`/);
+      assert.match(out, /`github`/);
+      assert.match(out, /`context7`/);
+    });
+
+    test('measurable token reduction: saas-webapp profile vs no profile — section is bounded', () => {
+      // P0.3 verification gate: profile context shouldn't inflate the
+      // preamble with full rule content — it should be a compact listing.
+      // Target: profile section adds less than 1500 chars to the preamble.
+      const withProfile = injectPreamble({
+        projectDir: tmpDir,
+        phaseName: 'story-building',
+        phaseDescription: 'Build',
+        modelName: 'opus',
+        requiredOutputKeys: [],
+        profileName: 'saas-webapp',
+      });
+      const withoutProfile = injectPreamble({
+        projectDir: tmpDir,
+        phaseName: 'story-building',
+        phaseDescription: 'Build',
+        modelName: 'opus',
+        requiredOutputKeys: [],
+      });
+      const delta = withProfile.length - withoutProfile.length;
+      assert.ok(delta > 0, 'profile should add content');
+      assert.ok(delta < 1500, `profile context inflated preamble by ${delta} chars — too much`);
     });
   });
 });

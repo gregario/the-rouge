@@ -35,6 +35,8 @@ or discoveries to cycle_context.json under "pre_compaction_flush":
 }
 ```
 
+{{profile_context}}
+
 {{human_guidance_section}}
 
 {{human_resolution_section}}

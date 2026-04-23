@@ -20,6 +20,50 @@ function escapeMustache(s) {
     .replace(/\}\}/g, '\\}\\}');
 }
 
+/**
+ * Build a "Profile context" markdown section describing the active profile's
+ * catalog surface (rules/skills/agents/MCPs). Consumed by phases that need to
+ * know what language/framework-specific knowledge is in scope. Never inlines
+ * full rule content — phases read library/rules/<dir>/*.md directly when they
+ * need the specifics. Returns '' when profile or resolved is falsy.
+ */
+function buildProfileContextSection(profile, resolved) {
+  if (!profile || profile.name === 'all' || !resolved) return '';
+  const lines = ['### Profile context', ''];
+  lines.push(`Active profile: \`${profile.name}\`${profile.description ? ' — ' + profile.description : ''}`);
+  if (profile.stack_hints && typeof profile.stack_hints === 'object') {
+    const hints = Object.entries(profile.stack_hints)
+      .filter(([, v]) => v !== undefined && v !== null && v !== false)
+      .map(([k, v]) => `${k}=${typeof v === 'string' ? v : JSON.stringify(v)}`);
+    if (hints.length) lines.push(`Stack: ${hints.join(', ')}`);
+  }
+  if (profile.quality_bar && typeof profile.quality_bar === 'object' && Object.keys(profile.quality_bar).length) {
+    lines.push(`Quality bar: ${JSON.stringify(profile.quality_bar)}`);
+  }
+  lines.push('');
+  if (Array.isArray(resolved.rules) && resolved.rules.length) {
+    lines.push('**Rules in scope** (read `library/rules/<dir>/*.md` for specifics):');
+    for (const r of resolved.rules) lines.push(`- \`${r}/\``);
+    lines.push('');
+  }
+  if (Array.isArray(resolved.skills) && resolved.skills.length) {
+    lines.push('**Skills available** (read `library/skills/<name>/SKILL.md` for specifics):');
+    for (const s of resolved.skills) lines.push(`- \`${s}\``);
+    lines.push('');
+  }
+  if (Array.isArray(resolved.agents) && resolved.agents.length) {
+    lines.push('**Reviewer agents** (dispatch as subagent from evaluation phases):');
+    for (const a of resolved.agents) lines.push(`- \`${a}\``);
+    lines.push('');
+  }
+  if (Array.isArray(resolved.mcps) && resolved.mcps.length) {
+    lines.push('**MCPs configured for this profile:**');
+    for (const m of resolved.mcps) lines.push(`- \`${m}\``);
+    lines.push('');
+  }
+  return lines.join('\n').trimEnd();
+}
+
 function buildPreamble({
   phaseName,
   phaseDescription,
@@ -28,6 +72,7 @@ function buildPreamble({
   learningsContent,
   humanGuidance,
   humanResolution,
+  profileContext,
 }) {
   let preamble = PREAMBLE_TEMPLATE
     .replace('{{phase_name}}', phaseName)
@@ -122,10 +167,14 @@ function buildPreamble({
     preamble = preamble.replace('{{learnings_section}}', '');
   }
 
+  // Profile context — set by injectPreamble when a profile is active.
+  // Empty string when no profile (current behavior preserved).
+  preamble = preamble.replace('{{profile_context}}', profileContext || '');
+
   return preamble.trim() + '\n';
 }
 
-function injectPreamble({ projectDir, phaseName, phaseDescription, modelName, requiredOutputKeys }) {
+function injectPreamble({ projectDir, phaseName, phaseDescription, modelName, requiredOutputKeys, profileName }) {
   // Read learnings.md if it exists
   let learningsContent = '';
   const learningsFile = path.join(projectDir, 'learnings.md');
@@ -140,6 +189,7 @@ function injectPreamble({ projectDir, phaseName, phaseDescription, modelName, re
   // the phase runs so they don't bleed into later cycles.
   let humanGuidance = '';
   let humanResolution = null;
+  let profileFromCtx = null;
   const ctxFile = path.join(projectDir, 'cycle_context.json');
   if (fs.existsSync(ctxFile)) {
     try {
@@ -150,9 +200,29 @@ function injectPreamble({ projectDir, phaseName, phaseDescription, modelName, re
       if (ctx.human_resolution && typeof ctx.human_resolution === 'object') {
         humanResolution = ctx.human_resolution;
       }
+      // Profile may be set at the top level or inside active_spec
+      if (typeof ctx.profile === 'string') profileFromCtx = ctx.profile;
+      else if (ctx.active_spec && typeof ctx.active_spec.profile === 'string') {
+        profileFromCtx = ctx.active_spec.profile;
+      }
     } catch {
       // Malformed cycle_context — let the phase see no guidance
       // rather than crashing the preamble assembly.
+    }
+  }
+
+  // Profile resolution: explicit param wins, then cycle_context, then none
+  // (→ current behavior preserved: no profile context section).
+  const effectiveProfileName = profileName || profileFromCtx || null;
+  let profileContext = '';
+  if (effectiveProfileName) {
+    try {
+      const { loadProfile } = require('./profile-loader.js');
+      const { profile, resolved } = loadProfile(effectiveProfileName, { silent: true });
+      profileContext = buildProfileContextSection(profile, resolved);
+    } catch {
+      // Profile loader failure — fall through with no profile context.
+      // Phases still get every other part of the preamble.
     }
   }
 
@@ -164,7 +234,8 @@ function injectPreamble({ projectDir, phaseName, phaseDescription, modelName, re
     learningsContent,
     humanGuidance,
     humanResolution,
+    profileContext,
   });
 }
 
-module.exports = { buildPreamble, injectPreamble };
+module.exports = { buildPreamble, injectPreamble, buildProfileContextSection };
