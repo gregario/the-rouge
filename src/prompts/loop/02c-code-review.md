@@ -73,29 +73,36 @@ Flag files over 300 lines. Emit: `Large files: <N> over 300 lines`
 
 **Degradation Detection:** Compare against previous cycle's `code_quality_baseline` from `previous_cycles`. Set `degraded: true` if ANY metric worsened beyond threshold (coverage -2%, duplication +1%, circular deps increased, dead code +5 items, large files increased).
 
-### Step 1.5: Language-Specific Review (additive, graceful)
+### Step 1.5: Language-Specific Review — shape reference (ownership: orchestrator)
 
-Before the generic AI audit runs, dispatch a language-specific reviewer if one exists for this product's stack.
+Language-specific review dispatch is owned by `02-evaluation-orchestrator.md` Sub-Phase 1.5 (from P0.4). This section documents the output SHAPE 02c's downstream consumers (Step 2 AI audit, Step 3 security review) should expect when the orchestrator has already written it, and names the key reserved.
 
-**Logic:**
+**Do NOT dispatch from inside 02c.** 02c runs as a sub-phase under the orchestrator; orchestration is the orchestrator's job. If this prompt tries to dispatch its own subagent, the result is double-invocation and a write race on `code_review_report.language_review`.
 
+**Shape the orchestrator writes (documented for consumers):**
+
+```json
+{
+  "code_review_report": {
+    "language_review": {
+      "language": "typescript|python|rust|golang|...",
+      "agent": "library/agents/<lang>-reviewer.md",
+      "rules_loaded": ["common", "<lang>", "web?"],
+      "blocking": [],
+      "warnings": [],
+      "informational": [],
+      "uncertain": []
+    }
+  }
+}
 ```
-lang = active_spec.infrastructure.primary_language (e.g. "typescript", "python", "rust", "golang")
-agent_path = library/agents/<lang>-reviewer.md
 
-if the agent file exists:
-  load library/rules/common/*.md + library/rules/<lang>/*.md + (library/rules/web/*.md if stack targets browser)
-  invoke the reviewer with those rules + the changed files
-  write findings to code_review_report.language_review
-else:
-  skip silently; note "no agent for language '<lang>'" in language_review.skipped_reason
+When no matching agent exists, the orchestrator sets:
+```json
+{ "language_review": { "skipped_reason": "no agent for language '<lang>'" } }
 ```
 
-The generic AI Code Audit (Step 2 below) **always runs regardless** — language-specific review is extra signal, not a replacement.
-
-See `library/skills/language-specific-review/SKILL.md` for the full dispatch contract. Never fail the cycle because no language-specific agent exists.
-
-Emit: `Language review: <language|skipped>, <N> blocking, <N> warnings`
+Either way, the generic AI Code Audit (Step 2 below) **always runs regardless**. Language review is extra signal, never a replacement.
 
 ### Step 2: AI Code Audit
 

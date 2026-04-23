@@ -242,13 +242,16 @@ Emit: `Health: <score>/100`
 
 ## QA Verdict Rules
 
-**Criteria pass rate calculation:** `(pass + env_limited) / total`. Criteria with `env_limited` verdict count as passed — they represent working code that can't be visually verified in the test environment.
+**Criteria pass rate calculation:**
+- Numerator: `pass + env_limited` (criteria with `env_limited` verdict count as passed — working code that can't be visually verified).
+- Denominator: `total - unknown` (criteria with `unknown` verdict are excluded entirely — see escape-hatch section).
+- **Edge case:** if denominator is 0 (all criteria ended up `unknown`, or there are zero criteria to begin with), emit `criteria_pass_rate: null` and **do NOT divide**. A null rate short-circuits the pass test — verdict is `FAIL` with `verdict_reason: "insufficient-evidence"`, and every `unknown` criterion MUST have a corresponding entry in `re_walk_requests` so Sub-Phase 4 (re-walk) captures the missing observations before the next cycle re-evaluates.
 
 For `evaluation_report.qa.verdict`:
-- **PASS:** zero CRITICAL findings AND criteria pass rate >= 90% (counting `env_limited` as passed) AND health >= 70 AND security PASS AND a11y PASS
-- **FAIL:** any CRITICAL finding OR criteria pass rate < 90% OR health < 70 OR security FAIL OR a11y FAIL
+- **PASS:** zero CRITICAL findings AND `criteria_pass_rate` is numeric AND `criteria_pass_rate >= 0.9` AND health >= 70 AND security PASS AND a11y PASS
+- **FAIL:** any CRITICAL finding OR `criteria_pass_rate` is null OR `criteria_pass_rate < 0.9` OR health < 70 OR security FAIL OR a11y FAIL
 
-Note: `env_limited` criteria should be flagged in the report so humans can verify them manually. But they do NOT block QA verdict.
+Note: `env_limited` criteria should be flagged in the report so humans can verify them manually. But they do NOT block QA verdict. `unknown` criteria route to re-walk, not fix.
 
 ## Fix Tasks
 
