@@ -236,15 +236,27 @@ For every finding (ai_code_audit, security_review, language_review):
 
 Anti-pattern: generic findings like "security is weak throughout" without a pinned file:line + quoted span. Downstream phases cannot act on unpinned findings; the factory can't fix what it can't locate.
 
-## Confidence tags (P1.15)
+## Confidence tags + structured evidence (P1.15 + P1.16b)
 
-Every finding in `ai_code_audit.dimensions[].findings`, `security_review.categories[].findings`, `critical_findings[]`, and `language_review.blocking[]|warnings[]` carries a `confidence` tag from `high | moderate | low`. Rules mirror 02e-evaluation.md § Confidence tags:
+Every finding in `ai_code_audit.dimensions[].findings`, `security_review.categories[].findings`, `critical_findings[]`, and `language_review.blocking[]|warnings[]` carries a `confidence` tag from `high | moderate | low`. Rules mirror 02e-evaluation.md § Confidence tags.
 
-- `high` — direct static-analyzer output or source-code line match with `evidence_span` containing verbatim quoted code (≤50 words)
-- `moderate` — AI audit inference across multiple files; pattern recognized
-- `low` — possibly slop / tentative; advisory only, doesn't deduct from health score
+- `high` — direct static-analyzer output or source-code line match. MUST carry a structured `evidence_ref`:
+  ```json
+  {
+    "evidence_ref": {
+      "type": "file",
+      "path": "src/app.ts:42-48",
+      "quote": "verbatim lines from the file (≤ 250 chars)"
+    }
+  }
+  ```
+  For findings grounded in `code_review_report` fields (e.g. a prior cycle's ai_code_audit), use `type: "cycle_context"` with a JSONPath.
+- `moderate` — AI audit inference across multiple files; pattern recognized. No evidence_ref required.
+- `low` — possibly slop / tentative; advisory only, doesn't deduct from health score.
 
-Every `high`-confidence finding MUST include `evidence_span`. Lower-confidence findings surface observations without gating.
+The launcher resolves `evidence_ref.path` and verifies `quote` against the resolved text. Fabricated or mislocated refs auto-downgrade to `moderate` — don't try to sneak a plausible-looking ref past it; use `moderate` if the evidence isn't locatable.
+
+**Deprecated:** free-form `evidence_span` is accepted as back-compat (keeps confidence high with a warning) but must migrate to `evidence_ref`.
 
 ## Anti-Patterns
 

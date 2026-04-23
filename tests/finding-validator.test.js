@@ -12,10 +12,22 @@ const {
 
 // ---- validateFinding (single) ----
 
-test('valid high-confidence finding with evidence_span passes unchanged', () => {
-  const f = { id: 'f1', confidence: 'high', evidence_span: 'verbatim quote from the walk, long enough' };
+test('valid high-confidence finding with evidence_ref passes unchanged', () => {
+  const f = {
+    id: 'f1',
+    confidence: 'high',
+    evidence_ref: { type: 'cycle_context', path: 'a.b', quote: 'verbatim text' },
+  };
   const w = validateFinding(f);
   assert.equal(w, null);
+  assert.equal(f.confidence, 'high');
+});
+
+test('valid high-confidence finding with evidence_span (back-compat) warns but keeps high', () => {
+  // P1.16b: evidence_span is deprecated. Accepted with a warning for back-compat.
+  const f = { id: 'f1', confidence: 'high', evidence_span: 'verbatim quote from the walk, long enough' };
+  const w = validateFinding(f);
+  assert.match(w, /deprecated evidence_span/);
   assert.equal(f.confidence, 'high');
 });
 
@@ -47,11 +59,11 @@ test('invalid confidence string defaults to moderate with warning', () => {
   assert.match(w, /invalid confidence 'very high'/);
 });
 
-test('high-confidence without evidence_span downgrades to moderate', () => {
+test('high-confidence without evidence_ref OR evidence_span downgrades to moderate', () => {
   const f = { id: 'f1', confidence: 'high' };
   const w = validateFinding(f);
   assert.equal(f.confidence, 'moderate');
-  assert.match(w, /high-confidence without evidence_span/);
+  assert.match(w, /high-confidence without evidence_ref or evidence_span/);
 });
 
 test('high-confidence with empty evidence_span downgrades', () => {
@@ -73,11 +85,12 @@ test('high-confidence with whitespace-padded short evidence_span downgrades', ()
   assert.equal(f.confidence, 'moderate');
 });
 
-test('high-confidence with exactly MIN_EVIDENCE_SPAN chars passes', () => {
+test('high-confidence with exactly MIN_EVIDENCE_SPAN chars passes (back-compat warn)', () => {
   const span = 'x'.repeat(MIN_EVIDENCE_SPAN);
   const f = { id: 'f1', confidence: 'high', evidence_span: span };
   const w = validateFinding(f);
-  assert.equal(w, null);
+  // Back-compat path: keeps high confidence, warns about deprecation
+  assert.match(w, /deprecated evidence_span/);
   assert.equal(f.confidence, 'high');
 });
 
@@ -91,24 +104,25 @@ test('non-object finding returns null (no crash)', () => {
 
 // ---- validateCycleContext (full tree) ----
 
-test('validates fix_tasks under evaluation_report.qa', () => {
+test('validates fix_tasks under evaluation_report.qa (back-compat evidence_span)', () => {
   const ctx = {
     evaluation_report: {
       qa: {
         fix_tasks: [
-          { id: 'fix-1', confidence: 'high', evidence_span: 'plenty of evidence here' },
-          { id: 'fix-2', confidence: 'high' },
-          { id: 'fix-3' },
+          { id: 'fix-1', confidence: 'high', evidence_span: 'plenty of evidence here' },  // back-compat: keep high, warn
+          { id: 'fix-2', confidence: 'high' },                                              // downgrade
+          { id: 'fix-3' },                                                                  // defaulted
         ],
       },
     },
   };
   const summary = validateCycleContext(ctx);
-  assert.equal(ctx.evaluation_report.qa.fix_tasks[0].confidence, 'high');
-  assert.equal(ctx.evaluation_report.qa.fix_tasks[1].confidence, 'moderate');
-  assert.equal(ctx.evaluation_report.qa.fix_tasks[2].confidence, 'moderate');
+  assert.equal(ctx.evaluation_report.qa.fix_tasks[0].confidence, 'high');      // back-compat keeps high
+  assert.equal(ctx.evaluation_report.qa.fix_tasks[1].confidence, 'moderate');  // downgraded
+  assert.equal(ctx.evaluation_report.qa.fix_tasks[2].confidence, 'moderate');  // defaulted
   assert.equal(summary.downgraded, 1);
-  assert.equal(summary.defaulted, 1);
+  // deprecated-evidence_span count as "defaulted" per tabulation rule; plus the truly-defaulted one = 2
+  assert.equal(summary.defaulted, 2);
 });
 
 test('validates ai_code_audit.dimensions.*.findings', () => {
@@ -226,4 +240,130 @@ test('VALID_CONFIDENCES is the closed vocabulary', () => {
   assert.ok(VALID_CONFIDENCES.has('moderate'));
   assert.ok(VALID_CONFIDENCES.has('low'));
   assert.ok(!VALID_CONFIDENCES.has('unverified'));  // P1.15: use `unknown` verdict instead
+});
+
+// ---- P1.16b deep evidence_ref validation ----
+
+test('deep: valid evidence_ref (cycle_context) resolves + matches → keeps high', () => {
+  const ctx = {
+    product_walk: {
+      screens: [{ interactive_elements: [{ result: 'Button clicked, navigates to /settings' }] }],
+    },
+    evaluation_report: {
+      qa: {
+        fix_tasks: [
+          {
+            id: 'fix-ok',
+            confidence: 'high',
+            evidence_ref: {
+              type: 'cycle_context',
+              path: 'product_walk.screens[0].interactive_elements[0].result',
+              quote: 'navigates to /settings',
+            },
+          },
+        ],
+      },
+    },
+  };
+  const summary = validateCycleContext(ctx);
+  assert.equal(ctx.evaluation_report.qa.fix_tasks[0].confidence, 'high');
+  // no downgrade
+  assert.ok(!summary.warnings.some((w) => w.includes('evidence_ref validation failed')));
+});
+
+test('deep: evidence_ref.path does not resolve → downgraded to moderate', () => {
+  const ctx = {
+    product_walk: { screens: [] },
+    evaluation_report: {
+      qa: {
+        fix_tasks: [
+          {
+            id: 'fix-bad-path',
+            confidence: 'high',
+            evidence_ref: {
+              type: 'cycle_context',
+              path: 'product_walk.screens[99].interactive_elements[0].result',
+              quote: 'fabricated',
+            },
+          },
+        ],
+      },
+    },
+  };
+  const summary = validateCycleContext(ctx);
+  assert.equal(ctx.evaluation_report.qa.fix_tasks[0].confidence, 'moderate');
+  assert.ok(summary.warnings.some((w) => /evidence_ref validation failed/.test(w)));
+  assert.equal(summary.downgraded, 1);
+});
+
+test('deep: evidence_ref.quote not in resolved text → downgraded', () => {
+  const ctx = {
+    product_walk: { screens: [{ title: 'Dashboard home' }] },
+    evaluation_report: {
+      qa: {
+        fix_tasks: [
+          {
+            id: 'fix-bad-quote',
+            confidence: 'high',
+            evidence_ref: {
+              type: 'cycle_context',
+              path: 'product_walk.screens[0].title',
+              quote: 'a completely fabricated quote about something else entirely',
+            },
+          },
+        ],
+      },
+    },
+  };
+  const summary = validateCycleContext(ctx);
+  assert.equal(ctx.evaluation_report.qa.fix_tasks[0].confidence, 'moderate');
+  assert.ok(summary.warnings.some((w) => /evidence_ref validation failed/.test(w)));
+});
+
+test('deep: moderate-confidence findings skip evidence_ref validation', () => {
+  // moderate findings don't need an evidence_ref; validateEvidenceRefDeep short-circuits
+  const ctx = {
+    evaluation_report: {
+      qa: {
+        fix_tasks: [
+          { id: 'fix-mod', confidence: 'moderate' },
+        ],
+      },
+    },
+  };
+  const summary = validateCycleContext(ctx);
+  assert.equal(ctx.evaluation_report.qa.fix_tasks[0].confidence, 'moderate');
+  assert.equal(summary.warnings.length, 0);
+});
+
+test('deep: evidence_ref with file type validates against projectDir', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'fv-deep-'));
+  fs.writeFileSync(path.join(d, 'auth.ts'), [
+    'function login() {',
+    "  throw new Error('no auth')",
+    '}',
+  ].join('\n'));
+  const ctx = {
+    evaluation_report: {
+      qa: {
+        fix_tasks: [
+          {
+            id: 'fix-file',
+            confidence: 'high',
+            evidence_ref: {
+              type: 'file',
+              path: 'auth.ts:2',
+              quote: "throw new Error('no auth')",
+            },
+          },
+        ],
+      },
+    },
+  };
+  const summary = validateCycleContext(ctx, { projectDir: d });
+  assert.equal(ctx.evaluation_report.qa.fix_tasks[0].confidence, 'high');  // resolved + matched
+  assert.equal(summary.warnings.length, 0);
 });

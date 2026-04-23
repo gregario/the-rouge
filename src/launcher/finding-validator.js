@@ -63,22 +63,66 @@ function validateFinding(finding, context = {}) {
   }
 
   if (finding.confidence === 'high') {
+    // P1.16b: prefer structured evidence_ref; fall back to evidence_span.
+    // Structured ref validation happens in validateFindingArrays/Map where
+    // the cycle_context and projectDir are available — we just check the
+    // shape here.
+    const hasRef = isObj(finding.evidence_ref)
+      && typeof finding.evidence_ref.path === 'string'
+      && finding.evidence_ref.path.length > 0
+      && typeof finding.evidence_ref.quote === 'string'
+      && finding.evidence_ref.quote.trim().length > 0;
+    if (hasRef) return null;  // structural check passes; deeper validation in caller
+
+    // Back-compat: evidence_span (pre-P1.16b shape) still accepted if ≥ MIN chars
     const span = finding.evidence_span;
     const spanOk = typeof span === 'string' && span.trim().length >= MIN_EVIDENCE_SPAN;
     if (!spanOk) {
       finding.confidence = 'moderate';
-      return `${loc}/${id}: high-confidence without evidence_span (≥${MIN_EVIDENCE_SPAN} chars) — downgraded to moderate`;
+      return `${loc}/${id}: high-confidence without evidence_ref or evidence_span (≥${MIN_EVIDENCE_SPAN} chars) — downgraded to moderate`;
     }
+    return `${loc}/${id}: high-confidence using deprecated evidence_span (P1.16b prefers evidence_ref)`;
   }
 
   return null;
 }
 
 /**
+ * Deep-validate a high-confidence finding's evidence_ref against the
+ * cycle_context + project directory. Only call on findings that already
+ * passed the shape check in validateFinding.
+ *
+ * Mutates the finding to downgrade confidence if the ref doesn't resolve
+ * or the quote doesn't match the resolved text. Returns a warning string
+ * if a downgrade occurred, or null otherwise.
+ */
+function validateEvidenceRefDeep(finding, context = {}) {
+  if (!isObj(finding)) return null;
+  if (finding.confidence !== 'high') return null;
+  if (!isObj(finding.evidence_ref)) return null;  // nothing to validate
+
+  const loc = context.loc || 'unknown';
+  const id = finding.id || finding.category || finding.file || '(anon)';
+
+  let validateEvidenceRef;
+  try {
+    ({ validateEvidenceRef } = require('./quote-match-validator.js'));
+  } catch {
+    return null;  // module unavailable — skip silently, finding keeps its shape
+  }
+
+  const result = validateEvidenceRef(finding, context.cycleContext, context.projectDir);
+  if (result.valid) return null;
+
+  finding.confidence = 'moderate';
+  return `${loc}/${id}: evidence_ref validation failed (${result.reason}) — downgraded to moderate`;
+}
+
+/**
  * Walk all known finding arrays under a container, validate each.
  * Returns flat list of warnings.
  */
-function validateFindingArrays(container, specs) {
+function validateFindingArrays(container, specs, opts = {}) {
   const warnings = [];
   if (!isObj(container)) return warnings;
   for (const spec of specs) {
@@ -87,13 +131,20 @@ function validateFindingArrays(container, specs) {
     for (const f of arr) {
       const w = validateFinding(f, { loc: spec.loc });
       if (w) warnings.push(w);
+      // P1.16b: deep-validate evidence_ref on high-confidence findings
+      const deepW = validateEvidenceRefDeep(f, {
+        loc: spec.loc,
+        cycleContext: opts.cycleContext,
+        projectDir: opts.projectDir,
+      });
+      if (deepW) warnings.push(deepW);
     }
   }
   return warnings;
 }
 
 /** Walk a map-shaped container like dimensions or categories. */
-function validateFindingsInMap(container, keyList, locPrefix) {
+function validateFindingsInMap(container, keyList, locPrefix, opts = {}) {
   const warnings = [];
   if (!isObj(container)) return warnings;
   for (const key of keyList) {
@@ -104,6 +155,12 @@ function validateFindingsInMap(container, keyList, locPrefix) {
     for (const f of arr) {
       const w = validateFinding(f, { loc: `${locPrefix}.${key}` });
       if (w) warnings.push(w);
+      const deepW = validateEvidenceRefDeep(f, {
+        loc: `${locPrefix}.${key}`,
+        cycleContext: opts.cycleContext,
+        projectDir: opts.projectDir,
+      });
+      if (deepW) warnings.push(deepW);
     }
   }
   return warnings;
@@ -111,11 +168,16 @@ function validateFindingsInMap(container, keyList, locPrefix) {
 
 /**
  * Main entry. Mutates cycleContext and returns a summary.
+ * @param {object} cycleContext - cycle_context object (mutated)
+ * @param {object} [opts] - { projectDir?: string } — enables P1.16b deep
+ *   evidence_ref validation against the filesystem when findings use
+ *   type:'file' references.
  * @returns {{ warnings: string[], downgraded: number, defaulted: number, invalid: number }}
  */
-function validateCycleContext(cycleContext) {
+function validateCycleContext(cycleContext, opts = {}) {
   const summary = { warnings: [], downgraded: 0, defaulted: 0, invalid: 0 };
   if (!isObj(cycleContext)) return summary;
+  const deepOpts = { cycleContext, projectDir: opts.projectDir };
 
   // Evaluation report — fix_tasks + improvement_items + flat arrays
   const evalReport = cycleContext.evaluation_report;
@@ -126,7 +188,7 @@ function validateCycleContext(cycleContext) {
       { loc: 'eval.design.a11y_findings', get: (c) => c.design && c.design.a11y_review && c.design.a11y_review.findings },
       { loc: 'eval.design.notable_issues', get: (c) => c.design && c.design.design_review && c.design.design_review.notable_issues },
     ];
-    summary.warnings.push(...validateFindingArrays(evalReport, specs));
+    summary.warnings.push(...validateFindingArrays(evalReport, specs, deepOpts));
   }
 
   // Code review report — dimensions + security categories + language_review + critical_findings
@@ -135,13 +197,15 @@ function validateCycleContext(cycleContext) {
     // ai_code_audit.dimensions.{architecture,consistency,...}.findings
     if (isObj(cr.ai_code_audit) && isObj(cr.ai_code_audit.dimensions)) {
       summary.warnings.push(
-        ...validateFindingsInMap(cr.ai_code_audit.dimensions, Object.keys(cr.ai_code_audit.dimensions), 'cr.ai_code_audit.dimensions')
+        ...validateFindingsInMap(cr.ai_code_audit.dimensions, Object.keys(cr.ai_code_audit.dimensions), 'cr.ai_code_audit.dimensions', deepOpts)
       );
     }
     if (isObj(cr.ai_code_audit) && Array.isArray(cr.ai_code_audit.critical_findings)) {
       for (const f of cr.ai_code_audit.critical_findings) {
         const w = validateFinding(f, { loc: 'cr.ai_code_audit.critical_findings' });
         if (w) summary.warnings.push(w);
+        const dw = validateEvidenceRefDeep(f, { loc: 'cr.ai_code_audit.critical_findings', ...deepOpts });
+        if (dw) summary.warnings.push(dw);
       }
     }
 
@@ -149,13 +213,15 @@ function validateCycleContext(cycleContext) {
     if (isObj(cr.security_review)) {
       if (isObj(cr.security_review.categories)) {
         summary.warnings.push(
-          ...validateFindingsInMap(cr.security_review.categories, Object.keys(cr.security_review.categories), 'cr.security_review.categories')
+          ...validateFindingsInMap(cr.security_review.categories, Object.keys(cr.security_review.categories), 'cr.security_review.categories', deepOpts)
         );
       }
       if (Array.isArray(cr.security_review.critical_findings)) {
         for (const f of cr.security_review.critical_findings) {
           const w = validateFinding(f, { loc: 'cr.security_review.critical_findings' });
           if (w) summary.warnings.push(w);
+          const dw = validateEvidenceRefDeep(f, { loc: 'cr.security_review.critical_findings', ...deepOpts });
+          if (dw) summary.warnings.push(dw);
         }
       }
     }
@@ -168,6 +234,8 @@ function validateCycleContext(cycleContext) {
         for (const f of arr) {
           const w = validateFinding(f, { loc: `cr.language_review.${bucket}` });
           if (w) summary.warnings.push(w);
+          const dw = validateEvidenceRefDeep(f, { loc: `cr.language_review.${bucket}`, ...deepOpts });
+          if (dw) summary.warnings.push(dw);
         }
       }
     }
@@ -177,7 +245,9 @@ function validateCycleContext(cycleContext) {
   // contains "defaulted to moderate" as its action, so we must check for
   // "invalid confidence" BEFORE "confidence missing" to avoid miscount.
   for (const w of summary.warnings) {
-    if (w.includes('high-confidence without evidence_span')) summary.downgraded += 1;
+    if (w.includes('high-confidence without evidence_ref or evidence_span')) summary.downgraded += 1;
+    else if (w.includes('evidence_ref validation failed')) summary.downgraded += 1;
+    else if (w.includes('deprecated evidence_span')) summary.defaulted += 1;
     else if (w.includes('invalid confidence')) summary.invalid += 1;
     else if (w.includes('confidence missing')) summary.defaulted += 1;
   }
@@ -192,6 +262,7 @@ function validateCycleContext(cycleContext) {
 
 module.exports = {
   validateFinding,
+  validateEvidenceRefDeep,
   validateCycleContext,
   VALID_CONFIDENCES,
   MIN_EVIDENCE_SPAN,

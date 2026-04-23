@@ -204,22 +204,33 @@ For each such observation, emit an `improvement_item` with:
 
 **Grounding rule:** Every improvement item MUST reference a specific acceptance criterion, vision statement, or usability heuristic. "It would be nice if..." is not grounded. "Vision states the dashboard should feel complete and professional; a missing logout forces users to clear cookies" IS grounded. This prevents scope creep and the "designed by committee" problem — only real, grounded improvements make it through.
 
-## Confidence tags on findings (P1.15)
+## Confidence tags + structured evidence (P1.15 + P1.16b)
 
 Every finding produced by any lens carries a `confidence` tag from this closed vocabulary:
 
 | Tag | When to use | Example |
 |-----|-------------|---------|
-| `high` | Direct observation in product_walk + specific screen:element reference. Evidence_span required. | "Button at /checkout line 142 triggered no state change — console_errors[3] captured." |
+| `high` | Direct observation in product_walk + specific screen:element reference. `evidence_ref` REQUIRED. | Finding about a button that fails silently, with ref pointing to the walk step that captured the failure. |
 | `moderate` | Inferred from code_review_report without direct walk evidence, or pattern observed on multiple screens. | "Error handling pattern inconsistent across 4 components per ai_code_audit." |
 | `low` | Pattern-matched but without structural confirmation. Finding is advisory; does NOT gate. | "Copy reads as possibly AI-generated in hero section." |
-| `unverified` | Avoid emitting this. Use `unknown` verdict instead (see escape-hatch section). | — |
 
 Rules:
 - Every entry in `fix_tasks[]`, `critical_findings[]`, `improvement_items[]`, `copy_findings[]`, `a11y_review.findings[]` MUST have a `confidence` field.
-- `high` findings MUST include an `evidence_span` — a verbatim quote from product_walk or code_review_report (≤50 words).
+- `high` findings MUST include an `evidence_ref` — a STRUCTURED pointer to the specific location that grounds the finding, plus a verbatim quote from that location:
+  ```json
+  {
+    "evidence_ref": {
+      "type": "cycle_context" | "file",
+      "path": "product_walk.screens[2].interactive_elements[1].result"
+             OR "src/auth.ts:42-48",
+      "quote": "verbatim text from the resolved location (≤ 250 chars)"
+    }
+  }
+  ```
+- **Why structured references:** the launcher resolves `path` and verifies `quote` is a substring of the resolved text. If the path doesn't resolve or the quote isn't found, confidence automatically downgrades to `moderate`. Fabricated references cannot survive this check. Legitimate paraphrase within a single resolved field is fine (the validator uses a high-threshold fuzzy match within the one field, not the whole haystack).
 - `low` findings are informational only. The health-score deduction table below applies to findings with `confidence: high` OR `moderate`. `low` findings are listed in the report but don't deduct.
-- Reviewer agents (from P0.4) inherit this vocabulary. Their `uncertain[]` array maps to `confidence: low` or `unverified` — migrate toward the closed vocabulary on next sweep.
+- Reviewer agents (from P0.4) inherit this vocabulary. Their `uncertain[]` array maps to `confidence: low` — migrate toward the closed vocabulary on next sweep.
+- **Deprecated:** the older `evidence_span` free-form field is still accepted during transition (keeps confidence at `high` with a warning) but MUST migrate to `evidence_ref` in the next prompt pass.
 
 ## Health Score
 
