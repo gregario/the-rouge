@@ -151,6 +151,28 @@ Execute the sub-phases in strict order. Each sub-phase is a separate prompt file
 
 **Note:** Code Review produces evidence, not a go/no-go verdict. A CRITICAL security finding will still surface via the `security_review` gate that Sub-Phase 3 (Evaluation) sets based on the report. Don't short-circuit here — downstream needs the full evidence.
 
+#### Sub-Phase 1.5: Language-specific review (dispatched by stack)
+
+After 02c's static analysis completes, dispatch a language-specific reviewer agent if the active product has one. Pattern from `library/skills/language-specific-review/SKILL.md`.
+
+Steps:
+1. Read `active_spec.infrastructure.primary_language` from `cycle_context.json` (lowercased, e.g. `"typescript"`, `"python"`, `"rust"`, `"golang"`).
+2. Check if `library/agents/<primary_language>-reviewer.md` exists. If not, skip this sub-phase silently — generic code audit (Sub-Phase 1 Step 2) already ran; that's the fallback.
+3. If the agent exists, dispatch it as a subagent with:
+   - The reviewer agent's persona (loaded from the agent file)
+   - The changed files list from `code_review_report.changed_files`
+   - Rules in scope: `library/rules/common/*.md` + `library/rules/<primary_language>/*.md` + (if the profile targets a browser) `library/rules/web/*.md`
+4. Collect the reviewer's findings into `code_review_report.language_review` (shape already defined in 02c). Blocking findings gate; warnings/informational do not.
+
+**Dispatch discipline:**
+- The reviewer's findings use the closed confidence vocabulary (`high | moderate | low`) from P1.15.
+- If no reviewer exists for this language, set `code_review_report.language_review.skipped_reason = "no agent for language '<lang>'"` and proceed. Never fail the cycle due to a missing language-specific agent — generic audit runs regardless.
+- When dispatched, the reviewer gets a bounded tool surface (Read/Grep/Glob only per each agent file's frontmatter) — no write access to the codebase.
+
+Supported languages as of 2026-04-23: `typescript`, `python`, `rust`, `golang`. Adding one = drop `library/agents/<lang>-reviewer.md` + `library/rules/<lang>/` in place and the orchestrator picks it up on the next cycle.
+
+**Note on harness portability:** how the subagent is actually invoked (Task tool call, separate Claude -p spawn, SDK sub-session) may refine once P5.9's harness decision lands. The prompt-level dispatch above is stable regardless — it tells Claude what to do; the launcher wires the "how."
+
 **Proceed to Sub-Phase 2 unconditionally.** (If tests are green and the code exists, we want the browser evidence even if the code review flagged issues — the evaluation phase synthesises everything.)
 
 #### Sub-Phase 2: Product Walk — `02d-product-walk.md`

@@ -843,6 +843,7 @@ We stop working on a roadmap item and come back if:
 - main: **P1.20** — `unknown` verdict escape hatch in 02e-evaluation.md. Distinct from `env_limited`: unknown = evidence didn't resolve; env_limited = code works, test env can't verify. Unknown criteria excluded from pass-rate denominator, trigger re-walk. Reduces hallucinated verdicts under thin evidence.
 - main: **P5.1** — coverage gate enabled at baseline (lines 56 / branches 70 / functions 68 / statements 56 — 3 points below actual 59/74/71/59). Blocks regressions without demanding immediate improvement. Aspirational 80/80/75/80 target documented in .c8rc.json for ratchet-up.
 - main: **P1.15** — closed-vocabulary confidence tags on all findings (high | moderate | low). High requires evidence_span. Low doesn't deduct from health score. Rules added to both 02c-code-review.md and 02e-evaluation.md.
+- main: **P0.4 prompt side** — language-reviewer dispatch instruction added as Sub-Phase 1.5 of 02-evaluation-orchestrator.md. Activates the 4 existing reviewer agents (ts/py/rust/go) in 02c flow when active_spec.infrastructure.primary_language matches. Falls back silently if no matching agent. Dispatch mechanism (Task-tool vs spawn vs SDK) refines post-P5.9.
 - `feat/escalation-ux-polish` branch: **P0.1** — dashboard escalation UX (4 files, 477 dashboard tests green)
 
 **Test count:** 471 launcher tests + 477 dashboard tests + 116 standalone module tests all passing except 1 pre-existing `claude -p` flake.
