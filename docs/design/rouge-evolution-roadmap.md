@@ -966,12 +966,17 @@ We stop working on a roadmap item and come back if:
 - main: **P0.5** — config-protection wired into rouge-safety-check.sh pre-write hook. Detects edits that weaken linter/type/test/CI configs (strict:false, eslint-disable, lowered coverage) without a `// rationale:` marker. Modes from rouge.config.json → config_protection.mode: `off` (skip), `warn` (default — log audit entry + stderr message but allow), `block` (deny). Portable timeout (macOS gtimeout / GNU timeout / none). Fail-open on any node/module error — never denies due to check crash. 6 integration tests in tests/safety-check-config-protection.test.sh.
 - `feat/escalation-ux-polish` branch: **P0.1** — dashboard escalation UX (4 files, 477 dashboard tests green)
 
-**Test count:** 471 launcher tests + 477 dashboard tests + 116 standalone module tests all passing except 1 pre-existing `claude -p` flake.
+**Test count (as of 2026-04-23 end-of-session):** 481 launcher tests + 477 dashboard tests + ~240 standalone module tests across `tests/*.test.js` + 6 shell integration tests. All passing; one `claude -p` empirical test is pre-existing flaky (depends on Claude Code harness permissions), passes in isolation.
 
-**Next unblocked steps:**
-- P1.5 — per-FA iterative spec (owner's explicit "one task at a time" ask)
-- P0.4 prompt side — language-reviewer dispatch instructions in evaluation-orchestrator
-- P5.1 — flip coverage gate on
-- P1.13 — research-before-solving detector (codifies owner's "no partial solutions" memory)
+**Next unblocked, harness-independent items (pick any — all ready to start):**
+- **P1.5** — per-FA iterative spec (owner's explicit "one task at a time" ask; modifies seeding `04-spec.md` which is load-bearing, do with care)
+- **P1.18** — gold set + Cohen's Kappa calibration infrastructure. Requires bootstrap human-labeled data but the harness + CLI can be built now.
+- **P1.19** — Opus 4.7 prompt modernization sweep (one prompt per PR). Drop "think step by step" scaffolding, tone down shouty language, add XML tag structure. Grindy but safe.
+- **P4.1** — fill Tier-2 integration catalogue gaps (Neon, Clerk, Resend, PostHog, etc). Pure catalogue work.
+- **P1.1** — language-specific rules + reviewers for more languages (Swift, Kotlin, Java, PHP, Ruby, Elixir, C#). Extends P0.4's dispatch pattern.
 
-**What we are not doing right now:** harness-dependent items (listed in "Harness-dependent items" section). Those wait for P5.9's PoC + decision, scheduled after substantial independent work has landed.
+**Harness-dependent items** (block on P5.9 PoC — ~21% of roadmap): P0.2 MCPs into spawn, P0.11a prompt caching, P0.11b batch API, P1.4 context7 in building, P1.10 structured output, P1.11 citations API, P2.6 conversation-analyzer, P2.11 cost forecasting, P6.7 multi-Claude orchestration, plus four partial-dependents. See "Harness-dependent items" section above.
+
+**The judgment layer is substantively complete** — rubric (P1.14) + confidence tags (P1.15) + quote-before-score (P1.16) + structured evidence refs (P1.16b) + unknown escape hatch (P1.20) + capability-check gate (P1.21) + finding-validator (B2) + quote-match-validator. These compose cleanly into an honest measurement system that won't ship bad work and won't burn cycles on fixes it can't produce.
+
+**Outstanding uncommitted work / tree state:** none. Main is the source of truth. Working tree clean. No WIP branches from this session — all landings merged to main.
