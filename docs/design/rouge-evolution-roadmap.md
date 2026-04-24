@@ -1034,7 +1034,8 @@ We stop working on a roadmap item and come back if:
 | `5c13c27` | P1.19 PR 7 — 00-foundation-building modernization (with explicit preservation of three load-bearing safety blocks) |
 | `1bbdca7` | P1.19 PR 8 — 01-building.md modernization (factory's main prompt; three safety blocks preserved: ISOLATION RULES, Capability Avoidance, "that is fraud"; added Story Scope Boundary; 30 tests) |
 | `0657318` | P1.19 PR 9 — seeding/08-infrastructure.md modernization (small technical prompt; no incident-tied safety blocks; all emphasis softened; 21 tests) |
-| _next_ | P1.19 PR 10 — seeding/06-legal-privacy.md modernization (Lessig voice preserved; 6 shouty patterns softened; added Scope Boundary with "not regulated legal advice" line; 22 tests) |
+| `9d847ef` | P1.19 PR 10 — seeding/06-legal-privacy.md modernization (Lessig voice preserved; 6 shouty patterns softened; added Scope Boundary with "not regulated legal advice" line; 22 tests) |
+| _next_ | P1.19 PR 11 — seeding/01-brainstorming.md modernization (Rouge taste ethos: all five thinker voices + expand-scope identity directives "you do not fight depth / invoke YAGNI / say that's a lot" preserved; 8 stylistic caps softened; 24 tests) |
 
 **Memory work this session:**
 
