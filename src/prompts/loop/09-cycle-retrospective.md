@@ -212,9 +212,9 @@ Compose the definitive record for this cycle and write it to `cycle_context.json
 ```
 
 Rules for journey entries:
-- **Learnings must be actionable.** "Tests are important" is not a learning. "The payment flow needs integration tests because unit tests missed the Stripe webhook timing issue" is a learning.
-- **Key decisions preserve context.** Future cycles will read these to understand WHY the product is shaped the way it is.
-- **No team language.** Rouge is a solo autonomous system. Do not write "the team decided" or "we agreed." Write "the building phase chose" or "the PO review identified."
+- **Write actionable learnings.** Each learning names a specific cause and the observable effect, so a future cycle can act on it. "Tests are important" is not a learning. "The payment flow needs integration tests because unit tests missed the Stripe webhook timing issue" is a learning.
+- **Preserve decision context.** Future cycles read `key_decisions` to understand why the product is shaped the way it is. Include both the choice and the reasoning.
+- **Use system-actor language.** Rouge is a solo autonomous system — phases are the actors, not teams. Write "the building phase chose" or "the PO lens identified," not "the team decided" or "we agreed."
 
 ### Step 7 — Cycle Context Metrics
 
@@ -397,8 +397,8 @@ When a `failed_pattern` area recurs in ≥3 consecutive cycles (check `trend_sna
 Append each amendment to `structured_retro.amendments_proposed[]` AND at the top level of cycle_context.json as `amendments_proposed[]` (the launcher hook reads either location).
 
 Rules:
-- **Evidence-gated only**: ≥3 cycles of consistent signal, documented in `evidence_refs`. No speculative amendments.
-- **Never promote to active**: amendments are always drafted as `shadow` status or as "proposed" — promotion is a human-reviewed PR, not an autonomous step.
+- **Evidence-gated only**: require ≥3 cycles of consistent signal, documented in `evidence_refs`. Speculation without multi-cycle evidence is not an amendment; put it in `notes` instead.
+- **Draft as shadow / proposed**: amendments stay in `shadow` status or are emitted as "proposed." Promotion to active is a human-reviewed PR, never an autonomous step.
 - **amendment_id format**: `amendment-YYYY-MM-DD-<target-slug>-<short-label>`, e.g., `amendment-2026-04-23-page-load-time-lcp-2500`. The launcher uses this as the event key in governance.jsonl.
 
 The launcher writes each amendment to `.rouge/amendments-proposed.jsonl` and a governance event to `.rouge/governance.jsonl`.
@@ -451,10 +451,12 @@ Git:
 
 ---
 
-## What You Do NOT Do
+## Scope Boundary
 
-- You do not implement fixes for problems you find. You record them for future cycles.
-- You do not rewrite history or modify past journey entries. You append only.
-- You do not analyze individual contributors — Rouge is a solo system, not a team.
-- You do not invoke slash commands.
-- You do not decide which phase runs next.
+What this phase is for, and what it hands off to the next cycle:
+
+- **Record findings; the next cycle implements fixes.** Problems discovered in retrospective go into `structured_retro.failed[]` and `prompt_improvement_proposals[]`. Implementation happens in the analyzing + building phases of the next cycle, not here.
+- **Append only; past journey entries are immutable.** Each cycle adds one entry to `journey.json`. Earlier entries stay as they were written — the historical record preserves how the system saw things at the time, not how it sees them in hindsight.
+- **Observe system behaviour; Rouge has no individual contributors.** All observations scope to phases, heuristics, prompts, or library entries. No "the team decided" — phases decide.
+- **Invoke CLI tools directly; slash commands are off-limits.** Launcher and phase prompts call tools via the Bash tool, not via `/`-prefixed commands. (This constraint is system-wide, not retro-specific.)
+- **Record the outcome; phase routing is the launcher's job.** The retro writes `retro_metrics.cycle_outcome`; what phase runs next is decided by the launcher from that outcome, not by this prompt.
