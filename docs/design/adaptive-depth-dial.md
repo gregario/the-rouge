@@ -143,26 +143,28 @@ Each phase reads `seed_spec.project_size` and branches deterministically. Exampl
 
 Existing projects without `project_size` default to **M** (current Rouge behavior). No retrofit; the dial affects forward projects only. The field appears in state migrations with a default.
 
-## Open questions
+## Resolved open questions (2026-04-24)
 
-1. Should TASTE or a dedicated pre-SPEC "sizing" sub-phase set the dial? TASTE is the natural extension but adds a decision to an already-busy discipline. A dedicated phase is cleaner but adds a new artifact.
+1. **Dedicated sub-phase, not TASTE extension.** Sizing is its own lightweight sub-phase running between TASTE and SPEC. Flow: BRAINSTORM → TASTE → SIZING → SPEC → INFRASTRUCTURE. Keeps TASTE focused on the product-bet question; keeps sizing decisions surfaceable as their own artifact the human can override.
 
-2. Can the dial move mid-project? A project starts S, discovers 4 more entities during spec, should it re-classify to M? Proposal: yes, but only via an explicit `[DECISION: project-size-upgrade]` marker with reasoning, and never downward during the loop (you can't un-spend on disciplines already run).
+2. **Dial can grow mid-project, never shrink.** If the loop discovers new stories that implicitly require more scope, Rouge treats that as organic growth — the size field may upgrade (S → M) via a `[DECISION: project-size-upgrade]` marker, but the already-run disciplines from the smaller tier are not re-run. What we monitor: **do S-flagged projects frequently end as M?** If yes, the classifier was missing scope at the start — tighten the rules. This signal gets logged to governance for empirical review.
 
-3. How do domain-specific profiles interact? A game at XS tier has different shape than a SaaS at XS tier. Profiles (from P0.3) orthogonal to size? Combine into a single `(profile, size)` pair or keep them as independent dials? Lean: independent; profile picks the WHAT (game / saas-webapp / static-site / artifact), size picks the HOW-DEEP.
+3. **Independent dials — profile and size are orthogonal.** Profile (from P0.3) is the load-bearing WHAT dial: it drives which rules, skills, MCPs, deploy adapters, and gotchas Rouge knows for this kind of product (static-site knows GitHub Pages must be enabled; saas-webapp knows Vercel hobby needs `--prod`; game knows itch.io deploy, etc.). Size is the HOW-DEEP dial. Phases read whichever they need, independently — not named pairs. **Profile-side intelligence is its own ongoing initiative** (P3.8 deploy adapters, P0.4 language-reviewer dispatch, skill-loading per profile) — tracked separately from this one. Concrete gotcha to capture inside P3.8: the static-site profile must know GitHub Pages requires explicit enablement before first deploy (real bug Rouge has hit).
 
-4. Classification signal collection — the classifier needs entity count / integration count / role count BEFORE SPEC runs. Does BRAINSTORM reliably produce those signals? If not, a lightweight signal-collection pass before TASTE.
+4. **Add `## Classifier Signals` block to BRAINSTORM.** Sampled two real BRAINSTORMs (construction-coordinator, stack-rank) — signals are *inferable from prose* but not parseable in any consistent shape. Rather than add an LLM extraction pass (fragile, expensive), add a structured block to BRAINSTORM's prompt template: at end of the discipline, output entity_count / integration_count / role_count / journey_count / screen_count. Five lines, zero extra LLM calls, classifier reads it deterministically.
 
-5. XL tier mentions "explicit architecture discipline (doesn't exist yet)". Scope that as a separate roadmap item or bundle into this initiative?
+5. **XL-tier architecture discipline deferred.** Issue #202 (https://github.com/gregario/the-rouge/issues/202). Build when the first XL project surfaces, not speculatively.
 
-## Implementation plan (~4-6 PRs)
+## Implementation plan (~6 PRs)
 
-1. **This doc lands + reviewed.**
-2. `schemas/seed_spec.json` adds `project_size: "XS"|"S"|"M"|"L"|"XL"` with default "M"; classifier spec added to `docs/design/`.
-3. TASTE prompt extended to emit the `[DECISION: project-size]` marker; classifier implemented as a pure module `src/launcher/project-sizer.js` with tests.
-4. Seeding swarm orchestrator reads `project_size` and skips disciplines below their `applicable_at` threshold. Every seeding discipline's prompt header declares its applicability.
-5. SPEC prompt reads `project_size`, emits tier-appropriate FA count + AC depth. Original P1.5 "iterative per-FA" path triggers only at L/XL.
-6. Budget cap + cycle-budget defaults read `project_size` unless `rouge.config.json` overrides.
+1. **This doc lands + reviewed.** ✓ 2026-04-24 (commit 07a1e4c + update).
+2. **PR 2 — Schema field + classifier module + BRAINSTORM signals.** `schemas/*` adds `project_size: "XS"|"S"|"M"|"L"|"XL"` with default "M". `src/launcher/project-sizer.js` pure module implements the classification rules from the "Dial values" section above. `src/prompts/seeding/01-brainstorming.md` extended to emit a `## Classifier Signals` block at the end of output. Tests cover classifier edges + signals-parsing.
+3. **PR 3 — SIZING sub-phase.** New `src/prompts/seeding/03b-sizing.md` (or equivalent number — slots between TASTE at 03 and SPEC at 04). Lightweight: reads BRAINSTORM signals + TASTE output, calls `project-sizer.js`, emits `[DECISION: project-size]` with reasoning, presents a single hard gate for human override. Contract test updated for the new discipline count.
+4. **PR 4 — Swarm orchestrator skip-by-tier.** Each seeding discipline prompt header declares its `applicable_at` (e.g. `applicable_at: ["S+"]`). Orchestrator reads `seed_spec.project_size` and skips disciplines below threshold. Test: XS project runs 4 disciplines; XL project runs all.
+5. **PR 5 — SPEC tier-aware depth.** SPEC prompt reads `project_size`, emits tier-appropriate FA count + AC depth. Original P1.5 "iterative per-FA" path activates only at L/XL with a mandatory cross-cut pass.
+6. **PR 6 — Budget / cycle defaults by tier.** `rouge.config.json` budget cap + loop cycle budget defaults read `project_size` unless explicit override. Governance logs the (tier, actual-spend) pair per project for later calibration of the default-cap table.
+
+Test strategy (across PRs): run Rouge's test harness against two fixture projects — "calculator" (XS) and "planning-windows" (L) — and verify classification lands correctly, disciplines are correctly skipped/run, spec shape differs, budget differs.
 
 Test strategy: run Rouge (or a mock thereof) against two fixture projects — "calculator" (XS) and "planning-windows" (L) — and verify classification lands correctly, disciplines are correctly skipped/run, spec shape differs, budget differs.
 
