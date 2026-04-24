@@ -31,7 +31,7 @@ From the project root:
 
 ## Pre-checks
 
-Before doing ANYTHING, run two independent gates. If either blocks, stop — do not attempt partial promotion.
+Before doing anything else in this phase, run two independent gates in order. If either blocks, stop and exit — partial promotion is never valid.
 
 ### Gate 1 — escalation / human-review short-circuit
 
@@ -68,7 +68,7 @@ Read `review_readiness_dashboard` and confirm every required gate passed:
 4. `security_review.passed === true`
 5. `po_review.passed === true`
 
-If ANY gate shows `false` or `null`, STOP. Write an error to `cycle_context.json`:
+If any gate shows `false` or `null`, stop. Write an error to `cycle_context.json`:
 
 ```json
 {
@@ -92,7 +92,7 @@ Optional gates (may be `null` if not applicable to this project):
 
 Before creating the PR, review the git log on the loop branch. Each commit should represent one logical change. If you find commits that bundle unrelated changes:
 
-1. Note them in the PR body as a quality observation — do NOT rewrite history at this point.
+1. Note them in the PR body as a quality observation — history stays as-is at this point (rewriting commits mid-ship loses the audit trail for a cycle already QA'd against the existing commits).
 2. For future cycles, this observation propagates back to the building phase via `cycle_context.json`.
 
 The goal is awareness and improvement over time, not blocking the ship.
@@ -175,7 +175,7 @@ Create a PR from the loop branch to `main` using `gh pr create` (structure defin
 
 ### Step 6 — Promote to Production
 
-Execute the production deployment. Read `infrastructure_manifest.json` (or `vision.json.infrastructure.deployment_target`) to determine the platform. Do NOT assume Cloudflare — the project may deploy to Vercel, Docker Compose, or another target.
+Execute the production deployment. Read `infrastructure_manifest.json` (or `vision.json.infrastructure.deployment_target`) to determine the platform — each project names its own target, so a default assumption (Cloudflare, Vercel, anything) will be wrong for many projects.
 
 - **Cloudflare Workers** (`deployment_target: "cloudflare"` or `"cloudflare-workers"`): Run `npx wrangler deploy` to promote to production. Verify with `curl -s -o /dev/null -w "%{http_code}" <production-url>`.
 - **Vercel** (`deployment_target: "vercel"`): Run `npx vercel deploy --yes --prod`. Verify the stable project URL responds with 200.
@@ -190,12 +190,12 @@ Execute the production deployment. Read `infrastructure_manifest.json` (or `visi
 - **None** (`deployment_target: "none"`): Non-web deliverable (CLI tool, MCP server, library). Skip deploy; the ship step is whatever makes the artifact consumable (npm publish, binary release, etc.). If no distribution path is configured, ESCALATE.
 - **Other platforms**: Read the deployment pattern from the integration catalogue (`library/integrations/`) and execute accordingly. If no pattern exists for the target, ESCALATE — do not improvise a deploy command.
 
-**CRITICAL: If promotion fails, do NOT retry automatically.** Production deployments that fail may leave the system in an inconsistent state. On failure:
+**Failed promotions escalate; they do not auto-retry or auto-rollback.** A failed production deploy may have partially applied, so re-running blindly can worsen the inconsistent state. On failure:
 
 1. Log the error details to `cycle_context.json` under `ship_error`.
 2. Set `escalation_needed: true` with the error details.
-3. Do NOT attempt rollback automatically — a failed deploy may or may not have partially applied.
-4. Exit. The launcher will handle escalation.
+3. Leave rollback for the escalation path — a failed deploy's partial state is a human decision, not an autonomous one.
+4. Exit. The launcher handles escalation and rollback via the vendor handler in `library/vendors/<vendor>/handler.js`.
 
 ### Step 7 — Update Infrastructure State
 
@@ -261,11 +261,13 @@ Git:
 
 ---
 
-## What You Do NOT Do
+## Scope Boundary
 
-- You do not skip pre-checks. All review gates must pass.
-- You do not retry failed production deployments. One attempt, then escalate.
-- You do not invoke slash commands (/ship, /qa, etc.).
-- You do not decide which phase runs next.
-- You do not rewrite git history on the loop branch.
-- You do not promote if any review gate is missing or failed.
+What this phase is for, and what it hands off elsewhere:
+
+- **Run both pre-checks before any ship work.** Gate 1 (escalation / human-review short-circuit) and Gate 2 (review readiness dashboard) both run, in order, before any version bump or deploy. A missing or failed gate blocks promotion — no partial shipping, no "most gates passed so ship."
+- **One production-deploy attempt per cycle; failure escalates.** Failed deploys go to escalation with the error details; the launcher routes rollback via the vendor handler. Re-attempting in the same cycle from this prompt is out of scope.
+- **Invoke CLI tools directly; slash commands are off-limits.** System-wide constraint — launcher and prompts call tools via the Bash tool, not via `/ship` / `/qa` / etc.
+- **Record the outcome; phase routing is the launcher's job.** Write `ship_result` (or `ship_error` / `ship_blocked`); the launcher transitions to the next state based on that output.
+- **Promote from the existing loop-branch history; don't rewrite commits.** QA and review gates ran against the current commits, so a rewrite invalidates the audit trail from those gates. Bundled-commit observations stay in the PR body.
+- **Promote only when every required gate passed.** If `review_readiness_dashboard` has any required gate at `false` or `null`, or if `analysis_recommendation` is `notify-human`/`rollback`, exit without shipping. This is the Gate-1/Gate-2 contract restated.
