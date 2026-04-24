@@ -1,0 +1,111 @@
+id: pusher-presence-channel
+name: Pusher Presence Channel (Online-User Tracking)
+tier: 3
+service: pusher
+category: realtime
+tags:
+  - realtime
+  - presence
+  - websockets
+  - online-users
+  - auth-endpoint
+description: >
+  Presence channels on Pusher — like private channels (server-
+  authorised subscription) but Pusher also maintains a per-channel
+  roster of who's subscribed and exposes it to all members. Used
+  for "who's online in this document", "who's in the chat", and
+  collaborative-cursor features where every client needs to know
+  the full member list. Two-piece setup: server auth endpoint that
+  verifies the session and returns an auth signature + user info;
+  client subscribes to `presence-*` channels and reacts to
+  subscription_succeeded / member_added / member_removed events.
+applies_when: >
+  Product has a realtime feature where clients need a live list of
+  other active users in the same context — document editors, chat,
+  game lobbies, collaborative whiteboards, live dashboards with
+  "watching" badges. Required when simple pub-sub (private
+  channels) isn't enough because the UI shows "N people here" or
+  renders avatars of active participants. Skip this pattern for
+  one-way notifications, broadcast-only flows, or "just push
+  updates to subscribed clients" — private channels are simpler and
+  don't incur the presence-roster overhead.
+
+requires:
+  packages:
+    - "pusher"
+    - "pusher-js"
+  env_vars:
+    - PUSHER_APP_ID
+    - PUSHER_KEY
+    - PUSHER_SECRET
+    - PUSHER_CLUSTER
+    - NEXT_PUBLIC_PUSHER_KEY
+    - NEXT_PUBLIC_PUSHER_CLUSTER
+
+code_patterns:
+  - file: lib/pusher/server.ts
+    description: >
+      Server-side Pusher client — `import Pusher from 'pusher';
+      export const pusherServer = new Pusher({ appId: process.env.
+      PUSHER_APP_ID, key: process.env.PUSHER_KEY, secret: process.
+      env.PUSHER_SECRET, cluster: process.env.PUSHER_CLUSTER,
+      useTLS: true })`. Used for `trigger()` (publish) and
+      `authorizeChannel()` (sign subscriptions).
+  - file: app/api/pusher/auth/route.ts
+    description: >
+      Presence-channel auth endpoint. Reads `socket_id` and
+      `channel_name` from the form-encoded request body, verifies
+      the session (must be signed-in — 403 otherwise), composes
+      `presenceData = { user_id: session.user.id, user_info: { name,
+      avatar_url } }`, and returns `pusherServer.authorizeChannel(
+      socket_id, channel_name, presenceData)`. Only channels whose
+      name starts with `presence-` go through this path;
+      `private-` channels use the same endpoint but omit
+      presenceData.
+  - file: lib/pusher/client.ts
+    description: >
+      Client-side Pusher instance with the channel-auth endpoint
+      wired — `const pusher = new Pusher(NEXT_PUBLIC_PUSHER_KEY, {
+      cluster: NEXT_PUBLIC_PUSHER_CLUSTER, channelAuthorization: {
+      endpoint: '/api/pusher/auth', transport: 'ajax' } })`. The
+      client automatically POSTs to the endpoint when a subscription
+      to a private- or presence- channel is requested.
+  - file: components/presence-list.tsx
+    description: >
+      Client component that subscribes to a `presence-<resourceId>`
+      channel and renders the current member list. Binds to
+      `pusher:subscription_succeeded` (initial snapshot — enumerate
+      channel.members.each(m => ...)), `pusher:member_added`
+      (append), and `pusher:member_removed` (remove). Unsubscribes
+      in useEffect cleanup to release the connection slot.
+  - file: components/presence-cursors.tsx
+    description: >
+      Extension of the presence-list pattern — each member publishes
+      their cursor position via `channel.trigger('client-cursor',
+      { x, y })` (client events, cheaper than server-triggered);
+      other clients receive and render the cursor overlay keyed by
+      member_id. Enable client events in the Pusher app settings
+      before using.
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+scale_considerations: >
+  Each concurrent Pusher connection counts against the plan's
+  concurrent-connection cap (100 on free). Presence channels have
+  a hard cap of 100 members per channel on all plans — for larger
+  rooms, shard into multiple channels or use a non-presence
+  architecture (periodic roster poll). Channel-auth endpoint gets
+  hit once per subscription attempt; if the app has many presence
+  channels per user, cache the session lookup or the auth endpoint
+  becomes a hot path. Client events (client-*) don't count toward
+  the server-messages-per-day quota but require them to be enabled
+  in the Pusher app settings (off by default). Enabling client
+  events removes the server's ability to throttle publish-rate
+  per-user — pair with a client-side rate limiter if users could
+  spam (cursor updates throttled to 30/sec, chat messages to
+  10/sec). Disconnect cleanup is the common bug — forgetting to
+  `unsubscribe()` or `disconnect()` in component teardown leaks
+  connections and burns through the concurrent cap during dev;
+  always clean up in useEffect return.

@@ -1,0 +1,107 @@
+id: workos-authkit-nextjs
+name: WorkOS AuthKit + Next.js App Router
+tier: 3
+service: workos
+category: authentication
+tags:
+  - auth
+  - enterprise-sso
+  - nextjs
+  - middleware
+  - app-router
+description: >
+  Next.js App Router authentication using @workos-inc/authkit-nextjs.
+  authkitMiddleware handles the OAuth callback, session refresh, and
+  sign-in redirect; withAuth() reads the authenticated user in
+  server components; server-side helpers wrap organization /
+  connection metadata so B2B routing decisions (which org is this
+  user in? which SSO provider do they use?) are one call. Pairs
+  consumer auth (AuthKit free to 1M MAU) with enterprise SSO /
+  SCIM through the same code path — the difference is the customer's
+  WorkOS configuration, not the app.
+applies_when: >
+  Next.js product needs both consumer auth and enterprise SSO on the
+  same app, with server-rendered authenticated content. Required for
+  B2B SaaS that sells both to individuals (email/password, social)
+  and to companies (SAML, OIDC, SCIM). Skip this pattern if only
+  consumer auth is needed — Clerk is simpler and cheaper for that
+  case. Skip also if only enterprise SSO is needed without
+  consumer — a lighter-weight OIDC library suffices.
+
+requires:
+  packages:
+    - "@workos-inc/node"
+    - "@workos-inc/authkit-nextjs"
+  env_vars:
+    - WORKOS_API_KEY
+    - WORKOS_CLIENT_ID
+    - WORKOS_REDIRECT_URI
+    - WORKOS_COOKIE_PASSWORD
+
+code_patterns:
+  - file: middleware.ts
+    description: >
+      Exports `authkitMiddleware()` from @workos-inc/authkit-nextjs
+      as the default Next.js middleware. Pass `{ middlewareAuth: {
+      enabled: true, unauthenticatedPaths: ['/sign-in', '/'] } }` to
+      automatically redirect unauthenticated users to sign-in for
+      every other path, or leave disabled and gate routes
+      individually with `ensureSignedIn: true` on withAuth() calls.
+      matcher config scopes middleware to routes that need it.
+  - file: app/callback/route.ts
+    description: >
+      OAuth callback endpoint that completes the authorization-code
+      flow. Exports a GET handler imported from
+      @workos-inc/authkit-nextjs (`export { handleAuth as GET }`).
+      The redirect_uri configured in WorkOS must point here
+      (`WORKOS_REDIRECT_URI=https://app.example.com/callback`).
+  - file: app/(authenticated)/layout.tsx
+    description: >
+      Server-component layout for authenticated routes. Calls
+      `const { user, organizationId } = await withAuth({
+      ensureSignedIn: true })` which redirects to sign-in if the
+      session is absent. The returned user has profile fields
+      (first_name, last_name, email, profile_picture_url); the
+      organizationId is present when the user authenticated via an
+      enterprise SSO connection tied to an org.
+  - file: lib/workos/server.ts
+    description: >
+      Server-side WorkOS SDK client. `import { WorkOS } from
+      '@workos-inc/node'; export const workos = new
+      WorkOS(process.env.WORKOS_API_KEY)`. Used alongside withAuth()
+      for admin operations the AuthKit package doesn't expose —
+      listing organizations, managing SCIM directory users,
+      querying audit logs, generating the admin-portal link to send
+      to enterprise customers for self-service SAML setup.
+  - file: app/api/organizations/[id]/admin-portal/route.ts
+    description: >
+      Generates a self-service admin-portal link scoped to one
+      organization — `await workos.portal.generateLink({
+      organization, intent: 'sso' | 'dsync' | 'audit_logs',
+      returnUrl })`. The link is valid for 5 minutes and lets the
+      customer's IT team configure their IdP without the support
+      team mediating. Intent: 'sso' for SAML setup, 'dsync' for
+      SCIM, 'audit_logs' for log access.
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+scale_considerations: >
+  AuthKit verification calls run on every middleware-matched request
+  — keep matcher tight (exclude _next/_, static assets, webhook
+  routes) or every page load pays the session round-trip. WorkOS
+  caches session verification on the edge; first request after
+  session change still validates end-to-end. The WORKOS_COOKIE_
+  PASSWORD must be ≥32 characters and rotated carefully —
+  rotating invalidates every live session. For Cloudflare
+  Workers / Vercel Edge runtimes, authkitMiddleware works
+  unchanged; for Node.js-only adapters the package name is the
+  same but the middleware shape differs slightly. SCIM
+  provisioning webhooks hit your app as HTTP POST — add a
+  dedicated /api/workos/webhooks route that verifies the
+  webhook signature via `workos.webhooks.verifyHeader()` before
+  processing user.created / group.updated / etc. events. Per-
+  connection pricing ($125/ea) makes matching connections to
+  real customers important — don't let test/staging connections
+  accumulate unconsumed.

@@ -1055,7 +1055,8 @@ We stop working on a roadmap item and come back if:
 | `9a5748a` | P4.1 fix — cross-checked tier-2 catalogue against vendor docs; corrected six of eight entries (Clerk MAU understated 10k→50k, Neon compute/PITR overstated, Sentry 10k transactions → 5M spans metric change, Counterscale install method changed to CLI wizard, PostHog surveys/replays counts, Resend broadcast contacts) |
 | `374e8d4` | P4.1 wave 2 — eight more tier-2 entries: Upstash, OpenAI, Anthropic, Plausible, Cloudflare R2/KV/D1, Vercel Blob. Catalogue doubled (8 → 16). Three new categories (llm-api, object-storage, cache-queue). |
 | `e53abbb` | P4.1 wave 3 — four tier-3 patterns for the new tier-2 services (neon-drizzle-migrations, clerk-nextjs-middleware, resend-react-email-send, posthog-feature-flag-server) + tier-3 schema test (91 assertions covering all 9 existing + new patterns; enforces service-id references a real tier-2 entry) |
-| _next_ | P4.1 wave 4 — seven more tier-2 entries (Inngest, WorkOS, Twilio, Cloudinary, Pusher, Vercel Edge Config, Mux). Catalogue 16→23. Four new categories (workflow-queue, communications, media, realtime, video). |
+| `5992930` | P4.1 wave 4 — seven more tier-2 entries (Inngest, WorkOS, Twilio, Cloudinary, Pusher, Vercel Edge Config, Mux). Catalogue 16→23. |
+| _next_ | P4.1 wave 5 — six tier-3 patterns for the wave-4 services (inngest-step-workflow, workos-authkit-nextjs, twilio-verify-otp, cloudinary-signed-upload-widget, pusher-presence-channel, mux-upload-and-playback). Tier-3 patterns 9→15; 151 schema assertions. |
 
 **Memory work this session:**
 

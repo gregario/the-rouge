@@ -1,0 +1,94 @@
+id: inngest-step-workflow
+name: Inngest Multi-Step Durable Workflow
+tier: 3
+service: inngest
+category: background-jobs
+tags:
+  - workflows
+  - durable-execution
+  - background-jobs
+  - step-functions
+  - event-driven
+description: >
+  Canonical multi-step Inngest function that survives restarts,
+  retries per-step, and orchestrates long-running flows (sleep days,
+  wait for user event, branch on DB state). Each step.run / step.sleep
+  / step.waitForEvent is a durable checkpoint — if the function
+  restarts mid-flow, completed steps are not re-executed. Models the
+  "signup → wait 3 days → check active → send onboarding email"
+  flow that every B2C product eventually needs.
+applies_when: >
+  Product needs long-running or event-driven workflows where restarts,
+  retries, or multi-day sleeps would break a naive setTimeout / cron
+  approach. Required when the business logic spans more than one
+  event (e.g. trial expiry, abandoned-cart, billing reconciliation,
+  multi-step onboarding). Skip this pattern for simple fire-and-
+  forget jobs — a plain queue is lighter weight.
+
+requires:
+  packages:
+    - "inngest"
+  env_vars:
+    - INNGEST_EVENT_KEY
+    - INNGEST_SIGNING_KEY
+
+code_patterns:
+  - file: src/inngest/client.ts
+    description: >
+      Shared Inngest client singleton — `export const inngest = new
+      Inngest({ id: 'my-app' })`. Consumed by every function file and
+      by the `/api/inngest` route. The id is the app slug Inngest
+      uses for function registration.
+  - file: src/inngest/functions/onboarding.ts
+    description: >
+      Multi-step function triggered by `event: 'user/signup'`. Uses
+      `step.run('load-user', ...)` to cache the DB lookup so retries
+      don't re-query; `step.sleep('wait-3-days', '3d')` for the
+      delay (durable — function can be redeployed during the sleep);
+      `step.run('check-active', ...)` to query current state;
+      `step.waitForEvent('cancel-onboarding', { timeout: '1h', match:
+      'data.userId' })` for a race between "user reactivated" and a
+      timeout; finally branches and calls `step.run('send-email',
+      ...)` based on accumulated state.
+  - file: src/inngest/functions/abandoned-cart.ts
+    description: >
+      Second function illustrating the waitForEvent + fan-out pattern.
+      Triggered on `cart/abandoned`, waits up to 24h for `cart/
+      checked-out`, and if the checkout event never arrives sends
+      the reminder email. Demonstrates how to match incoming events
+      to the in-flight function via the `match` field (typically the
+      user or cart id).
+  - file: app/api/inngest/route.ts
+    description: >
+      Next.js App Router route that exposes the Inngest SDK handler.
+      `import { serve } from 'inngest/next'; import { inngest } from
+      '@/src/inngest/client'; import { onboarding, abandonedCart }
+      from '@/src/inngest/functions'; export const { GET, POST, PUT
+      } = serve({ client: inngest, functions: [onboarding,
+      abandonedCart] })`. This is how Inngest discovers the
+      functions after deploy.
+  - file: src/inngest/send-event.ts
+    description: >
+      Thin wrapper around `inngest.send({ name, data })` called from
+      business code to trigger workflows. Typed envelope so callers
+      get compile-time errors when event names or data shapes
+      mismatch the function definitions.
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+scale_considerations: >
+  Each step.run / step.sleep / step.waitForEvent counts as one
+  execution against the 50K/month free cap — so a function with 5
+  steps = 5 executions per invocation. Budget accordingly. Sleeps
+  don't count against concurrent-step cap (they're parked), but the
+  step that wakes up after the sleep does. waitForEvent's `match`
+  uses a JSONPath-like expression — test the match string against
+  the trigger event's payload before deploying or the function will
+  never resume. For long sleeps (> 1 day), prefer step.sleep over
+  manual scheduling; Inngest persists sleep state and rehydrates
+  the function when the timer fires even across app redeploys. For
+  high-throughput event ingestion (> 1k events/sec), Inngest's
+  concurrency cap (5 steps on free) becomes the bottleneck — either
+  upgrade to Pro or batch events into single function invocations.

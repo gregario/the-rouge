@@ -1,0 +1,114 @@
+id: cloudinary-signed-upload-widget
+name: Cloudinary Signed Upload Widget (browser-direct)
+tier: 3
+service: cloudinary
+category: media
+tags:
+  - uploads
+  - signed-uploads
+  - media
+  - react
+  - browser-direct
+description: >
+  Browser-direct file uploads to Cloudinary using the Upload Widget
+  with server-issued signatures. Server generates a short-lived
+  signature scoped to specific upload parameters (folder, tags,
+  transformations) and hands it to the browser; the widget POSTs
+  the file directly to Cloudinary, bypassing the app server
+  entirely. Avoids routing bytes through the Function — critical
+  for large media uploads where Function body-size limits and
+  serverless-runtime duration caps would otherwise break the flow.
+applies_when: >
+  Product accepts user-uploaded images or videos — avatars,
+  product photos, post attachments — and the files could be
+  larger than a few hundred KB. Required when deploy target is
+  serverless (Vercel Functions, Cloudflare Workers) because body-
+  size limits (Vercel Hobby 4.5MB, Workers 100MB request body
+  but 10ms CPU free) make proxying uploads through the app
+  non-viable at scale. Skip this pattern for admin-only tiny-image
+  uploads where a server-side `cloudinary.uploader.upload()` call
+  is simpler.
+
+requires:
+  packages:
+    - "cloudinary"
+    - "next-cloudinary"
+  env_vars:
+    - CLOUDINARY_CLOUD_NAME
+    - CLOUDINARY_API_KEY
+    - CLOUDINARY_API_SECRET
+    - NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+    - NEXT_PUBLIC_CLOUDINARY_API_KEY
+
+code_patterns:
+  - file: app/api/cloudinary/sign/route.ts
+    description: >
+      Server endpoint that issues a signature for an upload.
+      Authenticates the caller (user must be signed in), composes
+      the params the widget will send (folder, tags, transformations,
+      source='uw' — required hidden param for widget uploads),
+      signs via `cloudinary.utils.api_sign_request(params,
+      CLOUDINARY_API_SECRET)`, and returns `{ signature, timestamp,
+      apiKey, cloudName }`. The signature is short-lived — the
+      widget uses it once per upload.
+  - file: components/upload-widget.tsx
+    description: >
+      Client component that renders the Cloudinary Upload Widget.
+      Uses `<CldUploadWidget>` from next-cloudinary with
+      `signatureEndpoint="/api/cloudinary/sign"` so the widget
+      automatically fetches a fresh signature per upload. Configures
+      allowed resource types, max file size, and UI sources (local
+      / camera / Unsplash / Google Drive). onSuccess callback
+      receives the upload result with public_id, secure_url, and
+      format.
+  - file: lib/cloudinary/server.ts
+    description: >
+      Server-side Cloudinary SDK config — `import { v2 as
+      cloudinary } from 'cloudinary'; cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME, api_key:
+      process.env.CLOUDINARY_API_KEY, api_secret: process.env.
+      CLOUDINARY_API_SECRET, secure: true })`. Singleton; every
+      server-side upload / sign / admin call imports this.
+  - file: lib/cloudinary/upload-preset.ts
+    description: >
+      Optional — defines a named upload preset (server-side) that
+      bundles default transformations, folder, tags, allowed
+      formats. Upload presets are managed via the Cloudinary
+      dashboard or the Admin API; referencing them by name in the
+      widget keeps the client code simple and lets media policy
+      change without a redeploy.
+  - file: components/image-display.tsx
+    description: >
+      Companion component that renders uploaded images via
+      `<CldImage>` from next-cloudinary — auto-applies f_auto,q_auto,
+      responsive srcset, blurhash placeholder, and lazy loading.
+      Props accept a public_id (from the upload result) and
+      transformation overrides. Complements the upload widget by
+      closing the loop — uploaded assets render optimised without
+      a separate pipeline.
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+scale_considerations: >
+  The widget's signed-upload path is a browser-to-Cloudinary PUT
+  with no size cap from the app server — the app only signs a few
+  hundred bytes. Very large uploads (>100MB) still use
+  chunked/resumable uploads under the hood; the widget handles
+  this transparently. Each upload consumes one transformation
+  credit (Cloudinary counts the initial optimisation as a
+  transformation unless the asset is uploaded raw). At scale,
+  enable `unsigned` upload presets for public-class assets
+  (avatars) to skip the signature round-trip — trading off some
+  abuse risk for lower latency. For private / paywalled media,
+  always use signed uploads + delivery. Signature timestamps are
+  valid for 1 hour by default — widgets re-fetch automatically,
+  but cache the signature locally only briefly. If users uploading
+  on slow connections see frequent "signature expired" errors,
+  reduce client-side caching to near-zero and always use the
+  function-signature pattern over string-signature. Delete orphan
+  uploads regularly — abandoned uploads (user closed tab mid-
+  upload) still consume storage credit. A nightly prune job that
+  deletes uploads with no corresponding DB record keeps storage
+  bills sane.

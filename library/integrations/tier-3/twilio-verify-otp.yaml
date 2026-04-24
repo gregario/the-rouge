@@ -1,0 +1,107 @@
+id: twilio-verify-otp
+name: Twilio Verify OTP Flow
+tier: 3
+service: twilio
+category: authentication
+tags:
+  - otp
+  - phone-verification
+  - two-factor
+  - sms
+  - verify
+description: >
+  Phone-number verification using Twilio Verify — a purpose-built
+  OTP service that handles code generation, delivery (SMS / voice /
+  WhatsApp / email), TTL, retries, and rate limiting. Two-endpoint
+  flow: server calls Verify.create to send a code; user enters the
+  code; server calls Verify.check to validate. Replaces the
+  classic "generate 6-digit code, store in Redis with 5-min TTL,
+  send via Messaging API" pattern with a single SDK call that gets
+  every edge case right — including carrier-specific deliverability,
+  SNA (silent-network-auth for eligible carriers), and per-IP rate
+  limits.
+applies_when: >
+  Product needs to verify a user owns a phone number (signup flow,
+  MFA, password recovery, high-value transaction confirmation).
+  Required when SMS-based OTP is the auth method or fallback. Skip
+  this pattern for TOTP-only flows (Google Authenticator) — use a
+  library like otpauth instead; Verify is for when the code travels
+  over SMS / voice / email. Cost is $0.05/verification — if volume
+  exceeds ~10K/month, evaluate rolling a custom solution on Twilio
+  Messaging ($0.0083/SMS) with your own state store.
+
+requires:
+  packages:
+    - "twilio"
+  env_vars:
+    - TWILIO_ACCOUNT_SID
+    - TWILIO_AUTH_TOKEN
+    - TWILIO_VERIFY_SERVICE_SID
+
+code_patterns:
+  - file: lib/twilio/client.ts
+    description: >
+      Server-side Twilio client singleton — `import twilio from
+      'twilio'; export const twilioClient = twilio(process.env.
+      TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)`. Reads
+      env vars on module init; fails fast if missing.
+  - file: app/api/auth/phone/send-code/route.ts
+    description: >
+      Creates a verification attempt — `await twilioClient.verify.v2.
+      services(process.env.TWILIO_VERIFY_SERVICE_SID).verifications.
+      create({ to: phoneNumber, channel: 'sms' })`. Channel can be
+      'sms' / 'call' / 'email' / 'whatsapp' / 'sna' / 'auto' (tries
+      SNA first, falls back to SMS). Returns the verification SID
+      and status. Rate-limit protection — ensure the caller is
+      authenticated or IP-rate-limited before calling; Verify itself
+      rate-limits duplicates per phone number but does not protect
+      against a spam enumeration attack on random numbers.
+  - file: app/api/auth/phone/check-code/route.ts
+    description: >
+      Validates the user-entered code — `await twilioClient.verify.
+      v2.services(serviceSid).verificationChecks.create({ to:
+      phoneNumber, code })`. Returns `status: 'approved' | 'pending'
+      | 'canceled' | 'expired'`. Approved = valid; anything else =
+      invalid. On approved, update the user record (verified_at =
+      now(), phone_verified = true) and issue the authenticated
+      session.
+  - file: lib/twilio/verify-service-bootstrap.ts
+    description: >
+      One-time bootstrap script that creates the Verify Service
+      (the scoped config container) — `await twilioClient.verify.
+      v2.services.create({ friendlyName: 'my-app-otp' })`. Capture
+      the returned `sid` and store in TWILIO_VERIFY_SERVICE_SID. Run
+      once per environment; Verify services are the permission
+      boundary for rate-limit tuning, code length, and delivery-
+      channel allowlist.
+  - file: app/(auth)/verify-phone/page.tsx
+    description: >
+      Client-side UI — phone-number input with E.164 formatter,
+      send-code button, OTP-input component (6 digits by default),
+      resend-code button gated to once-per-30-seconds. On submit,
+      POSTs to /api/auth/phone/check-code and renders the pending
+      state until the response. Handles the "expired" state by
+      re-sending automatically and showing a "new code sent"
+      notice.
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+scale_considerations: >
+  Verify pricing is $0.05/verification regardless of channel — sms /
+  voice / email all cost the same on Verify. Raw Twilio Messaging
+  SMS costs ~$0.008/msg, so at > 10K verifications/mo rolling your
+  own OTP store saves real money; below that, Verify's edge-case
+  coverage (delivery retries, SNA, per-carrier tuning) is worth
+  more than the premium. US phone numbers require A2P 10DLC
+  Brand + Campaign registration for production SMS — Verify
+  traffic goes through Twilio's shared carrier agreements so A2P
+  registration isn't strictly required, but throughput caps
+  apply. For high-volume products, register 10DLC anyway to
+  avoid Verify's shared-pool throttling. Abuse protection is the
+  main operational concern: add a server-side rate limiter
+  (Upstash + @upstash/ratelimit) in front of /send-code that caps
+  per-IP to ~3/hour and per-phone-number to ~5/day; Twilio's own
+  rate limits are conservative but won't stop a sophisticated
+  enumeration attack.

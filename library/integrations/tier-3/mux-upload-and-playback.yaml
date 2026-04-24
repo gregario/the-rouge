@@ -1,0 +1,125 @@
+id: mux-upload-and-playback
+name: Mux Direct Upload + Signed Playback
+tier: 3
+service: mux
+category: video
+tags:
+  - video
+  - upload
+  - streaming
+  - signed-urls
+  - webhooks
+description: >
+  End-to-end Mux flow — server creates a direct-upload URL, browser
+  PUTs the video file straight to Mux (bypassing the app server),
+  Mux transcodes asynchronously, a webhook notifies the app when
+  the asset is ready, and the app stores the playback_id. For
+  paywalled content, playback uses signed JWT tokens generated per-
+  viewer; for public videos, the playback_id is embedded in the
+  Mux Player directly. Uses the passthrough field to correlate Mux
+  webhooks back to the app's database rows — the one piece every
+  first-time Mux integration gets wrong.
+applies_when: >
+  Product uploads user-generated or editor-authored video and needs
+  reliable transcoding + adaptive-bitrate delivery. Required when
+  videos are > 100MB (can't proxy through serverless Functions) or
+  when the product serves video to end users on varying network
+  conditions (ABR streaming needs proper HLS manifests + multi-
+  quality renditions). Skip this pattern for "just host a short
+  clip on public storage" use cases — Cloudflare R2 or Vercel Blob
+  with a plain <video> tag is simpler. Skip also for live streaming
+  — Mux supports it but the tier-2 free plan doesn't.
+
+requires:
+  packages:
+    - "@mux/mux-node"
+    - "@mux/mux-player-react"
+  env_vars:
+    - MUX_TOKEN_ID
+    - MUX_TOKEN_SECRET
+    - MUX_WEBHOOK_SECRET
+    - MUX_SIGNING_KEY_ID
+    - MUX_SIGNING_KEY_PRIVATE
+    - NEXT_PUBLIC_MUX_ENV_KEY
+
+code_patterns:
+  - file: lib/mux/server.ts
+    description: >
+      Server-side Mux SDK singleton — `import Mux from '@mux/mux-
+      node'; export const mux = new Mux()`. Reads MUX_TOKEN_ID and
+      MUX_TOKEN_SECRET from env automatically. Exposes
+      `mux.video.uploads`, `mux.video.assets`, and `mux.webhooks`
+      namespaces.
+  - file: app/api/mux/upload-url/route.ts
+    description: >
+      Creates a direct-upload URL — `const upload = await mux.video.
+      uploads.create({ cors_origin: origin, new_asset_settings: {
+      playback_policy: ['signed'], passthrough: videoRowId,
+      video_quality: 'basic' } })`. Returns `{ uploadId: upload.
+      id, uploadUrl: upload.url }` — the browser PUTs the file to
+      uploadUrl. passthrough is critical: set it to the DB row id
+      so the webhook can find the row. playback_policy: ['signed']
+      for paywalled, ['public'] for freely-accessible.
+  - file: components/video-upload.tsx
+    description: >
+      Client component that requests an upload URL from the app,
+      then PUTs the file directly to Mux with progress tracking.
+      Uses XMLHttpRequest or fetch with a ReadableStream for
+      progress; on success, inserts a DB row with status='uploading'
+      and the Mux upload id. The row flips to 'ready' when the
+      webhook lands (below).
+  - file: app/api/mux/webhooks/route.ts
+    description: >
+      Webhook receiver. Verifies the signature with `mux.webhooks.
+      unwrap(bodyText, req.headers, process.env.MUX_WEBHOOK_SECRET)`
+      which throws on tamper. On `video.asset.created`, grab the
+      upload.id and mark the row as 'processing' with the asset_id
+      and passthrough. On `video.asset.ready`, update the row with
+      status='ready', playback_id, duration, and aspect_ratio. On
+      `video.asset.errored`, mark status='failed' and surface the
+      error in the UI. Idempotent — webhooks can fire twice; upsert
+      rather than insert.
+  - file: lib/mux/signed-playback.ts
+    description: >
+      Generates a JWT signed playback token — `jwt.sign({ sub:
+      playbackId, aud: 'v' /* video */, exp: Math.floor(Date.now()
+      / 1000) + 3600 }, MUX_SIGNING_KEY_PRIVATE, { algorithm:
+      'RS256', keyid: MUX_SIGNING_KEY_ID })`. Token is valid for
+      1 hour; refresh client-side via a /api/mux/playback-token
+      endpoint that checks the viewer's access right before issuing.
+      For thumbnails + storyboards, generate separate tokens with
+      aud: 't' and aud: 's' respectively.
+  - file: components/video-player.tsx
+    description: >
+      `<MuxPlayer>` wrapper that handles both public and signed
+      playback. For signed: passes `playback-id={playbackId}
+      playback-token={token} thumbnail-token={thumbToken}
+      storyboard-token={storyTkn}`. For public: just passes
+      `playback-id`. Also passes `env-key={NEXT_PUBLIC_MUX_ENV_KEY}`
+      so Mux Data captures playback events (QoS, buffering,
+      errors) automatically without extra wiring.
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+scale_considerations: >
+  Uploads bypass the app server, so Function body-size limits
+  don't apply — the app handles ~200 bytes of signature work per
+  upload. Transcoding is asynchronous and usually completes in
+  seconds-to-minutes depending on source quality; show a "processing"
+  UI state and poll the DB or use Mux's ready webhook to flip to
+  "ready". Webhook idempotency is mandatory — Mux retries failed
+  webhooks with exponential backoff for 24 hours, so upsert by
+  (mux_asset_id, event_type) rather than insert. The 100K-delivery-
+  minutes free cap ≈ 16 hours of continuous streaming to 100
+  viewers per hour; for on-demand catalogue-style products, free
+  tier lasts until a few thousand active viewers. Signed-URL
+  tokens should be short-lived (1h) and re-issued per video-start
+  — long-lived tokens shared across sessions defeat the paywall.
+  The passthrough field is limited to 255 chars — encode a
+  compact reference (videoRowId or a hash) rather than full
+  metadata. Mux Player's env-key enables Data (QoS analytics) and
+  is free up to each paid plan's Data allowance; skipping Mux
+  Data means missing the debugging tool you'll want the first
+  time playback breaks.
