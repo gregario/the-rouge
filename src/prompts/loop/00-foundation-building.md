@@ -121,7 +121,7 @@ When `infrastructure_manifest.json.deploy.target` (or `vision.json.infrastructur
 
 5. **README note on prerequisites.** Add one line reminding whoever runs the first deploy that GitHub Pages must be enabled for the repo with Source = "Deploy from a branch" → `gh-pages`. The launcher can't enable this for them; Rouge's staging push to the `gh-pages` branch is a no-op from the user's perspective until the setting is toggled.
 
-**What foundation MUST NOT scaffold for a static-export target:**
+**What foundation skips for a static-export target:**
 
 - **API routes / route handlers** (`app/api/*/route.ts`, `pages/api/*.ts`). There is no server. If a story needs server state, its acceptance criteria are incompatible with the declared deployment target — ESCALATE during the first story that triggers this, do not silently drop the route at build time.
 - **Server components that read secrets at request time.** All data must be baked in at build time or fetched client-side with public keys only.
@@ -153,9 +153,9 @@ When `infrastructure_manifest.json.deploy.target` (or `vision.json.infrastructur
 
 ---
 
-## What You Do NOT Build
+## Foundation Scope Boundary
 
-**NEVER implement stories from the task ledger.** Foundation scope is exactly what is listed in `foundation_spec.scope` — nothing more. Do not implement any `milestones[].stories[]` during the foundation phase, even if a story's acceptance criteria happen to overlap with what you are building. If your infrastructure work incidentally touches the same files a later story will touch, that is acceptable — but stop at the point where the work becomes story-shaped (user-facing feature, tested user journey, acceptance-criteria-driven). Log the overlap as a `factory_decision` so the story cycle knows what already exists, but do NOT extend foundation scope to "finish the story."
+**NEVER implement stories from the task ledger.** Foundation scope is exactly what's listed in `foundation_spec.scope` — nothing more. This rule is emphatic because violating it triggers a specific incident class: when the loop reaches the affected milestone, every story reports `0 delta` (already done), spin detection escalates, and the cycle is wasted. Don't implement any `milestones[].stories[]` during the foundation phase, even if a story's acceptance criteria happen to overlap with what you are building. If your infrastructure work incidentally touches the same files a later story will touch, that's acceptable — stop at the point where the work becomes story-shaped (user-facing feature, tested user journey, acceptance-criteria-driven). Log the overlap as a `factory_decision` so the story cycle knows what already exists; don't extend foundation scope to "finish the story."
 
 - User-facing features (no screens, no user journeys, no feature-specific UI)
 - Feature-specific API endpoints
@@ -278,7 +278,7 @@ Instead:
 
 ## Step 4: Verify the Working Branch
 
-V3 uses a single branch throughout the loop. The launcher has already checked out the correct branch before invoking this prompt. Do NOT create a new branch.
+V3 uses a single branch throughout the loop. The launcher has already checked out the correct branch before invoking this prompt; don't create another one.
 
 ```bash
 git status
@@ -350,7 +350,7 @@ If the deploy fails:
 
 If the project needs a database (check `foundation_spec` and `infrastructure_manifest.json` for database requirements):
 
-1. **Read `infrastructure_manifest.json`** for the database provider and configuration. Do NOT assume Supabase — the project may use Neon, D1, or another provider. Execute the provider-appropriate commands.
+1. **Read `infrastructure_manifest.json`** for the database provider and configuration. Each project names its own provider — Supabase, Neon, D1, or others — so default assumptions will be wrong for many projects. Execute the provider-appropriate commands for the one actually declared.
 
 2. **If using Supabase** (`infrastructure_manifest.json.database.provider === "supabase"`):
    - Read `cycle_context.json.supabase` for the project reference
@@ -506,9 +506,9 @@ After committing all work and writing back to `cycle_context.json`:
 2. Verify the staging deployment is accessible (if deployed).
 3. Verify `cycle_context.json` is valid JSON and contains all required fields.
 4. Verify `foundation_completion` accurately reflects what was built and what's missing.
-5. Do NOT write any state management file outside of `cycle_context.json`. The launcher manages state transitions.
-6. Do NOT create a PR. That happens in a later phase.
-7. Do NOT decide what happens next. Your job is to build the foundation and report. The Runner decides the next state.
+5. Write only to `cycle_context.json` for state; the launcher owns transitions across the other state files.
+6. Skip PR creation — that happens in the ship-promote phase.
+7. Report results; phase routing is the Runner's job. Your output is the foundation work plus the `cycle_context.json` writeback; the Runner decides what phase runs next.
 8. Exit.
 
 ---
@@ -553,7 +553,7 @@ If you hit a rate limit or the session is about to timeout:
 
 ## Anti-Patterns — Reject These on Sight
 
-- **"I'll build this story while I'm in the neighbourhood."** No. Foundation does not touch the task ledger. Even if a story's work sits right next to foundation work, foundation stops at the boundary. Story-building phase handles stories. Scope creep in foundation causes the loop to report `0 delta` when it reaches those stories, triggering spin detection and wasting a cycle. See "Concrete scope-creep test" in the "What You Do NOT Build" section.
+- **"I'll build this story while I'm in the neighbourhood."** No. Foundation does not touch the task ledger. Even if a story's work sits right next to foundation work, foundation stops at the boundary. Story-building phase handles stories. Scope creep in foundation causes the loop to report `0 delta` when it reaches those stories, triggering spin detection and wasting a cycle. See "Concrete scope-creep test" in the "Foundation Scope Boundary" section.
 - **"I'll substitute a simpler integration."** No. Hard block or build it properly. The Capability Avoidance Problem is the #1 failure mode of autonomous systems. Read Step 3 again.
 - **"This schema is good enough for the first feature."** No. The schema must serve ALL feature areas. That's why you have T3 context. If you design for one feature, every subsequent feature cycle will need migrations — and migrations on top of a bad schema make it worse, not better.
 - **"I'll add auth later."** No. Auth is foundation. If feature cycles have to build around missing auth, they'll each implement their own guards — inconsistently. Build it now.
