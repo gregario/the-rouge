@@ -198,7 +198,7 @@ function writeSeedingState(projectName, seedState) {
 // inject it into every Claude call as a [RESUMING FROM STATE] block.
 
 const SEEDING_DISCIPLINES = [
-  'brainstorming', 'competition', 'taste', 'spec',
+  'brainstorming', 'competition', 'taste', 'sizing', 'spec',
   'infrastructure', 'design', 'legal-privacy', 'marketing',
 ];
 

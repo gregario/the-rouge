@@ -1525,6 +1525,174 @@ Flags:
 }
 
 // ---------------------------------------------------------------------------
+// SIZING sub-phase driver (P1.5R PR 3)
+// ---------------------------------------------------------------------------
+
+function cmdSizeProject(rawArgs) {
+  let projectDir = null;
+  let overrideTier = null;
+  let overrideReasoning = null;
+  let jsonOnly = false;
+
+  for (let i = 0; i < rawArgs.length; i++) {
+    const a = rawArgs[i];
+    if (a === '--project-dir' && i + 1 < rawArgs.length) {
+      projectDir = rawArgs[++i];
+    } else if (a === '--override' && i + 1 < rawArgs.length) {
+      overrideTier = rawArgs[++i];
+    } else if (a === '--reasoning' && i + 1 < rawArgs.length) {
+      overrideReasoning = rawArgs[++i];
+    } else if (a === '--json') {
+      jsonOnly = true;
+    } else if (a === '--help' || a === '-h') {
+      console.log(`Usage: rouge size-project [flags]
+
+SIZING sub-phase driver. Reads <project-dir>/seed_spec/brainstorming.md,
+parses the "## Classifier Signals" block, runs project-sizer.js, writes
+<project-dir>/seed_spec/sizing.json, and prints the sizing artifact.
+
+Run twice: once with no flags (initial classification), once with
+--override if the human gate redirects the tier.
+
+Flags:
+  --project-dir <dir>    Project root (default: cwd)
+  --override <tier>      Apply a human override. Tier ∈ XS|S|M|L|XL.
+                         Requires --reasoning.
+  --reasoning "<text>"   Why the human picked a different tier.
+                         Required when --override is set.
+  --json                 Emit ONLY the sizing JSON to stdout (no banner).
+                         Useful when piping to another tool.
+
+Exit codes:
+  0 — wrote sizing.json
+  1 — error (brainstorming.md missing, signals block missing / partial,
+      override tier invalid, etc.)
+  2 — usage error
+`);
+      process.exit(0);
+    } else {
+      console.error(`Unknown flag: ${a}`);
+      console.error('Run `rouge size-project --help` for usage.');
+      process.exit(2);
+    }
+  }
+
+  if (projectDir == null) projectDir = process.cwd();
+  else if (!path.isAbsolute(projectDir)) projectDir = path.resolve(process.cwd(), projectDir);
+
+  if (overrideTier != null && !overrideReasoning) {
+    console.error('--override requires --reasoning');
+    process.exit(2);
+  }
+  if (overrideReasoning != null && !overrideTier) {
+    console.error('--reasoning requires --override');
+    process.exit(2);
+  }
+
+  const seedSpecDir = path.join(projectDir, 'seed_spec');
+  const brainstormPath = path.join(seedSpecDir, 'brainstorming.md');
+  const sizingPath = path.join(seedSpecDir, 'sizing.json');
+
+  const {
+    parseClassifierSignals,
+    classify,
+    applyHumanOverride,
+    TIERS,
+  } = require('./project-sizer.js');
+
+  // Override path: read existing sizing.json, apply override, write back.
+  if (overrideTier) {
+    if (!TIERS.includes(overrideTier)) {
+      console.error(`--override must be one of ${TIERS.join('|')}; got ${overrideTier}`);
+      process.exit(2);
+    }
+    if (!fs.existsSync(sizingPath)) {
+      console.error(`No existing sizing.json at ${sizingPath}; run without --override first.`);
+      process.exit(1);
+    }
+    let prior;
+    try {
+      prior = JSON.parse(fs.readFileSync(sizingPath, 'utf8'));
+    } catch (err) {
+      console.error(`Invalid JSON in ${sizingPath}: ${err.message}`);
+      process.exit(1);
+    }
+    const overridden = applyHumanOverride(prior, overrideTier, overrideReasoning);
+    fs.writeFileSync(sizingPath, JSON.stringify(overridden, null, 2) + '\n');
+    if (jsonOnly) {
+      process.stdout.write(JSON.stringify(overridden, null, 2) + '\n');
+    } else {
+      printSizingReport(overridden, sizingPath, 'override-applied');
+    }
+    process.exit(0);
+  }
+
+  // Initial classification path.
+  if (!fs.existsSync(brainstormPath)) {
+    console.error(`Not found: ${brainstormPath}`);
+    console.error('Run the BRAINSTORMING discipline first.');
+    process.exit(1);
+  }
+
+  const brainstormText = fs.readFileSync(brainstormPath, 'utf8');
+  const parsed = parseClassifierSignals(brainstormText);
+  if (parsed == null) {
+    console.error(`No "## Classifier Signals" block found in ${brainstormPath}.`);
+    console.error('The BRAINSTORMING discipline must emit this block — see src/prompts/seeding/01-brainstorming.md.');
+    process.exit(1);
+  }
+  if (parsed.partial) {
+    console.error(`Incomplete signals in ${brainstormPath}. Missing: ${parsed.missing.join(', ')}.`);
+    console.error('Re-run BRAINSTORMING or hand-edit brainstorming.md to include every signal.');
+    process.exit(1);
+  }
+
+  let artifact;
+  try {
+    artifact = classify(parsed.signals);
+  } catch (err) {
+    console.error(`Classification failed: ${err.message}`);
+    process.exit(1);
+  }
+
+  if (!fs.existsSync(seedSpecDir)) fs.mkdirSync(seedSpecDir, { recursive: true });
+  fs.writeFileSync(sizingPath, JSON.stringify(artifact, null, 2) + '\n');
+
+  if (jsonOnly) {
+    process.stdout.write(JSON.stringify(artifact, null, 2) + '\n');
+  } else {
+    printSizingReport(artifact, sizingPath, 'classifier');
+  }
+  process.exit(0);
+}
+
+function printSizingReport(artifact, filePath, mode) {
+  const lines = [];
+  lines.push('');
+  lines.push('  Project Size Classification');
+  lines.push(`  ${'─'.repeat(35)}`);
+  lines.push('');
+  lines.push(`  Tier:        ${artifact.project_size}`);
+  lines.push(`  Decided by:  ${artifact.decided_by}`);
+  if (artifact.human_override) {
+    lines.push(`  Classifier would have picked: ${artifact.human_override.classifier_would_pick}`);
+    lines.push(`  Human reasoning: ${artifact.human_override.human_reasoning}`);
+  }
+  lines.push('');
+  lines.push('  Signals:');
+  for (const [k, v] of Object.entries(artifact.signals)) {
+    lines.push(`    ${k.padEnd(20)} ${v}`);
+  }
+  lines.push('');
+  lines.push(`  Reasoning: ${artifact.reasoning}`);
+  lines.push('');
+  lines.push(`  Written to: ${filePath}`);
+  lines.push(`  Mode: ${mode}`);
+  lines.push('');
+  console.log(lines.join('\n'));
+}
+
+// ---------------------------------------------------------------------------
 // CLI router
 // ---------------------------------------------------------------------------
 
@@ -2002,6 +2170,8 @@ if (command === 'doctor') {
   cmdEvalCalibrate(args.slice(1));
 } else if (command === 'eval-seed-gold') {
   cmdEvalSeedGold(args.slice(1));
+} else if (command === 'size-project') {
+  cmdSizeProject(args.slice(1));
 } else {
   console.log(`
   The Rouge CLI
@@ -2036,6 +2206,9 @@ if (command === 'doctor') {
                                     --gold-set <dir>, --model-labels <file>, --min-kappa <float>, --verbose
     rouge eval-seed-gold            Regenerate the synthetic gold set (refuses to clobber non-synthetic entries).
                                     --gold-set <dir>, --dry-run, --force
+    rouge size-project              SIZING sub-phase driver: parses BRAINSTORM signals, classifies, writes
+                                    seed_spec/sizing.json. --project-dir <dir>, --override <XS|S|M|L|XL>,
+                                    --reasoning "<text>", --json
     rouge resume-escalation <slug>  Prime a direct Claude Code session for an
                                     escalation hand-off. Parks the project,
                                     prints the claude command + context.

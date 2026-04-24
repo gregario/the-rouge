@@ -42,6 +42,7 @@ export type SeedingDiscipline =
   | 'brainstorming'
   | 'competition'
   | 'taste'
+  | 'sizing'
   | 'spec'
   | 'infrastructure'
   | 'design'

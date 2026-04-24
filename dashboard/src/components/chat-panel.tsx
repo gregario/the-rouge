@@ -28,7 +28,7 @@ interface ChatPanelProps {
 
 // Canonical discipline sequence — messages without metadata default to this order
 const DISCIPLINE_SEQUENCE = [
-  'brainstorming', 'competition', 'taste', 'spec',
+  'brainstorming', 'competition', 'taste', 'sizing', 'spec',
   'infrastructure', 'design', 'legal-privacy', 'marketing',
 ] as const
 
@@ -36,6 +36,7 @@ const DISCIPLINE_LABELS: Record<string, string> = {
   brainstorming: 'Brainstorming',
   competition: 'Competition',
   taste: 'Taste',
+  sizing: 'Sizing',
   spec: 'Spec',
   infrastructure: 'Infrastructure',
   design: 'Design',

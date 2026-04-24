@@ -22,7 +22,7 @@ import { narrowEnum } from '@/lib/validate-enum'
 // typos ('brainstormng') instead of casting them through and causing
 // blank renders downstream.
 const SEEDING_DISCIPLINES: readonly SeedingDiscipline[] = [
-  'brainstorming', 'competition', 'taste', 'spec',
+  'brainstorming', 'competition', 'taste', 'sizing', 'spec',
   'infrastructure', 'design', 'legal-privacy', 'marketing',
 ]
 const DISCIPLINE_STATUSES: readonly DisciplineStatus[] = ['pending', 'in-progress', 'complete']

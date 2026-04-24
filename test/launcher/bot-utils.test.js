@@ -18,7 +18,7 @@ const os = require('os');
 // ---------------------------------------------------------------------------
 
 const SEEDING_DISCIPLINES = [
-  'brainstorming', 'competition', 'taste', 'spec',
+  'brainstorming', 'competition', 'taste', 'sizing', 'spec',
   'infrastructure', 'design', 'legal-privacy', 'marketing',
 ];
 
@@ -311,9 +311,9 @@ describe('buildResumingFromStateBlock', () => {
       },
     };
     const block = buildResumingFromStateBlock(seedState);
-    assert.ok(block.includes('Completed disciplines (2/8)'));
+    assert.ok(block.includes(`Completed disciplines (2/${SEEDING_DISCIPLINES.length})`));
     assert.ok(block.includes('brainstorming, competition'));
-    assert.ok(block.includes('Remaining disciplines: taste, spec, infrastructure, design, legal-privacy, marketing'));
+    assert.ok(block.includes('Remaining disciplines: taste, sizing, spec, infrastructure, design, legal-privacy, marketing'));
     assert.ok(block.includes('[RESUMING FROM STATE'));
     assert.ok(block.includes('[END STATE]'));
   });
@@ -324,7 +324,7 @@ describe('buildResumingFromStateBlock', () => {
       disciplines[d] = { status: 'complete' };
     }
     const block = buildResumingFromStateBlock({ disciplines });
-    assert.ok(block.includes(`Completed disciplines (8/8)`));
+    assert.ok(block.includes(`Completed disciplines (${SEEDING_DISCIPLINES.length}/${SEEDING_DISCIPLINES.length})`));
     assert.ok(block.includes('Remaining disciplines: (none)'));
   });
 });

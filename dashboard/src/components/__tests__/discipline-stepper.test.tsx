@@ -7,7 +7,8 @@ const disciplines: DisciplineProgress[] = [
   { discipline: 'brainstorming', status: 'complete' },
   { discipline: 'competition', status: 'complete' },
   { discipline: 'taste', status: 'complete' },
-  { discipline: 'spec', status: 'in-progress' },
+  { discipline: 'sizing', status: 'in-progress' },
+  { discipline: 'spec', status: 'pending' },
   { discipline: 'infrastructure', status: 'pending' },
   { discipline: 'design', status: 'pending' },
   { discipline: 'legal-privacy', status: 'pending' },
@@ -15,14 +16,14 @@ const disciplines: DisciplineProgress[] = [
 ]
 
 describe('DisciplineStepper', () => {
-  it('renders all 8 disciplines', () => {
+  it('renders all 9 disciplines', () => {
     render(<DisciplineStepper disciplines={disciplines} />)
     const steps = screen.getAllByTestId('discipline-step')
-    expect(steps).toHaveLength(8)
+    expect(steps).toHaveLength(9)
   })
 
   it('shows correct status icons via data attributes', () => {
-    render(<DisciplineStepper disciplines={disciplines} currentDiscipline="spec" />)
+    render(<DisciplineStepper disciplines={disciplines} currentDiscipline="sizing" />)
     const icons = screen.getAllByTestId('discipline-icon')
 
     expect(icons[0]).toHaveAttribute('data-status', 'complete')
@@ -33,6 +34,7 @@ describe('DisciplineStepper', () => {
     expect(icons[5]).toHaveAttribute('data-status', 'pending')
     expect(icons[6]).toHaveAttribute('data-status', 'pending')
     expect(icons[7]).toHaveAttribute('data-status', 'pending')
+    expect(icons[8]).toHaveAttribute('data-status', 'pending')
   })
 
   it('renders discipline labels', () => {
@@ -40,6 +42,7 @@ describe('DisciplineStepper', () => {
     expect(screen.getByText('Brainstorming')).toBeInTheDocument()
     expect(screen.getByText('Competition')).toBeInTheDocument()
     expect(screen.getByText('Taste')).toBeInTheDocument()
+    expect(screen.getByText('Sizing')).toBeInTheDocument()
     expect(screen.getByText('Spec')).toBeInTheDocument()
     expect(screen.getByText('Infrastructure')).toBeInTheDocument()
     expect(screen.getByText('Design')).toBeInTheDocument()
