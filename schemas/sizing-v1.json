@@ -82,6 +82,22 @@
           "reason": { "type": "string" }
         }
       }
+    },
+    "defaults": {
+      "type": "object",
+      "description": "Tier-based defaults stamped on the artifact at classification time (P1.5R PR 6). Live consumers (rouge-loop budget resolution, dashboard) read these instead of looking up tier → default elsewhere. Older artifacts written before PR 6 won't have this block; consumers should fall back to src/launcher/tier-defaults.js getDefaults(project_size).",
+      "properties": {
+        "budget_cap_usd": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Default budget cap for this tier. Overridden by state.budget_cap_usd (per-project human-set); falls back to rouge.config.json budget_cap_usd if missing."
+        },
+        "suggested_cycles": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Suggested cycle count for this tier. Advisory — no hard cap is enforced on cycle count today (would be a separate gate). Surfaced in the dashboard for operator visibility."
+        }
+      }
     }
   }
 }

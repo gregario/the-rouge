@@ -169,6 +169,38 @@ describe('classify — validation', () => {
   });
 });
 
+describe('classify — defaults field (P1.5R PR 6)', () => {
+  const { TIER_DEFAULTS } = require('../src/launcher/tier-defaults.js');
+
+  test('stamps defaults matching the tier on the artifact', () => {
+    for (const [tuple, expectedTier] of [
+      [CALCULATOR, 'XS'],
+      [CRUD_SAAS, 'M'],
+      [PLATFORM, 'XL'],
+    ]) {
+      const r = classify(tuple);
+      assert.equal(r.project_size, expectedTier);
+      assert.deepEqual(r.defaults, TIER_DEFAULTS[expectedTier]);
+    }
+  });
+
+  test('applyHumanOverride refreshes defaults to match override tier', () => {
+    const c = classify(CRUD_SAAS); // M
+    const overridden = require('../src/launcher/project-sizer.js').applyHumanOverride(
+      c, 'L', 'bigger than it looked'
+    );
+    assert.equal(overridden.project_size, 'L');
+    assert.deepEqual(overridden.defaults, TIER_DEFAULTS.L);
+  });
+
+  test('growTier refreshes defaults to match upgraded tier', () => {
+    const c = classify(TODO); // S
+    const grown = require('../src/launcher/project-sizer.js').growTier(c, 'M', 'scope grew');
+    assert.equal(grown.project_size, 'M');
+    assert.deepEqual(grown.defaults, TIER_DEFAULTS.M);
+  });
+});
+
 describe('classify — schema compliance', () => {
   test('emitted artifact validates against sizing-v1 schema', () => {
     const schemaPath = path.join(__dirname, '..', 'schemas', 'sizing-v1.json');

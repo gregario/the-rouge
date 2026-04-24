@@ -56,6 +56,7 @@ const { getMilestoneTagName } = require('./branch-strategy.js');
 const { getModelForPhase } = require('./model-selection.js');
 const { buildClaudeEnv } = require('./auth-mode.js');
 const { statePath, statePathForWrite, hasStateFile } = require('./state-path.js');
+const { readBudgetCapFromSizing } = require('./tier-defaults.js');
 const {
   escalate,
   beginStory,
@@ -2058,7 +2059,13 @@ async function runPhase(projectDir) {
   // Per-project cap (set at creation or via dashboard) overrides the
   // global default. Keeps runaway-build protection but lets a user raise
   // the cap on a specific build without changing the global default.
-  const effectiveCap = state.budget_cap_usd ?? config.budget_cap_usd;
+  // P1.5R PR 6: if the project went through SIZING, use its tier default
+  // before falling back to the global config cap. Resolution order:
+  //   1. state.budget_cap_usd (per-project override)
+  //   2. seed_spec/sizing.json defaults.budget_cap_usd (tier default)
+  //   3. config.budget_cap_usd (global default)
+  const tierCap = readBudgetCapFromSizing(projectDir);
+  const effectiveCap = state.budget_cap_usd ?? tierCap ?? config.budget_cap_usd;
   if (effectiveCap && checkBudgetCap(state, effectiveCap)) {
     log(`[${projectName}] Budget cap reached ($${state.costs?.cumulative_cost_usd?.toFixed(2)} / $${effectiveCap}) — escalating`);
     state.current_state = 'escalation';
@@ -2520,8 +2527,9 @@ async function runPhase(projectDir) {
         const src = state.costs.phase_cost_source === 'parsed' ? ' (parsed)' : state.costs.phase_cost_source === 'parsed-tokens' ? ' (parsed tokens)' : ' (estimated)';
         log(`[${projectName}] Cost: ~${state.costs.phase_cost_usd.toFixed(2)} USD this phase${src}, ~${state.costs.cumulative_cost_usd.toFixed(2)} USD cumulative`);
 
-        // V3: Cost milestone notifications (per-project cap wins over global)
-        const alertCap = state.budget_cap_usd ?? config.budget_cap_usd;
+        // V3: Cost milestone notifications (per-project cap wins over global).
+        // P1.5R PR 6: tier default slots between per-project and global.
+        const alertCap = state.budget_cap_usd ?? readBudgetCapFromSizing(projectDir) ?? config.budget_cap_usd;
         if (alertCap) {
           const pct = Math.round((state.costs.cumulative_cost_usd / alertCap) * 100);
           if (pct >= 80 && !state._cost_alert_80) {

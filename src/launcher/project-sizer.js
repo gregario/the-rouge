@@ -27,6 +27,8 @@
 
 'use strict';
 
+const { getDefaults: getTierDefaults } = require('./tier-defaults.js');
+
 const TIERS = Object.freeze(['XS', 'S', 'M', 'L', 'XL']);
 const TIER_INDEX = Object.fromEntries(TIERS.map((t, i) => [t, i]));
 
@@ -123,6 +125,7 @@ function classify(signals) {
     decided_by: 'classifier',
     human_override: null,
     grew_from: [],
+    defaults: getTierDefaults(pickedTier),
   };
 }
 
@@ -155,6 +158,7 @@ function applyHumanOverride(classifierArtifact, humanTier, humanReasoning) {
       classifier_would_pick: classifierArtifact.project_size,
       human_reasoning: humanReasoning,
     },
+    defaults: getTierDefaults(humanTier),
   };
 }
 
@@ -186,6 +190,7 @@ function growTier(prior, newTier, reason) {
       ...(prior.grew_from || []),
       { from: prior.project_size, to: newTier, at: new Date().toISOString(), reason },
     ],
+    defaults: getTierDefaults(newTier),
   };
 }
 
