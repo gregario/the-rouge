@@ -1039,7 +1039,8 @@ We stop working on a roadmap item and come back if:
 | `74dd564` | P1.19 PR 12 — seeding/07-marketing.md modernization (eight Writing Rules + no-fabricated-proof integrity rule + 4-artifact contract preserved; "think deeply" scaffolding removed; 22 tests) |
 | `3b74dc3` | P1.19 PR 13 — seeding/00-swarm-orchestrator.md modernization (meta-prompt; SIX incident-tied safety blocks explicitly preserved — integrity / sequential-execution / Resumption / gate-discipline / foundation-protection / anti-wallpaper; 25 tests) |
 | `3866536` | P1.19 PR 14 — seeding/02-competition.md modernization (five thinker Latent Space voices + advisory-only scope boundary preserved; VISIBLE / CAN-ask softened; 26 tests) |
-| _next_ | P1.19 PR 15 — seeding/04-spec.md modernization (620-line Rouge-taste-heavy prompt; P1.5R tier-aware block preserved + tier-aware tests still green; 7 stylistic caps + 3 MUSTs softened; Beat 3 "Do NOT emit chat-style prose" + "Do NOT gate" stay emphatic; 30 tests) |
+| `7804d64` | P1.19 PR 15 — seeding/04-spec.md modernization (620-line Rouge-taste-heavy prompt; P1.5R tier-aware block preserved + tier-aware tests still green; 7 stylistic caps + 3 MUSTs softened; Beat 3 "Do NOT emit chat-style prose" + "Do NOT gate" stay emphatic; 30 tests) |
+| _next_ | P1.19 PR 16 — seeding/05-design.md modernization (855 lines — biggest remaining; 5 designer voices preserved; 8-item AI Slop Detection + Praise-session integrity rule locked in; beat-discipline "Do NOT gate between passes" + "does NOT decide what runs next" stay emphatic; 27 tests) |
 
 **Memory work this session:**
 
@@ -1052,9 +1053,10 @@ We stop working on a roadmap item and come back if:
 
 **Safety-block preservation rule (discovered on PR 7):** Some prompts carry emphatic safety language tied to documented destroyed-production incidents (ISOLATION RULES / HARD BLOCK / "that is fraud" / the 0-delta spin scope-creep rule). For those, Opus 4.7's "over-triggers on shouty language" tendency is desirable — maximum caution is what we want there. Modernization tests in those cases explicitly assert the safety blocks STAY emphatic. See `test/prompts/foundation-modernization.test.js` for the exemplar.
 
-**P1.19 remaining (9 loop prompts — all judge-side):**
+**P1.19 remaining (9 loop prompts — all judge-side; seeding sweep complete):**
 
-- Generation-side sweep: **complete.** 00-foundation-building, 01-building, 03-qa-fixing, 04-analyzing, 05-change-spec-generation, 07-ship-promote, 08-document-release, 09-cycle-retrospective all modernized.
+- Loop generation-side sweep: **complete.** 00-foundation-building, 01-building, 03-qa-fixing, 04-analyzing, 05-change-spec-generation, 07-ship-promote, 08-document-release, 09-cycle-retrospective all modernized.
+- Seeding generation-side sweep: **complete.** 00-swarm-orchestrator, 01-brainstorming, 02-competition, 04-spec, 05-design, 06-legal-privacy, 07-marketing, 08-infrastructure all modernized. 03b-sizing was Opus-4.7-native from the start.
 - Judge-side remaining (blocklisted for self-improve, human-authored — higher calibration-drift risk): `00-foundation-evaluating.md`, `02-evaluation-orchestrator.md`, `02a-test-integrity.md`, `02c-code-review.md`, `02d-product-walk.md`, `02e-evaluation.md`, `02f-re-walk.md`, `06-vision-check.md`, `10-final-review.md`.
 
 **P1.19 remaining (seeding prompts):** `00-swarm-orchestrator.md`, `01-brainstorming.md`, `02-competition.md`, `04-spec.md`, `05-design.md`, `06-legal-privacy.md`, `07-marketing.md`, `08-infrastructure.md`. Judge-nature: `03-taste.md` (blocklisted). The new `03b-sizing.md` was written Opus-4.7-native this session and needs no pass.
