@@ -1048,7 +1048,8 @@ We stop working on a roadmap item and come back if:
 | `5889bb1` | P1.19 PR 21 — 02d-product-walk.md modernization (observer identity preserved; six "Never" Anti-Patterns locked in; "IMPORTANT" prefix removed with lens-calibration rationale; responsive breakpoints + 44x44 touch-target + a11y signals asserted; 25 tests) |
 | `a4e0080` | P1.19 PR 22 — 02a-test-integrity.md modernization (single "NOT optional" softened; four-category traceability + rename-detection fuzzy-match + 100% hard-floor verdict rule + five Anti-Pattern "Never" rules all locked in; 30 tests) |
 | `c6996ed` | P1.19 PR 23 — 02c-code-review.md modernization (seven-dimension rubric + weights, OWASP 5-category security, P1.15/P1.16/P1.16b evidence stack, P0.4 dispatch boundary, six "Never" Anti-Patterns all locked in; 4 stylistic caps softened; 40 tests) |
-| _next_ | P1.19 PR 24 — 02-evaluation-orchestrator.md modernization (meta-judge; evidence-first/judgment-second architecture + 4-tier cycle classification + 7-row failure-routing table + 6 "Never" Anti-Patterns + "NEVER routes to shipping" load-bearing boundary all locked in; NOTE/MILESTONE/ALL/IMPORTANT softened; 37 tests) |
+| `a63c95c` | P1.19 PR 24 — 02-evaluation-orchestrator.md modernization (meta-judge; evidence-first/judgment-second architecture + 4-tier cycle classification + 7-row failure-routing table + 6 "Never" Anti-Patterns + "NEVER routes to shipping" load-bearing boundary all locked in; NOTE/MILESTONE/ALL/IMPORTANT softened; 37 tests) |
+| _next_ | P1.19 PR 25 — seeding/03-taste.md modernization (highest Rouge-taste-voice density in codebase; EXPANSION/HOLD/REDUCTION framing + Chesky/Graham/Altman voices + "Push scope UP" directional voice + Boil-the-Lake expand-scope ethos preserved; 5 stylistic caps softened; 35 tests) |
 
 **Memory work this session:**
 

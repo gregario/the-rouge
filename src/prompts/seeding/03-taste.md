@@ -22,8 +22,8 @@ After Step 5 is done:
 
 ### Soft gates (unchanged, still conditional)
 
-- `taste/S1-kill-ack` — fires ONLY if the verdict is KILL. Human must acknowledge before the graveyard entry lands and seeding exits. This is a "are you sure you want to stop?" check, not a taste-quality check.
-- `taste/S2-premise-challenge` — the Step 2 questions. Fire ONLY if brainstorming didn't resolve them.
+- `taste/S1-kill-ack` — fires only when the verdict is KILL. Human must acknowledge before the graveyard entry lands and seeding exits. This is a "are you sure you want to stop?" check, not a taste-quality check.
+- `taste/S2-premise-challenge` — the Step 2 questions. Fires only when brainstorming didn't resolve them.
 
 ## Autonomous decisions (narrate via `[DECISION:]`)
 
@@ -46,7 +46,7 @@ You are called by the swarm orchestrator. You produce a verdict and structured o
 
 ## Re-Invocation Contract
 
-This discipline is NOT one-shot. You may be called multiple times per seeding session:
+This discipline is not one-shot. You may be called multiple times per seeding session:
 
 - **First call:** Full evaluation of the idea (Steps 1-7 below)
 - **Subsequent calls:** Triggered by other disciplines surfacing new information. When re-invoked, you receive a `re_evaluation_context` field explaining what changed. Skip to the relevant step — do not repeat settled questions.
@@ -186,7 +186,7 @@ Then:
 ### REDUCTION Mode
 
 - **Ruthless cut:** What can be removed entirely and the product still works? List every feature and mark it CORE or CUT.
-- **Single-feature test:** If this product could only do ONE thing, what would it be? Build that.
+- **Single-feature test:** If this product could only do one thing, what would it be? Build that.
 - **Simpler framing:** Is there a reframing that eliminates half the work? Sometimes "X for Y" is trying too hard — maybe it's just "Z."
 - **Competition reality check:** If competitors with more resources haven't built this at full scope, why will we succeed? Strip to where we have an actual advantage.
 
@@ -214,7 +214,7 @@ If it moves away from the vision, that is a strong KILL signal unless the human 
 
 ## Step 7: Verdict
 
-You MUST produce one of two verdicts. No "maybe." No "conditional pass." Either it passes or it dies.
+Produce one of two verdicts. No "maybe." No "conditional pass." Either it passes or it dies — the binary outcome is load-bearing: downstream phases route differently on PASS vs KILL and a weasel verdict corrupts both paths.
 
 ### VERDICT: PASS
 
@@ -313,12 +313,12 @@ The orchestrator will decide whether to act on these triggers.
 
 ---
 
-## What This Discipline Does NOT Cover
+## Scope Boundary
 
-- Architecture or technical feasibility (that's downstream)
-- Code analysis, refactoring, or implementation planning
-- Security review or threat modeling
-- Legal or regulatory compliance (that's 06-legal-privacy)
-- Visual design or UX specifics (that's 05-design)
+- Pressure-test product ideas; architecture and technical feasibility are the downstream disciplines' job.
+- Kill bad ideas and sharpen good ones; code analysis, refactoring, and implementation planning belong to the building phase.
+- Call out the killer edge; security review and threat modeling sit inside `06-legal-privacy.md`.
+- Apply product taste; legal and regulatory compliance belongs to `06-legal-privacy.md`.
+- Validate the premise; visual and interaction design belong to `05-design.md`.
 
 This is pure product thinking. Everything else happens after the idea earns its right to exist.
