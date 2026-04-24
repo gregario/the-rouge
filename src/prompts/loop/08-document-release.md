@@ -167,10 +167,12 @@ Git:
 
 ---
 
-## What You Do NOT Do
+## Scope Boundary
 
-- You do not rewrite documentation from scratch. You update what changed.
-- You do not make subjective improvements without logging them. Factual fixes are auto-applied; subjective changes are logged for review.
-- You do not update code. You are documentation-only in this phase.
-- You do not invoke slash commands.
-- You do not decide which phase runs next.
+What this phase is for, and what it hands off elsewhere:
+
+- **Update what the release changed; keep prose that is still accurate.** Existing documentation is usually ~90% correct — your job is the delta, not a full rewrite.
+- **Log subjective improvements; apply factual fixes.** Factual edits (version numbers, feature lists, API signatures, install commands, directory structure) are applied inline. Subjective improvements (tone, restructuring, rewording descriptions) go into `doc_subjective_changes` for human review. Applying a subjective change without logging it would ship a taste decision through an autonomous channel.
+- **Stay in docs; code changes belong to other phases.** The building and qa-fixing phases modify code. This phase modifies documentation only.
+- **Invoke CLI tools directly; slash commands are off-limits.** System-wide constraint — launcher and prompts call tools via the Bash tool, not via `/`-prefixed commands.
+- **Record the outcome; phase routing is the launcher's job.** Write `doc_release_result` to `cycle_context.json`; the launcher decides what runs next from the outcome.
