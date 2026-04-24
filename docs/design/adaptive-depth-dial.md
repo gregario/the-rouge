@@ -57,7 +57,7 @@ Each tier is defined by observable signals AND by what Rouge does.
 - Seeding: brainstorm + taste + spec only. Skip competition (no GTM), legal-privacy (no user data), marketing (no funnel), infrastructure (trivial), design (implied by spec).
 - Spec: 1 FA, 2-4 ACs.
 - Loop: 1-2 cycles max. No foundation cycle. Single-lens eval (QA + taste; skip PO/design/security unless data is present).
-- Budget cap: $15 default.
+- Budget cap: $30 default.
 
 ### S — small app
 
@@ -71,7 +71,7 @@ Each tier is defined by observable signals AND by what Rouge does.
 - Seeding: + infrastructure (because data persists). Still skip competition + marketing unless the owner flags GTM intent.
 - Spec: 2-3 FAs, 3-5 ACs each.
 - Loop: 2-3 cycles. Foundation only if auth is involved.
-- Budget cap: $30.
+- Budget cap: $60.
 
 ### M — standard SaaS
 
@@ -81,7 +81,7 @@ Each tier is defined by observable signals AND by what Rouge does.
 
 **Examples:** a booking tool, an invoicing app, a team knowledge base.
 
-**Pipeline shape:** current Rouge default. Full swarm. 3-5 FAs. 3-5 cycles. $50 default cap.
+**Pipeline shape:** current Rouge default. Full swarm. 3-5 FAs. 3-5 cycles. $100 default cap.
 
 ### L — complex SaaS
 
@@ -95,7 +95,7 @@ Each tier is defined by observable signals AND by what Rouge does.
 - Seeding: full swarm + optional domain-specialist lenses (legal-privacy mandatory; marketing conditional).
 - Spec: 6-8 FAs. This is where the original P1.5 ("iterate FAs with per-FA retrieval") kicks in — the cross-cut happens in an explicit pass after per-FA drafts land.
 - Loop: 5-8 cycles. Foundation required.
-- Budget cap: $100.
+- Budget cap: $200.
 
 ### XL — platform / multi-product
 
@@ -109,7 +109,7 @@ Each tier is defined by observable signals AND by what Rouge does.
 - Seeding: full swarm + explicit architecture discipline (doesn't exist yet — flag for future spec).
 - Spec: 8+ FAs with mandatory cross-cut pass.
 - Loop: 8+ cycles. Foundation cycle + checkpoint every 2-3 feature milestones.
-- Budget cap: $250.
+- Budget cap: $500.
 
 ## Where the dial gets set
 

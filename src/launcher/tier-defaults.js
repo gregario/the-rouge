@@ -26,12 +26,15 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+// Budget caps doubled on 2026-04-24 per owner feedback that the original
+// values were too tight. suggested_cycles unchanged (cycle counts are
+// advisory and not the gating mechanism today).
 const TIER_DEFAULTS = Object.freeze({
-  XS: { budget_cap_usd: 15,  suggested_cycles: 2 },
-  S:  { budget_cap_usd: 30,  suggested_cycles: 3 },
-  M:  { budget_cap_usd: 50,  suggested_cycles: 5 },
-  L:  { budget_cap_usd: 100, suggested_cycles: 8 },
-  XL: { budget_cap_usd: 250, suggested_cycles: 12 },
+  XS: { budget_cap_usd: 30,  suggested_cycles: 2 },
+  S:  { budget_cap_usd: 60,  suggested_cycles: 3 },
+  M:  { budget_cap_usd: 100, suggested_cycles: 5 },
+  L:  { budget_cap_usd: 200, suggested_cycles: 8 },
+  XL: { budget_cap_usd: 500, suggested_cycles: 12 },
 });
 
 function getDefaults(tier) {
