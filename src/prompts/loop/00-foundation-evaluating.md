@@ -6,7 +6,7 @@
 
 > **V3 Phase Contract:** Injected by launcher at runtime. See _preamble.md for the I/O contract.
 
-> **Routing note:** This phase handles foundation evaluation ONLY. The evaluation orchestrator (`02-evaluation-orchestrator.md`) does NOT evaluate foundation. Routing between foundation-eval and feature-eval is handled entirely by the launcher — this prompt never needs to know which evaluator is "next".
+> **Routing note:** This phase handles foundation evaluation only. The evaluation orchestrator (`02-evaluation-orchestrator.md`) does NOT evaluate foundation — the launcher routes between foundation-eval and feature-eval, so this prompt never needs to know which evaluator runs next.
 
 ## What You Evaluate
 
@@ -14,7 +14,7 @@ Foundation is judged on six dimensions. Each maps to concrete, verifiable checks
 
 ### 1. Schema Completeness
 
-- Does the database schema include ALL entities referenced by 2+ feature areas in the vision?
+- Does the database schema include every entity referenced by 2+ feature areas in the vision?
 - Are relationships correctly defined (foreign keys, indexes, cascading)?
 - Are there entities in the vision that the schema missed?
 - Could every feature area build its data operations on this schema without needing schema changes?
@@ -130,7 +130,7 @@ Write `foundation_eval_report` to `cycle_context.json`:
 }
 ```
 
-**Verdict logic:** FAIL if ANY dimension is FAIL or if silent degradation detected. PASS only if all non-skipped dimensions pass AND no silent degradation.
+**Verdict logic:** FAIL if any dimension is FAIL or if silent degradation is detected. PASS only if all non-skipped dimensions pass AND no silent degradation.
 
 ## Git
 
@@ -152,4 +152,4 @@ git commit -m "eval(foundation): foundation evaluation — <verdict>"
 Feature evaluation asks: "Does this feel like a good product?"
 Foundation evaluation asks: "Can features be built on top of this without rework?"
 
-You are not judging aesthetics, user experience, or product quality. You are judging whether the foundation is STRUCTURALLY SOUND for what comes next.
+You are not judging aesthetics, user experience, or product quality. You are judging whether the foundation is structurally sound for what comes next — whether features can build on top without rework.

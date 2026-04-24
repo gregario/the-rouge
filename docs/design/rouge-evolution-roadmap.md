@@ -1042,7 +1042,8 @@ We stop working on a roadmap item and come back if:
 | `7804d64` | P1.19 PR 15 — seeding/04-spec.md modernization (620-line Rouge-taste-heavy prompt; P1.5R tier-aware block preserved + tier-aware tests still green; 7 stylistic caps + 3 MUSTs softened; Beat 3 "Do NOT emit chat-style prose" + "Do NOT gate" stay emphatic; 30 tests) |
 | `85bddf8` | P1.19 PR 16 — seeding/05-design.md modernization (855 lines — biggest remaining; 5 designer voices preserved; 8-item AI Slop Detection + Praise-session integrity rule locked in; beat-discipline "Do NOT gate between passes" + "does NOT decide what runs next" stay emphatic; 27 tests) |
 | `bbdfc0f` | P1.19 PR 17 — **judge-side sweep begins** — 02f-re-walk.md modernization (smallest judge prompt; minimal stylistic softening + exhaustive judge-observer-boundary lock-in; Anti-Patterns "Never" count asserted == 5 as calibration-drift regression catcher; 20 tests) |
-| _next_ | P1.19 PR 18 — 10-final-review.md calibration-surface lock-in (test-only PR — prompt was already Opus-4.7-native; 25 tests covering ship/refine/major-rework recommendation enum, 3-tier confidence ladder, customer-identity voice, six "Never" Anti-Patterns, PO-feedback integrity, confidence-asymmetry rationale) |
+| `e5b8bbd` | P1.19 PR 18 — 10-final-review.md calibration-surface lock-in (test-only PR — prompt was already Opus-4.7-native; 25 tests covering ship/refine/major-rework recommendation enum, 3-tier confidence ladder, customer-identity voice, six "Never" Anti-Patterns, PO-feedback integrity, confidence-asymmetry rationale) |
+| _next_ | P1.19 PR 19 — 00-foundation-evaluating.md modernization (4 stylistic caps softened; six-dimension rubric + silent-degradation check + five Anti-Patterns + "NEVER hardcoded" security rule + scope/routing boundaries preserved; 28 tests) |
 
 **Memory work this session:**
 
