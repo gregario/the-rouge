@@ -1,0 +1,52 @@
+id: plausible
+name: Plausible Analytics
+tier: 2
+category: analytics
+description: >
+  Privacy-first web analytics — no cookies, no personal data collection,
+  GDPR compliant without consent banners. Lightweight tracking script
+  (~1KB) loaded from your own domain via reverse proxy. Two deployment
+  paths: (a) Plausible Cloud at plausible.io (paid from day one, from
+  $9/month for 10k pageviews), or (b) Plausible Community Edition
+  self-hosted via Docker Compose under the MIT licence (free in software
+  cost; you pay infrastructure). For Rouge builds targeting privacy-
+  conscious users or needing simple pageview analytics without
+  PostHog/Counterscale's surface area.
+cost_tier: paid
+
+requires:
+  env_vars:
+    - NEXT_PUBLIC_PLAUSIBLE_DOMAIN
+  packages:
+    - "next-plausible"
+  cli_tools: []
+
+setup_steps:
+  - Choose deployment — Plausible Cloud (plausible.io) for hosted convenience, or Plausible Community Edition (docker compose up) for self-hosted free
+  - Cloud — sign up at plausible.io, pick a plan ($9+ for 10k pv/month), and add the site domain
+  - Self-hosted — clone github.com/plausible/community-edition, configure `plausible-conf.env`, `docker compose up -d`
+  - Install the Next.js integration — `npm install next-plausible` (or drop the raw `<script>` from Plausible dashboard for other frameworks)
+  - For Next.js App Router, wrap the root layout with `<PlausibleProvider domain="your-domain.com" trackOutboundLinks />`
+  - Set `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` to your Plausible-registered domain (lets the SDK find the correct site)
+  - Optional — reverse-proxy `/js/script.js` and `/api/event` through your own domain to bypass ad-blockers (docs has the Next.js rewrite config)
+  - Verify by loading a page; the Plausible dashboard shows pageviews within a minute
+
+teardown_steps:
+  - Remove `<PlausibleProvider>` and any `<script data-domain>` tags from the codebase
+  - Remove reverse-proxy rewrites from `next.config.js` if you added them
+  - Cloud — cancel the Plausible subscription and delete the site from the dashboard
+  - Self-hosted — `docker compose down -v` (removes data) and delete the deployment
+  - Clear `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` from environments
+  - Uninstall `next-plausible`
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+free_tier_limits:
+  cloud_free_tier: none (30-day trial only)
+  cloud_starter_usd_per_month: 9 (10k pageviews/month, 1 site, 3 years retention)
+  self_hosted_community_edition: free (MIT licence, infrastructure cost only)
+  note: "Unlike PostHog/Counterscale, Plausible Cloud has no ongoing free tier — it's paid from day one. Community Edition (self-hosted) is free software. Pick Plausible Cloud when you want the simplest privacy-friendly analytics with paid support; pick CE when you already run Docker Compose elsewhere."
+
+staleness_date: "2026-04-24"

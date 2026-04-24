@@ -1,0 +1,55 @@
+id: anthropic
+name: Anthropic Claude API
+tier: 2
+category: llm-api
+description: >
+  LLM provider API — Claude models (Opus, Sonnet, Haiku) with strong
+  reasoning, long context windows (up to 1M tokens on Opus), extended
+  thinking, tool use, vision, PDF support, and prompt caching. Official
+  TypeScript SDK. Rouge itself runs on this API — this entry exists so
+  products Rouge builds can use it too. Complementary to the OpenAI API
+  entry; pick based on task (Anthropic for reasoning / long docs,
+  OpenAI for broader multi-modal and voice).
+cost_tier: usage-based
+
+requires:
+  env_vars:
+    - ANTHROPIC_API_KEY
+  packages:
+    - "@anthropic-ai/sdk"
+  cli_tools: []
+
+setup_steps:
+  - Create a console.anthropic.com account and add a payment method
+  - Generate an API key at console.anthropic.com/settings/keys (shown once at creation — copy immediately)
+  - Store the key in `ANTHROPIC_API_KEY`; the SDK reads this env var automatically
+  - Install the SDK — `npm install @anthropic-ai/sdk`
+  - Instantiate with `new Anthropic()` and call `client.messages.create({ model, max_tokens, messages })`
+  - Enable prompt caching on large system prompts to cut repeated-read cost by ~90% — add `cache_control: { type: 'ephemeral' }` on cached blocks
+  - Set workspace spend limits in Settings > Limits to cap monthly billing
+  - Use the Batch API (via `client.messages.batches.create`) for non-interactive bulk jobs — 50% discount vs real-time
+
+teardown_steps:
+  - Revoke the API key in Settings > Keys
+  - Clear `ANTHROPIC_API_KEY` from environments
+  - Remove any workspace spend-limit alerts
+  - Uninstall `@anthropic-ai/sdk`
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+free_tier_limits:
+  trial_credits_usd: issued on signup (amount varies by promo)
+  trial_credit_expiry: typically 90 days from issuance
+  pay_as_you_go_after_trial: true
+  pricing_opus_4_7_input_per_mtok: 5
+  pricing_opus_4_7_output_per_mtok: 25
+  pricing_sonnet_4_6_input_per_mtok: 3
+  pricing_sonnet_4_6_output_per_mtok: 15
+  pricing_haiku_4_5_input_per_mtok: 1
+  pricing_haiku_4_5_output_per_mtok: 5
+  batch_api_discount_pct: 50
+  note: "No ongoing free tier — trial credits then usage. Prompt caching (writes billed once, reads ~90% cheaper) and batch API (50% off) are the two biggest cost levers. Haiku is ~25x cheaper than Opus on input and sufficient for many agent tasks; pick the cheapest model that passes quality eval."
+
+staleness_date: "2026-04-24"

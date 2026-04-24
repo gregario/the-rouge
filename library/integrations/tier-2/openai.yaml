@@ -1,0 +1,49 @@
+id: openai
+name: OpenAI API
+tier: 2
+category: llm-api
+description: >
+  LLM provider API — text generation, embeddings, image generation
+  (DALL-E), speech-to-text (Whisper), text-to-speech, moderation. Stable
+  REST API with official TypeScript SDK. OpenAI's API is the baseline
+  many AI products build against; consider the Anthropic API (also in
+  this catalogue) when you need stronger reasoning or longer context
+  windows. Pay-as-you-go per token, no monthly fee; free credits were
+  discontinued in 2025 (small trial credit for new accounts only).
+cost_tier: usage-based
+
+requires:
+  env_vars:
+    - OPENAI_API_KEY
+  packages:
+    - "openai"
+  cli_tools: []
+
+setup_steps:
+  - Create a platform.openai.com account and add a payment method (required — API access is gated behind billing since 2025)
+  - Generate an API key at platform.openai.com/api-keys (copy once; it's shown only at creation)
+  - Store the key in `OPENAI_API_KEY` — never hardcode; the SDK reads this env var automatically
+  - Install the SDK — `npm install openai`
+  - Instantiate with `new OpenAI()` (reads env) and call `client.chat.completions.create({ model, messages })` or `client.responses.create()` (newer stateful API)
+  - Set usage limits in the OpenAI dashboard (Settings > Limits) to cap monthly spend — hard limit blocks requests above the cap, soft limit just emails
+  - For edge runtimes, the SDK works natively on Cloudflare Workers / Vercel Edge / Bun; no driver swapping
+
+teardown_steps:
+  - Revoke the API key in platform.openai.com/api-keys
+  - Clear `OPENAI_API_KEY` from environments
+  - Remove any hard/soft usage limit alerts you configured
+  - Uninstall `openai`
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+free_tier_limits:
+  trial_credit_usd: 5
+  trial_credit_expiry_months: 3
+  credit_card_required: false (for trial)
+  free_tier_rate_limit_rpm: 3
+  free_tier_model_access: gpt-3.5-turbo only (no GPT-4 / GPT-4 Turbo / DALL-E / Whisper on free tier)
+  note: "OpenAI deprecated automatic free trial credits in mid-2025. New accounts get $5 test credits valid 3 months; after that, pay-as-you-go. Pricing is per-million-tokens and varies ~5000x across models (nano $0.03/MTok input vs GPT-4 $30/MTok input). Batch API gives 50% discount."
+
+staleness_date: "2026-04-24"

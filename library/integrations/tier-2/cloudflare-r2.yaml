@@ -1,0 +1,56 @@
+id: cloudflare-r2
+name: Cloudflare R2
+tier: 2
+category: object-storage
+description: >
+  S3-compatible object storage with no egress fees — the main reason to
+  pick R2 over AWS S3 for products with public-facing media. Accessed
+  two ways: (a) Workers binding (env.MY_BUCKET, simplest, no env vars
+  needed, only works inside a Worker), or (b) S3-compatible HTTP API
+  via `@aws-sdk/client-s3` with an R2 access-key pair (works anywhere,
+  requires env vars). Use the binding for Worker-only products; use the
+  S3 API when another runtime (Node.js server, external service) needs
+  to read/write.
+cost_tier: free-to-start
+
+requires:
+  env_vars:
+    - R2_ACCESS_KEY_ID
+    - R2_SECRET_ACCESS_KEY
+    - R2_BUCKET
+    - R2_ACCOUNT_ID
+  packages:
+    - "@aws-sdk/client-s3"
+    - "@aws-sdk/s3-request-presigner"
+  cli_tools:
+    - wrangler
+
+setup_steps:
+  - Enable R2 in the Cloudflare dashboard — dash.cloudflare.com > R2 > Enable (requires a Cloudflare account; no card needed for free tier)
+  - Create a bucket — `wrangler r2 bucket create <name>` or via dashboard
+  - For Workers binding (preferred when the consumer is a Worker) — add to wrangler.toml — `[[r2_buckets]] binding = "MY_BUCKET", bucket_name = "<name>"` — then access in code as `env.MY_BUCKET.put(key, value)` / `get(key)` / `delete(key)` / `list()`
+  - For S3 API (preferred when the consumer is not a Worker) — create an R2 API token at dash.cloudflare.com/profile/api-tokens, store the access-key ID and secret, set `R2_BUCKET` and `R2_ACCOUNT_ID`
+  - S3 API client init — `new S3Client({ region: 'auto', endpoint: \`https://\${R2_ACCOUNT_ID}.r2.cloudflarestorage.com\`, credentials: { accessKeyId, secretAccessKey } })`
+  - For public-read buckets, enable the r2.dev dev URL or attach a custom domain (required for production — dev URLs are rate-limited)
+  - Optional — configure CORS on the bucket via `wrangler r2 bucket cors put <name> --rules ...` for browser-direct uploads
+
+teardown_steps:
+  - Empty the bucket — `wrangler r2 object delete <bucket>/<key>` per object, or via dashboard's bulk-delete
+  - Delete the bucket — `wrangler r2 bucket delete <name>`
+  - Revoke the R2 API token (if using S3 API path) in dash.cloudflare.com/profile/api-tokens
+  - Remove the `[[r2_buckets]]` binding from wrangler.toml (if using Workers binding)
+  - Clear the four `R2_*` env vars
+  - Uninstall `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner` if no longer needed
+
+tested_with:
+  - nextjs-cloudflare
+
+free_tier_limits:
+  storage: 10GB-month
+  class_a_operations_per_month: 1000000
+  class_b_operations_per_month: 10000000
+  egress: free (all storage classes, all destinations)
+  infrequent_access_storage: excluded from free tier
+  note: "Zero-egress is R2's headline feature — useful when S3's egress cost (~$0.09/GB out) dominates your bill. Class A = writes/lists/creates, Class B = reads/head. Above the free tier, storage is $0.015/GB-month — cheaper than S3 Standard."
+
+staleness_date: "2026-04-24"

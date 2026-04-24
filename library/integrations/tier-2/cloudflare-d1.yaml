@@ -1,0 +1,52 @@
+id: cloudflare-d1
+name: Cloudflare D1
+tier: 2
+category: database
+description: >
+  Serverless SQLite database running at the edge, with Workers-binding
+  access. Strong consistency within a single D1 database; automatic
+  read replication to nearby regions. Suits products that already deploy
+  to Cloudflare Workers and need a proper relational database without
+  standing up Neon or Supabase. Trade-off vs Neon — D1 is SQLite (fewer
+  features than Postgres, no rich JSON types, no native full-text
+  search) but lives in the same binding surface as the Worker, so no
+  latency from external DB calls. Use D1 when the app is Worker-native;
+  use Neon or Supabase Postgres when you need Postgres-specific
+  features.
+cost_tier: free-to-start
+
+requires:
+  env_vars: []
+  packages:
+    - "drizzle-orm"
+    - "drizzle-kit"
+  cli_tools:
+    - wrangler
+
+setup_steps:
+  - Create a D1 database — `wrangler d1 create <name>` — capture the database_id from the output
+  - Bind in wrangler.toml — `[[d1_databases]] binding = "DB", database_name = "<name>", database_id = "<id>"`
+  - Access in Worker code as `env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(userId).first()` / `.all()` / `.run()`
+  - For typed schema + migrations, pair with Drizzle — `npm install drizzle-orm drizzle-kit` and configure drizzle.config.ts with `dialect: 'sqlite'` and `driver: 'd1-http'`
+  - Generate migrations from the schema — `npx drizzle-kit generate` — applied via `wrangler d1 migrations apply <name>`
+  - For local dev — `wrangler dev` starts a local D1 that mirrors the schema; data is ephemeral unless you also bind a persistent path
+  - Seed via `wrangler d1 execute <name> --file=./seed.sql` or programmatically on first request
+
+teardown_steps:
+  - Delete all data — `wrangler d1 execute <name> --command "DROP TABLE IF EXISTS ..."` or drop the whole DB
+  - Delete the database — `wrangler d1 delete <name>`
+  - Remove the `[[d1_databases]]` binding from wrangler.toml
+  - Remove Drizzle migration files if no longer needed
+  - Uninstall `drizzle-orm` + `drizzle-kit`
+
+tested_with:
+  - nextjs-cloudflare
+
+free_tier_limits:
+  rows_read_per_day: 5000000
+  rows_written_per_day: 100000
+  storage: 5GB (aggregate across all databases)
+  databases: unlimited (no explicit cap)
+  note: "Daily row-read/write caps reset at 00:00 UTC; exceeding stops queries until reset. Storage is aggregate (5GB shared across every D1 database in the account). SQLite, not Postgres — no jsonb, no LISTEN/NOTIFY, no stored procedures."
+
+staleness_date: "2026-04-24"

@@ -1,0 +1,49 @@
+id: cloudflare-kv
+name: Cloudflare Workers KV
+tier: 2
+category: cache-queue
+description: >
+  Eventually-consistent global key-value store, read-optimised for high
+  cache hit rates. Values cached at every Cloudflare PoP; reads are
+  sub-millisecond after warm-up. Writes propagate globally within
+  ~60s. Suited for feature flags, rarely-changing config, per-user
+  preference snapshots, and A/B test assignments — NOT for strongly-
+  consistent state (use D1 or Durable Objects for that). Workers-binding
+  access only (no HTTP REST surface like Upstash), so it works inside
+  Workers / Pages Functions but not generic Node.js servers.
+cost_tier: free-to-start
+
+requires:
+  env_vars: []
+  packages: []
+  cli_tools:
+    - wrangler
+
+setup_steps:
+  - Create a KV namespace — `wrangler kv namespace create MY_KV` — capture the namespace id from the output
+  - Bind the namespace in wrangler.toml — `[[kv_namespaces]] binding = "MY_KV", id = "<id-from-create>"`
+  - For preview/dev — add a preview_id via `wrangler kv namespace create MY_KV --preview` and bind as `preview_id` in the same entry
+  - Access in Worker code as `env.MY_KV.get(key, { type: 'json' })` / `put(key, value, { expirationTtl })` / `delete(key)` / `list({ prefix })`
+  - Values support four types — text (default), json, arrayBuffer, stream — pick per call with `{ type: '...' }`
+  - For background writes that don't need to block the response, use `ctx.waitUntil(env.MY_KV.put(...))` so the Worker returns immediately
+  - For bulk seed / migration, use `wrangler kv bulk put --binding MY_KV bulk.json` (max 10k keys per file)
+
+teardown_steps:
+  - Delete all keys — `wrangler kv bulk delete --binding MY_KV keys.json` or empty via dashboard
+  - Delete the namespace — `wrangler kv namespace delete --namespace-id <id>`
+  - Remove the `[[kv_namespaces]]` binding from wrangler.toml
+
+tested_with:
+  - nextjs-cloudflare
+
+free_tier_limits:
+  reads_per_day: 100000
+  writes_per_day: 1000
+  deletes_per_day: 1000
+  list_operations_per_day: 1000
+  stored_data: 1GB
+  key_size_max_bytes: 512
+  value_size_max_bytes: 26214400
+  note: "All limits reset at 00:00 UTC. KV is eventually consistent — a write returns before global propagation completes (~60s). Operations on non-existent keys still count against the daily cap. Dashboard browsing also consumes quota."
+
+staleness_date: "2026-04-24"

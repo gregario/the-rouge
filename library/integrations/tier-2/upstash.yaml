@@ -1,0 +1,48 @@
+id: upstash
+name: Upstash Redis
+tier: 2
+category: cache-queue
+description: >
+  Serverless Redis over HTTP/REST — the only Redis client that works in
+  edge runtimes (Cloudflare Workers, Vercel Edge) without persistent TCP
+  connections. Durable by default (Upstash persists data, unlike in-memory
+  Redis). Commonly used for rate limiting, session storage, feature flag
+  caching, and leaderboard / counter state. Also offers Qstash (message
+  queue), Upstash Kafka, and Upstash Vector (embeddings store) — this
+  entry covers Redis only.
+cost_tier: free-to-start
+
+requires:
+  env_vars:
+    - UPSTASH_REDIS_REST_URL
+    - UPSTASH_REDIS_REST_TOKEN
+  packages:
+    - "@upstash/redis"
+  cli_tools: []
+
+setup_steps:
+  - Create a free account at console.upstash.com and create a Redis database (pick a region close to your deploy target)
+  - Copy the REST URL into `UPSTASH_REDIS_REST_URL` and the REST Token into `UPSTASH_REDIS_REST_TOKEN` (both under the database's Details tab)
+  - Install the SDK — `npm install @upstash/redis`
+  - Initialise with `Redis.fromEnv()` (reads the two env vars automatically) or explicit `new Redis({ url, token })`
+  - Because the SDK is HTTP/REST-based, every operation is a round-trip — batch with `pipeline()` when doing multiple ops in one handler
+  - For rate limiting, pair with `@upstash/ratelimit` which implements sliding-window / token-bucket over Upstash Redis
+  - Deploy — the SDK works unchanged on Cloudflare Workers, Vercel Edge, Node.js, and Bun; no driver swapping
+
+teardown_steps:
+  - Delete the database in Upstash console (free-tier databases are removed immediately; paid databases enter a 30-day retention window)
+  - Clear `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` from environments
+  - Uninstall `@upstash/redis` (and `@upstash/ratelimit` if used)
+
+tested_with:
+  - nextjs-cloudflare
+  - nextjs-vercel
+
+free_tier_limits:
+  data_size: 256MB
+  commands_per_month: 500000
+  databases: 1
+  tls: included
+  note: "HTTP/REST means every op is an HTTP round-trip — latency is higher than TCP Redis but the SDK works in edge/serverless runtimes where TCP won't. For >500K cmds/month or >256MB, Pay-As-You-Go ($0.20 per 100K commands, $0.25/GB-month) or Fixed plans unlock higher caps."
+
+staleness_date: "2026-04-24"

@@ -1,0 +1,54 @@
+id: vercel-blob
+name: Vercel Blob
+tier: 2
+category: object-storage
+description: >
+  Vercel's managed object storage built on Amazon S3 — durability is
+  11 nines, availability is 4 nines. Integrates natively with Vercel
+  Functions; private or public access mode per store (chosen at
+  creation, immutable). Public blobs served via Vercel's CDN with
+  cache-control headers. Pick Vercel Blob when the product already
+  deploys to Vercel and needs file storage without setting up S3 or
+  R2 — Vercel auto-provisions credentials. Pick Cloudflare R2 (also
+  catalogued) when egress cost dominates.
+cost_tier: free-to-start
+
+requires:
+  env_vars:
+    - BLOB_READ_WRITE_TOKEN
+  packages:
+    - "@vercel/blob"
+  cli_tools:
+    - vercel
+
+setup_steps:
+  - From the Vercel dashboard, open Storage > Create > Blob and pick private or public access mode (immutable after creation)
+  - Pick the Blob store region — one of 20 regions; match the region of the Functions that will read/write most often
+  - Link the Blob store to the project — Vercel auto-injects `BLOB_READ_WRITE_TOKEN` into the project's env vars (no copy/paste required)
+  - Pull env vars locally — `vercel env pull .env.local`
+  - Install the SDK — `npm install @vercel/blob`
+  - Upload from a Function — `import { put } from '@vercel/blob'; await put(filename, fileBody, { access: 'public' /* or 'private' */ })`
+  - For large files (>100MB), use multipart uploads — `put()` auto-handles this when body is a stream
+  - For client-direct uploads (avoid routing bytes through the Function), use `@vercel/blob/client` with a server-issued token
+
+teardown_steps:
+  - Empty the store via the dashboard's bulk-delete or `list()` + `del()` loop
+  - Disconnect the Blob store from the project (Settings > Storage > Disconnect)
+  - Delete the Blob store from the dashboard
+  - Clear `BLOB_READ_WRITE_TOKEN` from local .env.local (Vercel-side env var is removed automatically with the store)
+  - Uninstall `@vercel/blob`
+
+tested_with:
+  - nextjs-vercel
+
+free_tier_limits:
+  hobby_plan: included (no hard numeric caps; limits are shared across Vercel services in the project)
+  blob_max_size: 5TB per file
+  cache_size_limit_per_blob: 512MB (blobs above this generate cache-MISS every access)
+  simple_operations_rate_limit_hobby: 1200/min (20/s)
+  advanced_operations_rate_limit_hobby: 900/min (15/s)
+  delete_operations: free
+  cache_propagation_on_update_seconds: 60
+  note: "Hobby-plan usage is limited but not metered in hard numeric caps — Vercel emails as you approach limits and blocks Blob when exceeded (unlock by starting a Pro trial or waiting 30 days). Delete is free; put/copy/list are Advanced Operations (billed), head/cache-MISS reads are Simple Operations (billed). Uploads via Client Upload incur no data-transfer charge."
+
+staleness_date: "2026-04-24"
