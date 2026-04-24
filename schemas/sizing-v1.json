@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Sizing Artifact",
+  "description": "Written by the SIZING sub-phase of seeding (P1.5R). Records the project_size dial — the depth classification that every downstream phase reads to right-size its behavior. Sits at seed_spec/sizing.json. See docs/design/adaptive-depth-dial.md for the classification rules and per-tier pipeline shape.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "project_size",
+    "signals",
+    "reasoning",
+    "classifier_version",
+    "decided_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "sizing-v1",
+      "description": "Version tag so downstream consumers can branch on artifact shape."
+    },
+    "project_size": {
+      "type": "string",
+      "enum": ["XS", "S", "M", "L", "XL"],
+      "description": "The depth dial. XS = utility/tool, S = small app, M = standard SaaS, L = complex SaaS, XL = platform/multi-product. See docs/design/adaptive-depth-dial.md §Dial values."
+    },
+    "signals": {
+      "type": "object",
+      "required": [
+        "entity_count",
+        "integration_count",
+        "role_count",
+        "journey_count",
+        "screen_count"
+      ],
+      "description": "The counts the classifier read from BRAINSTORM's `## Classifier Signals` block.",
+      "properties": {
+        "entity_count": { "type": "integer", "minimum": 0 },
+        "integration_count": { "type": "integer", "minimum": 0 },
+        "role_count": { "type": "integer", "minimum": 0 },
+        "journey_count": { "type": "integer", "minimum": 0 },
+        "screen_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "reasoning": {
+      "type": "string",
+      "minLength": 1,
+      "description": "One-line rationale explaining why the classifier picked this tier from the signals. Useful for the human override gate."
+    },
+    "classifier_version": {
+      "type": "string",
+      "description": "Version of the classifier rules — e.g. 'v1'. Bumps when the rules change so historical sizings can be replayed or re-classified."
+    },
+    "decided_at": {
+      "type": "string",
+      "description": "ISO 8601 timestamp. When the classification was written."
+    },
+    "decided_by": {
+      "type": "string",
+      "enum": ["classifier", "human-override"],
+      "description": "classifier = automatic from signals. human-override = the gate accepted a human correction."
+    },
+    "human_override": {
+      "type": ["object", "null"],
+      "description": "If decided_by = human-override, records what the classifier would have picked + the human's reasoning.",
+      "properties": {
+        "classifier_would_pick": {
+          "type": "string",
+          "enum": ["XS", "S", "M", "L", "XL"]
+        },
+        "human_reasoning": { "type": "string" }
+      }
+    },
+    "grew_from": {
+      "type": "array",
+      "description": "History of mid-project upgrades. Each entry records a tier change triggered by the loop discovering new scope. Shrinks are never permitted — the dial grows or stays put.",
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "at", "reason"],
+        "properties": {
+          "from": { "type": "string", "enum": ["XS", "S", "M", "L", "XL"] },
+          "to": { "type": "string", "enum": ["XS", "S", "M", "L", "XL"] },
+          "at": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      }
+    }
+  }
+}

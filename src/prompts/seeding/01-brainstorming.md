@@ -211,6 +211,18 @@ address it.]
 |------|-------|---------------|----------------|
 | ... | Baseline/Expanded | ~X weeks | ~Y cycles |
 | **Total** | | ~X weeks | ~Y cycles |
+
+## Classifier Signals
+These counts feed the SIZING sub-phase (`src/launcher/project-sizer.js`, see
+`docs/design/adaptive-depth-dial.md`) which picks the project_size tier used
+by every downstream phase. Emit integers only; do not speculate — if an item
+is unclear or deferred, leave it out of the count. A zero is a valid answer.
+
+- entity_count: [distinct data-model entities in M1 scope]
+- integration_count: [external services touched: auth, email, payments, storage, calendar, analytics, push, etc.]
+- role_count: [distinct user roles / actors in M1]
+- journey_count: [distinct end-to-end journeys in M1 — setup, daily-use, recovery, etc.]
+- screen_count: [distinct UI surfaces / views / routes in M1]
 ```
 
 ## What You Do NOT Do
