@@ -1032,6 +1032,7 @@ We stop working on a roadmap item and come back if:
 | `a42c3ad` | P1.19 PR 5 — 05-change-spec-generation modernization |
 | `9d78d8a` | P1.19 PR 6 — 07-ship-promote modernization |
 | `5c13c27` | P1.19 PR 7 — 00-foundation-building modernization (with explicit preservation of three load-bearing safety blocks) |
+| _next_ | P1.19 PR 8 — 01-building.md modernization (factory's main prompt; three safety blocks preserved: ISOLATION RULES, Capability Avoidance, "that is fraud"; added Story Scope Boundary; 30 tests) |
 
 **Memory work this session:**
 
@@ -1040,21 +1041,20 @@ We stop working on a roadmap item and come back if:
 
 **P1.5R initiative status: complete.** Calculator (XS) projects now skip 5 disciplines, ship with $30 cap and 1 FA; planning-windows-shaped projects run all 9 disciplines at L tier with iterative per-FA SPEC + mandatory cross-cut + $200 cap; existing projects without sizing.json default-to-M and work unchanged.
 
-**P1.19 status: 7 of 17 loop prompts modernized.** Pattern established and stable across 7 PRs. Each PR: read prompt → identify shouty / "do NOT" / scaffolding / "What You Do NOT Do" patterns → distinguish stylistic emphasis (soften) from incident-tied emphasis (preserve) → rewrite scope section with positive leads → write ~15-20 tests (behavioral contract + modernization invariants) → adversarial-review-first commit → merge.
+**P1.19 status: 8 of 17 loop prompts modernized.** Pattern established and stable across 8 PRs. Each PR: read prompt → identify shouty / "do NOT" / scaffolding / "What You Do NOT Do" patterns → distinguish stylistic emphasis (soften) from incident-tied emphasis (preserve) → rewrite scope section with positive leads → write ~15-30 tests (behavioral contract + modernization invariants) → adversarial-review-first commit → merge.
 
 **Safety-block preservation rule (discovered on PR 7):** Some prompts carry emphatic safety language tied to documented destroyed-production incidents (ISOLATION RULES / HARD BLOCK / "that is fraud" / the 0-delta spin scope-creep rule). For those, Opus 4.7's "over-triggers on shouty language" tendency is desirable — maximum caution is what we want there. Modernization tests in those cases explicitly assert the safety blocks STAY emphatic. See `test/prompts/foundation-modernization.test.js` for the exemplar.
 
-**P1.19 remaining (10 loop prompts):**
+**P1.19 remaining (9 loop prompts — all judge-side):**
 
-- Generation-side (allowlisted for self-improve): **`01-building.md`** (735 lines — biggest in the codebase, highest stakes, TDD + subagent patterns + factory safety rules — take next).
-- Judge-side (blocklisted for self-improve, human-authored — higher calibration-drift risk): `00-foundation-evaluating.md`, `02-evaluation-orchestrator.md`, `02a-test-integrity.md`, `02c-code-review.md`, `02d-product-walk.md`, `02e-evaluation.md`, `02f-re-walk.md`, `06-vision-check.md`, `10-final-review.md`.
+- Generation-side sweep: **complete.** 00-foundation-building, 01-building, 03-qa-fixing, 04-analyzing, 05-change-spec-generation, 07-ship-promote, 08-document-release, 09-cycle-retrospective all modernized.
+- Judge-side remaining (blocklisted for self-improve, human-authored — higher calibration-drift risk): `00-foundation-evaluating.md`, `02-evaluation-orchestrator.md`, `02a-test-integrity.md`, `02c-code-review.md`, `02d-product-walk.md`, `02e-evaluation.md`, `02f-re-walk.md`, `06-vision-check.md`, `10-final-review.md`.
 
 **P1.19 remaining (seeding prompts):** `00-swarm-orchestrator.md`, `01-brainstorming.md`, `02-competition.md`, `04-spec.md`, `05-design.md`, `06-legal-privacy.md`, `07-marketing.md`, `08-infrastructure.md`. Judge-nature: `03-taste.md` (blocklisted). The new `03b-sizing.md` was written Opus-4.7-native this session and needs no pass.
 
 **Recommended P1.19 pickup order for next session:**
-1. `01-building.md` first — finishes the generation-side sweep before starting judge-side, keeps the allowlist/blocklist distinction clean.
-2. Then seeding generation prompts (smaller on average, lower stakes — they run before anything ships).
-3. Judge prompts last, with extra care (calibration drift risk).
+1. Seeding generation prompts next — smaller, lower stakes than loop-side judges, and they run before anything ships. `00-swarm-orchestrator.md`, `01-brainstorming.md`, `02-competition.md`, `04-spec.md`, `05-design.md`, `06-legal-privacy.md`, `07-marketing.md`, `08-infrastructure.md`.
+2. Judge prompts last, with extra care (calibration drift risk): the sub-phase 02* set + `00-foundation-evaluating`, `06-vision-check`, `10-final-review`. Dedicated PR set, consider a pairwise calibration gate before merging each.
 
 **Test counts at session end:** launcher + standalone + prompt contract ≈ 650+ tests across the chain. All pass except the one pre-existing flaky `test/launcher/allowed-tools-behavior.test.js` (empirical `claude -p` harness test; documented known-flaky; passes in isolation). Dashboard: 477/477.
 

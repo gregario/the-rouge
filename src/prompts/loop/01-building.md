@@ -53,7 +53,7 @@ Read `story_context.json` in the project root. This is your focused brief — th
 
 **What story_context.json contains:**
 - `story.spec` — your build contract for THIS story (acceptance criteria, user journeys)
-- `story.fix_memory` — what was tried in previous attempts on this story (if retrying). Do NOT repeat failed approaches.
+- `story.fix_memory` — what was tried in previous attempts on this story (if retrying). Pick a different approach than the ones logged there.
 - `story.attempt_number` — which attempt this is
 - `foundation` — architecture map (key files per domain), schemas, integrations, deployment config
 - `related_stories` — results from other stories in this milestone that share code/infrastructure
@@ -81,7 +81,7 @@ Extract and internalize:
 - **`active_spec`** — The spec you are building against. This is your contract. Deviate only when the spec is ambiguous or contradictory, and log every deviation.
 - **`product_standard`** — The quality bar. Global standards, domain standards, project overrides. This defines "done."
 - **`previous_evaluations`** — QA and PO Review reports from prior cycles. These are the quality gaps you must address. If the same gap was flagged twice, it is now critical. If you were the one who introduced it, fix it first.
-- **`factory_decisions`** from prior cycles — What was tried before, what worked, what was rejected. Do not repeat failed approaches. Do not ignore decisions that worked. When writing new factory_decisions, ALWAYS APPEND — never overwrite existing entries.
+- **`factory_decisions`** from prior cycles — what was tried before, what worked, what was rejected. Pick a different approach than the failed ones; honour decisions that worked. Append new factory_decisions; never overwrite existing entries (the append-only invariant is load-bearing — prior phases and cycles depend on their entries surviving).
 - **`factory_questions`** from prior cycles — Ambiguities that were flagged. Check if they were resolved. If they were resolved, follow the resolution. If they were not, resolve them yourself and log your resolution.
 - **`evaluation_deltas`** — The trend. Is quality improving, stable, or regressing? If regressing, understand why before writing a line of code.
 - **`skipped`** from prior cycles — Tasks that were blocked or deferred. Check if the blockers are now resolved.
@@ -94,7 +94,7 @@ If `cycle_context.json` does not exist or is malformed, this is a fatal error. L
 
 ## Step 2: Confirm Working Branch
 
-V3 uses a single long-lived branch. Do NOT create a new branch. Commits go to the current branch as-is.
+V3 uses a single long-lived branch. The launcher has already checked out the correct one — commit to it as-is.
 
 ```bash
 git status
@@ -154,7 +154,7 @@ After profile detection, derive the strategy:
 
 If `foundation-needed` capability is detected AND no foundation story has been completed (check `cycle_context.json` for prior foundation story results):
 - Write a `factory_question` recommending that a foundation story be inserted into the milestone plan, with the specific scope and rationale.
-- **Do NOT exit.** Do NOT write to any state file. Continue to task extraction.
+- Continue to task extraction; the launcher handles state and phase routing.
 - The Analyzer phase is responsible for recommending foundation insertion. The Builder only notes the gap and proceeds.
 
 Building just builds. Only analyzing recommends insert-foundation.
@@ -210,7 +210,7 @@ When `integration-escalation` capability is active:
 
 ## Step 3.5: Search Before Building
 
-Before writing any new code, map every extracted task to existing code in the project. This is especially critical on cycle 2+ — prior cycles left code, utilities, patterns, and abstractions that you MUST reuse rather than reinvent.
+Before writing any new code, map every extracted task to existing code in the project. This is especially critical on cycle 2+ — prior cycles left code, utilities, patterns, and abstractions; reuse them rather than reinvent.
 
 For each task:
 
@@ -244,11 +244,11 @@ For each task:
 
 ## Step 4: Build with TDD — Red, Green, Refactor
 
-For every task, follow the TDD rhythm. This is not optional. This is not a suggestion. This is how you build.
+Every task follows the TDD rhythm: red, green, refactor. It's not an option alongside other build orders — it's the build order.
 
 ### Red: Write the Failing Test First
 
-Before writing any implementation code, write a test that captures the acceptance criterion. The test MUST fail. If it passes before you write implementation code, either the test is wrong or the feature already exists — investigate which.
+Before writing any implementation code, write a test that captures the acceptance criterion. The test has to fail when you run it. If it passes before you write implementation code, either the test is wrong or the feature already exists — investigate which.
 
 ```
 For each acceptance criterion AC-{area}-{N}:
@@ -289,7 +289,7 @@ With all tests passing, clean up:
 
 After every refactor step, run all tests. If anything breaks, your refactor changed behavior — undo it and try again.
 
-**The refactor step is not optional.** Skipping it produces code that passes tests but accumulates accidental complexity. The PO Review will catch this as "code quality" failures. Fix it now.
+**Refactor every task you complete.** Skipping it produces code that passes tests but accumulates accidental complexity. The PO Review will catch this as "code quality" failures. Fix it now, not later.
 
 ### Boil the Lake — Fix the Blast Radius
 
@@ -328,7 +328,7 @@ If a test fails and you cannot make it pass after 3 focused attempts within this
 | `environment-limitation` | Test environment can't verify this (WebGL in headless, hardware dependency) | Write unit/integration tests for what CAN be tested. Note env_limitation in story result. Story can still PASS with documented limitations. |
 | `prompt-limitation` | Your instructions don't apply to this domain/stack | Log as `factory_question`. Skip the inapplicable step with justification. Continue building. |
 
-**Step 2: Act on the classification.** Do NOT jump from observation to fix. The classification determines the response — not every failure needs a code change.
+**Step 2: Act on the classification.** Classify first, then act — the classification determines the response, and not every failure needs a code change.
 
 **Step 3: Record in story result.** Write the classification, diagnosis, and what you tried to `story_result` in `cycle_context.json`. This feeds fix_memory for future attempts.
 
@@ -352,7 +352,7 @@ For each task extracted in Step 3:
 3. **Dispatch the implementer subagent.** Give it:
    - The task definition with acceptance criteria
    - The focused context slice
-   - The TDD instruction (red, green, refactor — non-negotiable)
+   - The TDD instruction (red, green, refactor — the subagent follows the same rhythm you do)
    - The list of files it may create or modify (scope boundary)
    - Any prior cycle decisions relevant to this task
 
@@ -362,7 +362,7 @@ Each subagent reports one of four statuses:
 
 - **DONE** — Task complete, tests passing. Accept and move to review.
 - **DONE_WITH_CONCERNS** — Task complete, tests passing, but the subagent flagged concerns (performance, design trade-offs, spec ambiguities). Accept, log concerns to `factory_questions`, review during the two-stage review.
-- **NEEDS_CONTEXT** — Subagent hit an ambiguity or missing information. Do NOT escalate to human. Resolve it:
+- **NEEDS_CONTEXT** — Subagent hit an ambiguity or missing information. Resolve it yourself rather than escalating to a human:
   1. Check `cycle_context.json` for the answer (vision, spec, previous decisions, library heuristics).
   2. Check prior cycle `factory_decisions` — was this already decided?
   3. If the answer exists, populate it and re-dispatch the subagent.
@@ -393,7 +393,7 @@ After each subagent completes (DONE or DONE_WITH_CONCERNS), run a two-stage revi
 - Is the code consistent with the existing codebase style?
 - If quality issues are found: reject back to the subagent with specific items to fix.
 
-Both stages must pass before the task is accepted. Do not accept "good enough." The PO Review will catch what you let through.
+Both stages must pass before the task is accepted. Hold the bar; the PO Review will catch what you let through.
 
 ---
 
@@ -492,7 +492,7 @@ If the deploy fails:
 
 If the project uses a database (check `infrastructure_manifest.json` or `cycle_context.json` for database configuration):
 
-1. **Read `infrastructure_manifest.json`** for the database provider and connection details. Do NOT assume Supabase — the project may use Neon, D1, or another provider.
+1. **Read `infrastructure_manifest.json`** for the database provider and connection details. Each project names its own provider — Supabase, Neon, D1, or another — and you honour that choice rather than defaulting.
 
 2. **Execute provider-appropriate operations:**
    - **Supabase**: read `cycle_context.json.supabase` for project ref; run `supabase db push` for migrations; deploy edge functions if applicable
@@ -584,7 +584,7 @@ After all work is complete (or as complete as it can be given blockers), write r
     }
   ],
   // ⚠️ APPEND ONLY: factory_decisions must be appended to the existing array in cycle_context.json.
-  // Do NOT overwrite or replace previous entries from prior phases or cycles.
+  // Never overwrite or replace previous entries from prior phases or cycles — they are load-bearing.
   // Read the existing array first, then push new entries onto it.
 
   "factory_questions": [
@@ -660,12 +660,23 @@ After committing all work and writing back to `cycle_context.json`:
 1. Run the full test suite one final time. All tests must pass. If any fail, fix them before exiting.
 2. Verify the staging deployment is accessible (if deployed). A quick sanity check — does the URL respond?
 3. Verify `cycle_context.json` is valid JSON and contains all required fields.
-4. Do NOT update `.rouge/state.json`. The launcher manages state transitions.
-5. Do NOT create a PR. That happens in a later phase.
-6. Do NOT decide what happens next. Your job is to build and report. The Runner decides the next state.
+4. Write only to `cycle_context.json` for state — the launcher owns `.rouge/state.json` and manages transitions.
+5. Skip PR creation; ship-promote (07) is the phase that opens PRs.
+6. Report results; the Runner chooses the next phase based on `story_result`.
 7. Exit.
 
 ---
+
+## Story Scope Boundary
+
+This phase builds the specified story and writes results to `cycle_context.json`. The surrounding phases cover the rest:
+
+- Build the one story named in `story_context.story.id`; the launcher picked it and will queue the next one once you exit.
+- Implement with TDD inside the story's acceptance criteria — depth within a story is craftsmanship, new stories or features outside the spec belong to the Analyzer and planner.
+- Deploy to staging only; production promotion is ship-promote (07), and the ISOLATION RULES above forbid touching resources that don't belong to this project.
+- Write `story_result` for the Runner; the launcher owns phase routing, state transitions, and PR creation.
+- Commit bisectable units on the current branch; the launcher already chose the branch.
+- Escalate ambiguities and blockers to `factory_questions`; the Analyzer decides what happens next.
 
 ## Failure Modes and Recovery
 
