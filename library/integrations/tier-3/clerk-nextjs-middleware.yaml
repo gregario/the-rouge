@@ -1,0 +1,83 @@
+id: clerk-nextjs-middleware
+name: Clerk + Next.js App Router Middleware
+tier: 3
+service: clerk
+category: authentication
+tags:
+  - auth
+  - nextjs
+  - middleware
+  - app-router
+  - protected-routes
+description: >
+  Route protection for Next.js App Router using Clerk's clerkMiddleware +
+  createRouteMatcher. Authenticated reads in server components via auth()
+  from @clerk/nextjs/server; client reads via useAuth() / useUser().
+  Separates public / protected / admin routes cleanly; redirects
+  unauthenticated users to the configured sign-in URL.
+applies_when: >
+  Next.js 13+ app using App Router needs authentication with server-
+  rendered authenticated content. Required when server components need
+  the current user's id or role before rendering (e.g., the server
+  renders a dashboard already populated with the user's data, not a
+  client-side loading spinner that then fetches). Skip this pattern if
+  all auth-gated content is client-rendered — in that case, a simple
+  <SignedIn> / <SignedOut> wrapper is enough.
+
+requires:
+  packages:
+    - "@clerk/nextjs"
+  env_vars:
+    - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+    - CLERK_SECRET_KEY
+    - NEXT_PUBLIC_CLERK_SIGN_IN_URL
+    - NEXT_PUBLIC_CLERK_SIGN_UP_URL
+
+code_patterns:
+  - file: middleware.ts
+    description: >
+      Edge middleware using clerkMiddleware() from @clerk/nextjs/server.
+      Defines route matchers with createRouteMatcher for public / protected /
+      admin groups. Calls auth.protect() inside the handler to redirect
+      unauthenticated requests to the sign-in URL; auth.protect({ role }) for
+      role-gated routes. Exports the matcher config to scope middleware to
+      routes that actually need it (skip static assets, API webhooks).
+  - file: app/layout.tsx
+    description: >
+      Root layout wrapped in <ClerkProvider> so client hooks (useAuth,
+      useUser) work below the root. No server config required here —
+      the provider uses the publishable key from env.
+  - file: app/sign-in/[[...sign-in]]/page.tsx
+    description: >
+      Hosts Clerk's <SignIn /> component at the route configured by
+      NEXT_PUBLIC_CLERK_SIGN_IN_URL. Catch-all route ([[...sign-in]]) so
+      Clerk can route its own sub-pages (forgot password, verify email).
+      Mirror with app/sign-up/[[...sign-up]]/page.tsx.
+  - file: lib/auth.ts
+    description: >
+      Server-side helpers that wrap auth() + currentUser() from
+      @clerk/nextjs/server. Centralises the "who is the current user?"
+      lookup so routes don't re-derive it. Returns typed User objects
+      with the app's role schema narrowed.
+  - file: components/protected-page.tsx
+    description: >
+      Server component that reads auth() and renders {children} if signed
+      in, else redirects to sign-in. Use when the whole page requires auth
+      and the middleware matcher is too coarse.
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+scale_considerations: >
+  clerkMiddleware runs on every request that matches the config matcher —
+  keep the matcher tight (exclude /_next/*, /api/webhooks/*, public
+  assets) or each page load pays the session-verification round-trip.
+  Clerk caches verification on the edge but the first request after a
+  session change still validates end-to-end. For API routes receiving
+  machine traffic (cron, webhooks, inbound Slack events), bypass
+  middleware entirely and validate with Machine Authentication API keys
+  (free tier: 1k key creations, 100k verifications/month). On
+  Cloudflare Workers, the auth.protect() redirect path works but
+  consumes CPU time — the free Workers plan's 10ms CPU cap can be
+  tight for complex layouts that also run auth middleware.

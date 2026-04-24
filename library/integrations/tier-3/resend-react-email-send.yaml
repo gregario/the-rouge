@@ -1,0 +1,86 @@
+id: resend-react-email-send
+name: Resend + React Email (Typed Template Send)
+tier: 3
+service: resend
+category: email
+tags:
+  - email
+  - transactional
+  - react
+  - templates
+description: >
+  Transactional email sending with React-component templates. Templates
+  live in an `emails/` folder, use `@react-email/components` for
+  cross-client-compatible markup, preview locally with the react-email
+  dev server, and render to HTML at send time via Resend's SDK. Replaces
+  the classic "concatenate HTML strings in a send() call" anti-pattern
+  with a typed, previewable, testable email surface.
+applies_when: >
+  Product sends transactional emails (welcome, receipt, password-reset,
+  notification digest). Required when emails need visual structure
+  beyond plain text AND the team wants template changes to be code-
+  reviewable (PR diffs show component changes, not HTML-string blobs).
+  Skip this pattern for plain-text-only emails — the overhead isn't
+  justified.
+
+requires:
+  packages:
+    - "resend"
+    - "react-email"
+    - "@react-email/components"
+  env_vars:
+    - RESEND_API_KEY
+
+code_patterns:
+  - file: emails/welcome.tsx
+    description: >
+      Welcome email template as a React component. Uses <Html>, <Head>,
+      <Preview>, <Body>, <Container>, <Heading>, <Text>, <Link>,
+      <Button>, <Hr> from @react-email/components. Props typed so
+      callers get compile-time errors when data is missing. Inline
+      styles only — most email clients strip <style> tags.
+  - file: emails/password-reset.tsx
+    description: >
+      Second template illustrating the shared layout pattern — factor
+      header/footer into shared components (components/email-layout.tsx)
+      that every template imports. Keeps the brand consistent and
+      changes localised.
+  - file: lib/send-email.ts
+    description: >
+      Typed wrapper around Resend's emails.send({ from, to, subject, react }).
+      Exports one function per template (sendWelcomeEmail(userId, ...)
+      etc.) that loads the user record, computes props, and calls send.
+      Centralises from-address and reply-to so templates don't hardcode.
+      Handles Resend's rate-limit error (429) by queueing; surfaces
+      delivery errors to the caller with a typed Result.
+  - file: emails.config.ts
+    description: >
+      react-email CLI config — entry folder, output folder, preview
+      port. Allows `npx react-email dev` to hot-reload templates during
+      authoring.
+  - file: app/api/webhooks/resend/route.ts
+    description: >
+      Optional webhook receiver for Resend delivery events (delivered,
+      bounced, opened, clicked). Verifies the Svix signature header,
+      persists the event to the project database, and updates the
+      sender-reputation dashboard. Gate behind a per-project webhook
+      secret from Resend dashboard.
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+scale_considerations: >
+  Free-tier limit is 100 emails per day AND 3000 per month — hit
+  either and sends start returning 429. For digest-style flows
+  (daily summary to N users), this caps the audience at 100/day on
+  free. Above the cap, upgrade to Pro ($20/mo for 50k/month) or queue
+  and spread sends across days. Rendering React components server-
+  side is cheap (~1ms for a typical template) but accumulates on
+  large batches — prefer `batch.send()` (up to 100 emails per call)
+  over a send() loop. If the email volume is unpredictable, put a
+  queue (Upstash, Cloudflare Queues, Inngest) between the trigger
+  and the Resend call so rate-limit backpressure doesn't break user-
+  facing flows. For deliverability, DO set up the domain via
+  Resend's SPF/DKIM/DMARC records — sending from the default onboard
+  domain lands in spam at scale.

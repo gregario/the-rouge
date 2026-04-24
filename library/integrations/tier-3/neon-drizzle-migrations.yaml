@@ -1,0 +1,79 @@
+id: neon-drizzle-migrations
+name: Neon + Drizzle Migrations (Pooled / Unpooled Split)
+tier: 3
+service: neon
+category: database
+tags:
+  - database
+  - migrations
+  - drizzle
+  - postgres
+  - edge
+description: >
+  Canonical Neon + Drizzle setup that splits runtime queries (pooled
+  connection, edge-compatible) from migrations (direct unpooled
+  connection, pooler incompatible with DDL). Covers schema authoring,
+  generate/push workflow, and the two-env-var convention every Neon +
+  Drizzle deployment ends up needing.
+applies_when: >
+  Product uses Neon Postgres and wants typed queries with migrations
+  managed in-repo. Required when the deploy target is an edge runtime
+  (Cloudflare Workers, Vercel Edge) because pgbouncer-pooled
+  connections break DDL statements — migrations must run through the
+  unpooled/direct connection while runtime queries use the pooled one.
+
+requires:
+  packages:
+    - "@neondatabase/serverless"
+    - "drizzle-orm"
+    - "drizzle-kit"
+  env_vars:
+    - DATABASE_URL
+    - DATABASE_URL_UNPOOLED
+
+code_patterns:
+  - file: drizzle.config.ts
+    description: >
+      Drizzle Kit configuration pointing schema and migrations folders.
+      Uses DATABASE_URL_UNPOOLED for migrations (direct connection, DDL-safe)
+      — not DATABASE_URL. dialect: 'postgresql', driver: 'pglite' or 'pg'.
+  - file: src/db/schema.ts
+    description: >
+      Typed schema definitions using drizzle-orm/pg-core's pgTable, relations(),
+      and column helpers. Exports each table object and the relational router
+      for application code to import. Single source of truth for both the
+      TypeScript types and the generated SQL.
+  - file: src/db/client.ts
+    description: >
+      Runtime client factory. Uses @neondatabase/serverless's neon() HTTP
+      driver + drizzle()'s neon-http adapter, reading DATABASE_URL. Exports a
+      singleton `db` for application code. Works unchanged in edge runtimes.
+  - file: src/db/migrate.ts
+    description: >
+      Migration runner script invoked by `drizzle-kit migrate` or CI. Uses
+      @neondatabase/serverless's Pool with DATABASE_URL_UNPOOLED (the direct
+      connection, NOT the pooled one) because pgbouncer strips transaction
+      state that DDL requires. Exits non-zero on any migration failure.
+  - file: .github/workflows/migrate.yml
+    description: >
+      CI step that runs `npx drizzle-kit migrate` against
+      DATABASE_URL_UNPOOLED before the deploy step. Fails the deploy if
+      migrations fail, preventing code that references a new column from
+      reaching production before the column exists.
+
+tested_with:
+  - nextjs-cloudflare
+  - nextjs-vercel
+
+scale_considerations: >
+  The pooled/unpooled split is the pattern's whole point — every Neon
+  deployment that skips it eventually hits "prepared statement does not
+  exist" or "transaction aborted" errors in migrations. Keep both
+  env vars set in every environment. Runtime queries use HTTP (one
+  round-trip per query, no connection pooling needed) — good for
+  serverless; less good for Node.js servers doing many small queries
+  where persistent-connection pooling via Neon's driver with
+  `neonConfig.fetchConnectionCache` helps. On cold start, the pooled
+  connection autosuspends after 5 min idle; first query after resume
+  takes ~500ms. For latency-sensitive reads, consider Neon's read
+  replicas (paid) or a KV cache in front.

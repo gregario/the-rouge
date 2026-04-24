@@ -1051,7 +1051,10 @@ We stop working on a roadmap item and come back if:
 | `a63c95c` | P1.19 PR 24 — 02-evaluation-orchestrator.md modernization (meta-judge; evidence-first/judgment-second architecture + 4-tier cycle classification + 7-row failure-routing table + 6 "Never" Anti-Patterns + "NEVER routes to shipping" load-bearing boundary all locked in; NOTE/MILESTONE/ALL/IMPORTANT softened; 37 tests) |
 | `bfec484` | P1.19 PR 25 — seeding/03-taste.md modernization (highest Rouge-taste-voice density in codebase; EXPANSION/HOLD/REDUCTION framing + Chesky/Graham/Altman voices + "Push scope UP" directional voice + Boil-the-Lake expand-scope ethos preserved; 5 stylistic caps softened; 35 tests) |
 | `73eb020` | P1.19 PR 26 — 02e-evaluation.md modernization (**final judge prompt, sweep complete**; full judgment-layer calibration stack locked in — P1.14 rubric / P1.15 confidence / P1.16 quote-before-score / P1.16b evidence_ref / P1.20 unknown / P1.21 capability-check / P0.9 variant tracker; 5 stylistic caps softened; 67 tests — the heaviest judge-side surface in the sweep) |
-| _next_ | P4.1 — tier-2 catalogue fill (Neon, Clerk, Resend, PostHog) + tier-2 YAML schema test (40 new schema assertions covering every existing + new service; locks format for future additions) |
+| `62f451a` | P4.1 wave 1 — tier-2 catalogue fill (Neon, Clerk, Resend, PostHog) + tier-2 YAML schema test |
+| `9a5748a` | P4.1 fix — cross-checked tier-2 catalogue against vendor docs; corrected six of eight entries (Clerk MAU understated 10k→50k, Neon compute/PITR overstated, Sentry 10k transactions → 5M spans metric change, Counterscale install method changed to CLI wizard, PostHog surveys/replays counts, Resend broadcast contacts) |
+| `374e8d4` | P4.1 wave 2 — eight more tier-2 entries: Upstash, OpenAI, Anthropic, Plausible, Cloudflare R2/KV/D1, Vercel Blob. Catalogue doubled (8 → 16). Three new categories (llm-api, object-storage, cache-queue). |
+| _next_ | P4.1 wave 3 — four tier-3 patterns for the new tier-2 services (neon-drizzle-migrations, clerk-nextjs-middleware, resend-react-email-send, posthog-feature-flag-server) + tier-3 schema test (91 assertions covering all 9 existing + new patterns; enforces service-id references a real tier-2 entry) |
 
 **Memory work this session:**
 

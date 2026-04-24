@@ -1,0 +1,96 @@
+id: posthog-feature-flag-server
+name: PostHog Server-Side Feature Flag Evaluation
+tier: 3
+service: posthog
+category: feature-flags
+tags:
+  - feature-flags
+  - server-side
+  - posthog-node
+  - edge
+  - experimentation
+description: >
+  Server-side feature flag evaluation using posthog-node. Evaluates
+  flags for the current user during SSR or in API routes before
+  returning a response, so the client doesn't render a flash-of-default
+  state before the flag resolves. Handles the ephemeral-function flush
+  problem — every invocation must call `shutdown()` before returning,
+  or in-flight events and flag-exposure captures get dropped when the
+  function terminates.
+applies_when: >
+  Server-rendered page or API route needs to branch on a feature flag
+  before responding. Required when the flag controls what gets rendered
+  (not just what gets hidden after render) — e.g., an experiment that
+  changes the headline wording or a rollout that adds a new column to
+  a table. Skip this pattern for client-only flags where a loading
+  state is acceptable — posthog-js on the client handles that case
+  more simply.
+
+requires:
+  packages:
+    - "posthog-node"
+  env_vars:
+    - POSTHOG_API_KEY
+    - NEXT_PUBLIC_POSTHOG_KEY
+    - NEXT_PUBLIC_POSTHOG_HOST
+
+code_patterns:
+  - file: lib/posthog/server.ts
+    description: >
+      Factory that instantiates a PostHog client per request using
+      posthog-node. Uses POSTHOG_API_KEY (Personal API key for
+      server-side flag queries, NOT the project key which is public).
+      Instance is created inside the handler and disposed via a
+      try/finally that calls `await posthog.shutdown()` — this is
+      the critical step; skipping it silently drops flag-exposure
+      events in serverless.
+  - file: app/(feature)/experiment-page/page.tsx
+    description: >
+      Server component that resolves the current user (from Clerk,
+      Supabase, Auth.js, whichever auth is in use), calls
+      posthog.isFeatureEnabled('flag-key', userId) before rendering,
+      and branches on the result. The flag check MUST include the
+      user's distinctId so PostHog can bucket consistently across
+      sessions. Calls shutdown() in a finally block before returning.
+  - file: app/api/feature-flag/[key]/route.ts
+    description: >
+      Generic flag-check endpoint for client code that needs to ask the
+      server "is flag X enabled for me?". Returns { enabled: boolean,
+      payload?: unknown } — the payload is PostHog's JSON payload
+      feature (multivariate flag values). Uses the request's session to
+      determine distinctId. Also calls shutdown() in finally.
+  - file: lib/posthog/bootstrap.ts
+    description: >
+      Server-to-client bootstrap — on the first SSR response, evaluate
+      every flag the page uses and inline the results in the HTML so
+      posthog-js on the client hydrates without a re-fetch. Avoids
+      the render flicker that happens when client-side flag init
+      races the first paint. Uses posthog.getAllFlags(distinctId).
+  - file: lib/posthog/experiment-helpers.ts
+    description: >
+      Typed helpers that wrap isFeatureEnabled + getFeatureFlagPayload
+      with the project's experiment schema. Prevents the "flag key as
+      string literal everywhere" anti-pattern — one place to rename a
+      flag and one place to document its variants.
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+scale_considerations: >
+  posthog-node uses local-evaluation mode by default: it caches flag
+  definitions in memory and evaluates them without a network call
+  per-check. Cache refreshes every 30 seconds (configurable via
+  `featureFlagsPollingInterval`). This is fast at runtime but means
+  a 30-second lag between flipping a flag in PostHog and it taking
+  effect. For edge runtimes (Cloudflare Workers, Vercel Edge), cold
+  starts re-fetch the definitions — ~200ms added latency on the
+  first request per isolate. The shutdown() call is non-optional in
+  serverless — without it, PostHog's internal batching queue still
+  has events when the function terminates, and those events get
+  dropped. For Cloudflare Workers, use ctx.waitUntil(posthog.shutdown())
+  so the Worker response returns immediately while the flush
+  completes in the background. At >1M flag requests per month the
+  free tier caps apply — pay-as-you-go after. For multivariate flags
+  with user-specific payloads, evaluation cost scales with the number
+  of condition groups; keep per-flag complexity moderate.
