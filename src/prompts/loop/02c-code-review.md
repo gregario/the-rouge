@@ -71,7 +71,7 @@ find src/ -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' | xargs
 ```
 Flag files over 300 lines. Emit: `Large files: <N> over 300 lines`
 
-**Degradation Detection:** Compare against previous cycle's `code_quality_baseline` from `previous_cycles`. Set `degraded: true` if ANY metric worsened beyond threshold (coverage -2%, duplication +1%, circular deps increased, dead code +5 items, large files increased).
+**Degradation Detection:** Compare against previous cycle's `code_quality_baseline` from `previous_cycles`. Set `degraded: true` when any metric worsens beyond threshold (coverage -2%, duplication +1%, circular deps increased, dead code +5 items, large files increased).
 
 ### Step 1.5: Language-Specific Review — shape reference (ownership: orchestrator)
 
@@ -106,7 +106,7 @@ Either way, the generic AI Code Audit (Step 2 below) **always runs regardless**.
 
 ### Step 2: AI Code Audit
 
-Audit ALL changed files across seven dimensions. Score each 0-100 with concrete findings.
+Audit every changed file across seven dimensions. Score each 0-100 with concrete findings.
 
 | # | Dimension | Weight | What to look for |
 |---|-----------|--------|------------------|
@@ -142,7 +142,7 @@ Emit: `Security: <PASS|FAIL>`
 
 ## What You Write
 
-To `cycle_context.json`, write a `code_review_report` key (NOT `evaluation_report`):
+To `cycle_context.json`, write a `code_review_report` key — not `evaluation_report`, which belongs to the downstream evaluation phase and is tracked separately:
 
 ```json
 {
@@ -240,7 +240,7 @@ Anti-pattern: generic findings like "security is weak throughout" without a pinn
 
 Every finding in `ai_code_audit.dimensions[].findings`, `security_review.categories[].findings`, `critical_findings[]`, and `language_review.blocking[]|warnings[]` carries a `confidence` tag from `high | moderate | low`. Rules mirror 02e-evaluation.md § Confidence tags.
 
-- `high` — direct static-analyzer output or source-code line match. MUST carry a structured `evidence_ref`:
+- `high` — direct static-analyzer output or source-code line match. High-confidence findings must carry a structured `evidence_ref`:
   ```json
   {
     "evidence_ref": {
