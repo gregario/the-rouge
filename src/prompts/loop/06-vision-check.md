@@ -88,7 +88,7 @@ Produce a structured alignment assessment:
 - Does it affect the core promise delivery? (e.g., missing a11y patterns may exclude the target persona)
 - Does it impact persona fit? (e.g., inconsistent responsive behavior affects mobile-first personas)
 
-Include relevant global improvements as evidence in your alignment assessment under the appropriate dimension (`core_promise_delivery`, `persona_fit`, or `identity_consistency`). Do NOT try to fix global improvements — surface them as alignment evidence. The final-review phase will address them.
+Include relevant global improvements as evidence in your alignment assessment under the appropriate dimension (`core_promise_delivery`, `persona_fit`, or `identity_consistency`). Surface them as alignment evidence rather than attempting fixes — the final-review phase addresses the improvements themselves, this phase reports the strategic impact.
 
 ### Step 4 — Autonomous Scope Expansion
 
@@ -153,10 +153,10 @@ To `cycle_context.json`:
 
 ---
 
-## What You Do NOT Do
+## Scope Boundary
 
-- You do not implement anything. You do not write code.
-- You do not override the PO reviewer's quality assessment. You assess strategic alignment, not quality.
-- You do not auto-pivot. You surface evidence and recommend. The human decides.
-- You do not invoke slash commands.
-- You do not decide which phase runs next.
+- Assess strategic alignment; the PO reviewer owns quality. This phase answers "is the product converging on its vision?" — not "is the code good?"
+- Surface evidence; the human decides on pivots. A pivot is ALWAYS a human decision — this phase never auto-pivots, it writes a `pivot_proposal` with `needs_human_review: true`.
+- Write the alignment assessment to `cycle_context.json`; downstream phases handle implementation and code changes.
+- Call CLI tools directly; slash commands belong to interactive skills, not loop phases.
+- Report findings; the launcher handles phase routing.
