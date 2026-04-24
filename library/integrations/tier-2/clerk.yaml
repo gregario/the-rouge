@@ -7,8 +7,9 @@ description: >
   OAuth providers, MFA, organisations, and webhooks. Integrates natively with
   Next.js App Router via middleware; also supports Remix, Expo, and vanilla
   React. Replaces the need to build sign-in / sign-up flows, session handling,
-  and user-profile screens. Generous free tier for early products; switches to
-  per-MAU pricing above the cap.
+  and user-profile screens. Free tier (Hobby) works for early products but
+  has meaningful gaps — OAuth capped at 3 providers, no MFA, Clerk-branded
+  sign-in, fixed 7-day sessions. Pro upgrade unlocks the rest.
 cost_tier: free-to-start
 
 requires:
@@ -22,13 +23,13 @@ requires:
   cli_tools: []
 
 setup_steps:
-  - Create an application at dashboard.clerk.com and pick the authentication methods (email, Google, GitHub, etc.)
+  - Create an application at dashboard.clerk.com and pick up to 3 authentication methods (Hobby cap; Pro unlocks more)
   - Copy the publishable key into `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and the secret key into `CLERK_SECRET_KEY`
   - Install `@clerk/nextjs` and wrap the root layout with `<ClerkProvider>` in `app/layout.tsx`
   - Add `middleware.ts` at the project root using `clerkMiddleware()` with `createRouteMatcher` to declare protected routes
   - Set `NEXT_PUBLIC_CLERK_SIGN_IN_URL` and `NEXT_PUBLIC_CLERK_SIGN_UP_URL` to the routes that host `<SignIn />` and `<SignUp />` components
   - For server code, read the session with `auth()` from `@clerk/nextjs/server`; for client code, use `useAuth()` or `useUser()`
-  - Configure the production domain in Clerk dashboard before shipping — the test keys only work on localhost and clerk.dev-domain preview URLs
+  - Configure the production domain in Clerk dashboard before shipping — test keys only work on localhost and .clerk.dev preview URLs
 
 teardown_steps:
   - Delete the application in Clerk dashboard (removes users, sessions, and OAuth configurations)
@@ -41,11 +42,16 @@ tested_with:
   - nextjs-cloudflare
 
 free_tier_limits:
-  monthly_active_users: 10000
-  oauth_providers: unlimited
-  organisations: unlimited
-  mfa: included
+  monthly_active_users: 50000
+  oauth_providers: 3
+  organisations: 100 MROs
+  mfa: paid-plan-only
   branding_removal: paid-plan-only
-  note: "Above 10k MAU, pricing is per-MAU; organisations and enterprise SSO require paid plans"
+  session_lifetime_days: 7 (fixed on free, customizable on Pro)
+  dashboard_seats: 3
+  user_impersonations_per_month: 5
+  machine_auth_api_key_creations_per_month: 1000
+  machine_auth_verifications_per_month: 100000
+  note: "First Day Free — new users aren't counted against MAU until they return 24+ hours after signup. Above 50k MAU or for B2B orgs above 100, pricing is per-MAU / add-on."
 
 staleness_date: "2026-04-24"

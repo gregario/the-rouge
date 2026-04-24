@@ -5,26 +5,33 @@ category: analytics
 description: >
   Privacy-focused, self-hosted web analytics running on Cloudflare Workers
   and Analytics Engine. No cookies, no personal data collection, GDPR
-  compliant by design. Zero cost beyond your existing Cloudflare account.
+  compliant by design. Zero cost beyond your existing Cloudflare account
+  (subject to Workers free tier or paid plan). Install via CLI wizard;
+  tracker is a lightweight npm package. Active project — v3.4.1 as of
+  Dec 2025.
 cost_tier: free
 
 requires:
   env_vars:
     - COUNTERSCALE_SITE_ID
-  packages: []
+  packages:
+    - "@counterscale/tracker"
   cli_tools:
-    - wrangler
+    - npx
 
 setup_steps:
-  - Clone the Counterscale repository
-  - Deploy to Cloudflare Workers with `wrangler deploy`
-  - Note the deployed worker URL as your dashboard
-  - Add the tracking script tag to your application layout
-  - Set the site ID in environment variables
+  - Requires Node v20+ and an active Cloudflare account (macOS or Linux)
+  - Create a Cloudflare API token with `Account.Account Analytics` permission at dash.cloudflare.com/profile/api-tokens
+  - Run the CLI installer — `npx @counterscale/cli@latest install` — and follow interactive prompts (it enables Cloudflare Analytics Engine, creates the Worker, configures auth)
+  - Note the deployed Worker URL as your dashboard; set a dashboard password when prompted
+  - Install `@counterscale/tracker` in your app and initialise the client in the root layout (browser) or import from `@counterscale/tracker/server` for server-side
+  - Set `COUNTERSCALE_SITE_ID` to the site identifier chosen during install
+  - Verify by loading a page; the dashboard should show the pageview within a few seconds
 
 teardown_steps:
-  - Remove the script tag from your application layout
-  - Delete the Cloudflare Worker via `wrangler delete` or the dashboard
+  - Remove `@counterscale/tracker` imports from the application layout
+  - Delete the Cloudflare Worker via `wrangler delete` or the Cloudflare dashboard (the CLI installer names it `counterscale`)
+  - Revoke the Cloudflare API token used for install
   - Remove environment variables
 
 tested_with:
@@ -34,6 +41,6 @@ free_tier_limits:
   data_points: unlimited
   sites: unlimited
   retention: unlimited
-  note: "Runs on your own Cloudflare account; subject to Workers free tier (100K requests/day) or paid plan"
+  note: "Runs on your own Cloudflare account; subject to Workers free tier (100K requests/day) or paid plan. Analytics Engine writes are free under Workers Paid plan quota; free plan has a modest Analytics Engine write cap."
 
-staleness_date: "2026-03-26"
+staleness_date: "2026-04-24"

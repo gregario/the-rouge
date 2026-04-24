@@ -8,7 +8,8 @@ description: >
   verification via DNS, webhooks for delivery events (bounced, opened,
   clicked), broadcast lists, and inbound email routing. Thin API that runs
   in edge runtimes; no SMTP setup required. Free tier fits transactional
-  notifications for early-stage products.
+  notifications for early-stage products; 100 emails/day is the hard
+  rate-limit.
 cost_tier: free-to-start
 
 requires:
@@ -22,7 +23,7 @@ requires:
 
 setup_steps:
   - Create an account at resend.com and generate an API key from Dashboard > API Keys
-  - Add and verify the sending domain in Dashboard > Domains (Resend provides the DNS records to add — SPF, DKIM, DMARC)
+  - Add and verify the sending domain in Dashboard > Domains (Resend provides the DNS records — SPF, DKIM, DMARC)
   - Wait for DNS propagation (typically under 10 minutes); the dashboard confirms when all records resolve
   - Install `resend` for sending and `react-email` + `@react-email/components` if authoring templates as React
   - Author email templates as React components in `emails/` and preview them with `npx react-email dev`
@@ -44,9 +45,8 @@ free_tier_limits:
   emails_per_day: 100
   emails_per_month: 3000
   verified_domains: 1
-  api_keys: 1
-  broadcast_contacts: 3000
+  broadcast_contacts: 1000
   webhooks: included
-  note: "Free tier excludes custom domain for click/open tracking links; above limit, pricing is per-thousand-emails"
+  note: "Above 3k/month or 100/day, upgrade to Pro (US$20/month for 50k emails). The 100/day rate-limit is hard — batch notifications if needed."
 
 staleness_date: "2026-04-24"

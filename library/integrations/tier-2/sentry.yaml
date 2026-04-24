@@ -3,9 +3,11 @@ name: Sentry
 tier: 2
 category: error-monitoring
 description: >
-  Application monitoring platform for error tracking, performance monitoring,
-  and session replay. Captures exceptions with full stack traces, breadcrumbs,
-  and context. Supports source maps for readable production errors.
+  Application monitoring platform for error tracking, performance monitoring
+  (via spans), and session replay. Captures exceptions with full stack traces,
+  breadcrumbs, and context. Supports source maps for readable production
+  errors. Developer (free) tier works for small apps and preview environments;
+  paid tiers unlock longer retention, higher quotas, and team features.
 cost_tier: free-to-start
 
 requires:
@@ -21,10 +23,11 @@ requires:
 setup_steps:
   - Create a Sentry project at sentry.io (select Next.js or Cloudflare platform)
   - Copy the DSN from Settings > Client Keys
-  - Generate an auth token from Settings > Auth Tokens
-  - Install the SDK package appropriate to your runtime
-  - Run the Sentry wizard or manually configure sentry.client.config.ts and sentry.server.config.ts
-  - Configure source map uploads in CI via sentry-cli
+  - Generate an auth token from Settings > Auth Tokens (scope to project-releases + org-read)
+  - Install the SDK package appropriate to your runtime (`@sentry/nextjs` or `@sentry/cloudflare`)
+  - Run the Sentry wizard (`npx @sentry/wizard@latest -i nextjs`) or manually configure `sentry.client.config.ts` and `sentry.server.config.ts`
+  - Configure source map uploads in CI via `sentry-cli` (auth token required); release tagging recommended
+  - Verify by triggering a test exception; it should appear in the dashboard within seconds
 
 teardown_steps:
   - Remove Sentry SDK packages and configuration files
@@ -36,8 +39,9 @@ tested_with:
 
 free_tier_limits:
   errors_per_month: 5000
-  performance_transactions_per_month: 10000
+  performance_spans_per_month: 5000000
   session_replays_per_month: 50
   retention_days: 30
+  note: "Developer tier. Spans replaced the older 'transactions' metric — span allowance is much larger because spans are finer-grained. Above any quota, events drop silently unless on-demand billing is enabled."
 
-staleness_date: "2026-03-26"
+staleness_date: "2026-04-24"

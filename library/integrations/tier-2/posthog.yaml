@@ -4,11 +4,12 @@ tier: 2
 category: analytics
 description: >
   Product analytics platform combining event tracking, session replay,
-  feature flags, A/B experiments, surveys, and error tracking in one
-  product. Self-serve for cloud or self-hosted; EU and US regions for data
-  residency. First-party tracking avoids most ad-blockers when reverse-
-  proxied through your own domain. Generous free tier that suits most
-  early-stage products; paid tier kicks in above event volume.
+  feature flags, A/B experiments, surveys, error tracking, data warehouse,
+  and LLM analytics in one product. Self-serve for cloud or self-hosted;
+  EU and US regions for data residency. First-party tracking avoids most
+  ad-blockers when reverse-proxied through your own domain. Free tier is
+  generous across every feature — suitable for most early-stage products
+  without switching off features to stay within limits.
 cost_tier: free-to-start
 
 requires:
@@ -22,7 +23,7 @@ requires:
   cli_tools: []
 
 setup_steps:
-  - Create a project at app.posthog.com (US) or eu.posthog.com (EU) — pick based on data-residency requirements
+  - Create a project at us.posthog.com (US) or eu.posthog.com (EU) — pick based on data-residency requirements
   - Copy the Project API key (public, writes events) into `NEXT_PUBLIC_POSTHOG_KEY` and the instance host URL into `NEXT_PUBLIC_POSTHOG_HOST`
   - Create a Personal API key from Settings > Personal API Keys for server-side use (feature flags, querying); store in `POSTHOG_API_KEY`
   - Install `posthog-js` for browser tracking and `posthog-node` for server-side evaluation of feature flags and server events
@@ -44,11 +45,16 @@ tested_with:
 
 free_tier_limits:
   events_per_month: 1000000
-  session_replays_per_month: 5000
+  session_replays_web_per_month: 5000
+  session_replays_mobile_per_month: 2500
   feature_flag_requests_per_month: 1000000
-  surveys_per_month: 250
-  data_retention_months: 12
+  survey_responses_per_month: 1500
+  error_tracking_exceptions_per_month: 100000
+  llm_analytics_events_per_month: 100000
+  data_warehouse_rows_per_month: 1000000
+  data_retention: 1 year
+  projects: 1
   team_seats: unlimited
-  note: "Above the event cap, pricing is usage-based per-event; session replay and surveys have separate caps"
+  note: "Every product has its own free cap; paid cloud unlocks 7-year retention, 6 projects, and separate paid session replay retention (3 months vs 1 on free)."
 
 staleness_date: "2026-04-24"

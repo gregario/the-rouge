@@ -4,11 +4,12 @@ tier: 2
 category: database
 description: >
   Serverless PostgreSQL with branching, autoscaling compute, and point-in-time
-  recovery. Separates storage from compute so databases can scale to zero when
+  recovery. Separates storage from compute so databases scale to zero when
   idle. Compatible with edge runtimes via @neondatabase/serverless (HTTP/
   WebSocket). Database branches behave like git branches — cheap to create,
   isolated, and promotable. Free tier supports small projects and preview
-  deployments.
+  deployments; recovery window is narrow on free so it's a dev-grade backup,
+  not production insurance.
 cost_tier: free-to-start
 
 requires:
@@ -23,16 +24,16 @@ requires:
     - neon
 
 setup_steps:
-  - Create a Neon project at console.neon.tech (select the region closest to your deploy target)
+  - Create a Neon project at console.neon.tech (pick a region close to the deploy target)
   - Copy the pooled connection string into `DATABASE_URL` and the unpooled/direct string into `DATABASE_URL_UNPOOLED`
   - Install `@neondatabase/serverless` for edge-runtime queries; add `drizzle-orm` + `drizzle-kit` if you want a typed schema layer
   - Run `npx drizzle-kit generate` after authoring the schema; use `DATABASE_URL_UNPOOLED` for migrations (pooled connections break DDL)
   - Apply migrations with `npx drizzle-kit migrate`
-  - Configure environment variables on the deploy target (Vercel, Cloudflare Workers, Fly, etc.) — Neon integrations auto-provision them on Vercel
+  - Configure environment variables on the deploy target (Vercel, Cloudflare Workers, Fly, etc.) — Neon's Vercel integration auto-provisions them
   - Verify connectivity with a `SELECT now()` health check from the deployed runtime
 
 teardown_steps:
-  - Delete the project in Neon console (storage and compute are both removed; no paused state on free tier)
+  - Delete the project in Neon console (storage and compute are removed; no paused state on free)
   - Remove `DATABASE_URL` and `DATABASE_URL_UNPOOLED` from local and deploy-target environments
   - Uninstall `@neondatabase/serverless`, `drizzle-orm`, and `drizzle-kit` if no longer needed
 
@@ -42,11 +43,13 @@ tested_with:
 
 free_tier_limits:
   storage_per_project: 0.5GB
-  compute_hours_per_month: 190
-  projects: 10
+  compute_units_per_project: 100 CU-hours/month
+  projects: 100
   branches_per_project: 10
   autosuspend_after_idle_minutes: 5
-  point_in_time_recovery_hours: 24
-  note: "Compute autosuspends when idle; first query after suspension takes ~500ms to resume"
+  point_in_time_recovery_hours: 6
+  point_in_time_recovery_storage_cap: 1GB
+  manual_snapshots: 1
+  note: "Free tier suspends compute when monthly quota is exhausted; PITR is dev-grade (6h / 1GB), not production recovery. Paid plans unlock protected branches, IP allowlisting, and longer windows."
 
 staleness_date: "2026-04-24"
