@@ -1,0 +1,59 @@
+id: twilio
+name: Twilio
+tier: 2
+category: communications
+description: >
+  Communications API — SMS, voice, WhatsApp, email (via SendGrid),
+  and Verify (OTP). The industry baseline for programmable messaging.
+  No free tier; pay-as-you-go with a free trial that requires no card.
+  Common uses in Rouge-built products: SMS OTP for account
+  verification (via Verify), outbound notifications (via Messaging),
+  and two-factor auth fallback when TOTP isn't enough. For email-
+  only flows, consider Resend (also catalogued); Twilio is overkill
+  unless SMS / voice is involved.
+cost_tier: usage-based
+
+requires:
+  env_vars:
+    - TWILIO_ACCOUNT_SID
+    - TWILIO_AUTH_TOKEN
+    - TWILIO_PHONE_NUMBER
+  packages:
+    - "twilio"
+  cli_tools:
+    - twilio
+
+setup_steps:
+  - Create a Twilio account at twilio.com/try-twilio (free trial; no credit card required; trial balance issued on signup)
+  - Copy the Account SID into `TWILIO_ACCOUNT_SID` and the Auth Token into `TWILIO_AUTH_TOKEN` (Console home page)
+  - Buy a US long-code or toll-free phone number — $1-$2/month typically — and store in `TWILIO_PHONE_NUMBER` (E.164 format e.g. +15551234567)
+  - For US SMS at scale — register an A2P 10DLC Brand + Campaign (required by US carriers; takes 1-3 days to approve); toll-free numbers can send immediately but have slower throughput
+  - Install the SDK — `npm install twilio`
+  - Send an SMS — `twilio.messages.create({ body, from: TWILIO_PHONE_NUMBER, to })` — the client reads env vars by default
+  - For OTP flows, use Twilio Verify (purpose-built) rather than raw SMS — handles code generation, retries, TTLs, and is cheaper at $0.05/verification than building on raw SMS
+  - For webhooks (incoming SMS, delivery status) — configure endpoints in Console > Phone Numbers > Messaging; validate signatures with `twilio.validateRequest(authToken, signature, url, params)`
+
+teardown_steps:
+  - Release phone numbers in Console > Phone Numbers > Manage > Active Numbers (stops the monthly number fee)
+  - Deactivate 10DLC Brand + Campaign (if registered) in Console > Messaging > A2P 10DLC
+  - Revoke Auth Token in Console > Account > API keys (requires issuing a new token first — can't delete the only one)
+  - Clear `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` from environments
+  - Uninstall `twilio`
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+free_tier_limits:
+  free_trial_credit: issued on signup (amount varies; historically ~$15)
+  free_trial_card_required: false
+  sms_us_per_message: 0.0083
+  sms_us_per_message_received: 0.0075
+  voice_us_outbound_per_minute: 0.014
+  voice_us_inbound_per_minute: 0.0085
+  verify_otp_per_verification: 0.05
+  whatsapp_per_message_starts_at: 0.005
+  phone_number_us_long_code_per_month: 1.15
+  note: "Trial accounts can only send to verified phone numbers (anti-spam). Upgrade to a paid account to reach arbitrary numbers. US SMS at scale requires A2P 10DLC registration with the Campaign Registry; budget 1-3 days for approval. Verify is the right abstraction for OTP — don't roll your own with raw SMS (retry logic, TTL, rate limiting all included)."
+
+staleness_date: "2026-04-24"

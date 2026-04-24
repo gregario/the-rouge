@@ -1,0 +1,53 @@
+id: inngest
+name: Inngest
+tier: 2
+category: workflow-queue
+description: >
+  Durable event-driven workflows and background jobs. Functions run as
+  steps that persist state across retries, sleeps, and waits — so
+  long-running processes (send email, wait 3 days, send reminder,
+  expire unless user clicks) survive deploys, restarts, and mid-flow
+  failures. Competes with Trigger.dev, Temporal Cloud, and AWS Step
+  Functions; distinguishes by zero-infra setup (just an SDK), local
+  dev server, and native Next.js / SvelteKit / Remix integration.
+  Common use cases: scheduled jobs, fan-out, webhook ingestion,
+  multi-step billing flows, user-lifecycle emails.
+cost_tier: free-to-start
+
+requires:
+  env_vars:
+    - INNGEST_EVENT_KEY
+    - INNGEST_SIGNING_KEY
+  packages:
+    - "inngest"
+  cli_tools: []
+
+setup_steps:
+  - Create an account at app.inngest.com and add a new app (pick the framework — Next.js, SvelteKit, Remix, or generic Node)
+  - Copy the Event Key (for sending events) into `INNGEST_EVENT_KEY` and the Signing Key (for verifying incoming webhooks from Inngest) into `INNGEST_SIGNING_KEY`
+  - Install the SDK — `npm install inngest`
+  - Define an Inngest client in `src/inngest/client.ts` — `export const inngest = new Inngest({ id: 'my-app' })`
+  - Define functions as `inngest.createFunction({ id }, { event: 'user/signup' }, async ({ event, step }) => { ... })` — each step is retried / cached independently via the `step.run()`, `step.sleep()`, `step.waitForEvent()` helpers
+  - Expose the Inngest route — create `app/api/inngest/route.ts` (Next.js App Router) and export `{ GET, POST, PUT } = serve({ client: inngest, functions: [...] })`
+  - Run `npx inngest-cli@latest dev` during local dev — it proxies events to your localhost app and shows a step-by-step debugger
+  - Deploy; Inngest auto-discovers the `/api/inngest` endpoint when you sync from the dashboard
+
+teardown_steps:
+  - Pause then delete the app in the Inngest dashboard — this stops event delivery to the endpoint
+  - Remove `/api/inngest` route and all `inngest.createFunction(...)` definitions
+  - Clear `INNGEST_EVENT_KEY` + `INNGEST_SIGNING_KEY` from environments
+  - Uninstall `inngest`
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+free_tier_limits:
+  executions_per_month: 50000
+  concurrent_steps: 5
+  realtime_connections: 50
+  users_per_app: 3
+  branches_and_staging_envs: unlimited
+  note: "Above 50K executions, tiered pricing kicks in ($0.00005/execution at the 1m-5m band, declining with volume). Concurrent-step cap is per-account, not per-function — in busy periods, steps queue. Pro plan removes the concurrency cap and raises retention."
+
+staleness_date: "2026-04-24"

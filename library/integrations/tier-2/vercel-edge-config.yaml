@@ -1,0 +1,54 @@
+id: vercel-edge-config
+name: Vercel Edge Config
+tier: 2
+category: cache-queue
+description: >
+  Global ultra-low-latency read-optimised data store — P99 reads
+  typically <15ms, often <1ms. Designed for rarely-updated data
+  accessed on every request: feature flags, redirects, IP allowlists,
+  A/B test config, maintenance-mode flags. Writes propagate globally
+  in up to 10 seconds, so not for anything needing immediate
+  consistency. Reads count toward Hobby usage but the store is tiny
+  (8KB Hobby cap) — this is NOT a database, it's a config layer.
+  Complements runtime config (env vars) by being mutable without a
+  redeploy.
+cost_tier: free-to-start
+
+requires:
+  env_vars:
+    - EDGE_CONFIG
+  packages:
+    - "@vercel/edge-config"
+  cli_tools:
+    - vercel
+
+setup_steps:
+  - From Vercel dashboard, open Storage > Create > Edge Config; name it and link it to the project
+  - Vercel auto-injects the connection string as `EDGE_CONFIG` env var (it contains a read-access token)
+  - Pull env vars locally — `vercel env pull .env.local`
+  - Install the SDK — `npm install @vercel/edge-config`
+  - Read from code — `import { get, getAll } from '@vercel/edge-config'; const flag = await get('launch-banner')` (SDK reads EDGE_CONFIG env automatically)
+  - In middleware — Edge Config is designed for this path; `import { get } from '@vercel/edge-config'; const redirects = await get('redirects')` runs at near-zero latency before the CDN
+  - Writes happen via the Vercel dashboard editor or the REST API (requires a Vercel API token, not the read-access token from EDGE_CONFIG)
+  - For batch writes use `PATCH /v1/edge-config/<id>/items` with a list of item operations (upsert, update, delete)
+
+teardown_steps:
+  - Disconnect the Edge Config from the project (Settings > Storage > Disconnect) — clears the EDGE_CONFIG env var
+  - Delete the Edge Config from dashboard (cannot restore — export first if needed)
+  - Remove all `@vercel/edge-config` imports from code
+  - Uninstall `@vercel/edge-config`
+
+tested_with:
+  - nextjs-vercel
+
+free_tier_limits:
+  maximum_store_size_bytes: 8192
+  maximum_stores_total: 1
+  maximum_stores_per_project: 1
+  maximum_item_key_length_chars: 256
+  write_propagation_seconds: 10
+  backup_retention_days: 7
+  reads_limit: shared with Hobby project quota (no hard per-Edge-Config cap)
+  note: "Tiny by design — 8KB on Hobby, 64KB on Pro, 512KB on Enterprise. Pick Edge Config for true runtime config, not data. Write propagation is up to 10s globally — don't flip it for anything that needs immediate effect. Reads are ultra-fast but ONLY when deployed to Vercel (the CDN-level optimisation doesn't apply to self-hosted). Use `getAll()` once per handler rather than N `get(key)` calls — they still each count as one read."
+
+staleness_date: "2026-04-24"

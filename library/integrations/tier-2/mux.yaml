@@ -1,0 +1,58 @@
+id: mux
+name: Mux
+tier: 2
+category: video
+description: >
+  Video platform — uploads, encoding, adaptive-bitrate streaming
+  (HLS), thumbnail generation, signed-URL playback for paywalled
+  content, and Mux Data (playback QoS analytics). Replaces a
+  hand-rolled ffmpeg + S3 + HLS-manifest pipeline. The two sides
+  are independent — Mux Video (encoding / delivery) and Mux Data
+  (player analytics); products commonly use both together but can
+  use either alone. For image-only workflows, Cloudinary (also
+  catalogued) is better fitted; Mux shines when video is core.
+cost_tier: free-to-start
+
+requires:
+  env_vars:
+    - MUX_TOKEN_ID
+    - MUX_TOKEN_SECRET
+    - NEXT_PUBLIC_MUX_ENV_KEY
+  packages:
+    - "@mux/mux-node"
+    - "@mux/mux-player-react"
+  cli_tools: []
+
+setup_steps:
+  - Create an account at dashboard.mux.com (no card required; Free plan includes 100K delivery minutes and 10 stored videos)
+  - Create an Access Token at Settings > Access Tokens with Mux Video permissions; copy Token ID → `MUX_TOKEN_ID`, Token Secret → `MUX_TOKEN_SECRET`
+  - For Mux Data (player analytics), capture the Env Key from Settings > Data > Environments → `NEXT_PUBLIC_MUX_ENV_KEY` (safe to expose to browser)
+  - Install SDKs — `npm install @mux/mux-node` (server) + `npm install @mux/mux-player-react` (React player component)
+  - Upload — create an upload URL server-side, then PUT the file from the browser — `const upload = await mux.video.uploads.create({ new_asset_settings: { playback_policy: ['public'] } })`
+  - After upload completes, Mux transcodes asynchronously; poll `mux.video.assets.retrieve(id)` or configure a webhook to get notified when ready
+  - Play — use `<MuxPlayer playbackId={asset.playback_ids[0].id} envKey={NEXT_PUBLIC_MUX_ENV_KEY} />` in React; Mux Player handles HLS, adaptive bitrate, thumbnails, and reports playback events to Mux Data automatically
+  - For paywalled content, set `playback_policy: ['signed']` on asset creation and sign short-lived JWTs server-side per viewer
+
+teardown_steps:
+  - Delete all assets via Admin > Assets > bulk delete (or programmatically via `mux.video.assets.delete(id)`) — each asset incurs storage cost until deleted
+  - Delete live streams if any (Admin > Live Streams)
+  - Revoke Access Tokens in Settings > Access Tokens
+  - Clear `MUX_TOKEN_ID`, `MUX_TOKEN_SECRET`, `NEXT_PUBLIC_MUX_ENV_KEY` from environments
+  - Uninstall `@mux/mux-node` and `@mux/mux-player-react`
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+free_tier_limits:
+  delivery_minutes_per_month: 100000
+  stored_videos: 10
+  on_demand: included
+  live_streaming: not included on free tier
+  input_encoding: free (no per-minute charge for ingest / transcode on all plans)
+  storage_per_minute_after_free_tier_usd: 0.0024
+  delivery_per_minute_after_free_tier_usd: 0.0008
+  live_captions_per_minute_usd: 0.0024
+  note: "Free tier is generous for on-demand up to ~100K minutes of delivery (≈16 hours of continuous streaming to 100 viewers per hour). Live streaming requires a paid plan. Signed URLs for paywalled content are billed identically to public playback — the paywall enforces access, not delivery cost. Mux Data is free under the paid plans' base allowances but there's no free-tier Mux Data cap documented — measure empirically."
+
+staleness_date: "2026-04-24"

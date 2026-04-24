@@ -1,0 +1,59 @@
+id: pusher
+name: Pusher Channels
+tier: 2
+category: realtime
+description: >
+  Managed WebSocket / pub-sub for real-time features — chat, live
+  dashboards, presence, notifications, collaborative cursors. Server
+  publishes to a channel; connected clients subscribe and receive
+  messages. Includes private channels (server-issued auth), presence
+  channels (who's online), and encrypted channels. Competes with Ably
+  (more features, often more expensive) and Supabase Realtime
+  (cheaper if already using Supabase). Pick Pusher when the product
+  needs realtime and the existing stack doesn't have a built-in
+  equivalent; prefer Supabase Realtime when Supabase is already in
+  play.
+cost_tier: free-to-start
+
+requires:
+  env_vars:
+    - PUSHER_APP_ID
+    - PUSHER_KEY
+    - PUSHER_SECRET
+    - PUSHER_CLUSTER
+    - NEXT_PUBLIC_PUSHER_KEY
+    - NEXT_PUBLIC_PUSHER_CLUSTER
+  packages:
+    - "pusher"
+    - "pusher-js"
+  cli_tools: []
+
+setup_steps:
+  - Create an app at dashboard.pusher.com (Channels > Create app); pick the cluster region closest to users (e.g. us2, eu, ap1)
+  - Copy App ID into `PUSHER_APP_ID`, Key into `PUSHER_KEY` + `NEXT_PUBLIC_PUSHER_KEY` (public, browser-safe), Secret into `PUSHER_SECRET` (server only), Cluster into `PUSHER_CLUSTER` + `NEXT_PUBLIC_PUSHER_CLUSTER`
+  - Install SDKs — `npm install pusher` (server) + `npm install pusher-js` (browser)
+  - Server publish — `import Pusher from 'pusher'; const pusher = new Pusher({ appId, key, secret, cluster, useTLS: true }); await pusher.trigger('channel', 'event', payload)`
+  - Client subscribe — `import Pusher from 'pusher-js'; const p = new Pusher(NEXT_PUBLIC_PUSHER_KEY, { cluster: NEXT_PUBLIC_PUSHER_CLUSTER }); p.subscribe('channel').bind('event', handler)`
+  - For private channels (only authorised users can subscribe), add an auth endpoint at `/api/pusher/auth` that verifies the session and calls `pusher.authorizeChannel(socketId, channel)` to issue the auth signature
+  - For presence channels (online-user list), extend the auth endpoint to return `{ user_id, user_info }` alongside the auth signature
+
+teardown_steps:
+  - Disable the app in dashboard (stops new connections); delete the app when ready (dashboard > app > Settings > Delete)
+  - Remove all `pusher.trigger()` / `.subscribe()` calls and the auth endpoint
+  - Clear the four `PUSHER_*` and two `NEXT_PUBLIC_PUSHER_*` env vars
+  - Uninstall `pusher` and `pusher-js`
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+free_tier_limits:
+  concurrent_connections: 100
+  messages_per_day: 200000
+  channels: unlimited
+  max_message_size_kb: 10
+  webhooks: included
+  tls: included
+  note: "Sandbox (free) tier is generous for early-stage — 100 concurrents covers most products below ~500 DAU. Above, Startup plan is $49/mo for 500 concurrents + 1M messages/day. Each publish is one message; fan-out to N subscribers does NOT multiply the message count (different billing from Ably)."
+
+staleness_date: "2026-04-24"

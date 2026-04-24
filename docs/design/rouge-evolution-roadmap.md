@@ -1054,7 +1054,8 @@ We stop working on a roadmap item and come back if:
 | `62f451a` | P4.1 wave 1 — tier-2 catalogue fill (Neon, Clerk, Resend, PostHog) + tier-2 YAML schema test |
 | `9a5748a` | P4.1 fix — cross-checked tier-2 catalogue against vendor docs; corrected six of eight entries (Clerk MAU understated 10k→50k, Neon compute/PITR overstated, Sentry 10k transactions → 5M spans metric change, Counterscale install method changed to CLI wizard, PostHog surveys/replays counts, Resend broadcast contacts) |
 | `374e8d4` | P4.1 wave 2 — eight more tier-2 entries: Upstash, OpenAI, Anthropic, Plausible, Cloudflare R2/KV/D1, Vercel Blob. Catalogue doubled (8 → 16). Three new categories (llm-api, object-storage, cache-queue). |
-| _next_ | P4.1 wave 3 — four tier-3 patterns for the new tier-2 services (neon-drizzle-migrations, clerk-nextjs-middleware, resend-react-email-send, posthog-feature-flag-server) + tier-3 schema test (91 assertions covering all 9 existing + new patterns; enforces service-id references a real tier-2 entry) |
+| `e53abbb` | P4.1 wave 3 — four tier-3 patterns for the new tier-2 services (neon-drizzle-migrations, clerk-nextjs-middleware, resend-react-email-send, posthog-feature-flag-server) + tier-3 schema test (91 assertions covering all 9 existing + new patterns; enforces service-id references a real tier-2 entry) |
+| _next_ | P4.1 wave 4 — seven more tier-2 entries (Inngest, WorkOS, Twilio, Cloudinary, Pusher, Vercel Edge Config, Mux). Catalogue 16→23. Four new categories (workflow-queue, communications, media, realtime, video). |
 
 **Memory work this session:**
 

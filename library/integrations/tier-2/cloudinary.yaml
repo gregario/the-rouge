@@ -1,0 +1,59 @@
+id: cloudinary
+name: Cloudinary
+tier: 2
+category: media
+description: >
+  Media management platform — image and video upload, transformation,
+  optimisation, and CDN delivery. URL-based transformation language
+  means you resize/crop/format-convert in the URL rather than
+  pre-generating variants (e.g. `/w_400,h_400,c_fill,f_auto,q_auto/my-
+  photo.jpg`). Includes upload widget, auto-tagging, background
+  removal, video streaming, and adaptive bitrate transcoding. For
+  products with user-generated content, product photos, or heavy
+  media workflows Cloudinary replaces a hand-rolled S3 + Sharp +
+  ffmpeg + CDN pipeline. For simpler cases (just-store-files), use
+  Vercel Blob or Cloudflare R2 (also catalogued).
+cost_tier: free-to-start
+
+requires:
+  env_vars:
+    - CLOUDINARY_URL
+    - CLOUDINARY_CLOUD_NAME
+    - CLOUDINARY_API_KEY
+    - CLOUDINARY_API_SECRET
+  packages:
+    - "cloudinary"
+    - "next-cloudinary"
+  cli_tools: []
+
+setup_steps:
+  - Create an account at cloudinary.com (no card required; 25 credits/month issued immediately)
+  - Copy the Cloud name, API Key, and API Secret from Dashboard > Account Details
+  - Set `CLOUDINARY_URL=cloudinary://<api_key>:<api_secret>@<cloud_name>` (the SDK prefers this single env var); alternatively, set the three fields individually
+  - Install the SDK — `npm install cloudinary` for server-side (upload, admin API) — plus `next-cloudinary` for Next.js React components (`<CldImage>`, `<CldUploadWidget>`, `<CldVideoPlayer>`)
+  - Server-side uploads — `const cloudinary = require('cloudinary').v2; cloudinary.config({ secure: true }); await cloudinary.uploader.upload(file)`
+  - For browser-direct uploads, use the signed upload-widget pattern — server signs a short-lived token, browser POSTs directly to Cloudinary (avoids routing bytes through the app)
+  - Deliver via URL — prepend your base `https://res.cloudinary.com/<cloud_name>/image/upload/` and chain transformations in the path — `f_auto,q_auto` alone often cuts image weight 40-60%
+
+teardown_steps:
+  - Delete the Cloudinary account at Dashboard > Account > Close Account (removes all stored assets; note — deletion is permanent)
+  - Or rotate the account without full deletion — revoke API keys, unpublish the upload preset, and migrate asset URLs off `res.cloudinary.com`
+  - Clear `CLOUDINARY_*` env vars
+  - Uninstall `cloudinary` and `next-cloudinary` if no longer needed
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+free_tier_limits:
+  monthly_credits: 25
+  credit_equivalence: "1 credit = 1 GB managed storage OR 1 GB net viewing bandwidth OR 1000 transformations"
+  users_per_account: 3
+  accounts: 1
+  transformations_max_per_month: 25000
+  storage_max_per_month_gb: 25
+  bandwidth_max_per_month_gb: 25
+  card_required: false
+  note: "Credits are fungible across the three quota types — you can spend all 25 on bandwidth, or split between storage / bandwidth / transformations. Free tier covers most early-stage products; above 25 credits, Plus plan is $99/mo for 225 credits. Paid plans scale the credit pool, not the per-credit equivalence."
+
+staleness_date: "2026-04-24"

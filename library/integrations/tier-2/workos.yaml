@@ -1,0 +1,57 @@
+id: workos
+name: WorkOS
+tier: 2
+category: auth
+description: >
+  Enterprise authentication platform — SAML SSO, SCIM directory sync,
+  audit logs, multi-factor, and admin portal for self-service
+  onboarding. AuthKit (WorkOS's OIDC-based auth layer for end-user
+  login) is free up to 1M MAU, which makes WorkOS viable for B2B
+  consumer auth too. Complements Clerk: Clerk covers consumer /
+  self-serve SaaS auth; WorkOS wins when enterprise customers
+  require SAML, SCIM provisioning, or audit logs. Products targeting
+  mid-market+ B2B typically land on WorkOS for SSO and keep a
+  lighter-weight auth (Clerk, Supabase Auth) for individual users.
+cost_tier: free-to-start
+
+requires:
+  env_vars:
+    - WORKOS_API_KEY
+    - WORKOS_CLIENT_ID
+    - WORKOS_REDIRECT_URI
+    - WORKOS_COOKIE_PASSWORD
+  packages:
+    - "@workos-inc/node"
+    - "@workos-inc/authkit-nextjs"
+  cli_tools: []
+
+setup_steps:
+  - Create a WorkOS account at dashboard.workos.com and note the default organization
+  - Copy the API key into `WORKOS_API_KEY` and the Client ID into `WORKOS_CLIENT_ID` (both in dashboard > API)
+  - Set `WORKOS_REDIRECT_URI` to the callback URL the OAuth flow returns to (e.g. https://app.example.com/auth/callback)
+  - Generate a cookie password ≥ 32 characters and store in `WORKOS_COOKIE_PASSWORD` — used to encrypt session cookies
+  - Install the SDKs — `npm install @workos-inc/node @workos-inc/authkit-nextjs` (for Next.js; other frameworks have dedicated packages like @workos-inc/authkit-remix)
+  - Wrap Next.js App Router pages via the AuthKit provider — the SDK exposes `getSession()`, `withAuth()`, and `signOut()` helpers
+  - For enterprise SSO — create organizations in the WorkOS dashboard, add SSO Connection (SAML or OIDC), invite enterprise admins to the self-service admin portal to configure their IdP
+  - For SCIM provisioning — enable Directory Sync on the organization, share the admin-portal link with the customer's IT team
+
+teardown_steps:
+  - Delete organizations (cascades to their SSO Connections and Directory Sync configs)
+  - Revoke API keys in dashboard > API
+  - Clear the four `WORKOS_*` env vars
+  - Uninstall `@workos-inc/node` and `@workos-inc/authkit-nextjs`
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+free_tier_limits:
+  authkit_monthly_active_users: 1000000
+  radar_checks_per_month: 1000
+  sso_connections: 0 (paid from first connection — $125/connection/month starting tier)
+  directory_sync_connections: 0 (paid from first — same $125/connection/month tier)
+  audit_logs: included on all paid plans (event retention varies)
+  admin_portal: included
+  note: "AuthKit-only usage is free up to 1M MAU. The moment an enterprise customer needs SAML or SCIM, the per-connection cost kicks in. Price per connection makes WorkOS economical at mid-market+ (fewer, larger customers) and expensive at scale (many small ones) — consider Clerk Organizations or Supabase Auth + custom SAML for consumer-scale B2B."
+
+staleness_date: "2026-04-24"
