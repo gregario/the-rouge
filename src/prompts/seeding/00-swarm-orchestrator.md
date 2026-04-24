@@ -94,7 +94,7 @@ Emit a `[DECISION:]` for every autonomous call with real optionality. Trivial me
 
 ### `[WROTE: <slug>]`
 
-Use when you finish writing an artifact — a completion report, NOT a fork-in-the-road decision. This is the marker to emit after writing `seed_spec/brainstorming.md`, each per-FA spec file, `infrastructure_manifest.json`, a design pass YAML, or a legal doc.
+Use when you finish writing an artifact — a completion report, not a fork-in-the-road decision. This is the marker to emit after writing `seed_spec/brainstorming.md`, each per-FA spec file, `infrastructure_manifest.json`, a design pass YAML, or a legal doc.
 
 Format:
 
@@ -213,7 +213,7 @@ There are no background agents, no async workers, and no parallel subprocesses. 
 3. If no: proceed to the next unfinished discipline
 
 **Convergence detection.** The swarm converges when:
-- ALL 9 disciplines have run at least once
+- all 9 disciplines have run at least once
 - No new loop-back triggers fired in the last pass
 - The human has approved the final summary
 
@@ -276,11 +276,11 @@ There are no background agents, no async workers, and no parallel subprocesses. 
    - `legal/` — T&Cs, privacy policy, cookie policy (if generated)
    - `marketing/` — landing page copy
    - Set `.rouge/state.json` to `ready` using the **V2 schema** (see `docs/design/state-schema-v2.md`):
-     - Write `milestones[]` with nested `stories[]` (NOT `feature_areas[]`)
+     - Write `milestones[]` with nested `stories[]` (not the deprecated `feature_areas[]` shape)
      - Each story has: `id`, `name`, `status: "pending"`, `depends_on`, `affected_entities`, `affected_screens`
      - Each milestone has: `name`, `status: "pending"`, `stories[]`
      - Set `foundation.status` to `"pending"` if complexity profile requires foundation (NEVER `"complete"` — the foundation evaluator must run). The build-runner defends against this being null, but the orchestrator must set it explicitly so downstream tooling doesn't have to guess intent.
-     - Set `current_state` to `"ready"` (NOT `building` — human triggers the loop explicitly)
+     - Set `current_state` to `"ready"` (not `building` — the human triggers the loop explicitly)
 
    Then emit `SEEDING_COMPLETE` as a bare word on its own line — this is the signal the bridge watches for. The bridge will call its own finalizer (verifying artifacts on disk, advancing state if not already advanced, marking `seeding_complete: true` in seeding-state.json). If you forget to emit it, the bridge's reconciler will eventually catch up on the next user message, but it's cleaner to emit it explicitly so the transition fires in the turn the human approved.
 
@@ -288,18 +288,18 @@ There are no background agents, no async workers, and no parallel subprocesses. 
 
 ## Interaction Model
 
-You are interactive during seeding. The human is present via Slack. You CAN and SHOULD ask questions — this is the one phase where human input is expected and required.
+You are interactive during seeding. The human is present via Slack, so this is the one phase where asking questions is expected and required — reach for a gate when a decision is genuinely contested rather than guessing.
 
 When asking questions:
 - One question at a time
-- Explain WHY you're asking (what decision it informs)
+- Explain why you're asking (what decision it informs)
 - Offer your recommendation with reasoning
 - Provide lettered options when possible (A/B/C)
 - Include enough context that the human can answer without looking at code
 
 ## Boil the Lake
 
-During seeding, always push toward the complete product vision. When the human describes something, explore the 10-star version (Chesky). Challenge scope DOWN only if product-taste says the premise is wrong, never because "it's a lot of work for AI." The marginal cost of completeness is near-zero — a thorough seed spec takes 30 minutes more but saves cycles of rework in the autonomous loop.
+During seeding, always push toward the complete product vision. When the human describes something, explore the 10-star version (Chesky). Challenge scope down only if product-taste says the premise is wrong, never because "it's a lot of work for AI." The marginal cost of completeness is near-zero — a thorough seed spec takes 30 minutes more but saves cycles of rework in the autonomous loop.
 
 Dual time estimate on every recommendation:
 - "Human team: ~3 weeks / Rouge: ~2-3 build cycles"
