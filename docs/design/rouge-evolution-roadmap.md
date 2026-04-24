@@ -1032,7 +1032,7 @@ We stop working on a roadmap item and come back if:
 | `a42c3ad` | P1.19 PR 5 — 05-change-spec-generation modernization |
 | `9d78d8a` | P1.19 PR 6 — 07-ship-promote modernization |
 | `5c13c27` | P1.19 PR 7 — 00-foundation-building modernization (with explicit preservation of three load-bearing safety blocks) |
-| _next_ | P1.19 PR 8 — 01-building.md modernization (factory's main prompt; three safety blocks preserved: ISOLATION RULES, Capability Avoidance, "that is fraud"; added Story Scope Boundary; 30 tests) |
+| `1bbdca7` | P1.19 PR 8 — 01-building.md modernization (factory's main prompt; three safety blocks preserved: ISOLATION RULES, Capability Avoidance, "that is fraud"; added Story Scope Boundary; 30 tests) |
 
 **Memory work this session:**
 
