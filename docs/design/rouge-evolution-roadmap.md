@@ -1049,7 +1049,8 @@ We stop working on a roadmap item and come back if:
 | `a4e0080` | P1.19 PR 22 — 02a-test-integrity.md modernization (single "NOT optional" softened; four-category traceability + rename-detection fuzzy-match + 100% hard-floor verdict rule + five Anti-Pattern "Never" rules all locked in; 30 tests) |
 | `c6996ed` | P1.19 PR 23 — 02c-code-review.md modernization (seven-dimension rubric + weights, OWASP 5-category security, P1.15/P1.16/P1.16b evidence stack, P0.4 dispatch boundary, six "Never" Anti-Patterns all locked in; 4 stylistic caps softened; 40 tests) |
 | `a63c95c` | P1.19 PR 24 — 02-evaluation-orchestrator.md modernization (meta-judge; evidence-first/judgment-second architecture + 4-tier cycle classification + 7-row failure-routing table + 6 "Never" Anti-Patterns + "NEVER routes to shipping" load-bearing boundary all locked in; NOTE/MILESTONE/ALL/IMPORTANT softened; 37 tests) |
-| _next_ | P1.19 PR 25 — seeding/03-taste.md modernization (highest Rouge-taste-voice density in codebase; EXPANSION/HOLD/REDUCTION framing + Chesky/Graham/Altman voices + "Push scope UP" directional voice + Boil-the-Lake expand-scope ethos preserved; 5 stylistic caps softened; 35 tests) |
+| `bfec484` | P1.19 PR 25 — seeding/03-taste.md modernization (highest Rouge-taste-voice density in codebase; EXPANSION/HOLD/REDUCTION framing + Chesky/Graham/Altman voices + "Push scope UP" directional voice + Boil-the-Lake expand-scope ethos preserved; 5 stylistic caps softened; 35 tests) |
+| _next_ | P1.19 PR 26 — 02e-evaluation.md modernization (**final judge prompt, sweep complete**; full judgment-layer calibration stack locked in — P1.14 rubric / P1.15 confidence / P1.16 quote-before-score / P1.16b evidence_ref / P1.20 unknown / P1.21 capability-check / P0.9 variant tracker; 5 stylistic caps softened; 67 tests — the heaviest judge-side surface in the sweep) |
 
 **Memory work this session:**
 
@@ -1062,10 +1063,11 @@ We stop working on a roadmap item and come back if:
 
 **Safety-block preservation rule (discovered on PR 7):** Some prompts carry emphatic safety language tied to documented destroyed-production incidents (ISOLATION RULES / HARD BLOCK / "that is fraud" / the 0-delta spin scope-creep rule). For those, Opus 4.7's "over-triggers on shouty language" tendency is desirable — maximum caution is what we want there. Modernization tests in those cases explicitly assert the safety blocks STAY emphatic. See `test/prompts/foundation-modernization.test.js` for the exemplar.
 
-**P1.19 remaining (9 loop prompts — all judge-side; seeding sweep complete):**
+**P1.19 initiative: COMPLETE.** All 26 prompts modernized across three stages.
 
-- Loop generation-side sweep: **complete.** 00-foundation-building, 01-building, 03-qa-fixing, 04-analyzing, 05-change-spec-generation, 07-ship-promote, 08-document-release, 09-cycle-retrospective all modernized.
-- Seeding generation-side sweep: **complete.** 00-swarm-orchestrator, 01-brainstorming, 02-competition, 04-spec, 05-design, 06-legal-privacy, 07-marketing, 08-infrastructure all modernized. 03b-sizing was Opus-4.7-native from the start.
+- Loop generation-side sweep: **complete.** 00-foundation-building, 01-building, 03-qa-fixing, 04-analyzing, 05-change-spec-generation, 07-ship-promote, 08-document-release, 09-cycle-retrospective all modernized (8/8).
+- Seeding generation-side sweep: **complete.** 00-swarm-orchestrator, 01-brainstorming, 02-competition, 04-spec, 05-design, 06-legal-privacy, 07-marketing, 08-infrastructure all modernized (8/8). 03b-sizing was Opus-4.7-native from the start.
+- Judge-side sweep: **complete.** 02f-re-walk, 10-final-review, 00-foundation-evaluating, 06-vision-check, 02d-product-walk, 02a-test-integrity, 02c-code-review, 02-evaluation-orchestrator, seeding/03-taste, 02e-evaluation all modernized (10/10).
 - Judge-side remaining (blocklisted for self-improve, human-authored — higher calibration-drift risk): `00-foundation-evaluating.md`, `02-evaluation-orchestrator.md`, `02a-test-integrity.md`, `02c-code-review.md`, `02d-product-walk.md`, `02e-evaluation.md`, `02f-re-walk.md`, `06-vision-check.md`, `10-final-review.md`.
 
 **P1.19 remaining (seeding prompts):** `00-swarm-orchestrator.md`, `01-brainstorming.md`, `02-competition.md`, `04-spec.md`, `05-design.md`, `06-legal-privacy.md`, `07-marketing.md`, `08-infrastructure.md`. Judge-nature: `03-taste.md` (blocklisted). The new `03b-sizing.md` was written Opus-4.7-native this session and needs no pass.

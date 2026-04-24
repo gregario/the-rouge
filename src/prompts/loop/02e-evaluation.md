@@ -30,7 +30,7 @@ For every criterion or finding you produce:
 
 1. First collect verbatim quotes from `product_walk` and `code_review_report` into an internal `<evidence>` list. Each quote ≤50 words, specific and citeable (screen route, element, file:line, or journey-step reference).
 2. Then write the verdict grounded only in what you quoted. If no quote exists that resolves the criterion, emit `unknown` (see escape-hatch section) — do not fabricate evidence.
-3. Every `high`-confidence finding (per P1.15) MUST reference one or more of these quoted spans in its `evidence_span` field — verbatim, not paraphrased.
+3. Every `high`-confidence finding (per P1.15) must reference one or more of these quoted spans in its `evidence_span` field — verbatim, not paraphrased.
 
 Anti-pattern: writing a verdict first and then back-filling evidence to justify it. This is the mechanism by which judges hallucinate specific-sounding findings that don't match the actual product_walk.
 
@@ -52,11 +52,11 @@ Distinction from `env_limited`:
 
 1. Verify that the **code implementing the criterion exists and is structurally correct** — read the source code, check that the component/function exists, check that tests cover the logic
 2. Verify that the **fallback behavior is graceful** (no crashes, blank screens have explanatory UI)
-3. If both checks pass, verdict is `env_limited` — NOT `fail`
+3. If both checks pass, verdict is `env_limited` — not `fail`
 4. `env_limited` criteria count as **passed** for criteria pass rate calculation
 5. Log the limitation clearly: what criterion, what environment constraint, what code evidence suggests it works
 
-Do NOT use `env_limited` as an escape hatch for real failures. It applies ONLY when:
+Do NOT use `env_limited` as an escape hatch for real failures. It applies only when:
 - The test environment inherently cannot verify the criterion (WebGL in headless, native hardware features)
 - The code path exists and is structurally correct (verified by reading source + tests)
 - The limitation is environmental, not a product bug
@@ -185,7 +185,7 @@ Emit: `PO: confidence <raw_score> (adjusted: <adjusted_score>)`
 - `rollback` — critical regression from previous cycle
 - `notify-human` — ambiguity or judgment call that requires human input
 
-> **Verdict vs confidence:** The PO verdict (PRODUCTION_READY / NEEDS_IMPROVEMENT / NOT_READY) is the AUTHORITATIVE signal for routing. The confidence score (0.0-1.0) is used by the analyzing phase for trend analysis only. When in doubt, the categorical verdict wins.
+> **Verdict vs confidence:** The PO verdict (PRODUCTION_READY / NEEDS_IMPROVEMENT / NOT_READY) is the authoritative signal for routing; the confidence score (0.0-1.0) is only read by the analyzing phase for trend analysis. When in doubt, the categorical verdict wins — downstream phases route on the verdict, not the float.
 
 **Output fields:** `rubric_scores` (P1.14 — 6 dimensions from product-quality-v1.md, each with score/rationale/evidence_ref), `journey_quality[]`, `screen_quality[]`, `heuristic_results` (total, passed, pass_rate_pct — supplementary signal), `verdict` (PRODUCTION_READY / NEEDS_IMPROVEMENT / NOT_READY per rubric aggregation), `confidence` (raw — sum of rubric scores / 18), `confidence_adjusted` (env_limited dimensions excluded), `env_limited_impact` (what was excluded and why), `recommended_action`, `improvement_items[]`
 
@@ -222,8 +222,8 @@ Every finding produced by any lens carries a `confidence` tag from this closed v
 | `low` | Pattern-matched but without structural confirmation. Finding is advisory; does NOT gate. | "Copy reads as possibly AI-generated in hero section." |
 
 Rules:
-- Every entry in `fix_tasks[]`, `critical_findings[]`, `improvement_items[]`, `copy_findings[]`, `a11y_review.findings[]` MUST have a `confidence` field.
-- `high` findings MUST include an `evidence_ref` — a STRUCTURED pointer to the specific location that grounds the finding, plus a verbatim quote from that location:
+- Every entry in `fix_tasks[]`, `critical_findings[]`, `improvement_items[]`, `copy_findings[]`, `a11y_review.findings[]` carries a `confidence` field.
+- `high` findings must include an `evidence_ref` — a structured pointer to the specific location that grounds the finding, plus a verbatim quote from that location:
   ```json
   {
     "evidence_ref": {
@@ -237,11 +237,11 @@ Rules:
 - **Why structured references:** the launcher resolves `path` and verifies `quote` is a substring of the resolved text. If the path doesn't resolve or the quote isn't found, confidence automatically downgrades to `moderate`. Fabricated references cannot survive this check. Legitimate paraphrase within a single resolved field is fine (the validator uses a high-threshold fuzzy match within the one field, not the whole haystack).
 - `low` findings are informational only. The health-score deduction table below applies to findings with `confidence: high` OR `moderate`. `low` findings are listed in the report but don't deduct.
 - Reviewer agents (from P0.4) inherit this vocabulary. Their `uncertain[]` array maps to `confidence: low` — migrate toward the closed vocabulary on next sweep.
-- **Deprecated:** the older `evidence_span` free-form field is still accepted during transition (keeps confidence at `high` with a warning) but MUST migrate to `evidence_ref` in the next prompt pass.
+- **Deprecated:** the older `evidence_span` free-form field is still accepted during transition (keeps confidence at `high` with a warning) but must migrate to `evidence_ref` in the next prompt pass.
 
 ## Health Score
 
-Start at 100. Collect ALL findings from all three lenses with `confidence: high` OR `moderate`. Apply severity-based deductions (`low`-confidence findings are listed but don't deduct):
+Start at 100. Collect every finding from all three lenses with `confidence: high` or `moderate`. Apply severity-based deductions (`low`-confidence findings are listed but don't deduct):
 
 | Severity | Deduction | Cap |
 |----------|-----------|-----|
