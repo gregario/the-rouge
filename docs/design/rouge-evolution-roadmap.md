@@ -1038,7 +1038,8 @@ We stop working on a roadmap item and come back if:
 | `daa60c7` | P1.19 PR 11 — seeding/01-brainstorming.md modernization (Rouge taste ethos: all five thinker voices + expand-scope identity directives "you do not fight depth / invoke YAGNI / say that's a lot" preserved; 8 stylistic caps softened; 24 tests) |
 | `74dd564` | P1.19 PR 12 — seeding/07-marketing.md modernization (eight Writing Rules + no-fabricated-proof integrity rule + 4-artifact contract preserved; "think deeply" scaffolding removed; 22 tests) |
 | `3b74dc3` | P1.19 PR 13 — seeding/00-swarm-orchestrator.md modernization (meta-prompt; SIX incident-tied safety blocks explicitly preserved — integrity / sequential-execution / Resumption / gate-discipline / foundation-protection / anti-wallpaper; 25 tests) |
-| _next_ | P1.19 PR 14 — seeding/02-competition.md modernization (five thinker Latent Space voices + advisory-only scope boundary preserved; VISIBLE / CAN-ask softened; 26 tests) |
+| `3866536` | P1.19 PR 14 — seeding/02-competition.md modernization (five thinker Latent Space voices + advisory-only scope boundary preserved; VISIBLE / CAN-ask softened; 26 tests) |
+| _next_ | P1.19 PR 15 — seeding/04-spec.md modernization (620-line Rouge-taste-heavy prompt; P1.5R tier-aware block preserved + tier-aware tests still green; 7 stylistic caps + 3 MUSTs softened; Beat 3 "Do NOT emit chat-style prose" + "Do NOT gate" stay emphatic; 30 tests) |
 
 **Memory work this session:**
 

@@ -6,7 +6,7 @@ Use the `[GATE:]` / `[DECISION:]` / `[WROTE:]` / `[HEARTBEAT:]` marker vocabular
 
 ## Tier-aware depth (P1.5R)
 
-**Before Beat 1, read `seed_spec/sizing.json`.** The `project_size` field shapes decomposition scope. Tier controls HOW MANY feature areas; it does NOT weaken the per-FA depth bar.
+**Before Beat 1, read `seed_spec/sizing.json`.** The `project_size` field shapes decomposition scope. Tier controls how many feature areas; it does not weaken the per-FA depth bar.
 
 | Tier | FA count | ACs per FA | Beat 3 mode |
 |---|---|---|---|
@@ -42,7 +42,7 @@ SPEC ran as a 30+-message wall of per-feature-area telemetry in prior iterations
 
 ### Beat 1 — Decomposition (ONE gate, before any deep work)
 
-1. **Propose** the milestone + story decomposition as prose. One line per milestone: name + one-sentence intent (the "why", not the "what"). Show story counts per milestone but NOT story-level detail.
+1. **Propose** the milestone + story decomposition as prose. One line per milestone: name + one-sentence intent (the "why", not the "what"). Show story counts per milestone but not story-level detail.
 2. **Write** `seed_spec/milestones.json` with the proposed structure (names, story IDs, short story names, `status: "pending"`, empty `acceptance_criteria: []`).
 3. **Emit `[WROTE: decomposition-written]`** with a summary line: `"Decomposition on disk — N milestones, M stories across <grouping-desc>."`.
 4. **Emit `[GATE: spec/H1-decomposition]`** with the prose proposal. Wait for human sign-off.
@@ -51,17 +51,17 @@ The human may adjust groupings, collapse milestones, rename things. Update `seed
 
 ### Beat 2 — Shape (autonomous, no gate unless ambiguous)
 
-After H1 clears, decide the complexity profile autonomously: `single-page` / `multi-route` / `stateful` / `api-first` / `full-stack`. Emit it as `[DECISION: complexity-profile]` with brief reasoning — NOT as a gate. INFRASTRUCTURE reads this from your `cycle_context.json` write on the next turn.
+After H1 clears, decide the complexity profile autonomously: `single-page` / `multi-route` / `stateful` / `api-first` / `full-stack`. Emit it as `[DECISION: complexity-profile]` with brief reasoning — not as a gate. INFRASTRUCTURE reads this from your `cycle_context.json` write on the next turn.
 
 **Only gate on shape if two profiles are genuinely viable** and the choice would meaningfully change what you spec. In that case emit `[GATE: spec/S1-shape-ambiguous]`. Don't invent ambiguity to justify a gate — if the vision + decomposition make the profile obvious, just decide.
 
-### Beat 3 — Deep work (autonomous, QUIET)
+### Beat 3 — Deep work (autonomous, quiet)
 
 Now write the per-feature-area specs (journeys, acceptance criteria, data models, error paths — see "Depth Over Brevity" below for the quality bar). This is the expensive phase. Use chunked turns; don't try to ship all FAs in one call.
 
 **Emit markers, not chat prose:**
 - One `[WROTE: faN-spec-written]` per FA — the dashboard renders these to a progress pill above the chat input, not as individual chat bubbles. Canonical shape: `"FAN <Name> on disk — <tier> tier, <N> ACs across <label>."`
-- One `[HEARTBEAT: writing spec — N of M]` at each chunk boundary so the progress pill stays fresh. Use progress-style content ("writing ACs for vehicle-registry 12/22"), NOT ceremonial content ("ending turn — next turn writes FA7").
+- One `[HEARTBEAT: writing spec — N of M]` at each chunk boundary so the progress pill stays fresh. Use progress-style content ("writing ACs for vehicle-registry 12/22"), not ceremonial content ("ending turn — next turn writes FA7").
 - `[DECISION:]` for real forks (story grouping, integration library choice with real trade-offs, NFR picks within a band).
 
 **Do NOT emit chat-style prose during Beat 3** ("FA1 is done. Moving to FA2..."). The markers carry the signal; prose is for Beat 4.
@@ -80,7 +80,7 @@ The decomposition gate in Beat 1 is the only hard gate. Beat 2's shape decision 
 ## Principles this follows
 
 From `docs/design/seeding-interaction-principles.md`:
-- **Stage gates at decision boundaries, not file boundaries.** H1 on decomposition is the only fork. Per-FA writes are NOT decisions — they're execution.
+- **Stage gates at decision boundaries, not file boundaries.** H1 on decomposition is the only fork. Per-FA writes are not decisions — they're execution.
 - **Make the big decisions cheap.** The decomposition gate fires BEFORE the FA specs are written, so a rejected breakdown doesn't cost 20 minutes of sunk work.
 - **At most two visible gates.** H1 is required; S2 (paid integration) is conditional. S1 (shape) is conditional. Most runs have one gate.
 - **Structured output belongs in tabs, not chat.** Per-FA `[WROTE:]` markers drive the progress pill, not chat bubbles. Full detail is in the Spec tab.
@@ -150,11 +150,11 @@ The file contains the milestone and story structure derived from the per-area sp
 
 ## What You Produce Per Feature Area
 
-Every feature area in the seed spec MUST contain all seven sections below. No section may be omitted. No section may contain placeholder text like "TBD" or "handle appropriately."
+Every feature area in the seed spec carries all seven sections below. No omissions, no "TBD" placeholders, no "handle appropriately" handwaving — the Evaluator reads each section directly.
 
 ### 1. User Journeys
 
-Step-by-step flows with click counts. Apply the 3-click rule: core tasks MUST complete in 3 clicks or fewer. If a journey exceeds 3 clicks, either restructure it or provide explicit justification that the orchestrator can present to the human.
+Step-by-step flows with click counts. Apply the 3-click rule: core tasks must complete in 3 clicks or fewer. If a journey exceeds 3 clicks, either restructure it or provide explicit justification that the orchestrator can present to the human — DESIGN triggers a loop-back to SPEC when this rule is violated, so the justification matters.
 
 Format:
 ```
@@ -363,7 +363,7 @@ A story is the smallest unit of work that:
 - Produces a testable outcome (passing tests, visible change, or documented env limitation)
 - Can be committed independently without breaking other stories
 
-A story is NOT:
+A story is not:
 - An entire feature area (too large — that's a milestone)
 - A single acceptance criterion (too small — stories group related ACs)
 - A task like "set up routing" (too infrastructure — that's foundation work)
@@ -420,7 +420,7 @@ Group stories into milestones. A milestone is a batch that gets evaluated togeth
 - [ ] Story dependencies form a DAG (no circular dependencies)
 - [ ] Milestone dependencies form a DAG
 - [ ] No story depends on a story in a LATER milestone (dependencies flow forward)
-- [ ] Foundation work (schema, auth, shared UI) is NOT in stories — it's in the foundation phase
+- [ ] Foundation work (schema, auth, shared UI) is not in stories — it's in the foundation phase
 - [ ] Each story's `affected_entities` and `affected_screens` are populated (the builder uses these for code discovery)
 
 ### Present decomposition to human
@@ -496,7 +496,7 @@ Loop-back triggers: <list any issues that need other disciplines to revisit>
 
 ### When You Trigger Loop-Backs
 
-You MUST trigger a loop-back to another discipline when:
+Trigger a loop-back to another discipline when:
 
 - **→ COMPETITION:** You discover a feature interaction that competitors handle and you have no competitive intelligence on it. "I'm speccing the trip sharing flow but we never researched how competitor X handles shared permissions."
 - **→ TASTE:** You realize a feature area is more complex than the original scope implied, and the additional complexity changes the product's value proposition or build cost. "Speccing real-time collaboration would add ~40 acceptance criteria and touch every feature area. Is this still in scope?"
