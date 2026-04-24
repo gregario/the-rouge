@@ -1044,7 +1044,8 @@ We stop working on a roadmap item and come back if:
 | `bbdfc0f` | P1.19 PR 17 — **judge-side sweep begins** — 02f-re-walk.md modernization (smallest judge prompt; minimal stylistic softening + exhaustive judge-observer-boundary lock-in; Anti-Patterns "Never" count asserted == 5 as calibration-drift regression catcher; 20 tests) |
 | `e5b8bbd` | P1.19 PR 18 — 10-final-review.md calibration-surface lock-in (test-only PR — prompt was already Opus-4.7-native; 25 tests covering ship/refine/major-rework recommendation enum, 3-tier confidence ladder, customer-identity voice, six "Never" Anti-Patterns, PO-feedback integrity, confidence-asymmetry rationale) |
 | `bbf12c2` | P1.19 PR 19 — 00-foundation-evaluating.md modernization (4 stylistic caps softened; six-dimension rubric + silent-degradation check + five Anti-Patterns + "NEVER hardcoded" security rule + scope/routing boundaries preserved; 28 tests) |
-| _next_ | P1.19 PR 20 — 06-vision-check.md modernization (Bezos+Chesky voices preserved; "## What You Do NOT Do" reframed to Scope Boundary; 3-tier confidence ladder + trajectory enum + trend bands + pivot-human-gating rule ("ALWAYS a human decision" twice) locked in; 22 tests) |
+| `7ddb604` | P1.19 PR 20 — 06-vision-check.md modernization (Bezos+Chesky voices preserved; "## What You Do NOT Do" reframed to Scope Boundary; 3-tier confidence ladder + trajectory enum + trend bands + pivot-human-gating rule ("ALWAYS a human decision" twice) locked in; 22 tests) |
+| _next_ | P1.19 PR 21 — 02d-product-walk.md modernization (observer identity preserved; six "Never" Anti-Patterns locked in; "IMPORTANT" prefix removed with lens-calibration rationale; responsive breakpoints + 44x44 touch-target + a11y signals asserted; 25 tests) |
 
 **Memory work this session:**
 
