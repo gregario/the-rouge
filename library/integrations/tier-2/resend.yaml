@@ -1,0 +1,52 @@
+id: resend
+name: Resend
+tier: 2
+category: email
+description: >
+  Transactional email API for developers, built on AWS SES with a friendlier
+  DX and React-based email templating via `react-email`. Supports domain
+  verification via DNS, webhooks for delivery events (bounced, opened,
+  clicked), broadcast lists, and inbound email routing. Thin API that runs
+  in edge runtimes; no SMTP setup required. Free tier fits transactional
+  notifications for early-stage products.
+cost_tier: free-to-start
+
+requires:
+  env_vars:
+    - RESEND_API_KEY
+  packages:
+    - "resend"
+    - "react-email"
+    - "@react-email/components"
+  cli_tools: []
+
+setup_steps:
+  - Create an account at resend.com and generate an API key from Dashboard > API Keys
+  - Add and verify the sending domain in Dashboard > Domains (Resend provides the DNS records to add — SPF, DKIM, DMARC)
+  - Wait for DNS propagation (typically under 10 minutes); the dashboard confirms when all records resolve
+  - Install `resend` for sending and `react-email` + `@react-email/components` if authoring templates as React
+  - Author email templates as React components in `emails/` and preview them with `npx react-email dev`
+  - Send from server code with `new Resend(process.env.RESEND_API_KEY).emails.send({ from, to, subject, react: <Template /> })`
+  - Configure webhooks in Dashboard > Webhooks if you need delivery / bounce tracking in your own database
+
+teardown_steps:
+  - Revoke the API key in Dashboard > API Keys
+  - Delete the verified domain if no longer sending (or leave it — it doesn't incur cost)
+  - Remove DNS records for SPF/DKIM/DMARC if migrating to a different provider (watch out for shared DNS with other services)
+  - Clear `RESEND_API_KEY` from environments
+  - Uninstall `resend`, `react-email`, and `@react-email/components` if no longer needed
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+free_tier_limits:
+  emails_per_day: 100
+  emails_per_month: 3000
+  verified_domains: 1
+  api_keys: 1
+  broadcast_contacts: 3000
+  webhooks: included
+  note: "Free tier excludes custom domain for click/open tracking links; above limit, pricing is per-thousand-emails"
+
+staleness_date: "2026-04-24"

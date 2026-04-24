@@ -1,0 +1,54 @@
+id: posthog
+name: PostHog
+tier: 2
+category: analytics
+description: >
+  Product analytics platform combining event tracking, session replay,
+  feature flags, A/B experiments, surveys, and error tracking in one
+  product. Self-serve for cloud or self-hosted; EU and US regions for data
+  residency. First-party tracking avoids most ad-blockers when reverse-
+  proxied through your own domain. Generous free tier that suits most
+  early-stage products; paid tier kicks in above event volume.
+cost_tier: free-to-start
+
+requires:
+  env_vars:
+    - NEXT_PUBLIC_POSTHOG_KEY
+    - NEXT_PUBLIC_POSTHOG_HOST
+    - POSTHOG_API_KEY
+  packages:
+    - "posthog-js"
+    - "posthog-node"
+  cli_tools: []
+
+setup_steps:
+  - Create a project at app.posthog.com (US) or eu.posthog.com (EU) — pick based on data-residency requirements
+  - Copy the Project API key (public, writes events) into `NEXT_PUBLIC_POSTHOG_KEY` and the instance host URL into `NEXT_PUBLIC_POSTHOG_HOST`
+  - Create a Personal API key from Settings > Personal API Keys for server-side use (feature flags, querying); store in `POSTHOG_API_KEY`
+  - Install `posthog-js` for browser tracking and `posthog-node` for server-side evaluation of feature flags and server events
+  - Initialise the browser client once in a client-side root provider (`posthog.init(key, { api_host, capture_pageview })`) or via the `PostHogProvider` from `posthog-js/react`
+  - Capture events with `posthog.capture('event_name', { property: value })`; feature flags via `posthog.isFeatureEnabled('flag-key')`
+  - For edge / server runtimes, instantiate `PostHog` from `posthog-node` per request and call `shutdown()` to flush before the function exits (otherwise events are dropped)
+  - Optional: reverse-proxy `/ingest` to the PostHog host to bypass ad-blockers and keep tracking first-party
+
+teardown_steps:
+  - Delete the project in PostHog settings (soft-deletes data; permanent deletion available by support request)
+  - Remove `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST`, and `POSTHOG_API_KEY` from environments
+  - Strip all `posthog.capture()`, `posthog.identify()`, `posthog.isFeatureEnabled()` calls from the codebase
+  - Remove any reverse-proxy rewrites for `/ingest`
+  - Uninstall `posthog-js` and `posthog-node`
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+free_tier_limits:
+  events_per_month: 1000000
+  session_replays_per_month: 5000
+  feature_flag_requests_per_month: 1000000
+  surveys_per_month: 250
+  data_retention_months: 12
+  team_seats: unlimited
+  note: "Above the event cap, pricing is usage-based per-event; session replay and surveys have separate caps"
+
+staleness_date: "2026-04-24"

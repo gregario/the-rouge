@@ -1,0 +1,51 @@
+id: clerk
+name: Clerk
+tier: 2
+category: auth
+description: >
+  Authentication and user management platform with prebuilt UI components,
+  OAuth providers, MFA, organisations, and webhooks. Integrates natively with
+  Next.js App Router via middleware; also supports Remix, Expo, and vanilla
+  React. Replaces the need to build sign-in / sign-up flows, session handling,
+  and user-profile screens. Generous free tier for early products; switches to
+  per-MAU pricing above the cap.
+cost_tier: free-to-start
+
+requires:
+  env_vars:
+    - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+    - CLERK_SECRET_KEY
+    - NEXT_PUBLIC_CLERK_SIGN_IN_URL
+    - NEXT_PUBLIC_CLERK_SIGN_UP_URL
+  packages:
+    - "@clerk/nextjs"
+  cli_tools: []
+
+setup_steps:
+  - Create an application at dashboard.clerk.com and pick the authentication methods (email, Google, GitHub, etc.)
+  - Copy the publishable key into `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and the secret key into `CLERK_SECRET_KEY`
+  - Install `@clerk/nextjs` and wrap the root layout with `<ClerkProvider>` in `app/layout.tsx`
+  - Add `middleware.ts` at the project root using `clerkMiddleware()` with `createRouteMatcher` to declare protected routes
+  - Set `NEXT_PUBLIC_CLERK_SIGN_IN_URL` and `NEXT_PUBLIC_CLERK_SIGN_UP_URL` to the routes that host `<SignIn />` and `<SignUp />` components
+  - For server code, read the session with `auth()` from `@clerk/nextjs/server`; for client code, use `useAuth()` or `useUser()`
+  - Configure the production domain in Clerk dashboard before shipping — the test keys only work on localhost and clerk.dev-domain preview URLs
+
+teardown_steps:
+  - Delete the application in Clerk dashboard (removes users, sessions, and OAuth configurations)
+  - Remove `<ClerkProvider>`, `middleware.ts` clerkMiddleware usage, and any `auth()` / `useAuth()` calls
+  - Clear the four `NEXT_PUBLIC_CLERK_*` and `CLERK_SECRET_KEY` variables from environments
+  - Uninstall `@clerk/nextjs`
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+free_tier_limits:
+  monthly_active_users: 10000
+  oauth_providers: unlimited
+  organisations: unlimited
+  mfa: included
+  branding_removal: paid-plan-only
+  note: "Above 10k MAU, pricing is per-MAU; organisations and enterprise SSO require paid plans"
+
+staleness_date: "2026-04-24"
