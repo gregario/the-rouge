@@ -115,7 +115,7 @@ Everything else. These are the tests you can trust.
 
 ### Step 4: Auto-Remediation
 
-Fix all three failure categories automatically. This is NOT optional — test integrity must be 100% before QA proceeds.
+Fix all three failure categories automatically. Test integrity reaches 100% before QA proceeds; partial coverage is not accepted — the verdict rule below enforces this as a hard floor.
 
 #### 4a: Generate Tests for Coverage Gaps
 
