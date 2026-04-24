@@ -10,7 +10,7 @@ Use the `[GATE:]` / `[DECISION:]` / `[HEARTBEAT:]` vocabulary from the orchestra
 - `legal-privacy/H1-jurisdiction` — Confirm baseline: GDPR (EU/UK or global default), CCPA (California), or minimal (non-commercial / no PII). Auto-recommend based on target audience but gate for confirm.
 
 **Soft gates (only when contested):**
-- `legal-privacy/S1-regulated-domain` — Conditional. Fires only if you detect fintech / health / children / gambling / education / employment. The human MUST explicitly acknowledge the regulatory burden before you proceed.
+- `legal-privacy/S1-regulated-domain` — Conditional. Fires only if you detect fintech / health / children / gambling / education / employment. The human must explicitly acknowledge the regulatory burden before you proceed — this is a hard gate inside a conditional trigger, not a soft recommendation.
 - `legal-privacy/S2-trademark-conflict` — Conditional. Fires only if you find a BLOCKING trademark or naming conflict. Human decides: keep, rename, or add qualifier.
 
 **Autonomous (narrate via `[DECISION:]`):**
@@ -63,7 +63,7 @@ Review the product concept (from the spec discipline's output) and the competiti
 
 ### A.4 — Regulated Domain Detection
 
-Check whether the product operates in a regulated domain. Flag ALL that apply:
+Check whether the product operates in a regulated domain. Flag every row that applies (multiple domains can stack):
 
 | Domain | Trigger | Implication |
 |--------|---------|-------------|
@@ -74,7 +74,7 @@ Check whether the product operates in a regulated domain. Flag ALL that apply:
 | **Education** | Student data, school integrations | FERPA (US), student data privacy laws |
 | **Employment** | HR tools, hiring, background checks | EEOC, FCRA, AI hiring regulations (NYC Local Law 144, EU AI Act) |
 
-If ANY regulated domain is detected:
+When a regulated domain is detected:
 1. Set `regulated_domain_flags` in the output.
 2. Notify the orchestrator — this triggers a loop-back to TASTE for scope adjustment.
 3. The human must explicitly acknowledge the regulatory burden before proceeding.
@@ -104,7 +104,7 @@ Based on the product's target audience and data collection:
 
 ## Part B — Boilerplate Generation
 
-Generate legal documents tailored to this specific product. These are NOT generic templates — they must reflect the actual product functionality, data collection, and jurisdiction analysis from Part A.
+Generate legal documents tailored to this specific product. Boilerplate here means product-specific boilerplate — every document reflects the actual product functionality, data collection, and jurisdiction analysis from Part A. Generic copy-paste templates fail this discipline.
 
 Write all files to the `legal/` directory in the project root.
 
@@ -138,9 +138,9 @@ Structure:
 
 ### B.3 — Cookie Policy (`legal/cookies.md`) — Conditional
 
-Generate ONLY if the product uses cookies, local storage for tracking, or third-party scripts that set cookies (analytics, ads, auth).
+Generate this file only if the product uses cookies, local storage for tracking, or third-party scripts that set cookies (analytics, ads, auth).
 
-Skip if the product is a CLI tool, MCP server, API-only service, or otherwise has no browser-based tracking.
+Skip it when the product is a CLI tool, MCP server, API-only service, or otherwise has no browser-based tracking.
 
 Structure:
 1. **What cookies we use** — Table: cookie name, provider, purpose, duration, type (essential/functional/analytics/marketing).
@@ -156,7 +156,7 @@ Structure:
 You are running during seeding — the human is present. Use this for:
 
 - **Jurisdiction confirmation.** "This product targets EU users. Socrates recommends GDPR as baseline. Confirm?" Do not assume jurisdiction.
-- **Regulated domain acknowledgment.** If you detect a regulated domain, the human MUST acknowledge before you proceed. This is not optional.
+- **Regulated domain acknowledgment.** If you detect a regulated domain, the human must acknowledge before you proceed — this is a hard gate, not a soft recommendation.
 - **Naming conflicts.** If you find a blocking trademark conflict, surface it immediately — the human may want to rename before other disciplines reference the name.
 
 When asking questions:
@@ -199,6 +199,14 @@ When complete, produce a legal status object and pass it to the orchestrator:
 **If `blocking_issues` is non-empty**, seeding cannot proceed until the human resolves them.
 
 ---
+
+## Scope Boundary
+
+- Analyse legal and privacy risk for this product concept; downstream disciplines read `regulated_domain_flags`, `trademark_status`, and `blocking_issues` from the output object.
+- Generate product-specific boilerplate into `legal/`; the foundation and building phases implement any consent banners, CSP headers, or retention jobs the policy implies.
+- Surface blocking trademark or regulated-domain findings back to the orchestrator for loop-back to TASTE; the human decides rename / acknowledge / abandon.
+- Stay inside the seeding window — ongoing legal monitoring after launch is not part of this discipline.
+- Provide general legal risk guidance, not regulated legal advice; serious commercial products still need real counsel before launch.
 
 ## Discipline complete
 
