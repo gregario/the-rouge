@@ -1037,7 +1037,8 @@ We stop working on a roadmap item and come back if:
 | `9d847ef` | P1.19 PR 10 — seeding/06-legal-privacy.md modernization (Lessig voice preserved; 6 shouty patterns softened; added Scope Boundary with "not regulated legal advice" line; 22 tests) |
 | `daa60c7` | P1.19 PR 11 — seeding/01-brainstorming.md modernization (Rouge taste ethos: all five thinker voices + expand-scope identity directives "you do not fight depth / invoke YAGNI / say that's a lot" preserved; 8 stylistic caps softened; 24 tests) |
 | `74dd564` | P1.19 PR 12 — seeding/07-marketing.md modernization (eight Writing Rules + no-fabricated-proof integrity rule + 4-artifact contract preserved; "think deeply" scaffolding removed; 22 tests) |
-| _next_ | P1.19 PR 13 — seeding/00-swarm-orchestrator.md modernization (meta-prompt; SIX incident-tied safety blocks explicitly preserved — integrity / sequential-execution / Resumption / gate-discipline / foundation-protection / anti-wallpaper; 25 tests) |
+| `3b74dc3` | P1.19 PR 13 — seeding/00-swarm-orchestrator.md modernization (meta-prompt; SIX incident-tied safety blocks explicitly preserved — integrity / sequential-execution / Resumption / gate-discipline / foundation-protection / anti-wallpaper; 25 tests) |
+| _next_ | P1.19 PR 14 — seeding/02-competition.md modernization (five thinker Latent Space voices + advisory-only scope boundary preserved; VISIBLE / CAN-ask softened; 26 tests) |
 
 **Memory work this session:**
 
