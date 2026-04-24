@@ -54,17 +54,17 @@ describe('Type contracts', () => {
     expect(statuses).toHaveLength(4)
   })
 
-  it('SeedingDiscipline union covers all 8 disciplines', () => {
+  it('SeedingDiscipline union covers all 9 disciplines', () => {
     const disciplines: SeedingDiscipline[] = [
-      'brainstorming', 'competition', 'taste', 'spec',
+      'brainstorming', 'competition', 'taste', 'sizing', 'spec',
       'infrastructure', 'design', 'legal-privacy', 'marketing',
     ]
-    expect(disciplines).toHaveLength(8)
+    expect(disciplines).toHaveLength(9)
   })
 
   it('DisciplineStatus union is complete', () => {
-    const statuses: DisciplineStatus[] = ['pending', 'in-progress', 'complete']
-    expect(statuses).toHaveLength(3)
+    const statuses: DisciplineStatus[] = ['pending', 'in-progress', 'complete', 'skipped']
+    expect(statuses).toHaveLength(4)
   })
 
   it('DeployStatus union is complete', () => {

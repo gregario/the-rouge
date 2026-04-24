@@ -25,7 +25,7 @@ const SEEDING_DISCIPLINES: readonly SeedingDiscipline[] = [
   'brainstorming', 'competition', 'taste', 'sizing', 'spec',
   'infrastructure', 'design', 'legal-privacy', 'marketing',
 ]
-const DISCIPLINE_STATUSES: readonly DisciplineStatus[] = ['pending', 'in-progress', 'complete']
+const DISCIPLINE_STATUSES: readonly DisciplineStatus[] = ['pending', 'in-progress', 'complete', 'skipped']
 const PROJECT_STATES: readonly ProjectState[] = [
   'seeding', 'ready', 'foundation', 'foundation-eval', 'story-building',
   'milestone-check', 'milestone-fix', 'analyzing', 'generating-change-spec',

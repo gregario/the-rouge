@@ -48,7 +48,7 @@ export type SeedingDiscipline =
   | 'design'
   | 'legal-privacy'
   | 'marketing'
-export type DisciplineStatus = 'pending' | 'in-progress' | 'complete'
+export type DisciplineStatus = 'pending' | 'in-progress' | 'complete' | 'skipped'
 export type DeployStatus = 'success' | 'failed' | 'rollback'
 export type EscalationTier = 0 | 1 | 2 | 3
 export type Provider = 'vercel' | 'cloudflare' | 'github-pages' | 'supabase' | 'sentry' | 'posthog'

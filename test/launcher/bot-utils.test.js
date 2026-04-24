@@ -34,30 +34,52 @@ function updateDisciplineTracker(seedState, disciplineName) {
   };
 }
 
+function recordDisciplineSkip(seedState, disciplineName, reason) {
+  if (!seedState.disciplines) seedState.disciplines = {};
+  const normalised = String(disciplineName || '').trim().toLowerCase();
+  if (!normalised) return;
+  const existing = seedState.disciplines[normalised] || { runs: 0 };
+  seedState.disciplines[normalised] = {
+    status: 'skipped',
+    completed_at: new Date().toISOString(),
+    runs: existing.runs || 0,
+    skip_reason: (reason || '').trim() || 'below applicable_at threshold',
+  };
+}
+
 function buildResumingFromStateBlock(seedState) {
   const disciplines = seedState && seedState.disciplines;
   if (!disciplines || Object.keys(disciplines).length === 0) return '';
 
   const completed = [];
+  const skipped = [];
   const pending = [];
   for (const name of SEEDING_DISCIPLINES) {
     const entry = disciplines[name];
     if (entry && entry.status === 'complete') {
       completed.push(name);
+    } else if (entry && entry.status === 'skipped') {
+      skipped.push(name);
     } else {
       pending.push(name);
     }
   }
 
+  const settled = completed.length + skipped.length;
   const lines = [
     '[RESUMING FROM STATE — authoritative, trust over your own memory]',
-    `Completed disciplines (${completed.length}/${SEEDING_DISCIPLINES.length}): ${completed.join(', ') || '(none)'}`,
+    `Completed disciplines (${settled}/${SEEDING_DISCIPLINES.length}): ${completed.join(', ') || '(none)'}`,
+  ];
+  if (skipped.length > 0) {
+    lines.push(`Skipped (below project_size threshold): ${skipped.join(', ')}`);
+  }
+  lines.push(
     `Remaining disciplines: ${pending.join(', ') || '(none)'}`,
-    'Do not re-run any discipline marked complete. Resume at the next remaining discipline. If the previous output left a discipline mid-work, restart that discipline cleanly from its opening — do not try to patch around where you think you stopped.',
+    'Do not re-run any discipline marked complete or skipped. Resume at the next remaining discipline. If the previous output left a discipline mid-work, restart that discipline cleanly from its opening — do not try to patch around where you think you stopped.',
     '[END STATE]',
     '',
     '',
-  ];
+  );
   return lines.join('\n');
 }
 
@@ -326,6 +348,138 @@ describe('buildResumingFromStateBlock', () => {
     const block = buildResumingFromStateBlock({ disciplines });
     assert.ok(block.includes(`Completed disciplines (${SEEDING_DISCIPLINES.length}/${SEEDING_DISCIPLINES.length})`));
     assert.ok(block.includes('Remaining disciplines: (none)'));
+  });
+
+  test('skipped disciplines count toward settled, listed separately', () => {
+    const seedState = {
+      disciplines: {
+        brainstorming: { status: 'complete' },
+        taste: { status: 'complete' },
+        sizing: { status: 'complete' },
+        spec: { status: 'complete' },
+        competition: { status: 'skipped', skip_reason: 'applicable_at=M; project_size=XS' },
+        infrastructure: { status: 'skipped', skip_reason: 'below threshold' },
+        design: { status: 'skipped', skip_reason: 'below threshold' },
+        'legal-privacy': { status: 'skipped', skip_reason: 'below threshold' },
+        marketing: { status: 'skipped', skip_reason: 'below threshold' },
+      },
+    };
+    const block = buildResumingFromStateBlock(seedState);
+    assert.ok(block.includes(`Completed disciplines (9/${SEEDING_DISCIPLINES.length})`));
+    assert.ok(block.includes('Skipped (below project_size threshold):'));
+    assert.ok(block.includes('competition, infrastructure, design, legal-privacy, marketing'));
+    assert.ok(block.includes('Remaining disciplines: (none)'));
+    assert.ok(block.includes('Do not re-run any discipline marked complete or skipped'));
+  });
+
+  test('mix of completed, skipped, and pending', () => {
+    const seedState = {
+      disciplines: {
+        brainstorming: { status: 'complete' },
+        taste: { status: 'complete' },
+        sizing: { status: 'complete' },
+        competition: { status: 'skipped' },
+      },
+    };
+    const block = buildResumingFromStateBlock(seedState);
+    // settled = 3 complete + 1 skipped = 4
+    assert.ok(block.includes(`Completed disciplines (4/${SEEDING_DISCIPLINES.length})`));
+    assert.ok(block.includes('Skipped (below project_size threshold): competition'));
+    assert.ok(block.includes('Remaining disciplines: spec, infrastructure, design, legal-privacy, marketing'));
+  });
+});
+
+describe('DISCIPLINE_SKIPPED marker regex', () => {
+  // Must match bot.js regex exactly. If bot.js changes, update here.
+  const SKIPPED_RE = /\[DISCIPLINE_SKIPPED:\s*(\S+?)(?:\s+(?:—|--|-)\s*([^\]]*?))?\]/g;
+
+  function parseAll(text) {
+    return [...text.matchAll(SKIPPED_RE)].map((m) => ({ name: m[1], reason: m[2] || '' }));
+  }
+
+  test('parses name + em-dash reason', () => {
+    const out = parseAll('[DISCIPLINE_SKIPPED: competition — applicable_at=M]');
+    assert.deepEqual(out, [{ name: 'competition', reason: 'applicable_at=M' }]);
+  });
+
+  test('parses name + double-hyphen reason', () => {
+    const out = parseAll('[DISCIPLINE_SKIPPED: marketing -- below M]');
+    assert.deepEqual(out, [{ name: 'marketing', reason: 'below M' }]);
+  });
+
+  test('parses name + single-hyphen reason', () => {
+    const out = parseAll('[DISCIPLINE_SKIPPED: design - below S]');
+    assert.deepEqual(out, [{ name: 'design', reason: 'below S' }]);
+  });
+
+  test('parses name without a reason', () => {
+    const out = parseAll('[DISCIPLINE_SKIPPED: design]');
+    assert.deepEqual(out, [{ name: 'design', reason: '' }]);
+  });
+
+  test('preserves hyphens inside the name (legal-privacy bug)', () => {
+    // Regression: early version required only \s* before the separator,
+    // which caused 'legal-privacy' to parse as name='legal', reason='privacy'.
+    // The fix requires \s+ before the separator so in-name hyphens stay
+    // with the name.
+    const out = parseAll('[DISCIPLINE_SKIPPED: legal-privacy]');
+    assert.deepEqual(out, [{ name: 'legal-privacy', reason: '' }]);
+  });
+
+  test('preserves hyphens in name with reason', () => {
+    const out = parseAll('[DISCIPLINE_SKIPPED: legal-privacy — no PII]');
+    assert.deepEqual(out, [{ name: 'legal-privacy', reason: 'no PII' }]);
+  });
+
+  test('parses multiple markers in one string', () => {
+    const text = '[DISCIPLINE_SKIPPED: competition — because] and [DISCIPLINE_SKIPPED: marketing]';
+    const out = parseAll(text);
+    assert.equal(out.length, 2);
+    assert.equal(out[0].name, 'competition');
+    assert.equal(out[1].name, 'marketing');
+  });
+
+  test('tolerates missing whitespace after colon', () => {
+    const out = parseAll('[DISCIPLINE_SKIPPED:competition]');
+    assert.deepEqual(out, [{ name: 'competition', reason: '' }]);
+  });
+});
+
+describe('recordDisciplineSkip', () => {
+  test('records skip with status=skipped', () => {
+    const seedState = {};
+    recordDisciplineSkip(seedState, 'competition', 'applicable_at=M; project_size=XS');
+    assert.strictEqual(seedState.disciplines.competition.status, 'skipped');
+    assert.ok(seedState.disciplines.competition.skip_reason.includes('applicable_at=M'));
+    assert.strictEqual(seedState.disciplines.competition.runs, 0);
+  });
+
+  test('normalises discipline name', () => {
+    const seedState = {};
+    recordDisciplineSkip(seedState, '  COMPETITION  ', 'why');
+    assert.ok(seedState.disciplines.competition);
+  });
+
+  test('no-ops on empty name', () => {
+    const seedState = { disciplines: {} };
+    recordDisciplineSkip(seedState, '', 'reason');
+    recordDisciplineSkip(seedState, null, 'reason');
+    assert.strictEqual(Object.keys(seedState.disciplines).length, 0);
+  });
+
+  test('defaults skip_reason when empty', () => {
+    const seedState = {};
+    recordDisciplineSkip(seedState, 'marketing', '');
+    assert.ok(seedState.disciplines.marketing.skip_reason.length > 0);
+  });
+
+  test('preserves prior run count if discipline was retried before skip', () => {
+    const seedState = {
+      disciplines: { design: { status: 'in-progress', runs: 2 } },
+    };
+    recordDisciplineSkip(seedState, 'design', 'reason');
+    assert.strictEqual(seedState.disciplines.design.status, 'skipped');
+    assert.strictEqual(seedState.disciplines.design.runs, 2);
   });
 });
 

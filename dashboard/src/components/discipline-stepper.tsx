@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { DisciplineProgress, SeedingDiscipline } from '@/lib/types'
 import { cn } from '@/lib/utils'
-import { Check, Circle, Loader2 } from 'lucide-react'
+import { Check, Circle, Loader2, Minus } from 'lucide-react'
 
 const DISCIPLINE_ORDER: SeedingDiscipline[] = [
   'brainstorming',
@@ -61,6 +61,22 @@ function StatusIcon({
         className="flex size-6 items-center justify-center rounded-full bg-purple-100 text-purple-600"
       >
         <Loader2 className="size-3.5 animate-spin" />
+      </div>
+    )
+  }
+
+  if (status === 'skipped') {
+    // P1.5R PR 4: discipline was skipped because its applicable_at tier was
+    // above the project's project_size (e.g. COMPETITION / MARKETING on an
+    // XS calculator).
+    return (
+      <div
+        data-testid="discipline-icon"
+        data-status="skipped"
+        title="Skipped — applicable_at tier above project_size"
+        className="flex size-6 items-center justify-center rounded-full bg-slate-100 text-slate-400"
+      >
+        <Minus className="size-3.5" />
       </div>
     )
   }

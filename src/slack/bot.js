@@ -220,6 +220,28 @@ function updateDisciplineTracker(seedState, disciplineName) {
 }
 
 /**
+ * Record a parsed [DISCIPLINE_SKIPPED: <name> — <reason>] marker in
+ * seedingState. A skip is like a completion (counts toward convergence) but
+ * preserves the distinction that the discipline didn't actually run — useful
+ * for the dashboard and for later audits. See P1.5R PR 4 and the
+ * src/launcher/discipline-registry.js tier map.
+ *
+ * Mutates in place; caller persists.
+ */
+function recordDisciplineSkip(seedState, disciplineName, reason) {
+  if (!seedState.disciplines) seedState.disciplines = {};
+  const normalised = String(disciplineName || '').trim().toLowerCase();
+  if (!normalised) return;
+  const existing = seedState.disciplines[normalised] || { runs: 0 };
+  seedState.disciplines[normalised] = {
+    status: 'skipped',
+    completed_at: new Date().toISOString(),
+    runs: existing.runs || 0,
+    skip_reason: (reason || '').trim() || 'below applicable_at threshold',
+  };
+}
+
+/**
  * Build the [RESUMING FROM STATE] block that gets prepended to every Claude
  * seeding invocation after the first. Returns an empty string if there is no
  * discipline state to report (first message in the session).
@@ -233,25 +255,34 @@ function buildResumingFromStateBlock(seedState) {
   if (!disciplines || Object.keys(disciplines).length === 0) return '';
 
   const completed = [];
+  const skipped = [];
   const pending = [];
   for (const name of SEEDING_DISCIPLINES) {
     const entry = disciplines[name];
     if (entry && entry.status === 'complete') {
       completed.push(name);
+    } else if (entry && entry.status === 'skipped') {
+      skipped.push(name);
     } else {
       pending.push(name);
     }
   }
 
+  const settled = completed.length + skipped.length;
   const lines = [
     '[RESUMING FROM STATE — authoritative, trust over your own memory]',
-    `Completed disciplines (${completed.length}/${SEEDING_DISCIPLINES.length}): ${completed.join(', ') || '(none)'}`,
+    `Completed disciplines (${settled}/${SEEDING_DISCIPLINES.length}): ${completed.join(', ') || '(none)'}`,
+  ];
+  if (skipped.length > 0) {
+    lines.push(`Skipped (below project_size threshold): ${skipped.join(', ')}`);
+  }
+  lines.push(
     `Remaining disciplines: ${pending.join(', ') || '(none)'}`,
-    'Do not re-run any discipline marked complete. Resume at the next remaining discipline. If the previous output left a discipline mid-work, restart that discipline cleanly from its opening — do not try to patch around where you think you stopped.',
+    'Do not re-run any discipline marked complete or skipped. Resume at the next remaining discipline. If the previous output left a discipline mid-work, restart that discipline cleanly from its opening — do not try to patch around where you think you stopped.',
     '[END STATE]',
     '',
     '',
-  ];
+  );
   return lines.join('\n');
 }
 
@@ -1155,6 +1186,16 @@ app.event('app_mention', async ({ event, say }) => {
         updateDisciplineTracker(seedState, match[1]);
       }
 
+      // P1.5R PR 4: [DISCIPLINE_SKIPPED: <name> — <reason>] — tier-below-threshold skip.
+      const skippedDisciplines = [];
+      const skipMatches = response.matchAll(/\[DISCIPLINE_SKIPPED:\s*(\S+?)(?:\s+(?:—|--|-)\s*([^\]]*?))?\]/g);
+      for (const match of skipMatches) {
+        const name = match[1];
+        const reason = match[2] || '';
+        skippedDisciplines.push({ name, reason });
+        recordDisciplineSkip(seedState, name, reason);
+      }
+
       writeSeedingState(seedProject, seedState);
 
       // FW.1: Reply in thread
@@ -1181,7 +1222,10 @@ app.event('app_mention', async ({ event, say }) => {
       }
 
       // Strip progress markers from the response before showing to user
-      const cleanResponse = response.replace(/\[DISCIPLINE_COMPLETE:\s*\S+\]/g, '').trim();
+      const cleanResponse = response
+        .replace(/\[DISCIPLINE_COMPLETE:\s*\S+\]/g, '')
+        .replace(/\[DISCIPLINE_SKIPPED:[^\]]*\]/g, '')
+        .trim();
 
       if (cleanResponse.length > 3000) {
         const chunks = cleanResponse.match(/.{1,3000}/gs) || [cleanResponse];
@@ -1340,6 +1384,16 @@ app.event('message', async ({ event, say }) => {
       updateDisciplineTracker(seedState, match[1]);
     }
 
+    // P1.5R PR 4: [DISCIPLINE_SKIPPED: <name> — <reason>]
+    const dmSkippedDisciplines = [];
+    const dmSkipMatches = response.matchAll(/\[DISCIPLINE_SKIPPED:\s*(\S+?)(?:\s+(?:—|--|-)\s*([^\]]*?))?\]/g);
+    for (const match of dmSkipMatches) {
+      const name = match[1];
+      const reason = match[2] || '';
+      dmSkippedDisciplines.push({ name, reason });
+      recordDisciplineSkip(seedState, name, reason);
+    }
+
     writeSeedingState(seedProject, seedState);
 
     // Show progress bar if any disciplines completed
@@ -1357,7 +1411,10 @@ app.event('message', async ({ event, say }) => {
     }
 
     // Strip progress markers from the response before showing to user
-    const cleanResponse = response.replace(/\[DISCIPLINE_COMPLETE:\s*\S+\]/g, '').trim();
+    const cleanResponse = response
+      .replace(/\[DISCIPLINE_COMPLETE:\s*\S+\]/g, '')
+      .replace(/\[DISCIPLINE_SKIPPED:[^\]]*\]/g, '')
+      .trim();
 
     if (cleanResponse.length > 3000) {
       const chunks = cleanResponse.match(/.{1,3000}/gs) || [cleanResponse];
