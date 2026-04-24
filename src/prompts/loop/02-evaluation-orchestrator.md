@@ -2,7 +2,7 @@
 
 Include the autonomous-mode partial from `.claude/skills/partials/autonomous-mode.md`
 
-> **NOTE:** This orchestrator handles MILESTONE evaluation only. Foundation evaluation is handled by 00-foundation-evaluating.md. The launcher routes between them — you never need to check if this is a foundation evaluation.
+> **Routing note:** This orchestrator handles milestone evaluation only — foundation evaluation belongs to `00-foundation-evaluating.md`, and the launcher routes between the two. You never need to check whether this is a foundation evaluation.
 
 > **V3 Phase Contract:** Injected by launcher at runtime. See _preamble.md for the I/O contract.
 
@@ -272,7 +272,7 @@ Sub-phases write their own outputs: `test_integrity_report`, `code_review_report
 
 ## State Transition
 
-**IMPORTANT:** The evaluation orchestrator NEVER routes to `shipping` or `final-review`. Those only happen after ALL milestones are complete, which is decided by the analyzing phase, not the evaluator.
+The evaluation orchestrator NEVER routes to `shipping` or `final-review` — those phases run only after every milestone is complete, which is a decision the analyzing phase makes, not the evaluator. This routing boundary is load-bearing: the NEVER here guards against an evaluator drifting into ship-decisions.
 
 Based on the evaluation outcome, write the appropriate next phase signal to `cycle_context.json` under `next_phase`:
 

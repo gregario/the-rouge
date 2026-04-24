@@ -1047,7 +1047,8 @@ We stop working on a roadmap item and come back if:
 | `7ddb604` | P1.19 PR 20 — 06-vision-check.md modernization (Bezos+Chesky voices preserved; "## What You Do NOT Do" reframed to Scope Boundary; 3-tier confidence ladder + trajectory enum + trend bands + pivot-human-gating rule ("ALWAYS a human decision" twice) locked in; 22 tests) |
 | `5889bb1` | P1.19 PR 21 — 02d-product-walk.md modernization (observer identity preserved; six "Never" Anti-Patterns locked in; "IMPORTANT" prefix removed with lens-calibration rationale; responsive breakpoints + 44x44 touch-target + a11y signals asserted; 25 tests) |
 | `a4e0080` | P1.19 PR 22 — 02a-test-integrity.md modernization (single "NOT optional" softened; four-category traceability + rename-detection fuzzy-match + 100% hard-floor verdict rule + five Anti-Pattern "Never" rules all locked in; 30 tests) |
-| _next_ | P1.19 PR 23 — 02c-code-review.md modernization (seven-dimension rubric + weights, OWASP 5-category security, P1.15/P1.16/P1.16b evidence stack, P0.4 dispatch boundary, six "Never" Anti-Patterns all locked in; 4 stylistic caps softened; 40 tests) |
+| `c6996ed` | P1.19 PR 23 — 02c-code-review.md modernization (seven-dimension rubric + weights, OWASP 5-category security, P1.15/P1.16/P1.16b evidence stack, P0.4 dispatch boundary, six "Never" Anti-Patterns all locked in; 4 stylistic caps softened; 40 tests) |
+| _next_ | P1.19 PR 24 — 02-evaluation-orchestrator.md modernization (meta-judge; evidence-first/judgment-second architecture + 4-tier cycle classification + 7-row failure-routing table + 6 "Never" Anti-Patterns + "NEVER routes to shipping" load-bearing boundary all locked in; NOTE/MILESTONE/ALL/IMPORTANT softened; 37 tests) |
 
 **Memory work this session:**
 
