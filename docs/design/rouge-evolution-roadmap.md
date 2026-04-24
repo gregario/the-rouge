@@ -1040,7 +1040,8 @@ We stop working on a roadmap item and come back if:
 | `3b74dc3` | P1.19 PR 13 — seeding/00-swarm-orchestrator.md modernization (meta-prompt; SIX incident-tied safety blocks explicitly preserved — integrity / sequential-execution / Resumption / gate-discipline / foundation-protection / anti-wallpaper; 25 tests) |
 | `3866536` | P1.19 PR 14 — seeding/02-competition.md modernization (five thinker Latent Space voices + advisory-only scope boundary preserved; VISIBLE / CAN-ask softened; 26 tests) |
 | `7804d64` | P1.19 PR 15 — seeding/04-spec.md modernization (620-line Rouge-taste-heavy prompt; P1.5R tier-aware block preserved + tier-aware tests still green; 7 stylistic caps + 3 MUSTs softened; Beat 3 "Do NOT emit chat-style prose" + "Do NOT gate" stay emphatic; 30 tests) |
-| _next_ | P1.19 PR 16 — seeding/05-design.md modernization (855 lines — biggest remaining; 5 designer voices preserved; 8-item AI Slop Detection + Praise-session integrity rule locked in; beat-discipline "Do NOT gate between passes" + "does NOT decide what runs next" stay emphatic; 27 tests) |
+| `85bddf8` | P1.19 PR 16 — seeding/05-design.md modernization (855 lines — biggest remaining; 5 designer voices preserved; 8-item AI Slop Detection + Praise-session integrity rule locked in; beat-discipline "Do NOT gate between passes" + "does NOT decide what runs next" stay emphatic; 27 tests) |
+| _next_ | P1.19 PR 17 — **judge-side sweep begins** — 02f-re-walk.md modernization (smallest judge prompt; minimal stylistic softening + exhaustive judge-observer-boundary lock-in; Anti-Patterns "Never" count asserted == 5 as calibration-drift regression catcher; 20 tests) |
 
 **Memory work this session:**
 
