@@ -1666,6 +1666,132 @@ Exit codes:
   process.exit(0);
 }
 
+/**
+ * P5.9 PoC harness probe — single live round-trip against the
+ * Anthropic API to validate the SDK adapter wires up correctly.
+ *
+ * Sends a tiny structured-output prompt: "given this fake cycle
+ * context, emit a final_review_report-shaped payload." Costs ~$0.01
+ * one-time. Verifies prompt-caching markers + structured-output
+ * extraction work end-to-end.
+ *
+ * Usage: rouge harness probe [--model <id>] [--no-cache]
+ */
+async function cmdHarnessProbe(rawArgs) {
+  let model = 'claude-haiku-4-5-20251001';
+  let cache = true;
+  for (let i = 0; i < rawArgs.length; i++) {
+    const a = rawArgs[i];
+    if (a === '--model' && i + 1 < rawArgs.length) model = rawArgs[++i];
+    else if (a === '--no-cache') cache = false;
+    else if (a === '--help' || a === '-h') {
+      console.log(`Usage: rouge harness probe [--model <id>] [--no-cache]
+
+P5.9 PoC: round-trip against the Anthropic SDK to validate the harness
+adapter. Sends a tiny structured-output prompt and prints the result +
+usage tokens (input / output / cache_creation / cache_read). Cost ~$0.01.
+
+Requires ANTHROPIC_API_KEY in environment.
+
+Flags:
+  --model <id>    Override the model (default: claude-haiku-4-5-20251001)
+  --no-cache      Disable cache_control on the system block (for comparison)
+  --help, -h      Show this help
+
+Exit codes:
+  0  Success — round-trip completed and structured output parsed
+  1  Adapter / network / API error
+  2  Missing ANTHROPIC_API_KEY
+`);
+      process.exit(0);
+    }
+  }
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.error('Error: ANTHROPIC_API_KEY not set in environment.');
+    console.error('Set it (e.g. `export ANTHROPIC_API_KEY=sk-ant-...`) and re-run.');
+    process.exit(2);
+  }
+
+  const { runPhaseViaSdk } = require('./harness/sdk-adapter.js');
+
+  const SYSTEM = [
+    'You are a Rouge Final Review evaluator.',
+    'Your job is to read a synthetic cycle context and emit a structured',
+    'final_review_report payload via the emit_final_review_report tool.',
+    'Be terse. Confidence between 0 and 1. Recommendation must be one',
+    'of "ship", "refine", "major-rework".',
+    '',
+    '(This is a probe call for the P5.9 harness PoC — synthetic input,',
+    'no real product is being evaluated.)',
+  ].join('\n');
+
+  const PROMPT = [
+    'Cycle context (synthetic):',
+    '- Product: a 5-page calculator web app',
+    '- Lighthouse: performance 92, a11y 100, best-practices 96',
+    '- QA: 12/12 acceptance criteria pass',
+    '- Polish gaps observed: instant tab transition (no animation), no favicon',
+    '- Delight moments: smooth keyboard input, focus ring on every button',
+    '- No console errors, no broken links',
+    '',
+    'Emit emit_final_review_report.',
+  ].join('\n');
+
+  const SCHEMA = {
+    type: 'object',
+    properties: {
+      production_ready: { type: 'boolean' },
+      confidence: { type: 'number', minimum: 0, maximum: 1 },
+      recommendation: { type: 'string', enum: ['ship', 'refine', 'major-rework'] },
+      polish_gaps: { type: 'array', items: { type: 'string' } },
+      delight_moments: { type: 'array', items: { type: 'string' } },
+      overall_impression: { type: 'string' },
+    },
+    required: ['production_ready', 'confidence', 'recommendation', 'overall_impression'],
+  };
+
+  console.log(`[harness:probe] model=${model} cache=${cache}`);
+  console.log(`[harness:probe] sending request...`);
+
+  let out;
+  try {
+    out = await runPhaseViaSdk({
+      prompt: PROMPT,
+      system: SYSTEM,
+      cache,
+      model,
+      maxTokens: 2048,
+      schema: SCHEMA,
+      toolName: 'emit_final_review_report',
+      toolDescription: 'Emit the final_review_report for the synthetic cycle context.',
+    });
+  } catch (err) {
+    console.error(`[harness:probe] FAILED: ${err.message}`);
+    if (err.status) console.error(`  HTTP status: ${err.status}`);
+    process.exit(1);
+  }
+
+  console.log('');
+  console.log('[harness:probe] structured result:');
+  console.log(JSON.stringify(out.result, null, 2));
+  console.log('');
+  console.log('[harness:probe] usage:');
+  console.log(`  input_tokens:                ${out.usage.input_tokens ?? '?'}`);
+  console.log(`  output_tokens:               ${out.usage.output_tokens ?? '?'}`);
+  console.log(`  cache_creation_input_tokens: ${out.usage.cache_creation_input_tokens ?? 0}`);
+  console.log(`  cache_read_input_tokens:     ${out.usage.cache_read_input_tokens ?? 0}`);
+  console.log('');
+  if ((out.usage.cache_creation_input_tokens ?? 0) > 0) {
+    console.log('[harness:probe] ✓ Cache breakpoint set — first call paid the create cost.');
+    console.log('  Run again within ~5min to see cache_read_input_tokens > 0 on the second call.');
+  } else if ((out.usage.cache_read_input_tokens ?? 0) > 0) {
+    console.log('[harness:probe] ✓ Cache HIT — read from server-side cache (cheaper).');
+  }
+  console.log('[harness:probe] ✓ Round-trip succeeded — adapter is wired correctly.');
+  process.exit(0);
+}
+
 function printSizingReport(artifact, filePath, mode) {
   const lines = [];
   lines.push('');
@@ -2172,6 +2298,16 @@ if (command === 'doctor') {
   cmdEvalSeedGold(args.slice(1));
 } else if (command === 'size-project') {
   cmdSizeProject(args.slice(1));
+} else if (command === 'harness') {
+  const subcommand = args[1];
+  if (subcommand === 'probe') {
+    cmdHarnessProbe(args.slice(2));
+  } else {
+    console.error('Usage: rouge harness <probe>');
+    console.error('  probe — single round-trip against the Anthropic API to validate the SDK adapter (P5.9 PoC).');
+    console.error('          Requires ANTHROPIC_API_KEY in env. Sends ~1k input tokens; cost is ~$0.01.');
+    process.exit(1);
+  }
 } else {
   console.log(`
   The Rouge CLI
