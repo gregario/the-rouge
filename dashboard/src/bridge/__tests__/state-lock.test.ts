@@ -21,20 +21,16 @@ describe('state-lock', () => {
     // Baseline — field starts at 0; both mutators increment by 1. Without
     // the lock, both would read 0 and both write 1. With the lock, they
     // serialise and the final value is 2.
-    writeStateJson(projectDir, { counter: 0 })
+    await writeStateJson(projectDir, { counter: 0 })
 
     const bump = () =>
-      withStateLock(projectDir, () => {
+      withStateLock(projectDir, async () => {
         const cur = JSON.parse(readFileSync(join(projectDir, '.rouge', 'state.json'), 'utf-8'))
         // Force interleaving: yield to the scheduler between read and write.
-        return new Promise<void>((resolve) => {
-          setTimeout(() => {
-            cur.counter += 1
-            writeStateJson(projectDir, cur)
-            resolve()
-          }, 10)
-        })
-      })
+        await new Promise<void>((resolve) => setTimeout(resolve, 10))
+        cur.counter += 1
+        await writeStateJson(projectDir, cur)
+      }, { allowSlow: true })
 
     await Promise.all([bump(), bump(), bump()])
     const final = JSON.parse(readFileSync(join(projectDir, '.rouge', 'state.json'), 'utf-8'))

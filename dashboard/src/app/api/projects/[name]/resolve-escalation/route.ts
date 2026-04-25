@@ -57,7 +57,7 @@ export async function POST(
   }
 
   const projectDir = join(projectsRoot, name);
-  const result = await withStateLock(projectDir, () => {
+  const result = await withStateLock(projectDir, async () => {
     const raw = JSON.parse(readFileSync(stateFile, "utf-8"));
     const escalation = (raw.escalations || []).find(
       (e: { id: string; status: string }) =>
@@ -78,7 +78,7 @@ export async function POST(
       delete raw.paused_from_state;
     }
 
-    writeStateJson(projectDir, raw);
+    await writeStateJson(projectDir, raw);
     return { notFound: false, raw };
   });
 

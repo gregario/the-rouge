@@ -159,7 +159,7 @@ export async function finalizeSeeding(projectDir: string): Promise<FinalizeResul
   // build-runner's transition can hit this file concurrently.
   const statePath = resolveStatePath(projectDir)
   if (existsSync(statePath)) {
-    await withStateLock(projectDir, () => {
+    await withStateLock(projectDir, async () => {
       const state = JSON.parse(readFileSync(statePath, 'utf-8'))
 
       // Idempotency: already-finalized project → no-op. Without this,
@@ -185,7 +185,7 @@ export async function finalizeSeeding(projectDir: string): Promise<FinalizeResul
       if (!state.foundation) {
         state.foundation = { status: 'pending' }
       }
-      writeStateJson(projectDir, state)
+      await writeStateJson(projectDir, state)
     })
   }
 

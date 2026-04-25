@@ -142,7 +142,7 @@ export async function PATCH(
   // race on state.json. The filesystem rename below happens inside the
   // lock window too — once we commit to the new slug the original path
   // no longer exists, and we write against the post-rename directory.
-  const patchResult = await withStateLock(projectDir, () => {
+  const patchResult = await withStateLock(projectDir, async () => {
     const state = JSON.parse(readFileSync(stateFile, "utf-8"));
     const currentState = state.current_state ?? state.state ?? "unknown";
 
@@ -235,7 +235,7 @@ export async function PATCH(
 
     if (body.displayName !== undefined || body.archived !== undefined || body.budgetCap !== undefined) {
       const targetDir = slugChanged ? join(projectsRoot, slugChanged) : projectDir;
-      writeStateJson(targetDir, state);
+      await writeStateJson(targetDir, state);
     }
 
     return { status: 200 as const, slugChanged };

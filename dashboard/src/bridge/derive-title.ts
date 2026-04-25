@@ -48,9 +48,9 @@ ${firstUserMessage.slice(0, 2000)}`
 
     // Final check + write under the lock so a concurrent PATCH renaming
     // can't be silently overwritten by our title derivation.
-    await withStateLock(projectDir, () => {
+    await withStateLock(projectDir, async () => {
       if (!isPlaceholderName(readCurrentName(projectDir))) return
-      writeName(projectDir, title)
+      await writeName(projectDir, title)
     })
   } catch (err) {
     // Best-effort: a failed title derivation must never block the
@@ -75,13 +75,13 @@ function readCurrentName(projectDir: string): string {
   }
 }
 
-function writeName(projectDir: string, title: string): void {
+async function writeName(projectDir: string, title: string): Promise<void> {
   const file = statePath(projectDir)
   if (!existsSync(file)) return
   const raw = JSON.parse(readFileSync(file, 'utf-8'))
   raw.name = title
   raw.project = title
-  writeStateJson(projectDir, raw)
+  await writeStateJson(projectDir, raw, { what: 'derive-title' })
 }
 
 function isPlaceholderName(n: string): boolean {
