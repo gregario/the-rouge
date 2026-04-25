@@ -107,6 +107,23 @@ describe('buildStructuredOutputTool', () => {
     });
     assert.match(tool.description, /emit_verdict/);
   });
+
+  test('strict: true is set by default (recommended for schema conformance)', () => {
+    const tool = buildStructuredOutputTool({
+      toolName: 'emit_verdict',
+      schema: { type: 'object' },
+    });
+    assert.equal(tool.strict, true);
+  });
+
+  test('strict: false is honoured when callers want lenient parsing', () => {
+    const tool = buildStructuredOutputTool({
+      toolName: 'emit_verdict',
+      schema: { type: 'object' },
+      strict: false,
+    });
+    assert.equal(tool.strict, false);
+  });
 });
 
 describe('extractStructuredOutput', () => {
@@ -330,6 +347,70 @@ describe('runPhaseViaSdk — response handling', () => {
       () => runPhaseViaSdk({ prompt: 'test', client }),
       /rate_limit/
     );
+  });
+
+  test('mixed content: text-then-tool_use response — extracts the tool_use input', async () => {
+    // Some models emit a chain-of-thought text block before the
+    // tool_use. The adapter's find() should pick the tool_use
+    // regardless of position. Locks this in so a future SDK change
+    // that strips text blocks doesn't silently regress us.
+    const client = makeMockClient({
+      content: [
+        { type: 'text', text: 'Let me think about this... the product looks ready to ship.' },
+        { type: 'tool_use', id: 'toolu_test', name: 'emit_result', input: { recommendation: 'ship' } },
+      ],
+      usage: { input_tokens: 10, output_tokens: 5 },
+    });
+    const out = await runPhaseViaSdk({
+      prompt: 'test',
+      schema: { type: 'object' },
+      client,
+    });
+    assert.deepEqual(out.result, { recommendation: 'ship' });
+  });
+
+  test('signal is forwarded to messages.create as request options', async () => {
+    // The SDK accepts a second-arg request-options bag; AbortSignal
+    // goes there, not into the request body. Verify the adapter
+    // separates them correctly so AbortSignal.timeout() bounds the
+    // call.
+    const captured = { request: null, requestOpts: null };
+    const client = {
+      messages: {
+        create: async (req, opts) => {
+          captured.request = req;
+          captured.requestOpts = opts;
+          return { content: [{ type: 'text', text: 'ok' }], usage: {} };
+        },
+      },
+    };
+    const signal = AbortSignal.timeout(5000);
+    await runPhaseViaSdk({ prompt: 'test', client, signal });
+    assert.equal(captured.requestOpts.signal, signal,
+      'signal must land on the requestOpts bag, not in the request body');
+    assert.equal(captured.request.signal, undefined,
+      'signal must NOT be in the request body (would 400 on real SDK)');
+  });
+
+  test('schema path passes strict: true through to the tool definition', async () => {
+    const client = makeMockClient(toolUseResponse('emit_result', { x: 1 }));
+    await runPhaseViaSdk({
+      prompt: 'test',
+      schema: { type: 'object' },
+      client,
+    });
+    assert.equal(client.captured.request.tools[0].strict, true);
+  });
+
+  test('schema path honours strict: false when caller opts out', async () => {
+    const client = makeMockClient(toolUseResponse('emit_result', { x: 1 }));
+    await runPhaseViaSdk({
+      prompt: 'test',
+      schema: { type: 'object' },
+      strict: false,
+      client,
+    });
+    assert.equal(client.captured.request.tools[0].strict, false);
   });
 });
 

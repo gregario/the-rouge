@@ -85,6 +85,12 @@ function parseFlatYaml(text) {
         i = j;
         continue;
       }
+      // Inline flow-style empty list: `cli_tools: []`
+      if (nrest.trim() === '[]') {
+        currentMap[nkey] = [];
+        i++;
+        continue;
+      }
       currentMap[nkey] = stripQuotes(nrest);
     }
     i++;

@@ -100,6 +100,12 @@ function parseFlatYaml(text) {
         i = j;
         continue;
       }
+      // Inline flow-style empty list: `cli_tools: []`
+      if (nrest.trim() === '[]') {
+        currentMap[nkey] = [];
+        i++;
+        continue;
+      }
       currentMap[nkey] = stripQuotes(nrest);
     }
     i++;
@@ -171,6 +177,24 @@ describe('tier-2 flat YAML service manifests — schema', () => {
         const allowed = ['free', 'free-to-start', 'usage-based', 'paid'];
         assert.ok(allowed.includes(parsed.cost_tier),
           `${file}: cost_tier '${parsed.cost_tier}' not in ${allowed.join('|')}`);
+      });
+
+      test('requires.env_vars / packages / cli_tools must be lists when present', () => {
+        // Tightened from earlier short-circuit: an entry that wrote
+        // `env_vars: "FOO_BAR"` (string instead of list) would have
+        // silently passed. Assert the shape strictly.
+        if (parsed.requires && parsed.requires.env_vars !== undefined) {
+          assert.ok(Array.isArray(parsed.requires.env_vars),
+            `${file}: requires.env_vars must be a list (got ${typeof parsed.requires.env_vars})`);
+        }
+        if (parsed.requires && parsed.requires.packages !== undefined) {
+          assert.ok(Array.isArray(parsed.requires.packages),
+            `${file}: requires.packages must be a list (got ${typeof parsed.requires.packages})`);
+        }
+        if (parsed.requires && parsed.requires.cli_tools !== undefined) {
+          assert.ok(Array.isArray(parsed.requires.cli_tools),
+            `${file}: requires.cli_tools must be a list (got ${typeof parsed.requires.cli_tools})`);
+        }
       });
 
       test('env_vars (when present) are SCREAMING_SNAKE_CASE', () => {

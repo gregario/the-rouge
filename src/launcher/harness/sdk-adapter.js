@@ -37,9 +37,15 @@ const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
  */
 function createDefaultClient(opts = {}) {
   // Lazy require to keep the rest of the launcher import-cost-free.
-  const Anthropic = require('@anthropic-ai/sdk').default || require('@anthropic-ai/sdk').Anthropic;
+  // Three fallbacks because @anthropic-ai/sdk has shifted its export
+  // shape across minor versions: ESM-built pkgs export `.default`, the
+  // CJS shim sometimes exports `.Anthropic`, and v0.90.x ships
+  // `module.exports = Anthropic` directly (so the module itself is
+  // callable). Belt-and-braces avoids breaking on a future SDK bump.
+  const sdk = require('@anthropic-ai/sdk');
+  const Anthropic = sdk.default || sdk.Anthropic || (typeof sdk === 'function' ? sdk : null);
   if (!Anthropic) {
-    throw new Error('Failed to load @anthropic-ai/sdk — package not installed?');
+    throw new Error('Failed to load @anthropic-ai/sdk — package not installed or unrecognised export shape');
   }
   return new Anthropic({ apiKey: opts.apiKey || process.env.ANTHROPIC_API_KEY });
 }
@@ -85,14 +91,22 @@ function buildSystemBlocks(systemText, cache) {
  * @param {object} opts.schema — JSON Schema for the structured output
  * @returns {object} tool definition for messages.create
  */
-function buildStructuredOutputTool({ toolName, toolDescription, schema }) {
+function buildStructuredOutputTool({ toolName, toolDescription, schema, strict = true }) {
   if (!toolName || !schema) {
     throw new Error('buildStructuredOutputTool: toolName and schema required');
   }
+  // Anthropic's docs recommend strict: true to guarantee schema
+  // conformance — without it, the model can emit extra fields, miss
+  // required ones, or invent enum values, and our extractStructuredOutput
+  // would return the malformed input as-is. Default true for the
+  // judgment-layer use case where wrong enum values silently corrupt
+  // routing (e.g. `recommendation: 'sometimes'` on a 3-value enum).
+  // Callers can opt out via strict: false if they want lenient parsing.
   return {
     name: toolName,
     description: toolDescription || `Emit the structured ${toolName} result.`,
     input_schema: schema,
+    strict,
   };
 }
 
@@ -141,6 +155,8 @@ function extractStructuredOutput(response, toolName) {
  * @param {object} [opts.schema] — JSON schema; when present, forces structured output
  * @param {string} [opts.toolName='emit_result'] — name of the structured-output tool
  * @param {string} [opts.toolDescription] — one-sentence tool purpose
+ * @param {boolean} [opts.strict=true] — set strict: true on the tool definition (recommended)
+ * @param {AbortSignal} [opts.signal] — abort signal for the SDK request (e.g. AbortSignal.timeout(60_000))
  * @param {object} [opts.client] — pre-built Anthropic client (for testing). Otherwise built from process.env.ANTHROPIC_API_KEY.
  * @param {string} [opts.apiKey] — override api key (otherwise env)
  * @returns {Promise<{result: any, response: object, usage: object}>}
@@ -158,6 +174,8 @@ async function runPhaseViaSdk(opts) {
     schema,
     toolName = 'emit_result',
     toolDescription,
+    strict = true,
+    signal,
     client: providedClient,
     apiKey,
   } = opts || {};
@@ -178,12 +196,15 @@ async function runPhaseViaSdk(opts) {
   if (sysBlocks !== undefined) request.system = sysBlocks;
 
   if (schema) {
-    const tool = buildStructuredOutputTool({ toolName, toolDescription, schema });
+    const tool = buildStructuredOutputTool({ toolName, toolDescription, schema, strict });
     request.tools = [tool];
     request.tool_choice = { type: 'tool', name: toolName };
   }
 
-  const response = await client.messages.create(request);
+  // The SDK accepts a second-arg request-options bag for AbortSignal,
+  // timeout, and per-request headers.
+  const requestOpts = signal ? { signal } : {};
+  const response = await client.messages.create(request, requestOpts);
 
   let result;
   if (schema) {

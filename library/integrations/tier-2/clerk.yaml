@@ -42,7 +42,7 @@ tested_with:
   - nextjs-cloudflare
 
 free_tier_limits:
-  monthly_active_users: 50000
+  monthly_retained_users: 50000
   oauth_providers: 3
   organisations: 100 MROs
   mfa: paid-plan-only
@@ -52,6 +52,6 @@ free_tier_limits:
   user_impersonations_per_month: 5
   machine_auth_api_key_creations_per_month: 1000
   machine_auth_verifications_per_month: 100000
-  note: "First Day Free — new users aren't counted against MAU until they return 24+ hours after signup. Above 50k MAU or for B2B orgs above 100, pricing is per-MAU / add-on."
+  note: "Clerk's billing metric is MRU (Monthly Retained Users), not generic MAU. The 'First Day Free' rule means new users aren't counted until they return 24+ hours after signup, so trial sign-ups don't bill. Above 50k MRU or for B2B orgs above 100 MROs, pricing is per-MRU / add-on."
 
 staleness_date: "2026-04-24"

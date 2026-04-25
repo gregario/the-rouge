@@ -1680,12 +1680,21 @@ Exit codes:
 async function cmdHarnessProbe(rawArgs) {
   let model = 'claude-haiku-4-5-20251001';
   let cache = true;
+  let timeoutMs = 60_000;
   for (let i = 0; i < rawArgs.length; i++) {
     const a = rawArgs[i];
     if (a === '--model' && i + 1 < rawArgs.length) model = rawArgs[++i];
     else if (a === '--no-cache') cache = false;
+    else if (a === '--timeout' && i + 1 < rawArgs.length) {
+      const v = parseInt(rawArgs[++i], 10);
+      if (!Number.isFinite(v) || v < 1000) {
+        console.error('--timeout must be a millisecond integer ≥ 1000');
+        process.exit(1);
+      }
+      timeoutMs = v;
+    }
     else if (a === '--help' || a === '-h') {
-      console.log(`Usage: rouge harness probe [--model <id>] [--no-cache]
+      console.log(`Usage: rouge harness probe [--model <id>] [--no-cache] [--timeout <ms>]
 
 P5.9 PoC: round-trip against the Anthropic SDK to validate the harness
 adapter. Sends a tiny structured-output prompt and prints the result +
@@ -1696,11 +1705,13 @@ Requires ANTHROPIC_API_KEY in environment.
 Flags:
   --model <id>    Override the model (default: claude-haiku-4-5-20251001)
   --no-cache      Disable cache_control on the system block (for comparison)
+  --timeout <ms>  Abort the request after N milliseconds (default: 60000)
+                  Bounds the cost of a hung connection.
   --help, -h      Show this help
 
 Exit codes:
   0  Success — round-trip completed and structured output parsed
-  1  Adapter / network / API error
+  1  Adapter / network / API error / timeout
   2  Missing ANTHROPIC_API_KEY
 `);
       process.exit(0);
@@ -1751,7 +1762,7 @@ Exit codes:
     required: ['production_ready', 'confidence', 'recommendation', 'overall_impression'],
   };
 
-  console.log(`[harness:probe] model=${model} cache=${cache}`);
+  console.log(`[harness:probe] model=${model} cache=${cache} timeout=${timeoutMs}ms`);
   console.log(`[harness:probe] sending request...`);
 
   let out;
@@ -1765,10 +1776,16 @@ Exit codes:
       schema: SCHEMA,
       toolName: 'emit_final_review_report',
       toolDescription: 'Emit the final_review_report for the synthetic cycle context.',
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (err) {
-    console.error(`[harness:probe] FAILED: ${err.message}`);
-    if (err.status) console.error(`  HTTP status: ${err.status}`);
+    if (err.name === 'TimeoutError' || err.code === 'ABORT_ERR') {
+      console.error(`[harness:probe] FAILED: request timed out after ${timeoutMs}ms`);
+      console.error('  Increase --timeout if the model response is genuinely slow, or check network.');
+    } else {
+      console.error(`[harness:probe] FAILED: ${err.message}`);
+      if (err.status) console.error(`  HTTP status: ${err.status}`);
+    }
     process.exit(1);
   }
 
