@@ -1,5 +1,7 @@
 # V2 Process Map — End-to-End Pipeline
 
+> ⚠️ **Historical reference (V2).** Pre-V3 process map. Most of the pipeline shape carried forward to V3 with the additions documented in `state-machine-v3-transitions.md` (cost tracking, spin detection, capability checks, harness PoC, facade boundary). Read this for the V2 baseline before the reconciliation; read the V3 docs for current behavior.
+
 > Every process step, artifact, input, output, and transformation from first spec input through final delivered product. Use this as the source of truth for reviewing the pipeline and generating Excalidraw diagrams.
 >
 > Generated: 2026-04-03. Supersedes the V1 flow diagram at `docs/plans/2026-03-17-rouge-flow-diagram.md`.
