@@ -25,40 +25,79 @@ function readState(projectName) {
 }
 
 /**
- * Persist state via the facade.
+ * Persist state via the facade — DEPRECATED, no-op by default.
  *
- * Phase 5 of the grand unified reconciliation. Slack is now an entry
- * adapter — every state write goes through src/launcher/facade.js,
- * which holds the per-project lock, validates the schema, and emits
- * a state.write event the dashboard subscribes to. The 17 writeState()
- * callers in this file are unchanged; only this helper's body moves.
+ * Fork B of the grand unified reconciliation: Slack is a
+ * notification-only sidecar. The dashboard is the single command-
+ * intake surface; Slack subscribes to events but does not mutate
+ * state. This helper is now a no-op that logs a deprecation
+ * warning instead of writing.
  *
- * Fork B (notification-only) is the long-term Slack direction; once
- * the dashboard fully replaces seeding-via-Slack and pause-via-Slack,
- * this whole helper goes away. For now we preserve the user feature
- * surface while routing writes through the boundary.
+ * Why opt-out instead of hard delete: the writeState callers are
+ * spread across ~22 command handlers (pause/resume/seed/advance/
+ * finalize/escalation-resolve etc.). Hard-deleting would break
+ * users who depend on Slack-driven workflows the day this lands.
+ * Opt-out gives them a release cycle to migrate to the dashboard.
  *
- * Returns a Promise; some Slack handlers `await` and some are sync
- * fire-and-forget — both work because the facade write is awaited
- * internally and the lock release runs before the Promise resolves.
+ * Migration path:
+ *
+ *   - Default behavior (ROUGE_SLACK_ALLOW_WRITES unset): writes
+ *     are skipped, a warning is logged, and the function returns
+ *     a resolved Promise so callers don't crash. Users running
+ *     Slack commands will see their bot reply messages (those
+ *     still send) but state won't change. They should switch to
+ *     the dashboard.
+ *
+ *   - Opt-back-in (ROUGE_SLACK_ALLOW_WRITES=1): the legacy
+ *     facade-routed write still happens. Same audit-trail
+ *     guarantees as the original Phase 5 implementation. Use this
+ *     if you genuinely need Slack as a write surface during the
+ *     transition.
+ *
+ * Once the dogfood UAT confirms no live setups need
+ * ROUGE_SLACK_ALLOW_WRITES=1, the entire helper + its 22 callers
+ * are deleted in a focused follow-up PR. Track progress via the
+ * `slack-write-attempted` warning count in `.rouge/events.jsonl`.
+ *
+ * Returns a Promise; some Slack handlers await and some are sync
+ * fire-and-forget — both still work.
  */
 function writeState(projectName, state) {
+  const allowWrites = process.env.ROUGE_SLACK_ALLOW_WRITES === '1';
+
+  if (!allowWrites) {
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn(
+        `[slack] writeState(${projectName}) skipped — Slack is notification-only ` +
+        `per Fork B of the grand unified reconciliation. Use the dashboard for ` +
+        `state mutations, or set ROUGE_SLACK_ALLOW_WRITES=1 to opt back in.`
+      );
+    }
+    // Best-effort: still emit a facade event so operators see the
+    // attempted write in the audit trail. If event emission itself
+    // fails, swallow — Slack must never crash on telemetry.
+    try {
+      const projectDir = path.join(PROJECTS_DIR, projectName);
+      const facade = require('../launcher/facade.js');
+      facade.emit({
+        projectDir,
+        source: 'slack',
+        event: 'slack-write-attempted',
+        detail: { current_state: state.current_state, blocked: true },
+      });
+    } catch { /* never crash on telemetry */ }
+    return Promise.resolve();
+  }
+
   const projectDir = path.join(PROJECTS_DIR, projectName);
   state.timestamp = new Date().toISOString();
   const facade = require('../launcher/facade.js');
-  // Fire-and-forget shape preserves the existing call sites (most
-  // Slack handlers don't await). Internal failures log but never
-  // throw an unhandled rejection that would crash the bot.
   return facade.writeState({
     projectDir,
     source: 'slack',
     mutator: () => state,
     eventDetail: { current_state: state.current_state },
   }).catch((err) => {
-    // Don't crash Slack on a state-write failure (lock timeout,
-    // schema violation). The dashboard will still see the
-    // pre-mutation state; the Slack user gets their reply but no
-    // state change. Surface to console for operator visibility.
     if (typeof console !== 'undefined' && console.error) {
       console.error(`[slack] facade.writeState failed for ${projectName}: ${err.message}`);
     }
