@@ -137,7 +137,7 @@ function runDoctor({ ROUGE_ROOT, getSecret } = {}) {
     const { checkAll } = require('./mcp-health-check.js');
     const report = checkAll({ env: process.env });
     if (report.count === 0) {
-      push({ id: 'mcps', label: 'MCPs', status: 'warning', detail: 'no MCP manifests found', installHint: 'see mcp-configs/' });
+      push({ id: 'mcps', label: 'MCPs', status: 'warning', detail: 'no MCP manifests found', installHint: 'see library/integrations/mcp-configs/' });
     } else {
       const ready = report.results.filter((r) => r.ok).length;
       const missing = report.results.filter((r) => !r.ok && r.manifest_status === 'active' && r.missing_env && r.missing_env.length > 0);
@@ -164,7 +164,7 @@ function runDoctor({ ROUGE_ROOT, getSecret } = {}) {
       }
     }
   } catch (e) {
-    // mcp-configs missing or module error: warn, don't block
+    // library/integrations/mcp-configs missing or module error: warn, don't block
     push({
       id: 'mcps',
       label: 'MCPs',

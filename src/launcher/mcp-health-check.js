@@ -18,7 +18,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const DEFAULT_ROOT = path.resolve(__dirname, '..', '..', 'mcp-configs');
+const DEFAULT_ROOT = path.resolve(__dirname, '..', '..', 'library', 'integrations', 'mcp-configs');
 
 function readManifest(file) {
   try {

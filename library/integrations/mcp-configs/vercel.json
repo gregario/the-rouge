@@ -8,7 +8,8 @@
   "http_url": "https://mcp.vercel.com/",
   "env_required": ["VERCEL_API_TOKEN"],
   "env_optional": ["VERCEL_TEAM_ID"],
+  "read_only_recommended": true,
   "wire_into_phases": ["loop.ship-promote", "loop.foundation"],
   "profiles_recommended": ["saas-webapp", "internal-dashboard"],
-  "notes": "HTTP MCP (not stdio). User memory flag: Vercel hobby tier preview deploys don't work — prod deploys required via --prod. Draft status until verified with real deploys."
+  "notes": "HTTP MCP (not stdio). User memory flag: Vercel hobby tier preview deploys don't work — prod deploys required via --prod. Draft status until verified with real deploys. Per GC.2: use this MCP for inspection (list deployments, fetch status); use the vercel CLI via Bash for promote/deploy."
 }

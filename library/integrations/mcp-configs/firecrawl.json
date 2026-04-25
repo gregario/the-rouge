@@ -7,6 +7,7 @@
   "args": ["-y", "firecrawl-mcp"],
   "env_required": ["FIRECRAWL_API_KEY"],
   "env_optional": [],
+  "read_only_recommended": true,
   "wire_into_phases": ["seeding.brainstorm", "seeding.competition", "seeding.taste"],
   "profiles_recommended": ["saas-webapp", "mcp-server", "internal-dashboard"],
   "notes": "Pairs well with iterative-retrieval skill in seeding. Without this MCP, brainstorm falls back to WebFetch/WebSearch at lower quality."

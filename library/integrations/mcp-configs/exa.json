@@ -7,6 +7,7 @@
   "args": ["-y", "exa-mcp-server"],
   "env_required": ["EXA_API_KEY"],
   "env_optional": [],
+  "read_only_recommended": true,
   "wire_into_phases": ["seeding.brainstorm", "seeding.competition"],
   "profiles_recommended": ["saas-webapp", "api-service", "mcp-server", "internal-dashboard"],
   "notes": "Complements firecrawl: exa for discovery, firecrawl for deep-reading candidates the discovery surfaces. Low monthly spend for Rouge's usage patterns."
