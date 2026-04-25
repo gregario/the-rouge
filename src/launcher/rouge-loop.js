@@ -29,6 +29,37 @@ const { recordAndCheck: recordEvalFingerprint } = require('./spin-detector.js');
 const { classify: triageClassify, CLASSES: TRIAGE_CLASSES } = require('./triage.js');
 const { planFix: selfHealPlan } = require('./self-heal-planner.js');
 const { applyPlan: selfHealApply } = require('./self-heal-applier.js');
+const facade = require('./facade.js');
+
+/**
+ * Commit the current in-memory state to disk via the facade.
+ *
+ * Phase 4 of the grand unified reconciliation. Replaces the bare
+ * writeJson(stateFile, state) call pattern. The facade acquires the
+ * per-project lock, writes atomically, validates against the v3
+ * schema, and emits a state.write event for dashboard / Slack
+ * subscribers.
+ *
+ * Mutator returns the in-memory state directly — Phase 4 is the
+ * mechanical migration; the launcher is single-process today, so
+ * "lost update" semantics aren't yet at risk. Phase 5 (when the
+ * dashboard joins) hardens this to true read-modify-write where
+ * needed.
+ *
+ * `eventDetail` is a small object included in the emitted event for
+ * audit-trail clarity. Pass { phase: '...' } or { transition: 'a→b' }
+ * etc. when meaningful; defaults to {} otherwise.
+ */
+async function commitState(projectDir, state, eventDetail) {
+  return facade.writeState({
+    projectDir,
+    source: 'loop',
+    mutator: () => state,
+    eventDetail: eventDetail || {},
+    // The loop's mutator is `() => state` (a synchronous identity);
+    // it's never the slow path. allowSlow is left default (false).
+  });
+}
 
 // When a stuck-loop signal fires, run triage → self-heal. Returns
 // either the self-heal result (for note-writing) or null if the caller
@@ -746,7 +777,7 @@ async function advanceState(projectDir) {
     case 'foundation': {
       state.foundation = state.foundation || {};
       state.foundation.status = 'evaluating';
-      writeJson(stateFile, state);
+      await commitState(projectDir, state);
       next = 'foundation-eval';
       log(`[${projectName}] Foundation build done — evaluating (enforced, no bypass)`);
       break;
@@ -806,7 +837,7 @@ async function advanceState(projectDir) {
             self_heal: healResult,
           };
           state.escalations.push(esc);
-          writeJson(stateFile, state);
+          await commitState(projectDir, state);
           next = 'escalation';
           log(`[${projectName}] Foundation-eval semantic spin (${recent.length} identical cycles) — escalating (self-heal: ${healResult.attempted ? (healResult.result && healResult.result.applied ? 'applied' : 'drafted') : 'n/a'})`);
           break;
@@ -841,7 +872,7 @@ async function advanceState(projectDir) {
       // Also mark the foundation milestone as complete so findNextMilestone skips it
       const foundationMilestone = (state.milestones || []).find(m => m.name === 'foundation');
       if (foundationMilestone) foundationMilestone.status = 'complete';
-      writeJson(stateFile, state);
+      await commitState(projectDir, state);
       log(`[${projectName}] Foundation PASS`);
 
       // Contribute integration patterns
@@ -899,7 +930,7 @@ async function advanceState(projectDir) {
               const repoUrl = repoOutput.match(/https:\/\/github\.com\/[^\s]+/)?.[0] || `https://github.com/${ghOwner}/${projectName}`;
               log(`[${projectName}] Private repo created: ${repoUrl}`);
               state.github_repo = repoUrl;
-              writeJson(stateFile, state);
+              await commitState(projectDir, state);
             } else {
               log(`[${projectName}] GitHub repo creation skipped or failed (non-blocking): ${repoOutput.slice(0, 150)}`);
             }
@@ -967,7 +998,7 @@ async function advanceState(projectDir) {
           status: 'pending',
           created_at: new Date().toISOString(),
         });
-        writeJson(stateFile, state);
+        await commitState(projectDir, state);
         break;
       }
 
@@ -1140,7 +1171,7 @@ async function advanceState(projectDir) {
         });
       }
 
-      writeJson(stateFile, state);
+      await commitState(projectDir, state);
 
       // FIX #19: Push to GitHub backup after each story (non-blocking).
       // Only if a remote exists (set up during foundation-eval PASS).
@@ -1170,7 +1201,7 @@ async function advanceState(projectDir) {
           status: 'pending',
           created_at: new Date().toISOString(),
         });
-        writeJson(stateFile, state);
+        await commitState(projectDir, state);
         next = 'escalation';
         break;
       }
@@ -1219,7 +1250,7 @@ async function advanceState(projectDir) {
             status: 'pending',
             created_at: new Date().toISOString(),
           });
-          writeJson(stateFile, state);
+          await commitState(projectDir, state);
           next = 'escalation';
           break;
         }
@@ -1245,7 +1276,7 @@ async function advanceState(projectDir) {
             status: 'pending',
             created_at: new Date().toISOString(),
           });
-          writeJson(stateFile, state);
+          await commitState(projectDir, state);
           next = 'escalation';
         } else {
           log(`[${projectName}] Staging deploy complete: ${deployResult.url}`);
@@ -1267,7 +1298,7 @@ async function advanceState(projectDir) {
       }
       if (eligible) {
         next = startStory(state, milestone, eligible);
-        writeJson(stateFile, state);
+        await commitState(projectDir, state);
         log(`[${projectName}] Next story: ${eligible.id}`);
       } else {
         log(`[${projectName}] No eligible stories — milestone check`);
@@ -1363,7 +1394,7 @@ async function advanceState(projectDir) {
             created_at: new Date().toISOString(),
             recent_fingerprints: recent.map((e) => ({ ts: e.ts, verdict: e.verdict })),
           });
-          writeJson(stateFile, state);
+          await commitState(projectDir, state);
           next = 'escalation';
           log(`[${projectName}] Milestone-check semantic spin (${recent.length} identical cycles) — escalating`);
           break;
@@ -1378,7 +1409,7 @@ async function advanceState(projectDir) {
           if (screenshots.length > 0) {
             log(`[${projectName}] Captured ${screenshots.length} milestone screenshots`);
             state._last_screenshots = screenshots.map(s => s.file);
-            writeJson(stateFile, state);
+            await commitState(projectDir, state);
             notifyRich('milestone-screenshots', {
               project: projectName,
               milestone: state.current_milestone,
@@ -1415,7 +1446,7 @@ async function advanceState(projectDir) {
         state.foundation = state.foundation || {};
         state.foundation.status = 'pending';
         state.foundation.scope = ctx?.analysis_recommendation?.foundation_scope || [];
-        writeJson(stateFile, state);
+        await commitState(projectDir, state);
         next = 'foundation';
         log(`[${projectName}] Insert foundation: ${state.foundation.scope.join(', ')}`);
         break;
@@ -1432,7 +1463,7 @@ async function advanceState(projectDir) {
           timestamp: new Date().toISOString(),
         });
         state.consecutive_failures = 0;
-        writeJson(stateFile, state);
+        await commitState(projectDir, state);
         log(`[${projectName}] Circuit breaker: corrective context injected`);
 
         const milestone = (state.milestones || []).find(m => m.name === state.current_milestone);
@@ -1440,7 +1471,7 @@ async function advanceState(projectDir) {
           const eligible = findNextStory(milestone, flatStories(state));
           if (eligible) {
             next = startStory(state, milestone, eligible);
-            writeJson(stateFile, state);
+            await commitState(projectDir, state);
             break;
           }
         }
@@ -1460,7 +1491,7 @@ async function advanceState(projectDir) {
             const eligible = findNextStory(nextMs, flatStories(state));
             if (eligible) {
               next = startStory(state, nextMs, eligible);
-              writeJson(stateFile, state);
+              await commitState(projectDir, state);
               log(`[${projectName}] Skipped to milestone: ${nextMs.name}`);
             } else {
               next = 'milestone-check';
@@ -1507,7 +1538,7 @@ async function advanceState(projectDir) {
           const eligible = findNextStory(nextMs, flatStories(state));
           if (eligible) {
             next = startStory(state, nextMs, eligible);
-            writeJson(stateFile, state);
+            await commitState(projectDir, state);
             log(`[${projectName}] Next milestone: ${nextMs.name}, story: ${eligible.id}`);
           } else {
             next = 'milestone-check';
@@ -1565,7 +1596,7 @@ async function advanceState(projectDir) {
         }
         if (added > 0) {
           log(`[${projectName}] Added ${added} fix stories to milestone "${milestone.name}"`);
-          writeJson(stateFile, state);
+          await commitState(projectDir, state);
         }
       }
 
@@ -1574,7 +1605,7 @@ async function advanceState(projectDir) {
         const eligible = findNextStory(milestone, flatStories(state));
         if (eligible) {
           next = startStory(state, milestone, eligible);
-          writeJson(stateFile, state);
+          await commitState(projectDir, state);
           log(`[${projectName}] Starting fix story: ${eligible.id}`);
         } else {
           log(`[${projectName}] No fix stories to build — re-evaluating milestone`);
@@ -1597,7 +1628,7 @@ async function advanceState(projectDir) {
       // `state.confidence_history`. Audit prompt-regression #4.
       if (Array.isArray(ctx?.confidence_history)) {
         state.confidence_history = ctx.confidence_history;
-        writeJson(stateFile, state);
+        await commitState(projectDir, state);
       }
 
       if (results.trajectory === 'diverging' || results.pivot_proposal) {
@@ -1651,7 +1682,7 @@ async function advanceState(projectDir) {
             status: 'pending',
             created_at: new Date().toISOString(),
           });
-          writeJson(stateFile, state);
+          await commitState(projectDir, state);
           next = 'escalation';
         } else {
           log(`[${projectName}] Needs refinement (attempt ${state.final_review_attempts}/3)`);
@@ -1693,7 +1724,7 @@ async function advanceState(projectDir) {
             reason: validation.reason,
             hint: 'Re-submit the escalation resolution from the dashboard. If you wrote the response directly to state.json, check your schema.',
           });
-          writeJson(stateFile, state);
+          await commitState(projectDir, state);
           break;
         }
 
@@ -1710,13 +1741,13 @@ async function advanceState(projectDir) {
         // promotes the project forward with better context OR escalates
         // again with a specific reason via the helper. Closes the gap
         // the dismiss-false-positive click on testimonial hit.
-        const pickResumeTarget = () => {
+        const pickResumeTarget = async () => {
           const hrMs = (state.milestones || []).find(m => m.name === state.current_milestone);
           if (hrMs) {
             const hrElig = findNextStory(hrMs, flatStories(state));
             if (hrElig) {
               const nx = startStory(state, hrMs, hrElig);
-              writeJson(stateFile, state);
+              await commitState(projectDir, state);
               return { next: nx, detail: `story: ${hrElig.id}` };
             }
             return { next: toMilestoneCheck(state), detail: 'milestone-check (milestone exists, no eligible stories)' };
@@ -1733,32 +1764,32 @@ async function advanceState(projectDir) {
           const hrStory = flat.find(s => s.id === pendingEsc.story_id);
           if (hrStory && (hrStory.status === 'blocked' || hrStory.status === 'pending')) hrStory.status = 'retrying';
           state.consecutive_failures = 0;
-          writeJson(stateFile, state);
-          const resume = pickResumeTarget();
+          await commitState(projectDir, state);
+          const resume = await pickResumeTarget();
           next = resume.next;
           log(`[${projectName}] Escalation resolved (guidance) — ${resume.detail}`);
         } else if (hrType === 'manual-fix-applied') {
           state.consecutive_failures = 0;
           const hrStory = flat.find(s => s.id === pendingEsc.story_id);
           if (hrStory && hrStory.status === 'blocked') hrStory.status = 'done';
-          writeJson(stateFile, state);
-          const resume = pickResumeTarget();
+          await commitState(projectDir, state);
+          const resume = await pickResumeTarget();
           next = resume.next;
           log(`[${projectName}] Escalation resolved (manual-fix-applied) — ${resume.detail}`);
         } else if (hrType === 'dismiss-false-positive') {
           state.consecutive_failures = 0;
           const hrStory = flat.find(s => s.id === pendingEsc.story_id);
           if (hrStory && (hrStory.status === 'blocked' || hrStory.status === 'pending')) hrStory.status = 'retrying';
-          writeJson(stateFile, state);
-          const resume = pickResumeTarget();
+          await commitState(projectDir, state);
+          const resume = await pickResumeTarget();
           next = resume.next;
           log(`[${projectName}] Escalation dismissed — ${resume.detail}`);
         } else if (hrType === 'abort-story') {
           const hrStory = flat.find(s => s.id === pendingEsc.story_id);
           if (hrStory) hrStory.status = 'blocked';
           state.consecutive_failures = 0;
-          writeJson(stateFile, state);
-          const resume = pickResumeTarget();
+          await commitState(projectDir, state);
+          const resume = await pickResumeTarget();
           next = resume.next;
           log(`[${projectName}] Story aborted — ${resume.detail}`);
         } else if (hrType === 'hand-off') {
@@ -1776,7 +1807,7 @@ async function advanceState(projectDir) {
           pendingEsc.handoff_started_at = new Date().toISOString();
           delete pendingEsc.resolved_at;
           delete pendingEsc.human_response; // consume so we don't re-trigger
-          writeJson(stateFile, state);
+          await commitState(projectDir, state);
           log(`[${projectName}] Escalation handed off to direct Claude Code — parked until resume`);
           // Stay in 'escalation' state.
           next = 'escalation';
@@ -1808,13 +1839,13 @@ async function advanceState(projectDir) {
           if (resumeStory && (resumeStory.status === 'blocked' || resumeStory.status === 'pending')) {
             retryStory(state, { story: resumeStory });
           }
-          writeJson(stateFile, state);
+          await commitState(projectDir, state);
           const resumeMs = (state.milestones || []).find(m => m.name === state.current_milestone);
           if (resumeMs) {
             const elig = findNextStory(resumeMs, flatStories(state));
             if (elig) {
               next = startStory(state, resumeMs, elig);
-              writeJson(stateFile, state);
+              await commitState(projectDir, state);
             } else {
               next = toMilestoneCheck(state);
             }
@@ -1852,7 +1883,7 @@ async function advanceState(projectDir) {
       }
       log(`[${projectName}] Resolved ${resolvedCount} escalation(s)${targetId ? ` (target: ${targetId})` : ' (all pending)'}`);
       fs.unlinkSync(feedbackFile);
-      writeJson(stateFile, state);
+      await commitState(projectDir, state);
 
       // Resume
       const milestone = (state.milestones || []).find(m => m.name === state.current_milestone);
@@ -1860,7 +1891,7 @@ async function advanceState(projectDir) {
         const eligible = findNextStory(milestone, flatStories(state));
         if (eligible) {
           next = startStory(state, milestone, eligible);
-          writeJson(stateFile, state);
+          await commitState(projectDir, state);
           log(`[${projectName}] Escalation resolved — story: ${eligible.id}`);
         } else {
           next = 'milestone-check';
@@ -1924,7 +1955,7 @@ async function advanceState(projectDir) {
       log(`[${projectName}] Refusing to persist corrupt state — transition ${current} → ${next} aborted`);
       return { success: false, invariantViolation: true };
     }
-    writeJson(stateFile, state);
+    await commitState(projectDir, state);
 
     notifyRich('transition', { project: projectName, from: current, to: next });
 
@@ -2043,7 +2074,7 @@ async function runPhase(projectDir) {
     const baseState = currentState.replace('-complete', '');
     log(`[${projectName}] Normalizing state: ${currentState} → advancing from ${baseState}`);
     state.current_state = baseState;
-    writeJson(stateFile, state);
+    await commitState(projectDir, state);
     await advanceState(projectDir);
     return { success: true };
   }
@@ -2079,7 +2110,7 @@ async function runPhase(projectDir) {
       status: 'pending',
       created_at: new Date().toISOString(),
     });
-    writeJson(stateFile, state);
+    await commitState(projectDir, state);
     return { success: false, budgetExceeded: true };
   }
 
@@ -2103,7 +2134,7 @@ async function runPhase(projectDir) {
           // it was active — a silent drift the next phase invocation
           // would render as "building a pending story".
           advanceStory(state, { story: nextPending });
-          writeJson(stateFile, state);
+          await commitState(projectDir, state);
         } else {
           // All stories done. Deploy to staging then advance to milestone-check.
           // Do NOT run story-building phase — it wastes credits and triggers spin detection.
@@ -2124,18 +2155,18 @@ async function runPhase(projectDir) {
                 created_at: new Date().toISOString(),
               });
               state.current_state = 'escalation';
-              writeJson(stateFile, state);
+              await commitState(projectDir, state);
             } else {
               log(`[${projectName}] Staging deploy complete: ${deployResult.url}`);
               state.current_state = 'milestone-check';
               state.current_story = null;
-              writeJson(stateFile, state);
+              await commitState(projectDir, state);
             }
           } catch (err) {
             log(`[${projectName}] Deploy error: ${(err.message || '').slice(0, 200)}`);
             state.current_state = 'milestone-check';
             state.current_story = null;
-            writeJson(stateFile, state);
+            await commitState(projectDir, state);
           }
           return { success: true };
         }
@@ -2292,6 +2323,21 @@ async function runPhase(projectDir) {
       secretsEnv,
     });
     log(`[${projectName}] Auth mode: ${authMode}`);
+
+    // GC.4 (Phase 4): emit a facade phase.start event before spawn so
+    // dashboard / Slack subscribers see the boundary even though the
+    // streaming orchestration below remains in this file. The
+    // corresponding phase.end is emitted in the close handler below.
+    // Full migration of the spawn into facade/dispatch/subprocess.js
+    // is a Phase 5+ concern; for now the facade event is the audit
+    // boundary, the existing phase-events.js stream stays the
+    // inside-the-spawn AI-activity channel.
+    facade.emit({
+      projectDir,
+      source: 'loop',
+      event: 'phase.start',
+      detail: { phase: currentState, model, mode: 'subprocess' },
+    });
 
     // spawn (not execFile) for real-time stdout streaming.
     //
@@ -2465,6 +2511,20 @@ async function runPhase(projectDir) {
       try { logStream.end(); } catch {}
       try { eventWriter.onEnd(code); } catch {}
 
+      // GC.4 (Phase 4): emit phase.end at the spawn boundary. ok is
+      // best-effort here — the close handler runs many additional
+      // checks (rate limit, killed, exit code) before the phase is
+      // declared truly complete; this event reports the spawn
+      // outcome, while later steps may still escalate.
+      try {
+        facade.emit({
+          projectDir,
+          source: 'loop',
+          event: 'phase.end',
+          detail: { phase: currentState, model, mode: 'subprocess', exitCode: code, killed: !!killed },
+        });
+      } catch (_e) { /* event emission must never block close handling */ }
+
       const stderr = stderrChunks.map(c => typeof c === 'string' ? c : c.toString()).join('');
 
       if (killed) {
@@ -2523,7 +2583,7 @@ async function runPhase(projectDir) {
         const logSize = fs.statSync(phaseLog).size;
         const fallbackTokens = Math.max(logSize * 2, 10000);
         trackPhaseCostFromLog(state, phaseLog, fallbackTokens, model);
-        writeJson(stateFile, state);
+        await commitState(projectDir, state);
         const src = state.costs.phase_cost_source === 'parsed' ? ' (parsed)' : state.costs.phase_cost_source === 'parsed-tokens' ? ' (parsed tokens)' : ' (estimated)';
         log(`[${projectName}] Cost: ~${state.costs.phase_cost_usd.toFixed(2)} USD this phase${src}, ~${state.costs.cumulative_cost_usd.toFixed(2)} USD cumulative`);
 
@@ -2539,7 +2599,7 @@ async function runPhase(projectDir) {
             state._cost_alert_50 = true;
             notifyRich('cost-alert', { project: projectName, currentUsd: state.costs.cumulative_cost_usd, budgetUsd: alertCap, percentage: 50 });
           }
-          writeJson(stateFile, state);
+          await commitState(projectDir, state);
         }
       } catch {}
 
@@ -2547,8 +2607,14 @@ async function runPhase(projectDir) {
       // V2: story-building tracks delta per story (used by advanceState for no-op detection)
       if (currentState === 'story-building') {
         try {
-          const s = readJson(stateFile);
-          if (s) { s.last_build_delta = delta; writeJson(stateFile, s); }
+          await facade.writeState({
+            projectDir,
+            source: 'loop',
+            mutator: (s) => {
+              if (s) s.last_build_delta = delta;
+            },
+            eventDetail: { what: 'last_build_delta' },
+          });
         } catch {}
       }
 
@@ -2572,7 +2638,7 @@ async function runPhase(projectDir) {
           log(`[${projectName}] Phase wrote state.json (${stateAfterPhase.current_state}) — restoring to ${currentState}`);
           const restored = JSON.parse(stateBeforePhase);
           restored.current_state = currentState; // keep the state the launcher set
-          writeJson(stateFile, restored);
+          await commitState(projectDir, restored, { what: 'phase-restore', from: stateAfterPhase.current_state, to: currentState });
         }
       }
 
@@ -2731,7 +2797,7 @@ async function main() {
               status: 'pending',
               created_at: new Date().toISOString(),
             });
-            writeJson(stateFile, state);
+            await commitState(projectDir, state);
           }
           notifyRich('escalation', {
             project: projectName,

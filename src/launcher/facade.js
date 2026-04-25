@@ -52,7 +52,7 @@ const { withLock } = require('./facade/lock.js');
 const { emit, readEvents, subscribeEvents, eventsPath } = require('./facade/events.js');
 const { runSubprocess } = require('./facade/dispatch/subprocess.js');
 const { runSdk } = require('./facade/dispatch/sdk.js');
-const { statePath, statePathForWrite } = require('./state-path.js');
+const { statePath } = require('./state-path.js');
 
 const VALID_SOURCES = new Set([
   'loop', 'cli', 'dashboard', 'slack', 'self-improve', 'test',
@@ -69,8 +69,33 @@ function readStateJson(projectDir) {
   }
 }
 
-function writeStateJson(projectDir, state) {
-  const file = statePathForWrite(projectDir);
+function writeStateJson(projectDir, state, opts) {
+  // statePath() returns the write target preserving the legacy/.rouge
+  // resolution: existing-legacy → legacy, existing-.rouge → .rouge,
+  // neither → .rouge (new project default). This matches the prior
+  // writeJson behavior in rouge-loop.js and keeps unmigrated projects
+  // writing to their existing location.
+  const file = statePath(projectDir);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  // Strict schema validation by default. State drift causes phase-loop
+  // pathologies (see stack-rank's 94-cycle foundation-eval spiral on
+  // `status='evaluating'` absent from the enum). Better to halt on a
+  // bad write than let it compound across every future iteration.
+  // Tests + migrations can opt out via `opts.validate: false`.
+  if (!opts || opts.validate !== false) {
+    try {
+      const { validate, SchemaViolationError } = require('./schema-validator.js');
+      try {
+        validate('state.json', state, `facade.writeState ${file}`, { strict: true });
+      } catch (err) {
+        if (err instanceof SchemaViolationError) throw err;
+        throw err;
+      }
+    } catch (err) {
+      if (err && err.name === 'SchemaViolationError') throw err;
+      /* validator unavailable — skip silently */
+    }
+  }
   const tmp = file + '.tmp';
   fs.writeFileSync(tmp, JSON.stringify(state, null, 2) + '\n');
   fs.renameSync(tmp, file);
@@ -86,10 +111,11 @@ function writeStateJson(projectDir, state) {
  *   - eventDetail: optional payload for the emitted 'state.write' event
  *   - timeoutMs: lock timeout (default 5000)
  *   - allowSlow: skip the slow-mutator guard
+ *   - validate: set to false to bypass strict schema validation (tests / migrations)
  * @returns {Promise<{state: object, event: object}>}
  */
 async function writeState(opts) {
-  const { projectDir, mutator, source, eventDetail, timeoutMs, allowSlow } = opts || {};
+  const { projectDir, mutator, source, eventDetail, timeoutMs, allowSlow, validate } = opts || {};
   if (!projectDir) throw new Error('facade.writeState: projectDir required');
   if (typeof mutator !== 'function') throw new Error('facade.writeState: mutator must be a function');
   if (!VALID_SOURCES.has(source)) {
@@ -100,7 +126,7 @@ async function writeState(opts) {
     const state = readStateJson(projectDir) || {};
     const next = mutator(state);
     const finalState = next === undefined ? state : next;
-    writeStateJson(projectDir, finalState);
+    writeStateJson(projectDir, finalState, { validate });
     return finalState;
   }, { timeoutMs, allowSlow });
 

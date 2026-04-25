@@ -23,6 +23,7 @@ describe('facade.writeState — atomic state mutation', () => {
     const { state } = await facade.writeState({
       projectDir,
       source: 'test',
+      validate: false,
       mutator: (s) => { s.created = true; },
     });
     assert.equal(state.created, true);
@@ -34,6 +35,7 @@ describe('facade.writeState — atomic state mutation', () => {
     const { state } = await facade.writeState({
       projectDir,
       source: 'test',
+      validate: false,
       mutator: () => ({ replaced: 1 }),
     });
     assert.deepEqual(state, { replaced: 1 });
@@ -43,6 +45,7 @@ describe('facade.writeState — atomic state mutation', () => {
     await facade.writeState({
       projectDir,
       source: 'cli',
+      validate: false,
       mutator: (s) => { s.x = 1; },
       eventDetail: { reason: 'unit-test' },
     });
@@ -73,8 +76,8 @@ describe('facade.writeState — atomic state mutation', () => {
     // lost. With the lock, the final state must be n: 2.
     fs.writeFileSync(statePath(projectDir), JSON.stringify({ n: 0 }));
     await Promise.all([
-      facade.writeState({ projectDir, source: 'test', mutator: (s) => { s.n = (s.n || 0) + 1; } }),
-      facade.writeState({ projectDir, source: 'test', mutator: (s) => { s.n = (s.n || 0) + 1; } }),
+      facade.writeState({ projectDir, source: 'test', validate: false, mutator: (s) => { s.n = (s.n || 0) + 1; } }),
+      facade.writeState({ projectDir, source: 'test', validate: false, mutator: (s) => { s.n = (s.n || 0) + 1; } }),
     ]);
     const final = JSON.parse(fs.readFileSync(statePath(projectDir), 'utf8'));
     assert.equal(final.n, 2);
@@ -86,6 +89,7 @@ describe('facade.readState — lock-free read', () => {
     await facade.writeState({
       projectDir,
       source: 'test',
+      validate: false,
       mutator: () => ({ hello: 'world' }),
     });
     const got = facade.readState(projectDir);
