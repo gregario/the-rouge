@@ -5,8 +5,32 @@
  * Runs on macOS using the OS Keychain with a test service name.
  * Cleans up all test entries after completion.
  *
+ * Linux: skips if `secret-tool` (libsecret-tools) isn't installed —
+ * this is the case on stock GitHub Actions ubuntu runners. Without
+ * this skip, every CI run was red on `secret-tool store failed`,
+ * which masked real failures and left the boundary CI gate
+ * unobserved on PRs. Local Linux dev with libsecret installed runs
+ * the tests normally. To force-run on a CI runner with libsecret +
+ * gnome-keyring set up, set ROUGE_FORCE_SECRETS_TEST=1.
+ *
  * Usage: node tests/secrets.test.js
  */
+
+const { spawnSync } = require('child_process');
+
+// Skip-on-no-keychain detection. Runs FIRST so we never load
+// secrets.js (whose require() side-effects don't matter, but the
+// test setup attempts a roundtrip that fails loud).
+if (process.platform === 'linux' && process.env.ROUGE_FORCE_SECRETS_TEST !== '1') {
+  const probe = spawnSync('secret-tool', ['--version'], { stdio: 'ignore' });
+  if (probe.error || probe.status !== 0) {
+    console.log('Secrets module tests');
+    console.log('='.repeat(50));
+    console.log('  SKIP: secret-tool not available on this Linux runner.');
+    console.log('  (libsecret-tools + gnome-keyring required; set ROUGE_FORCE_SECRETS_TEST=1 to force-run.)');
+    process.exit(0);
+  }
+}
 
 const path = require('path');
 const fs = require('fs');
