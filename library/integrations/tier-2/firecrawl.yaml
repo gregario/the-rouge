@@ -1,0 +1,43 @@
+id: firecrawl
+name: Firecrawl
+tier: 2
+category: web-scraping
+description: >
+  LLM-friendly web scraping API. Crawls a URL, returns clean markdown
+  + structured data. Used by Rouge's seeding disciplines (brainstorm,
+  competition, taste) to deep-read pages that exa or web search surfaces.
+  Pairs well with the iterative-retrieval skill: exa finds candidates,
+  firecrawl extracts the actual content. Free tier covers most prototyping.
+cost_tier: free-to-start
+
+requires:
+  env_vars:
+    - FIRECRAWL_API_KEY
+  packages:
+    - "@mendable/firecrawl-js"
+  cli_tools: []
+
+setup_steps:
+  - Create an account at firecrawl.dev
+  - Generate an API key in the dashboard
+  - Set FIRECRAWL_API_KEY in .env.local for the firecrawl MCP
+  - Install the JS SDK if calling directly- npm install @mendable/firecrawl-js
+  - Verify- the firecrawl MCP wires into seeding phases automatically
+
+teardown_steps:
+  - Revoke the API key in the Firecrawl dashboard
+  - Optionally delete the Firecrawl account if test-only
+  - Remove the package- npm uninstall @mendable/firecrawl-js
+
+tested_with:
+  - Firecrawl API v1 (2026-04)
+  - "@mendable/firecrawl-js" 1.10+
+  - Firecrawl MCP server (npx firecrawl-mcp)
+
+free_tier_limits:
+  credits: 500/month
+  scrape: 1 credit/page
+  crawl: 1 credit/page
+  rate_limit: 10 req/min
+
+staleness_date: 2026-04-25

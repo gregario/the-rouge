@@ -1,0 +1,42 @@
+id: playwright
+name: Playwright
+tier: 2
+category: browser-automation
+description: >
+  Microsoft's open-source browser automation library. Drives Chromium,
+  Firefox, and WebKit headlessly or headed. Used by Rouge's product-walk
+  and re-walk phases for end-to-end QA against the deployed product.
+  Pairs with the playwright MCP for AI-driven flows like "click through
+  the signup form and capture screenshots." Fully free; runs locally.
+cost_tier: free
+
+requires:
+  env_vars: []
+  packages:
+    - "@playwright/test"
+  cli_tools:
+    - playwright
+
+setup_steps:
+  - Install the package- npm install -D @playwright/test
+  - Install browser binaries- npx playwright install
+  - For CI without system deps- npx playwright install --with-deps
+  - Optionally add a config file- npx playwright init (creates playwright.config.ts)
+  - Verify- npx playwright test --list (should show no tests yet, but no errors)
+
+teardown_steps:
+  - Remove the package- npm uninstall @playwright/test
+  - Delete browser cache- npx playwright uninstall (removes the ~/.cache/ms-playwright dir)
+  - Remove config file if standalone- rm playwright.config.ts
+
+tested_with:
+  - "@playwright/test" 1.45+
+  - Chromium 127, Firefox 128, WebKit 17.6
+  - Playwright MCP server v0.0.27
+
+free_tier_limits:
+  cost: 0 (open source)
+  parallelism: limited by local CPU cores
+  cloud_runs: not included (use Microsoft Playwright Service or own infra)
+
+staleness_date: 2026-04-25

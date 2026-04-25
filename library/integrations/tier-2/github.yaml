@@ -1,0 +1,45 @@
+id: github
+name: GitHub
+tier: 2
+category: code-hosting
+description: >
+  Code hosting, pull requests, issues, GitHub Actions CI/CD, releases, and
+  Discussions. The default home for most open source and many private
+  Rouge-built products. The github MCP gives the factory structured access
+  to repo, PR, and issue operations without shelling out to gh for every
+  query. Free for public repos; paid plans add private-repo features.
+cost_tier: free-to-start
+
+requires:
+  env_vars:
+    - GITHUB_PERSONAL_ACCESS_TOKEN
+  packages: []
+  cli_tools:
+    - gh
+
+setup_steps:
+  - Create a GitHub account at github.com
+  - Install gh CLI (brew install gh / scoop install gh / apt install gh)
+  - Run `gh auth login` for interactive auth, OR create a personal access token at github.com/settings/tokens
+  - Token scopes for full Rouge use:- repo (private + public access), workflow (Actions), read:org (org membership)
+  - Set GITHUB_PERSONAL_ACCESS_TOKEN in .env.local for the github MCP
+  - Optionally enable SSH key auth for git push (separate from API token)
+
+teardown_steps:
+  - Revoke the personal access token at github.com/settings/tokens
+  - Delete any test repos created during dogfood
+  - Optionally `gh auth logout` to clear the gh CLI session
+
+tested_with:
+  - gh 2.40+
+  - GitHub REST API v3
+  - GitHub GraphQL API v4
+
+free_tier_limits:
+  public_repos: unlimited
+  private_repos: unlimited (free as of 2020)
+  actions_minutes: 2000/month (private repos; unlimited for public)
+  packages_storage: 500MB (free); 50GB (Team)
+  api_rate_limit: 5000 req/hour authenticated
+
+staleness_date: 2026-04-25
