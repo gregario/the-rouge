@@ -1,0 +1,59 @@
+id: replicate
+name: Replicate
+tier: 2
+category: ml-inference
+description: >
+  Hosted machine-learning inference — run open-source and proprietary
+  models via a single API. Image generation (FLUX, SDXL, Stable
+  Diffusion, Recraft), video generation (Veo, Kling, Wan), audio /
+  music (MusicGen, Whisper, ElevenLabs), and LLMs (Claude, Llama,
+  DeepSeek). Pay-per-second compute for hardware-billed models or
+  per-token for token-billed models. Fills the gap left by OpenAI /
+  Anthropic (also catalogued — they're text-only) for products that
+  need image / video / audio generation alongside chat. Models can
+  also be fine-tuned and deployed as private models on the same
+  hardware tiers.
+cost_tier: usage-based
+
+requires:
+  env_vars:
+    - REPLICATE_API_TOKEN
+  packages:
+    - "replicate"
+  cli_tools: []
+
+setup_steps:
+  - Sign up at replicate.com (no card required for some free runs; payment method needed for sustained usage)
+  - Generate an API token from Account > API tokens; store in `REPLICATE_API_TOKEN`
+  - Install the SDK — `npm install replicate`
+  - Pick a model — browse replicate.com/explore or search by capability; copy the model identifier (e.g. `black-forest-labs/flux-1.1-pro`)
+  - Run a model — `import Replicate from 'replicate'; const replicate = new Replicate(); const output = await replicate.run('black-forest-labs/flux-1.1-pro', { input: { prompt: '...' } })`. The SDK polls for completion; for long-running jobs use `replicate.predictions.create()` and webhook on completion
+  - For webhook completion (recommended for jobs > 30s) — pass `webhook: 'https://app.example.com/api/replicate/webhook'` in the create call; verify the webhook signature server-side via `replicate.webhooks.verify`
+  - For private / fine-tuned models — push via `cog push r8.im/<owner>/<name>` (Cog is Replicate's containerisation tool); private models incur instance-uptime billing including idle time
+  - For streamed output (LLMs, some image models with progressive reveal) — `for await (const event of replicate.stream(model, { input })) { ... }`
+
+teardown_steps:
+  - Delete any private models from dashboard > your account > Models
+  - Cancel any active fine-tuning jobs (in-progress fine-tunes still bill)
+  - Revoke API tokens in Account > API tokens
+  - Clear `REPLICATE_API_TOKEN` from environments
+  - Uninstall `replicate`
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+free_tier_limits:
+  free_runs_on_some_models: yes (model-specific; Replicate occasionally promotes featured models with free credits)
+  card_required_for_sustained_usage: true
+  pay_as_you_go: true
+  cpu_small_per_hour_usd: 0.09
+  gpu_a40_per_hour_usd_approx: 0.81
+  gpu_a100_per_hour_usd_approx: 4.13
+  gpu_h100_per_hour_usd_approx: 5.04
+  gpu_8x_h100_per_hour_usd_approx: 43.92
+  flux_1_1_pro_per_image_usd: 0.04
+  sample_text_model_input_per_mtok_usd: varies (Claude 3.7 Sonnet ~$3/MTok, DeepSeek-R1 ~$3.75/MTok)
+  note: "Public models bill by hardware-time (per-second). Private/fine-tuned models bill for ALL instance time including setup and idle, EXCEPT fast-booting fine-tunes which only bill active processing — choose architecture accordingly. Many image-gen models cost $0.01-$0.05 per image; sustained image workloads are predictable budget items. Use webhooks for jobs >30s rather than polling — saves on Function compute."
+
+staleness_date: "2026-04-25"

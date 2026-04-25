@@ -1,0 +1,66 @@
+id: stripe-connect
+name: Stripe Connect
+tier: 2
+category: payments
+description: >
+  Stripe's multi-party payment platform — for products that take
+  money on behalf of others (marketplaces, SaaS platforms with paid
+  sellers, on-demand service apps, creator economy). Connect adds
+  account onboarding, KYC compliance, fund routing (Direct vs
+  Destination vs Separate Charges + Transfers), and platform fees on
+  top of base Stripe (also catalogued — base Stripe is for direct
+  charges to your own account only). Three account types — Standard
+  (seller controls Stripe; minimal platform integration; free),
+  Express (platform-branded onboarding; $2/active acct/mo + 0.25%
+  + $0.25/payout), Custom (fully embedded in your UI; same pricing
+  as Express). Pick Connect when payments flow through your platform
+  to multiple parties; pick base Stripe when all charges belong to
+  one merchant.
+cost_tier: usage-based
+
+requires:
+  env_vars:
+    - STRIPE_SECRET_KEY
+    - STRIPE_PUBLISHABLE_KEY
+    - STRIPE_WEBHOOK_SECRET
+    - STRIPE_CONNECT_CLIENT_ID
+  packages:
+    - "stripe"
+  cli_tools:
+    - stripe
+
+setup_steps:
+  - Enable Connect in dashboard.stripe.com > Connect > Settings (separate from base Stripe; same account but Connect must be activated)
+  - Pick the account type — Standard / Express / Custom — based on UX preference (see description)
+  - Configure your platform profile in Connect > Settings > Platform Profile (required before going live; describes your platform to Stripe for compliance review)
+  - Set the redirect URI in Connect > Settings > Integration; copy the Connect Client ID into `STRIPE_CONNECT_CLIENT_ID`
+  - For onboarding — Express / Custom use `stripe.accounts.create({ controller: { fees: { payer: 'application' }, losses: { payments: 'application' }, stripe_dashboard: { type: 'express' } }, ... })` then `stripe.accountLinks.create({ account, return_url, refresh_url, type: 'account_onboarding' })` to redirect the seller to Stripe-hosted onboarding
+  - For Standard, use OAuth — redirect seller to `connect.stripe.com/oauth/authorize?response_type=code&client_id=<STRIPE_CONNECT_CLIENT_ID>&scope=read_write` and exchange the code for a connected account ID
+  - For payments — Direct charges (`stripe-account` header pointing at the connected account; funds settle to seller, platform takes application_fee_amount), Destination charges (charge on platform account, transfer to seller), or Separate Charges + Transfers (most flexible; charge first, transfer after some delay)
+  - Webhooks — use `stripe.webhooks.constructEvent` to verify; for Connect events, handle `account.updated` (KYC status changed), `payout.failed`, `account.application.deauthorized` (seller disconnected)
+
+teardown_steps:
+  - For Standard accounts — sellers retain their Stripe accounts; platform OAuth deauthorisation happens via dashboard or `stripe.oauth.deauthorize`
+  - For Express / Custom — platform can delete connected accounts (dashboard or `stripe.accounts.del`); ensure all balances are zero first
+  - Disable Connect in dashboard > Connect > Settings (cannot be re-enabled with the same data)
+  - Revoke API keys in dashboard > Developers > API keys
+  - Clear all `STRIPE_*` env vars including `STRIPE_CONNECT_CLIENT_ID`
+  - Uninstall `stripe`
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+free_tier_limits:
+  standard_account_platform_fee_per_month_usd: 0
+  express_account_per_active_account_per_month_usd: 2
+  express_account_per_payout_pct: 0.25
+  express_account_per_payout_flat_usd: 0.25
+  custom_account_pricing: same as Express
+  base_stripe_transaction_fee_us_pct: 2.9
+  base_stripe_transaction_fee_us_flat_usd: 0.30
+  payout_fee_cap_usd: 25 (per payout, applies to non-US accounts)
+  application_fee: set by platform (recovers Stripe's transaction fee + platform's commission)
+  note: "Standard is free for the platform but the seller pays Stripe directly — least platform integration, lowest cost, but you can't customise their dashboard. Express ($2/acct/mo + 0.25% per payout) is the most common pick for marketplaces — branded onboarding, you control payouts, sellers see a Stripe-Express dashboard. Application fees are how platforms charge sellers a commission — passed to Stripe as application_fee_amount on each charge. Onboarding is async — sellers can be `charges_enabled: false` for hours/days until KYC completes; gate seller-side product features on this flag."
+
+staleness_date: "2026-04-25"

@@ -1,0 +1,57 @@
+id: liveblocks
+name: Liveblocks
+tier: 2
+category: collaboration
+description: >
+  Collaborative-editing primitives — Yjs/CRDT-backed shared state,
+  presence, multiplayer cursors, threaded comments, version history,
+  and AI Copilots. Specialist platform for "Figma / Notion / Linear-
+  style" collaboration UX, distinct from the generic pub/sub of
+  Pusher (also catalogued). Pricing model is per-room (collaboration
+  space), not per-user — so user growth doesn't directly inflate the
+  bill. Pick Liveblocks when the product needs concurrent editing
+  with conflict resolution, presence, and comments out of the box;
+  pick Pusher / Ably when you only need pub/sub for notifications.
+cost_tier: free-to-start
+
+requires:
+  env_vars:
+    - LIVEBLOCKS_SECRET_KEY
+    - NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY
+  packages:
+    - "@liveblocks/client"
+    - "@liveblocks/react"
+    - "@liveblocks/yjs"
+  cli_tools: []
+
+setup_steps:
+  - Sign up at liveblocks.io and create a project; pick a region (us / eu)
+  - From dashboard > API keys, copy the secret key into `LIVEBLOCKS_SECRET_KEY` and the public key into `NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY`
+  - Install the SDKs — `npm install @liveblocks/client @liveblocks/react`; add `@liveblocks/yjs` for CRDT-backed text/document editing or `@liveblocks/zustand` for shared state via Zustand
+  - Define types — `liveblocks.config.ts` with `type Presence = { cursor: { x, y } | null }`, `type Storage = {...}`, `type UserMeta`, `type RoomEvent`. Generates typed client + hooks via `createClient` + `createRoomContext`
+  - Wrap the page in `<RoomProvider id="my-room" initialPresence={{ cursor: null }}>` — every Liveblocks hook below this scope joins that room
+  - Use `useMyPresence()` to publish your own cursor; `useOthers()` to read everyone else's; `useStorage()` for shared mutable state; `useThreads()` for comments
+  - For server-side auth (private rooms), implement the auth endpoint at `/api/liveblocks-auth` — verify the user's session, then `liveblocks.identifyUser({ userId, groupIds })` to issue a scoped token
+  - Optional — enable Liveblocks AI Copilots (Pro plan) for generative editing assistants in the same room
+
+teardown_steps:
+  - Delete the project in dashboard > Settings > Delete Project (irrecoverable)
+  - Remove all `<RoomProvider>` wrappers and Liveblocks hook calls
+  - Clear `LIVEBLOCKS_SECRET_KEY` and `NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY` from environments
+  - Uninstall `@liveblocks/client`, `@liveblocks/react`, `@liveblocks/yjs` (and any other adapters)
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+free_tier_limits:
+  monthly_active_rooms: 500
+  team_seats: 3
+  projects: 10
+  realtime_storage: 256MB
+  file_storage: 512MB
+  version_history_hours: 24
+  simultaneous_connections_per_room: 100 (enterprise can request higher)
+  note: "Free plan caps at 500 MARs/month — a MAR is a room with at least one connection during the month, so a 'document opened by anyone' counts. Pro at $30/mo + $0.03/room overage scales linearly with collaboration intensity, not user count. Storage caps are total across the project, not per-room."
+
+staleness_date: "2026-04-25"

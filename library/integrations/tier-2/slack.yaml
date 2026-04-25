@@ -1,0 +1,63 @@
+id: slack
+name: Slack API
+tier: 2
+category: communications
+description: >
+  Slack platform for bots, slash commands, message-sending, Events
+  API subscriptions, interactive components (modals, buttons), and
+  app-home tabs. Two integration paths — incoming webhooks (simplest;
+  one-way send-only via a workspace-issued URL) and full Slack apps
+  (bidirectional; needs OAuth, signing-secret verification, Events
+  API or Socket Mode). Common Rouge uses include "send a Slack
+  notification on event X" (incoming webhook), "/command to query
+  the app" (Slack app), and "ChatOps for ops dashboards"
+  (combined). Free for any workspace that already has Slack — the
+  app itself doesn't bill; the Slack workspace owner pays Slack.
+cost_tier: free
+
+requires:
+  env_vars:
+    - SLACK_BOT_TOKEN
+    - SLACK_SIGNING_SECRET
+    - SLACK_APP_TOKEN
+  packages:
+    - "@slack/bolt"
+    - "@slack/web-api"
+  cli_tools:
+    - slack
+
+setup_steps:
+  - Create a Slack app at api.slack.com/apps — pick "From scratch" or "From a manifest" (manifest is faster for committing app config to repo)
+  - Define OAuth scopes — at minimum `chat:write` for sending messages; add `commands` for slash commands, `app_mentions:read` + `channels:history` for Events API
+  - Install the app to a workspace — copy the Bot User OAuth Token (`xoxb-...`) into `SLACK_BOT_TOKEN` and the Signing Secret from Basic Information into `SLACK_SIGNING_SECRET`
+  - For Socket Mode (no public webhook needed; useful in dev / behind firewalls) — generate an App-Level Token from Basic Information > App-Level Tokens with `connections:write` scope; store as `SLACK_APP_TOKEN` (`xapp-...`)
+  - Install the SDKs — `npm install @slack/bolt` for full app framework (handles Events API, Block Kit, modals, OAuth) or `@slack/web-api` for raw API calls only
+  - For Events API (HTTP) — expose a public endpoint at `/api/slack/events`; Bolt's receiver verifies the signing secret and dispatches events; URL-verify on first connection
+  - For incoming webhooks (simpler send-only) — generate via dashboard > Incoming Webhooks; POST JSON to the URL, no SDK required
+  - For slash commands — register the command in dashboard > Slash Commands; Bolt handles the request signature, ack within 3 seconds, then post the response
+
+teardown_steps:
+  - Uninstall the app from each workspace via dashboard > Manage Distribution > Uninstall
+  - Revoke OAuth tokens — they're invalidated by uninstall but explicitly revoke if rotating
+  - Revoke App-Level Token (Socket Mode) in Basic Information
+  - Disable Slash Commands and Events API subscriptions
+  - Delete the app entirely from api.slack.com/apps if no longer needed
+  - Clear `SLACK_BOT_TOKEN`, `SLACK_SIGNING_SECRET`, `SLACK_APP_TOKEN` from environments
+  - Uninstall `@slack/bolt` and `@slack/web-api`
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+free_tier_limits:
+  app_distribution: free
+  workspace_subscription: paid by the customer (Slack handles billing)
+  rate_limits_tier_1_per_minute: 1 request/minute
+  rate_limits_tier_2_per_minute: 20 requests/minute
+  rate_limits_tier_3_per_minute: 50 requests/minute
+  rate_limits_tier_4_per_minute: 100 requests/minute
+  rate_limits_post_message_per_second: 1 (per channel; burst tolerated up to ~5)
+  workspace_messages_per_day_via_app_unlimited: true (subject to anti-abuse)
+  note: "Slack's API itself is free — the customer pays for their Slack workspace. App distribution to a workspace requires admin approval. Rate limits are per workspace + per method — chat.postMessage is ~1/sec/channel; for bulk fan-out, batch via chat.scheduleMessage. Socket Mode bypasses the public webhook requirement (useful behind firewalls / for local dev) but still needs the bot token; production-scale apps usually prefer HTTP for resilience."
+
+staleness_date: "2026-04-25"

@@ -1,0 +1,105 @@
+id: replicate-async-prediction
+name: Replicate Async Prediction with Webhook Completion
+tier: 3
+service: replicate
+category: ml-inference
+tags:
+  - ml
+  - async
+  - webhooks
+  - image-gen
+  - long-running
+description: >
+  The right way to call Replicate for any model that takes >10 seconds
+  — create a prediction with a webhook, return immediately to the
+  user, then handle the completion event server-side. Replaces the
+  naive `await replicate.run()` pattern (which polls until done and
+  ties up the calling Function for the entire model duration —
+  blowing past the 10s / 60s / 5min / etc Function timeouts depending
+  on platform). Pairs with a DB row keyed on the prediction id so
+  the user's UI can poll for completion or subscribe to a realtime
+  channel.
+applies_when: >
+  Product runs Replicate models that take more than ~10 seconds (most
+  image gen takes 5-30s, video gen takes minutes, fine-tuned models
+  on cold instances can take more). Required when the deploy target
+  is serverless (Vercel Hobby Functions cap at 10s, Pro at 60s by
+  default). Skip this pattern only for fast token-streamed LLM calls
+  (use streaming instead) and for development scripts where blocking
+  is fine.
+
+requires:
+  packages:
+    - "replicate"
+  env_vars:
+    - REPLICATE_API_TOKEN
+    - REPLICATE_WEBHOOK_SECRET
+
+code_patterns:
+  - file: lib/replicate/client.ts
+    description: >
+      Server-side Replicate SDK singleton — `import Replicate from
+      'replicate'; export const replicate = new Replicate({ auth:
+      process.env.REPLICATE_API_TOKEN })`. Reads the API token from
+      env. Used for both prediction creation and webhook signature
+      verification.
+  - file: app/api/predict/route.ts
+    description: >
+      Creates a prediction and returns immediately. `const prediction
+      = await replicate.predictions.create({ version: '<model-
+      version-hash>', input: { prompt }, webhook: '<APP_URL>/api/
+      replicate/webhook', webhook_events_filter: ['completed'] })`.
+      Inserts a `predictions` row keyed on `prediction.id` with
+      status='processing', user_id, prompt, created_at. Returns the
+      id to the client so the UI can poll or subscribe. Function
+      returns within ~500ms — the model itself runs out-of-band.
+  - file: app/api/replicate/webhook/route.ts
+    description: >
+      Webhook receiver. Verifies the signature — `const isValid =
+      await replicate.webhooks.verify({ secret:
+      REPLICATE_WEBHOOK_SECRET, body, signature: req.headers.get(
+      'webhook-signature'), id: req.headers.get('webhook-id'),
+      timestamp: req.headers.get('webhook-timestamp') })`. On valid,
+      look up the predictions row by id, set status='succeeded' (or
+      'failed' / 'canceled') with the output URL(s), error message,
+      and metrics. Idempotent — Replicate retries failed webhooks;
+      upsert by id rather than insert.
+  - file: components/prediction-status.tsx
+    description: >
+      Client component that polls `/api/predict/[id]/status` every
+      ~2s while the prediction is processing. On status='succeeded',
+      switches to render the output (images, audio, etc.). Stops
+      polling on terminal states. For a smoother UX, swap polling
+      for a realtime subscription via Pusher / Liveblocks once a
+      prediction is in flight.
+  - file: app/api/predict/[id]/status/route.ts
+    description: >
+      Reads the predictions row by id. Returns `{ status, output,
+      error, progress }`. The progress field is populated for models
+      that emit logs (Replicate parses progress from stderr in some
+      models) — surface it to the UI as a progress bar.
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+scale_considerations: >
+  Webhook verification is mandatory — Replicate's webhook endpoint is
+  publicly known, so without signature verification anyone can spoof
+  completion events. Idempotency is mandatory — Replicate retries
+  failed webhook deliveries with exponential backoff for ~24 hours.
+  For high-volume image generation, batch via the API's
+  `prediction.create` then poll a list endpoint rather than
+  webhooking each — cuts webhook noise. For models on cold private
+  instances, the first request after idle pays a 30-90s setup cost
+  — pre-warm by sending a no-op prediction before traffic, or
+  switch to fast-booting fine-tunes (which only bill active time).
+  Pricing is by hardware time for most public models, so generation
+  output quality vs cost is a real lever — FLUX 1.1 Pro at $0.04/
+  image is materially cheaper per result than running SDXL on an
+  A100 GPU at $4.13/hour for a comparable image. For LLM streaming,
+  Replicate's `replicate.stream()` returns an AsyncIterable —
+  consume in a streaming Function response rather than a buffered
+  await. Output URLs from Replicate expire after 1 hour — copy to
+  your own storage (S3, R2, Vercel Blob) immediately on completion
+  if the output needs to be served beyond that window.

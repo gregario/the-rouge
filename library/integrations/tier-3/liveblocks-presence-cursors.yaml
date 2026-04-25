@@ -1,0 +1,97 @@
+id: liveblocks-presence-cursors
+name: Liveblocks Multiplayer Cursors + Presence
+tier: 3
+service: liveblocks
+category: collaboration
+tags:
+  - presence
+  - multiplayer-cursors
+  - collaboration
+  - react
+  - room
+description: >
+  Canonical Liveblocks pattern for showing every active user's cursor
+  in real time. Each client publishes its mouse coordinates via
+  `useMyPresence`; the room's other members receive the updates via
+  `useOthers` and render coloured cursors with name labels. Pairs
+  with auth so private rooms only let invited users join. The
+  building block underneath any "live editing UX" — once cursors
+  work, comments / threads / shared selection all use the same
+  Presence + Storage primitives.
+applies_when: >
+  Product UI shows a shared canvas, document, or page where users
+  benefit from seeing each other's positions — design tools,
+  collaborative editors, whiteboards, multi-player games. Required
+  when the UX explicitly says "see who else is here" or "live
+  cursor". Skip this pattern for read-only multi-user views (a live
+  dashboard with no per-user state) — Pusher's pub/sub or even
+  polling is enough there.
+
+requires:
+  packages:
+    - "@liveblocks/client"
+    - "@liveblocks/react"
+  env_vars:
+    - LIVEBLOCKS_SECRET_KEY
+    - NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY
+
+code_patterns:
+  - file: liveblocks.config.ts
+    description: >
+      Typed Liveblocks client + room context — `import { createClient
+      } from '@liveblocks/client'; import { createRoomContext } from
+      '@liveblocks/react'`. Defines `Presence`, `Storage`, `UserMeta`,
+      and `RoomEvent` types and exports `RoomProvider`, `useMyPresence`,
+      `useOthers`, `useUpdateMyPresence`, `useStorage`. Single source
+      of truth for the room's data model.
+  - file: app/api/liveblocks-auth/route.ts
+    description: >
+      Server auth endpoint. Verifies the user's session, then calls
+      `liveblocks.identifyUser({ userId, groupIds }, { userInfo: {
+      name, color, avatar } })` and returns the resulting body.
+      Liveblocks SDK handles the token issuance + room scoping.
+      Public-class rooms can skip this (use the public key directly
+      from the client) but private rooms always go through this
+      endpoint.
+  - file: components/room-cursors.tsx
+    description: >
+      Client component — `'use client'; import { useMyPresence,
+      useOthers } from '@/liveblocks.config'`. On mousemove,
+      `useUpdateMyPresence({ cursor: { x, y } })`. Render `useOthers()`
+      results as positioned divs at each user's `presence.cursor`,
+      coloured by their `info.color`, labelled with their `info.name`.
+      Throttle the mousemove handler to 30/sec — at 60/sec the
+      websocket frames pile up.
+  - file: app/(collaborative)/[roomId]/page.tsx
+    description: >
+      Wraps the room content in `<RoomProvider id={roomId}
+      initialPresence={{ cursor: null }}>`. Every Liveblocks hook
+      below this scope joins the room. The room id should be stable
+      across user sessions — scope to the resource (document id,
+      project id) not the user.
+  - file: components/room-list.tsx
+    description: >
+      Optional — a server component that calls
+      `liveblocks.getActiveUsers(roomId)` to list who's currently in
+      a room (e.g. on a project listing page that shows "3 people
+      editing now" badges). Uses the management API; rate-limited.
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+scale_considerations: >
+  Cursor updates run over websockets — on free Liveblocks, 100
+  simultaneous connections per room is the cap. For very large
+  rooms (>100 active users), shard into multiple sub-rooms or use a
+  non-presence architecture (periodic poll of "active in last 30s").
+  Throttle cursor publishes to 30/sec per client; at full 60Hz
+  every client publishes 60 updates × N other clients = quadratic
+  fan-out. Each MAR (monthly active room) is one billable unit —
+  rooms tied to user sessions (e.g. one room per user) blow through
+  the 500 MAR free cap fast; prefer one room per shared resource.
+  Liveblocks reconnects automatically on network blips but presence
+  resets on reconnect — always set `initialPresence` to a
+  reasonable default and re-derive state from props on mount.
+  Auth tokens are scoped to user + groupIds — invalidate by
+  rotating the user's session, not by manually expiring the token.

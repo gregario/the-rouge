@@ -1,0 +1,122 @@
+id: stripe-connect-marketplace
+name: Stripe Connect Marketplace (Express + Destination Charges)
+tier: 3
+service: stripe-connect
+category: payments
+tags:
+  - marketplace
+  - multi-party
+  - destination-charges
+  - express-onboarding
+  - application-fees
+description: >
+  Canonical multi-party marketplace pattern using Stripe Connect with
+  Express accounts and Destination Charges. Sellers onboard via
+  Stripe-hosted Express flow; buyers pay the platform; platform
+  routes funds to the seller via the `transfer_data.destination`
+  field on each charge, taking an `application_fee_amount` as the
+  platform commission. Handles the full lifecycle — onboarding,
+  KYC-in-progress states, charges, transfers, payouts, and
+  account.updated webhooks for compliance status changes. Replaces
+  the alternative (Separate Charges + Transfers) which is more
+  flexible but requires manual transfer scheduling.
+applies_when: >
+  Product is a marketplace, on-demand service app, creator-economy
+  platform, or any "platform takes money on behalf of sellers" use
+  case AND wants the simplest control flow (one charge = one
+  transfer to the right seller). Required when funds need to flow
+  from buyer → platform → seller with a platform commission. Skip
+  this pattern for SaaS subscriptions or single-merchant flows
+  (use base Stripe), and skip for marketplaces needing delayed-
+  transfer logic (refunds windows, chargeback risk holding) — those
+  call for Separate Charges + Transfers.
+
+requires:
+  packages:
+    - "stripe"
+  env_vars:
+    - STRIPE_SECRET_KEY
+    - STRIPE_PUBLISHABLE_KEY
+    - STRIPE_WEBHOOK_SECRET
+    - STRIPE_CONNECT_CLIENT_ID
+
+code_patterns:
+  - file: app/api/connect/onboard/route.ts
+    description: >
+      Creates an Express account and an account-link for onboarding.
+      `const account = await stripe.accounts.create({ controller: {
+      fees: { payer: 'application' }, losses: { payments:
+      'application' }, stripe_dashboard: { type: 'express' } },
+      country: 'US', email: seller.email, business_type:
+      'individual' /* or 'company' */ }); const link = await
+      stripe.accountLinks.create({ account: account.id, return_url:
+      '<APP_URL>/seller/dashboard', refresh_url: '<APP_URL>/seller/
+      onboard', type: 'account_onboarding' })`. Stores
+      account.id on the seller's row; redirects to link.url.
+  - file: app/api/connect/onboard/refresh/route.ts
+    description: >
+      Re-issues an account-link if the seller's first attempt
+      expired (account-links are valid only briefly). Same `stripe.
+      accountLinks.create` call, looks up the existing account.id
+      from the seller row.
+  - file: app/api/checkout/route.ts
+    description: >
+      Creates a Checkout Session with destination charge —
+      `stripe.checkout.sessions.create({ mode: 'payment',
+      payment_method_types: ['card'], line_items: [{ price_data: {
+      currency: 'usd', product_data: { name: item.name },
+      unit_amount: item.price_cents }, quantity: 1 }], payment_
+      intent_data: { application_fee_amount: platformFeeCents,
+      transfer_data: { destination: seller.stripe_account_id } },
+      success_url, cancel_url })`. Buyer pays the platform; Stripe
+      automatically transfers (item.price - application_fee) to the
+      seller on settlement.
+  - file: app/api/webhooks/stripe-connect/route.ts
+    description: >
+      Webhook receiver for Connect events. Uses `stripe.webhooks.
+      constructEvent` to verify. Handles `account.updated` (refresh
+      seller's `charges_enabled`, `payouts_enabled`, `details_
+      submitted` flags — these gate seller-side features),
+      `payout.failed` (alert seller; common cause is bank-account
+      verification expired), `account.application.deauthorized`
+      (seller disconnected — clear stripe_account_id from DB),
+      `charge.refunded` (refund the application_fee proportionally).
+  - file: components/seller-onboarding-status.tsx
+    description: >
+      Server component that reads the seller's `charges_enabled`
+      flag and renders one of three states — "Complete onboarding
+      to start selling" (no account yet), "Verifying — usually a
+      few minutes, sometimes a few days" (account created,
+      charges_enabled false), or "Active" (charges_enabled true).
+      Async onboarding is the surprising-to-users state — the
+      Express link flow looks complete to the seller but Stripe's
+      KYC review can flip charges_enabled days later for some
+      sellers.
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+scale_considerations: >
+  Express accounts cost $2/active account/month + 0.25% + $0.25 per
+  payout. "Active" means an account that received any activity in
+  the month — abandoned onboarding doesn't bill, but a one-charge
+  account does. Platform fee economics: at low transaction values
+  ($1-5 charges), the per-payout flat $0.25 fee cuts hard into
+  margins; consider weekly or monthly payouts (configurable on
+  Express) rather than per-charge to amortise. Application fees
+  should cover Stripe's transaction fee (2.9% + 30¢) plus the
+  platform's commission — apply a markup (e.g. 10% application fee
+  on a $100 charge = $10, of which Stripe takes ~$3.20, platform
+  keeps ~$6.80). Refunds proportionally reverse the application_
+  fee — handle the `charge.refunded` webhook to reconcile. KYC is
+  async — sellers may pass onboarding (link returns success) but
+  remain `charges_enabled: false` for hours or days while Stripe's
+  identity / business verification completes. Always gate seller-
+  side product features on the actual webhook-driven flag, not on
+  the link-return success. For platforms with sellers in many
+  countries, currency conversion fees apply on cross-border
+  transfers; minimise by paying out in the seller's currency
+  rather than converting. Stripe's PaymentIntents API is the
+  right pick for custom checkout flows; Checkout Sessions (above)
+  is the simpler hosted option.

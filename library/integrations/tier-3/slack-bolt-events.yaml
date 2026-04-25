@@ -1,0 +1,119 @@
+id: slack-bolt-events
+name: Slack Bot via @slack/bolt — Events + Slash Commands + Modals
+tier: 3
+service: slack
+category: communications
+tags:
+  - slack
+  - bolt
+  - events-api
+  - slash-commands
+  - chatops
+description: >
+  Full-featured Slack bot built on @slack/bolt — handles Events API
+  subscriptions (app mentions, message events), slash commands,
+  interactive components (buttons, modals), and OAuth installation
+  flow. Bolt abstracts request signature verification,
+  ack-within-3-seconds for slash commands, and the Block Kit DSL for
+  rich messages. Suitable for ChatOps, in-Slack approvals, status
+  notifications with interactive controls, and customer-facing
+  Slack app distribution. Distinct from a simple incoming webhook
+  (which is one-way send-only); use the webhook pattern for "POST
+  notifications to a channel", this pattern for "users interact with
+  the app inside Slack".
+applies_when: >
+  Product needs bidirectional Slack interaction — users invoke
+  commands, click buttons, fill modals, and the app responds. Required
+  when Slack is the product surface (e.g. a bot that runs SQL
+  queries on demand, or an approval flow where managers click
+  "approve" in a notification message). Skip this pattern for
+  one-way notifications — incoming webhooks are simpler and don't
+  require an installable app, OAuth, or signing-secret verification.
+
+requires:
+  packages:
+    - "@slack/bolt"
+    - "@slack/web-api"
+  env_vars:
+    - SLACK_BOT_TOKEN
+    - SLACK_SIGNING_SECRET
+    - SLACK_CLIENT_ID
+    - SLACK_CLIENT_SECRET
+
+code_patterns:
+  - file: lib/slack/app.ts
+    description: >
+      Bolt App singleton — `import { App, ExpressReceiver } from
+      '@slack/bolt'; export const slackReceiver = new
+      ExpressReceiver({ signingSecret: process.env.
+      SLACK_SIGNING_SECRET, processBeforeResponse: true }); export
+      const slackApp = new App({ receiver: slackReceiver, token:
+      process.env.SLACK_BOT_TOKEN })`. ExpressReceiver gives a
+      `.router` we mount under a Next.js route handler;
+      `processBeforeResponse: true` avoids the deferred-ack pattern
+      that breaks on serverless.
+  - file: app/api/slack/events/route.ts
+    description: >
+      Mounts Bolt's receiver under the Next.js route. `import {
+      slackReceiver } from '@/lib/slack/app'; export const POST = (
+      req: Request) => slackReceiver.app(req as any, ...)`. Bolt
+      verifies the signing secret, dispatches Events API
+      subscriptions to the right handler, acks slash commands and
+      interactive payloads within 3 seconds.
+  - file: lib/slack/handlers/app-mention.ts
+    description: >
+      Event handler — `slackApp.event('app_mention', async ({ event,
+      say }) => { await say({ thread_ts: event.ts, blocks: [...] })
+      })`. Replies in-thread with Block Kit message. Block Kit
+      supports buttons / select menus that emit interactive payloads
+      back through the same receiver.
+  - file: lib/slack/handlers/slash-deploy.ts
+    description: >
+      Slash command handler — `slackApp.command('/deploy', async ({
+      command, ack, respond }) => { await ack(); /_ kick off deploy
+      _/; await respond({ response_type: 'in_channel', text:
+      'Deploying ${command.text}...' }) })`. ack() must fire within
+      3 seconds; long work goes after the ack and posts results
+      via respond() (uses response_url under the hood).
+  - file: lib/slack/handlers/modal.ts
+    description: >
+      Modal interaction — `slackApp.action('open_form', async ({
+      ack, body, client }) => { await ack(); await client.views.
+      open({ trigger_id: body.trigger_id, view: { type: 'modal',
+      blocks: [...], submit: { type: 'plain_text', text: 'Submit' }
+      } }) }); slackApp.view('form_submission', async ({ ack, view,
+      body }) => { await ack(); /_ process view.state.values _/ })`.
+      Two halves — `action` opens the modal, `view` handles
+      submission.
+  - file: app/api/slack/install/route.ts
+    description: >
+      OAuth install handler for distribution — exchanges the
+      authorization code for tokens, stores per-team installation
+      data (team_id, bot_token, team_name) in the DB. Required for
+      apps installed across multiple workspaces (vs single-
+      workspace apps that just hardcode the bot token). Bolt
+      provides `InstallProvider` that handles the dance.
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+scale_considerations: >
+  Slack's 3-second ack rule is the hard constraint — slash commands
+  / interactive components / view submissions must respond within 3
+  seconds or Slack shows the user an error. For any work longer
+  than that (DB queries, API calls, deploys), ack first then post
+  results via the response_url or chat.postMessage. On serverless
+  Functions with cold-start latency, processBeforeResponse: true is
+  the magic flag that makes ack() actually fire before the response
+  is buffered. Rate limits are per workspace per method —
+  chat.postMessage is ~1/sec/channel; for fan-out to many channels,
+  use chat.scheduleMessage to spread across time. For multi-
+  workspace apps, key OAuth tokens by team_id and look up before
+  every API call — never hardcode SLACK_BOT_TOKEN once distribution
+  is open. Socket Mode (xapp- token) bypasses the public webhook
+  requirement — useful for behind-firewall apps and local dev,
+  but production apps usually use HTTP for resilience and load-
+  balancing. Block Kit is JSON-based and Slack rejects malformed
+  blocks at runtime; lint locally with the Block Kit Builder
+  before deploying.
