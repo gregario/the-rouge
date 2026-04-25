@@ -1,0 +1,121 @@
+id: turso-embedded-replicas
+name: Turso Embedded Replicas (Zero-Latency Reads)
+tier: 3
+service: turso
+category: database
+tags:
+  - database
+  - sqlite
+  - embedded-replicas
+  - libsql
+  - edge
+description: >
+  Turso's headline pattern — embed a local SQLite file as a read
+  replica that syncs with the remote primary. Reads run at zero
+  network latency (local SQLite query on disk or in-memory);
+  writes go to the primary then replicate back to every embedded
+  client on the next sync. The right pick when reads dominate
+  writes (catalogue, content, config, feature flags), reads must
+  be sub-millisecond from anywhere, and write consistency lag of
+  a few seconds is acceptable. Pairs with Drizzle or raw libSQL
+  for type-safe queries. Trade-off vs Cloudflare D1: Turso embedded
+  replicas work in any runtime (Node, Workers, Bun) and offer
+  multi-region replication; D1 is Workers-only but uses bindings
+  instead of auth tokens.
+applies_when: >
+  Read-mostly workload where the same data is read from multiple
+  regions or runtimes, write rate is comparatively low (≪ reads),
+  and consistency-lag of a few seconds on reads is acceptable.
+  Required when the product needs sub-ms reads from anywhere
+  AND will run on Node.js (or other non-Workers runtime) — the
+  embedded-replica pattern is what unlocks that combination.
+  Skip this pattern for write-heavy workloads (every write
+  invalidates every replica's view), strong-consistency
+  requirements (read-your-write across regions is best-effort
+  with embedded replicas), or for Workers-only apps where D1's
+  binding access is simpler.
+
+requires:
+  packages:
+    - "@libsql/client"
+    - "drizzle-orm"
+    - "drizzle-kit"
+  env_vars:
+    - TURSO_DATABASE_URL
+    - TURSO_AUTH_TOKEN
+
+code_patterns:
+  - file: lib/turso/client.ts
+    description: >
+      Embedded-replica client init — `import { createClient } from
+      '@libsql/client'; export const turso = createClient({ url:
+      'file:local.db', syncUrl: process.env.TURSO_DATABASE_URL,
+      authToken: process.env.TURSO_AUTH_TOKEN, syncInterval: 60 })`.
+      `url` is the local SQLite file (read-fast); `syncUrl` is the
+      remote primary (writes routed there, reads bootstrap from
+      it); `syncInterval` controls how often the local replica
+      pulls remote writes (60s is a reasonable default; lower for
+      tighter freshness, higher for less sync bandwidth).
+  - file: lib/turso/sync.ts
+    description: >
+      Helpers for explicit sync — `await turso.sync()` forces an
+      immediate replica refresh. Useful after a write the user
+      expects to see immediately on the same client (read-your-
+      write within a single client). For read-your-write across
+      clients, the only guarantee is the syncInterval window —
+      design for that or pin reads to the primary URL.
+  - file: db/schema.ts
+    description: >
+      Drizzle schema with `dialect: 'sqlite'` — same patterns as
+      Cloudflare D1 (no jsonb, no full-text search built-in,
+      LIKE-based search instead). Tables, indexes, foreign keys
+      all work as plain SQLite. The embedded replica file inherits
+      whatever migrations applied to the primary.
+  - file: drizzle.config.ts
+    description: >
+      `dialect: 'sqlite', dbCredentials: { url: TURSO_DATABASE_
+      URL, authToken: TURSO_AUTH_TOKEN }, driver: 'turso'`. Run
+      migrations against the primary — `npx drizzle-kit migrate`
+      — and the embedded replicas pick up the new schema on the
+      next sync. Migrations during high traffic require care:
+      readers may briefly see the old schema until sync completes.
+  - file: app/api/data/route.ts
+    description: >
+      Server route that reads from the embedded replica — `const
+      rows = await turso.execute('SELECT * FROM products WHERE
+      ...')`. Sub-ms latency since the read hits the local file.
+      For writes, the same client sends them to the primary
+      (transparent — the client API doesn't differentiate, but
+      the sync layer routes appropriately).
+  - file: scripts/sync-on-deploy.ts
+    description: >
+      One-shot sync script run at deploy time — `await
+      turso.sync()` on app boot to seed the local replica before
+      first request. Without this, the first reads after a fresh
+      deploy hit the remote primary (slow) until the first sync
+      completes.
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+scale_considerations: >
+  Embedded replicas trade write-visibility latency (up to
+  syncInterval) for read latency (zero). Pick syncInterval based
+  on the freshness requirement — 5s for "near-realtime feel", 60s
+  for "near-realtime" with less sync bandwidth, 300s+ for
+  catalogue-style data that rarely changes. Sync bandwidth is
+  metered (3GB/mo on free) — large schemas + frequent syncs blow
+  through it; monitor in dashboard. Concurrent writes from
+  multiple clients: Turso accepts them at the primary in arrival
+  order, but each client sees the result on its next sync.
+  No multi-statement transactions on embedded replicas — wrap
+  multi-write logic in mutations on the primary if atomicity
+  matters. For Cloudflare Workers, the embedded-replica file
+  isn't persistent between isolates; each cold start hits the
+  remote primary first — pair with Workers KV cache for
+  hot-path reads if cold-start latency matters. For migrations,
+  test the schema-change sync path explicitly: run a migration
+  against the primary, observe an embedded replica's view
+  before and after sync, fix any "old code reading new schema"
+  hazards before deploying.

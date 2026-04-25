@@ -1,0 +1,116 @@
+id: convex-realtime-query-mutation
+name: Convex Realtime Query + Mutation Pair
+tier: 3
+service: convex
+category: realtime
+tags:
+  - realtime
+  - queries
+  - mutations
+  - typescript
+  - reactive
+description: >
+  Canonical Convex pattern — define a typed `query` and `mutation`
+  pair, expose them through the auto-generated `api` object, and
+  consume from React via `useQuery` (auto-subscribing) and
+  `useMutation` (typed call). The `useQuery` hook re-renders the
+  component automatically whenever the underlying data changes —
+  no manual websocket plumbing, no polling. Schema drives types;
+  TypeScript catches missing fields at compile time. Replaces the
+  classic "fetch-then-poll OR fetch-then-subscribe-via-websocket"
+  pattern with a single hook.
+applies_when: >
+  Product UI needs realtime updates (collaborative editor, chat,
+  live dashboard, presence-aware game lobby) AND the team prefers
+  Convex's typed query/mutation model over Supabase Realtime's
+  Postgres-listen pattern. Required when realtime is core (UI must
+  reflect changes within ~50ms of write) and the data model is
+  document-shaped (nested objects, arrays). Skip this pattern for
+  read-mostly content-style apps — a static fetch + revalidate
+  pattern is simpler. Skip also if the team needs SQL access
+  patterns (joins, group-by, window functions) — Convex queries
+  are imperative TypeScript over a document-style db.
+
+requires:
+  packages:
+    - "convex"
+  env_vars:
+    - NEXT_PUBLIC_CONVEX_URL
+
+code_patterns:
+  - file: convex/schema.ts
+    description: >
+      `defineSchema({ messages: defineTable({ author: v.id('users'),
+      body: v.string(), createdAt: v.number() }).index('by_author',
+      ['author']).index('by_createdAt', ['createdAt']) })`. Schema
+      drives the generated types under `convex/_generated/`.
+      Indexes are explicit — Convex doesn't auto-pick — so query
+      planning is predictable.
+  - file: convex/messages.ts
+    description: >
+      Query function — `export const list = query({ args: {
+      limit: v.number() }, handler: async (ctx, { limit }) => {
+      return await ctx.db.query('messages').withIndex(
+      'by_createdAt').order('desc').take(limit) } })`. Mutation —
+      `export const send = mutation({ args: { body: v.string() },
+      handler: async (ctx, { body }) => { const userId = await
+      getAuthUserId(ctx); await ctx.db.insert('messages', {
+      author: userId, body, createdAt: Date.now() }) } })`. Both
+      take a typed `args` object — `v` is the schema-validation
+      runtime, errors return to the client as typed.
+  - file: components/messages-list.tsx
+    description: >
+      Client component — `'use client'; import { useQuery } from
+      'convex/react'; import { api } from
+      '@/convex/_generated/api'; export function MessagesList() {
+      const messages = useQuery(api.messages.list, { limit: 50 });
+      if (messages === undefined) return <Skeleton />; return
+      messages.map(m => <Message key={m._id} {...m} />) }`. The
+      hook returns `undefined` while loading, then the data array
+      — and re-renders automatically when any matching row
+      changes. No manual subscription cleanup.
+  - file: components/send-message.tsx
+    description: >
+      Client component using `useMutation(api.messages.send)`.
+      `const send = useMutation(api.messages.send); const onSubmit
+      = (body: string) => send({ body })`. Optimistic updates via
+      `useMutation(...).withOptimisticUpdate((store, args) =>
+      store.setQuery(api.messages.list, { limit: 50 }, [...prev,
+      newMsg]))` for sub-100ms perceived latency.
+  - file: app/providers.tsx
+    description: >
+      Client root provider — `'use client'; import {
+      ConvexProvider, ConvexReactClient } from 'convex/react';
+      const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_
+      CONVEX_URL!); export function Providers({ children }) {
+      return <ConvexProvider client={convex}>{children}</
+      ConvexProvider> }`. For auth-aware queries, wrap with
+      `<ConvexProviderWithClerk>` (or Auth.js / Auth0 variant) so
+      `getAuthUserId(ctx)` works server-side.
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+scale_considerations: >
+  Realtime subscriptions count toward function-call quota — each
+  subscription is one query, but the subscription costs are at
+  subscription-establish + each invalidation, not per
+  re-evaluation. For very high read loads (every user watches the
+  same query), Convex de-duplicates server-side so the cost is
+  bounded by unique args, not unique clients. Watch out for
+  cascading invalidations: a mutation that touches one row
+  invalidates every query whose result depends on that row,
+  which can fan out — keep queries narrow with explicit indexes
+  rather than full-table scans. Action functions (for
+  external API calls — OpenAI, Stripe, etc.) run with separate
+  compute and billing (action_compute_gb_hours); use them for
+  long-running or external-network work, not for normal
+  query/mutation logic. Convex auth integration via
+  ConvexProviderWithClerk (etc.) puts the user identity in
+  `ctx.auth` server-side — gate every mutation with
+  `getAuthUserId(ctx)` so mutations can't be invoked by
+  unauthenticated callers. Optimistic updates need careful merge
+  logic — when the server result conflicts with the optimistic
+  state, the optimistic version is overwritten; if the user has
+  scrolled or interacted, that may surprise them.

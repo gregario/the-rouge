@@ -1,0 +1,61 @@
+id: sendgrid
+name: Twilio SendGrid
+tier: 2
+category: email
+description: >
+  Industry-baseline transactional and marketing email API, owned by
+  Twilio. Larger feature surface than Resend (event webhooks,
+  marketing campaigns, deliverability dashboards, IP warm-up,
+  dedicated IPs at higher tiers, inbound parse) but the permanent
+  free tier was retired in 2025 — new accounts get a 60-day trial
+  then must upgrade. Pick SendGrid when (a) the product is already
+  on Twilio (unified billing, support, compliance), (b) volume is
+  high enough that Pro pricing beats Resend's, or (c) the product
+  needs the marketing-email features (Marketing Campaigns + Designer
+  + Contacts). Pick Resend (also catalogued) for purely transactional
+  flows on a free tier; pick AWS SES for the cheapest-possible
+  transactional path with no comfort.
+cost_tier: paid
+
+requires:
+  env_vars:
+    - SENDGRID_API_KEY
+  packages:
+    - "@sendgrid/mail"
+    - "@sendgrid/client"
+  cli_tools: []
+
+setup_steps:
+  - Create an account at sendgrid.com (now part of twilio.com — same login if you already have a Twilio account)
+  - Generate an API key from Settings > API Keys with Mail Send + Marketing Campaigns scopes as needed; store in `SENDGRID_API_KEY`
+  - Authenticate the sending domain — Settings > Sender Authentication > Authenticate Your Domain — SendGrid issues SPF / DKIM / DMARC records to add to DNS
+  - Wait for DNS propagation; the dashboard confirms when domain is fully verified (typically <30 min)
+  - Install the SDK — `npm install @sendgrid/mail` for transactional sends; add `@sendgrid/client` for management API calls (templates, contacts, suppressions)
+  - Send — `import sg from '@sendgrid/mail'; sg.setApiKey(SENDGRID_API_KEY); await sg.send({ from, to, subject, text, html })`
+  - For dynamic templates — author in Dashboard > Email API > Dynamic Templates (Handlebars syntax), then send via `templateId` + `dynamicTemplateData` keys in the send payload
+  - For event webhooks — Settings > Mail Settings > Event Webhook — point at `/api/sendgrid/events`, enable the event types you want (delivered / bounced / opened / clicked / spam_report / unsubscribe), enable signature verification
+
+teardown_steps:
+  - Cancel the SendGrid subscription in Settings > Billing
+  - Revoke API keys in Settings > API Keys
+  - Remove DNS records (SPF, DKIM, DMARC) added during sender auth — careful if other email services share the same DNS
+  - Disable Event Webhooks
+  - Clear `SENDGRID_API_KEY` from environments
+  - Uninstall `@sendgrid/mail` and `@sendgrid/client`
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+free_tier_limits:
+  trial_period_days: 60
+  trial_emails_per_day: 100
+  trial_emails_per_month: 3000 (≈ 100/day × 30)
+  permanent_free_tier: discontinued in 2025
+  paid_essentials_starts_at_usd_per_month: 19.95
+  paid_essentials_emails_per_month: 100000
+  paid_pro_starts_at_usd_per_month: 89.95
+  paid_pro_emails_per_month: 2500000
+  note: "Permanent free plan was retired in 2025 — new sign-ups now get a 60-day trial and must upgrade. Marketing emails and transactional emails share the same monthly quota on every plan. For low-volume products (<3k/mo permanently), Resend remains free and is the cheaper pick. SendGrid's Pro tier becomes economical above ~50k emails/mo where Resend's per-email pricing crosses over."
+
+staleness_date: "2026-04-25"

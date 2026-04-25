@@ -1,0 +1,125 @@
+id: aws-s3-presigned-uploads
+name: AWS S3 Presigned URL Uploads (browser-direct)
+tier: 3
+service: aws-s3
+category: object-storage
+tags:
+  - s3
+  - presigned-urls
+  - uploads
+  - browser-direct
+  - aws-sdk
+description: >
+  S3 presigned-URL pattern — server signs a short-lived URL the
+  browser PUTs the file to directly, bypassing the app server.
+  Same pattern as Cloudflare R2's S3-API access (also catalogued)
+  but here on native AWS. The server signs `PutObjectCommand`
+  with `getSignedUrl(s3, cmd, { expiresIn: 600 })`, returns the
+  URL + the eventual public URL; the browser PUTs the file body
+  to the signed URL with the matching headers; the bucket-policy
+  + IAM gate ensures only signed PUTs land. Mirrors the read
+  side with `GetObjectCommand` + `getSignedUrl` for paywalled
+  content delivery. The IAM permissions are the only thing that
+  bites first-timers — the IAM user that signs needs s3:PutObject
+  on the bucket; the URL the browser uses inherits those
+  permissions.
+applies_when: >
+  Product needs S3-class object storage AND uploads / downloads
+  go through the app's auth boundary. Required when files are
+  larger than serverless-Function body-size caps (4.5MB on Vercel
+  Hobby) or when signed-download URLs implement the paywall.
+  Skip this pattern for fully-public assets (just make the bucket
+  public-read) or for tiny image uploads where proxying through
+  the Function is simpler. Skip also if the product is on
+  Cloudflare Workers — R2 with Worker bindings is the lighter-
+  weight equivalent.
+
+requires:
+  packages:
+    - "@aws-sdk/client-s3"
+    - "@aws-sdk/s3-request-presigner"
+  env_vars:
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
+    - AWS_REGION
+    - S3_BUCKET
+
+code_patterns:
+  - file: lib/s3/client.ts
+    description: >
+      Server-side S3 client — `import { S3Client } from '@aws-sdk/
+      client-s3'; export const s3 = new S3Client({ region:
+      process.env.AWS_REGION, credentials: { accessKeyId:
+      process.env.AWS_ACCESS_KEY_ID, secretAccessKey:
+      process.env.AWS_SECRET_ACCESS_KEY } })`. Singleton; every
+      sign / put / get imports this.
+  - file: app/api/s3/sign-upload/route.ts
+    description: >
+      Issues an upload URL — POST takes `{ filename, contentType,
+      size }`, generates a key (e.g. `uploads/${userId}/${nanoid()}-
+      ${filename}`), `import { PutObjectCommand } from '@aws-sdk/
+      client-s3'; import { getSignedUrl } from '@aws-sdk/s3-
+      request-presigner'; const cmd = new PutObjectCommand({
+      Bucket: S3_BUCKET, Key: key, ContentType: contentType,
+      ContentLength: size }); const url = await
+      getSignedUrl(s3, cmd, { expiresIn: 600 })`. Returns `{ url,
+      key, publicUrl }`. expiresIn is 10 minutes — long enough
+      for the user to pick a file and complete the upload, short
+      enough that a leaked URL has limited blast radius.
+  - file: components/upload-form.tsx
+    description: >
+      Client component — first POSTs to /api/s3/sign-upload to get
+      a presigned URL, then PUTs the file body to that URL with
+      the matching ContentType header. Tracks progress via
+      XMLHttpRequest's upload progress event. On success, POSTs
+      the resulting key to the app's DB-write endpoint to record
+      the asset.
+  - file: app/api/s3/sign-download/route.ts
+    description: >
+      For paywalled content, signs a GET URL — `const cmd = new
+      GetObjectCommand({ Bucket: S3_BUCKET, Key: key }); const
+      url = await getSignedUrl(s3, cmd, { expiresIn: 3600 })`.
+      Verifies the user has access to the asset before signing.
+      The 1h expiry balances usability (re-sign if user reloads)
+      with leak-blast-radius (URL valid for an hour).
+  - file: lib/s3/cors.ts
+    description: >
+      Bucket CORS configuration — required for browser-direct
+      uploads. Apply via `aws s3api put-bucket-cors --bucket
+      <name> --cors-configuration '{ "CORSRules": [{
+      "AllowedOrigins": ["https://app.example.com"],
+      "AllowedMethods": ["PUT", "GET"], "AllowedHeaders": ["*"],
+      "MaxAgeSeconds": 3600 }] }'`. Without CORS the browser PUT
+      fails with an opaque CORS error.
+  - file: lib/s3/iam-policy.example.json
+    description: >
+      Reference IAM policy — least-privilege for the access key
+      that signs upload URLs. Allows `s3:PutObject` on
+      `arn:aws:s3:::<bucket>/uploads/_` and `s3:GetObject` on
+      `arn:aws:s3:::<bucket>/_`. Avoid attaching `s3:_` —
+      compromised keys would let an attacker delete buckets,
+      disable replication, etc.
+
+tested_with:
+  - nextjs-vercel
+
+scale_considerations: >
+  Egress is the bill driver — at 1TB/month out, S3 standard egress
+  is ~$90 vs Cloudflare R2 at $0. For media-heavy products
+  delivering to end users, putting Cloudfront in front of S3
+  cuts egress (Cloudfront's data-out-to-internet is cheaper than
+  S3's). For internal-only / B2B file storage where the same user
+  uploads and downloads, egress stays low and S3 standard pricing
+  is fine. Presigned URL expiry is the security knob — 10 min
+  for uploads, 1h for downloads is a reasonable default; reduce
+  on sensitive content. The signed URL is bearer credential —
+  anyone with the URL can do the operation. Don't log presigned
+  URLs (logging frameworks will helpfully truncate / persist
+  them; signed S3 URLs in logs are a common leak vector). Block-
+  Public-Access settings are on by default — leave them; use
+  presigning for public reads. S3 returns 403 for both
+  "doesn't exist" and "no permission" — debugging requires a
+  separate IAM user with broader read access to verify the key
+  actually exists. For very large uploads (>5GB), use Multipart
+  Upload — the SDK has `createMultipartUpload` + part presigning;
+  the simple PutObject path caps at 5GB.

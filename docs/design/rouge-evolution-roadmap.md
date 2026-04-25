@@ -1056,7 +1056,8 @@ We stop working on a roadmap item and come back if:
 | `374e8d4` | P4.1 wave 2 — eight more tier-2 entries: Upstash, OpenAI, Anthropic, Plausible, Cloudflare R2/KV/D1, Vercel Blob. Catalogue doubled (8 → 16). Three new categories (llm-api, object-storage, cache-queue). |
 | `e53abbb` | P4.1 wave 3 — four tier-3 patterns for the new tier-2 services (neon-drizzle-migrations, clerk-nextjs-middleware, resend-react-email-send, posthog-feature-flag-server) + tier-3 schema test (91 assertions covering all 9 existing + new patterns; enforces service-id references a real tier-2 entry) |
 | `5992930` | P4.1 wave 4 — seven more tier-2 entries (Inngest, WorkOS, Twilio, Cloudinary, Pusher, Vercel Edge Config, Mux). Catalogue 16→23. |
-| _next_ | P4.1 wave 5 — six tier-3 patterns for the wave-4 services (inngest-step-workflow, workos-authkit-nextjs, twilio-verify-otp, cloudinary-signed-upload-widget, pusher-presence-channel, mux-upload-and-playback). Tier-3 patterns 9→15; 151 schema assertions. |
+| `d57dc12` | P4.1 wave 5 — six tier-3 patterns for the wave-4 services (inngest-step-workflow, workos-authkit-nextjs, twilio-verify-otp, cloudinary-signed-upload-widget, pusher-presence-channel, mux-upload-and-playback). Tier-3 patterns 9→15; 151 schema assertions. |
+| _next_ | P4.1 wave 6 — five tier-2 (Auth.js, SendGrid, Convex, Turso, AWS S3) + five matching tier-3 patterns (authjs-oauth-with-drizzle, sendgrid-dynamic-templates, convex-realtime-query-mutation, turso-embedded-replicas, aws-s3-presigned-uploads). Tier-2 23→28; tier-3 15→20. |
 
 **Memory work this session:**
 

@@ -1,0 +1,60 @@
+id: convex
+name: Convex
+tier: 2
+category: database-auth-storage
+description: >
+  Backend-as-a-service with realtime by default — queries
+  automatically resubscribe when underlying data changes, so React
+  components stay in sync without manual websocket plumbing.
+  TypeScript-native (queries / mutations / actions are typed
+  functions) and includes file storage, scheduled jobs, vector
+  search, and authentication. Closer to Firebase than Supabase in
+  spirit (proprietary API, full-stack abstraction) but with stronger
+  type safety and a serverless-runtime mental model. Pick Convex
+  when realtime UI is core (collaborative tools, live dashboards)
+  and the team prefers to avoid SQL + manual subscriptions; pick
+  Supabase when you want Postgres / RLS / standard SQL access
+  patterns.
+cost_tier: free-to-start
+
+requires:
+  env_vars:
+    - NEXT_PUBLIC_CONVEX_URL
+    - CONVEX_DEPLOY_KEY
+  packages:
+    - "convex"
+  cli_tools:
+    - npx (convex CLI runs via `npx convex …`)
+
+setup_steps:
+  - Sign up at dashboard.convex.dev (no card; free dev project provisioned immediately)
+  - In the project, run `npx convex dev` — interactive prompt creates / links the deployment, writes `convex/_generated/` types, and watches for local function changes
+  - Note the deployment URL (`https://<deployment>.convex.cloud`) — set `NEXT_PUBLIC_CONVEX_URL` for the client; create a deploy key for CI and store as `CONVEX_DEPLOY_KEY`
+  - Author schema in `convex/schema.ts` — `defineSchema({ messages: defineTable({ author: v.string(), body: v.string() }).index('by_author', ['author']) })`
+  - Author functions in `convex/messages.ts` — queries (`export const list = query({ args: {}, handler: async (ctx) => ctx.db.query('messages').collect() })`), mutations (`export const send = mutation(...)`), and actions (for external API calls — `export const callOpenAI = action(...)`)
+  - Wrap the client app in `<ConvexProvider client={convex}>` and use `useQuery(api.messages.list)` — the hook auto-subscribes to the result and re-renders on any matching data change
+  - Deploy — `npx convex deploy` pushes functions and schema to the production deployment; CI uses `CONVEX_DEPLOY_KEY` to authenticate
+  - For auth, wire Clerk / Auth.js / Auth0 via the `ConvexProviderWithClerk` (or Auth0 / Auth.js variant) — Convex queries / mutations get the user identity from the auth provider's JWT
+
+teardown_steps:
+  - Delete the deployment in Dashboard > Project > Settings > Delete Deployment (separate for dev and prod)
+  - Delete the project (cascades; permanent)
+  - Remove `convex/` folder from the repo and any `useQuery` / `useMutation` calls from the client
+  - Clear `NEXT_PUBLIC_CONVEX_URL` and `CONVEX_DEPLOY_KEY` from environments
+  - Uninstall `convex`
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+free_tier_limits:
+  database_storage_gb: 0.5
+  function_calls_per_month: 1000000
+  file_storage_gb: 1
+  developers: 1-6 (Free + Starter)
+  bandwidth_per_month_gb: 1
+  action_compute_gb_hours_per_month: 20
+  log_retention_days: 1 (paid plans add log streaming + longer retention)
+  note: "Free tier suits prototypes and small products; Pro at $25/dev/mo unlocks 25M function calls, 250 GB-hours of action compute, daily backups, log streaming, and exception reporting. Realtime subscriptions are 'free' (count toward function calls but each subscription is one query — not one query per second). For very high read loads, consider whether a cached projection (Edge Config, KV) would be cheaper than re-running queries on every change."
+
+staleness_date: "2026-04-25"

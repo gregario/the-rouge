@@ -1,0 +1,108 @@
+id: sendgrid-dynamic-templates
+name: SendGrid Dynamic Templates + Event Webhook
+tier: 3
+service: sendgrid
+category: email
+tags:
+  - email
+  - templates
+  - handlebars
+  - webhooks
+  - transactional
+description: >
+  SendGrid's templated-email pattern — author Handlebars-syntax
+  templates in the SendGrid dashboard, then send by passing
+  `templateId` + `dynamicTemplateData` from server code. Pairs
+  with the Event Webhook to record delivery / open / click /
+  bounce / unsubscribe events back into the project database.
+  Replaces the "concatenate strings" anti-pattern and keeps
+  template iteration (subject lines, copy tweaks, design changes)
+  out of the deploy cycle — marketers can edit templates in the
+  dashboard without engineering involvement.
+applies_when: >
+  Product sends transactional or lifecycle emails AND iterates on
+  template copy / design without redeploying code. Required when
+  non-engineering stakeholders edit templates (marketing,
+  customer-success, legal). Skip this pattern for code-only
+  templates where every change is a PR — react-email + Resend
+  (also catalogued) gives better local-preview ergonomics and
+  Git-tracked diffs. Skip also if the product never iterates on
+  email after launch — overkill for one welcome email.
+
+requires:
+  packages:
+    - "@sendgrid/mail"
+    - "@sendgrid/client"
+  env_vars:
+    - SENDGRID_API_KEY
+    - SENDGRID_WEBHOOK_PUBLIC_KEY
+
+code_patterns:
+  - file: lib/sendgrid/client.ts
+    description: >
+      Server-side SendGrid client — `import sg from '@sendgrid/
+      mail'; sg.setApiKey(process.env.SENDGRID_API_KEY!); export
+      { sg }`. Singleton; every send imports this. For management
+      operations (template CRUD, suppression list, contacts) also
+      configure `@sendgrid/client` with the same API key.
+  - file: lib/sendgrid/templates.ts
+    description: >
+      Typed map of `templateId` constants — `export const
+      TEMPLATES = { welcome: 'd-abc...', passwordReset: 'd-def...',
+      orderConfirmation: 'd-ghi...' } as const`. Co-locate with
+      typed `dynamicTemplateData` shapes so callers can't pass
+      malformed payloads. Template IDs come from the SendGrid
+      dashboard (Email API > Dynamic Templates).
+  - file: lib/sendgrid/send.ts
+    description: >
+      Per-template send wrappers — `export async function
+      sendWelcomeEmail(userId: string, props:
+      WelcomeEmailProps) { await sg.send({ to: user.email, from:
+      FROM_ADDRESS, templateId: TEMPLATES.welcome,
+      dynamicTemplateData: { firstName: user.firstName,
+      activationUrl: ... } }) }`. Centralises from-address,
+      reply-to, and any required headers (List-Unsubscribe, etc.).
+      Handles 429 / 5xx retry with exponential backoff.
+  - file: app/api/sendgrid/events/route.ts
+    description: >
+      Webhook receiver. SendGrid POSTs an array of events
+      (delivered, bounced, opened, clicked, spam_report,
+      unsubscribe, group_unsubscribe). Verifies the ECDSA
+      signature header `X-Twilio-Email-Event-Webhook-Signature`
+      using the Public Key from Settings > Mail Settings > Event
+      Webhook (stored in `SENDGRID_WEBHOOK_PUBLIC_KEY`). On
+      verified events, upserts into the project's
+      `email_events` table keyed by (sg_message_id, event,
+      timestamp) for idempotency.
+  - file: lib/sendgrid/suppressions.ts
+    description: >
+      Helpers for the suppression API — `addToSuppressionGroup`,
+      `removeFromSuppressionGroup`. Mandatory if the product has
+      multiple email categories (marketing vs transactional);
+      users unsubscribing from marketing shouldn't lose
+      transactional emails. Maps directly to SendGrid's
+      Unsubscribe Groups feature.
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+scale_considerations: >
+  Dynamic Templates render server-side at SendGrid; render time is
+  negligible for small payloads but accumulates on large batches
+  — prefer the `personalizations` array (one API call, up to 1k
+  recipients) over a send loop. Event Webhooks fire for every
+  recipient + event type combination — at 100k emails/mo with all
+  events enabled, expect 300-500k webhook deliveries. Idempotency
+  by (message_id, event, timestamp) is mandatory; SendGrid
+  retries failed webhooks for 24h with exponential backoff and
+  retries can deliver an event twice. Above ~100k emails/mo, a
+  dedicated IP becomes worth considering — IP warm-up is 30+
+  days during which sending pattern matters; rushing destroys
+  reputation. For high-deliverability flows, configure DMARC to
+  `p=quarantine` minimum and authenticate the domain in SendGrid
+  before going live. Templates use Handlebars — escape user-
+  generated content explicitly with `{{{escapedField}}}` is NOT
+  the escape (triple braces is unescaped HTML). Use `{{field}}`
+  for safe-by-default escaping; reserve triple braces for
+  intentional HTML insertion.

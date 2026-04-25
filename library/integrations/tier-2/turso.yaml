@@ -1,0 +1,60 @@
+id: turso
+name: Turso
+tier: 2
+category: database
+description: >
+  Distributed SQLite (libSQL fork) with embedded read replicas — the
+  defining feature is the embedded-replica pattern, where the client
+  SDK syncs a local SQLite file in-memory or on-disk and replicates
+  writes back to the primary. Reads run at zero network latency
+  (local file); writes go to the nearest edge replica then the
+  primary. Competes with Cloudflare D1 (also catalogued, also SQLite)
+  — Turso wins on the embedded-replica + multi-region pattern; D1
+  wins when the app is Worker-only and binding access matters more
+  than replica strategy. Turso is the right pick when the same
+  data needs sub-ms reads from many regions and writes are
+  comparatively rare (catalogue, config, content).
+cost_tier: free-to-start
+
+requires:
+  env_vars:
+    - TURSO_DATABASE_URL
+    - TURSO_AUTH_TOKEN
+  packages:
+    - "@libsql/client"
+    - "drizzle-orm"
+    - "drizzle-kit"
+  cli_tools:
+    - turso
+
+setup_steps:
+  - Install the CLI — `curl -sSfL https://get.tur.so/install.sh | bash` — and authenticate with `turso auth signup` / `turso auth login`
+  - Create a database — `turso db create my-app` — picks a primary region by default; pick explicitly with `--location iad` (etc.) for multi-region planning
+  - Get the connection URL — `turso db show my-app --url` — store in `TURSO_DATABASE_URL` (format: `libsql://<db>-<org>.turso.io`)
+  - Generate an auth token — `turso db tokens create my-app` — store in `TURSO_AUTH_TOKEN`
+  - Add replicas in additional regions — `turso db replicate my-app --location lhr` — distributes reads to that location
+  - Install the SDK — `npm install @libsql/client drizzle-orm drizzle-kit`
+  - Init the client — `import { createClient } from '@libsql/client'; export const turso = createClient({ url: TURSO_DATABASE_URL, authToken: TURSO_AUTH_TOKEN })`
+  - For embedded replica — pass `syncUrl: TURSO_DATABASE_URL, syncInterval: 60` plus a local `url: 'file:local.db'` to read from a local SQLite file with periodic sync
+  - Schema + migrations via Drizzle — `drizzle.config.ts` with `dialect: 'sqlite', driver: 'turso'`, then `npx drizzle-kit migrate`
+
+teardown_steps:
+  - Destroy replicas — `turso db locations my-app` to list, `turso db destroy <replica> --yes` to remove
+  - Destroy the primary — `turso db destroy my-app --yes` (irrecoverable)
+  - Revoke auth tokens — `turso db tokens invalidate my-app`
+  - Clear `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` from environments
+  - Uninstall `@libsql/client`, `drizzle-orm`, `drizzle-kit`
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+free_tier_limits:
+  rows_read_per_month: 500000000
+  rows_written_per_month: 10000000
+  total_storage_gb: 5
+  databases: 100
+  monthly_syncs_gb: 3
+  note: "Free tier (500M reads/mo, 10M writes/mo, 5GB) is generous — most products won't outgrow it before launch. Embedded replicas are billed by sync bandwidth (3GB/mo on free); large schemas or chatty writes can blow through it. For zero-latency reads from anywhere, the embedded-replica pattern is the headline feature; without it, Turso is just another SQLite-as-a-service. Trade-off vs Cloudflare D1: D1 wins when the runtime is Workers (binding access, no auth token to manage); Turso wins when you need replicas in many regions or you want to run the same DB on a Node server outside Workers."
+
+staleness_date: "2026-04-25"

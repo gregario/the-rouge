@@ -1,0 +1,69 @@
+id: aws-s3
+name: AWS S3
+tier: 2
+category: object-storage
+description: >
+  Industry-baseline object storage — the API every other object
+  store implements as a compatibility layer (Cloudflare R2,
+  Backblaze B2, MinIO, Vercel Blob's S3-class storage). Eleven-
+  nines durability, multiple storage classes (Standard /
+  Intelligent-Tiering / Glacier / Deep Archive), lifecycle policies,
+  versioning, replication, encryption, and the deepest IAM /
+  policy surface of any storage service. Pick AWS S3 when the
+  product is already AWS-native, when egress isn't on the hot
+  path (or volume is low enough that Cloudfront in front mitigates
+  cost), or when specific S3 features (cross-region replication,
+  S3 Tables, Lake Formation integration) are needed. Pick
+  Cloudflare R2 (also catalogued, S3-API-compatible, free egress)
+  when egress dominates the bill.
+cost_tier: usage-based
+
+requires:
+  env_vars:
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
+    - AWS_REGION
+    - S3_BUCKET
+  packages:
+    - "@aws-sdk/client-s3"
+    - "@aws-sdk/s3-request-presigner"
+  cli_tools:
+    - aws
+
+setup_steps:
+  - Create an AWS account (no card required for free-tier credits — $200 in credits valid 12 months for new accounts as of July 2025)
+  - Create an IAM user with programmatic access — IAM > Users > Create User; attach a least-privilege policy (e.g. `s3:GetObject` + `s3:PutObject` + `s3:DeleteObject` scoped to one bucket ARN)
+  - Capture the access key + secret on creation (shown once); store in `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
+  - Create the bucket — `aws s3 mb s3://<bucket-name> --region <region>` (bucket names are globally unique across all AWS); store in `S3_BUCKET` and the region in `AWS_REGION`
+  - For public-read buckets, attach a bucket policy via Console > Bucket > Permissions; for private + browser-direct access, use presigned URLs (don't make the bucket public)
+  - Block-public-access settings are ON by default since 2023 — leave that way; presign for public reads
+  - Install the SDK — `npm install @aws-sdk/client-s3 @aws-sdk/s3-request-presigner`
+  - Upload from server — `import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'; const s3 = new S3Client({ region: AWS_REGION }); await s3.send(new PutObjectCommand({ Bucket: S3_BUCKET, Key: 'path/to/file', Body: bytes }))`
+  - Browser-direct upload — server signs `PutObjectCommand` via `getSignedUrl(s3, cmd, { expiresIn: 600 })`, returns the URL, browser PUTs directly
+  - For CDN delivery in front of S3, layer Cloudfront — pricing optimised separately, and most regions ship from edge locations with smaller bandwidth charges than direct S3 egress
+
+teardown_steps:
+  - Empty the bucket — `aws s3 rm s3://<bucket-name> --recursive` (lifecycle policies for auto-expiration are cheaper at scale)
+  - Delete the bucket — `aws s3 rb s3://<bucket-name>`
+  - Detach Cloudfront distribution if any — disable then delete (deletion takes ~15 min)
+  - Delete IAM access keys in IAM > Users > Security credentials > Access keys
+  - Optionally delete the IAM user
+  - Clear `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `S3_BUCKET` from environments
+  - Uninstall `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`
+
+tested_with:
+  - nextjs-vercel
+
+free_tier_limits:
+  new_account_credits_usd: 200 (12 month validity, applied across eligible AWS services not just S3)
+  storage_standard_per_gb_month_usd: 0.023
+  put_post_per_1000_requests_usd: 0.005
+  get_per_1000_requests_usd: 0.0004
+  delete_per_1000_requests_usd: 0
+  egress_first_100_gb_per_month: free
+  egress_after_100_gb_per_gb_usd: 0.09 (decreases at higher tiers)
+  inter_region_transfer_per_gb_usd: 0.01
+  same_region_transfer: free
+  note: "Egress is the cost driver for media-heavy products — at 1TB/month egress, S3 bill is ~$90 vs Cloudflare R2 at $0. Storage itself is cheap. Lifecycle policies (auto-tier to Intelligent-Tiering or Glacier) cut storage cost significantly for cold data. The 12-month $200 credit doesn't roll over; spend it or lose it. Block-public-access defaults are correct — don't disable to 'simplify' development; use presigned URLs."
+
+staleness_date: "2026-04-25"

@@ -1,0 +1,119 @@
+id: authjs-oauth-with-drizzle
+name: Auth.js v5 + Multiple OAuth + Drizzle Adapter
+tier: 3
+service: authjs
+category: authentication
+tags:
+  - auth
+  - oauth
+  - drizzle
+  - nextjs
+  - self-hosted
+description: >
+  Canonical Auth.js v5 setup pairing the Drizzle adapter with three
+  OAuth providers (Google, GitHub, Apple) and an email-magic-link
+  fallback. Database adapter creates the four required tables
+  (accounts / sessions / users / verificationTokens), session reads
+  go through the auth() helper in server components, and the
+  middleware redirects unauthenticated users on protected routes.
+  Self-hosted, no per-MAU billing — costs are operational (DB rows,
+  function invocations) only.
+applies_when: >
+  Next.js product wants OAuth-based sign-in (with optional magic-
+  link email) and prefers the open-source / self-hosted route over
+  Clerk or WorkOS. Required when the team controls the user
+  database (compliance, data-locality, custom user schemas) or
+  when avoiding the per-MAU pricing of managed auth providers
+  matters more than the dashboard / admin-portal features they
+  bundle. Skip for products needing enterprise SSO with self-
+  service IdP setup — Auth.js can do SAML via a custom provider
+  but WorkOS does it better; skip also for products where session
+  duration / refresh tuning isn't worth the engineering time.
+
+requires:
+  packages:
+    - "next-auth"
+    - "@auth/drizzle-adapter"
+    - "drizzle-orm"
+  env_vars:
+    - AUTH_SECRET
+    - AUTH_URL
+    - AUTH_GOOGLE_ID
+    - AUTH_GOOGLE_SECRET
+    - AUTH_GITHUB_ID
+    - AUTH_GITHUB_SECRET
+
+code_patterns:
+  - file: auth.ts
+    description: >
+      Root Auth.js config. Imports providers
+      (`Google`, `GitHub`, `Apple`, `EmailProvider`), the Drizzle
+      adapter (`DrizzleAdapter(db, { usersTable, accountsTable,
+      sessionsTable, verificationTokensTable })`), and exports the
+      five entry points — `{ handlers, auth, signIn, signOut,
+      update }`. Session strategy is 'database' (vs JWT) because
+      the adapter is wired — gets server-side revocation for free.
+  - file: app/api/auth/[...nextauth]/route.ts
+    description: >
+      Catch-all route that re-exports `{ GET, POST } = handlers`.
+      All Auth.js endpoints (signin, signout, callback, csrf,
+      session, providers) live under this single route via the
+      catch-all segment.
+  - file: middleware.ts
+    description: >
+      Edge middleware that calls `auth(req)` and redirects to /
+      signin when no session. matcher config scopes middleware
+      to protected routes only — exclude /api/auth/_, /_next/_,
+      static assets. For Cloudflare Workers, use the experimental
+      `runtime: 'edge'` export and ensure the adapter is edge-
+      compatible (Drizzle + D1/Turso/Neon HTTP works; Drizzle +
+      pg-native does not).
+  - file: db/schema/auth.ts
+    description: >
+      The four Auth.js tables in Drizzle schema syntax — users
+      (id PK, email unique, emailVerified, image, name), accounts
+      (provider/providerAccountId composite PK with cascade-on-
+      user-delete), sessions (sessionToken PK, userId FK, expires),
+      verificationTokens (identifier+token composite PK,
+      expires). Run `drizzle-kit migrate` to create them; Auth.js
+      reads / writes them transparently.
+  - file: components/sign-in-buttons.tsx
+    description: >
+      Server component that renders a sign-in form for each
+      enabled provider — `<form action={async () => { 'use
+      server'; await signIn('google', { redirectTo: '/dashboard'
+      }) }}><button>Continue with Google</button></form>`. Server
+      Actions handle the redirect cleanly without client-side
+      navigation hacks.
+  - file: components/protected-page.tsx
+    description: >
+      Server component wrapper — `const session = await auth(); if
+      (!session) redirect('/signin')`. Use for pages where the
+      whole content requires auth and the middleware matcher
+      doesn't cover them (e.g. when matcher excludes a route
+      group but specific pages within still need auth).
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+scale_considerations: >
+  Database session strategy adds one DB read per authenticated
+  request (lookup by sessionToken). For very high QPS, switch to
+  JWT strategy — sessions live in the cookie, no DB read — but
+  lose server-side revocation (a compromised token is valid until
+  expiry). For Cloudflare Workers, every middleware-matched
+  request runs auth(), which hits the database adapter; pair with
+  a connection-pooled adapter (Neon HTTP, Turso, D1 binding) so
+  the per-request latency stays sub-10ms. AUTH_SECRET rotation
+  invalidates every active session — coordinate rotations with
+  user notice. OAuth provider redirect URIs must match the
+  deployed origin exactly — common bug after a domain move.
+  Magic-link email needs an email integration (Resend, SendGrid)
+  wired into `EmailProvider`; the deliverability of magic-link
+  emails (often filtered as suspicious by gmail) is the main
+  user-experience risk — pair with a verified domain and a
+  one-paragraph plaintext template. The four Auth.js tables grow
+  unbounded — schedule a periodic cleanup of expired sessions
+  and verification tokens (Drizzle migration that runs `DELETE
+  FROM sessions WHERE expires < now()` weekly works).

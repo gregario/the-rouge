@@ -1,0 +1,62 @@
+id: authjs
+name: Auth.js (NextAuth v5)
+tier: 2
+category: auth
+description: >
+  Open-source authentication library — runtime-agnostic core with
+  framework adapters for Next.js (`next-auth`), SvelteKit
+  (`@auth/sveltekit`), Express (`@auth/express`), and others.
+  Self-hosted: no per-MAU billing, no platform lock-in. 80+ OAuth
+  providers built-in (Google, GitHub, Apple, etc.) plus credentials
+  / email-magic-link / WebAuthn. Pairs with any database via
+  adapters (`@auth/prisma-adapter`, `@auth/drizzle-adapter`,
+  `@auth/supabase-adapter`, etc.). Pick Auth.js when the product
+  needs auth without vendor cost or when full control over user
+  data / sessions / cookies matters more than dashboards and
+  enterprise SSO. Pick Clerk / WorkOS instead when those features
+  outweigh the self-hosting overhead.
+cost_tier: free
+
+requires:
+  env_vars:
+    - AUTH_SECRET
+    - AUTH_URL
+    - AUTH_GOOGLE_ID
+    - AUTH_GOOGLE_SECRET
+  packages:
+    - "next-auth"
+    - "@auth/drizzle-adapter"
+  cli_tools: []
+
+setup_steps:
+  - Install — `npm install next-auth@beta @auth/drizzle-adapter` (Next.js v14+); for other frameworks pick the matching adapter package
+  - Generate the auth secret — `npx auth secret` writes `AUTH_SECRET` (a random key used to encrypt session JWTs and email verification hashes) into `.env.local`
+  - Set `AUTH_URL` to the deployed origin (e.g. `https://app.example.com`); Auth.js auto-derives this in dev but production needs it explicit so OAuth callbacks resolve correctly
+  - Create `auth.ts` at the project root — `import NextAuth from 'next-auth'; import Google from 'next-auth/providers/google'; import { DrizzleAdapter } from '@auth/drizzle-adapter'; import { db } from './db'; export const { handlers, auth, signIn, signOut } = NextAuth({ adapter: DrizzleAdapter(db), providers: [Google] })`
+  - Add the route handler at `app/api/auth/[...nextauth]/route.ts` — `export { GET, POST } = handlers`
+  - For each OAuth provider, register an OAuth app with the provider (e.g. console.cloud.google.com), set the redirect URI to `<AUTH_URL>/api/auth/callback/google`, store client ID/secret in `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET`
+  - Read the session in server components — `import { auth } from '@/auth'; const session = await auth()` returns `{ user, expires } | null`
+  - For migrations (database adapter creates accounts / sessions / users / verification_tokens tables), run the adapter-specific migration step (`drizzle-kit push:pg` or equivalent) before first request
+
+teardown_steps:
+  - Remove `auth.ts`, `app/api/auth/[...nextauth]/route.ts`, and any `auth()` / `signIn()` / `signOut()` imports from the codebase
+  - Drop the four Auth.js tables (accounts, sessions, users, verification_tokens) from the database — `drizzle-kit drop` or migration rollback
+  - Revoke OAuth apps with the providers (Google, GitHub, etc.) so issued tokens stop working
+  - Clear `AUTH_SECRET`, `AUTH_URL`, and the per-provider credentials from environments
+  - Uninstall `next-auth` and `@auth/drizzle-adapter` (or whichever adapter)
+
+tested_with:
+  - nextjs-vercel
+  - nextjs-cloudflare
+
+free_tier_limits:
+  monthly_active_users: unlimited (self-hosted; no Auth.js-side billing)
+  oauth_providers: 80+ (Google, GitHub, Apple, Microsoft, Discord, Twitch, …)
+  database_adapters: 20+ (Prisma, Drizzle, Supabase, MongoDB, Firebase, DynamoDB, …)
+  passwordless_email_magic_link: included
+  webauthn_passkeys: included (experimental)
+  organisations_b2b: not built-in (use the database adapter to model membership)
+  cost: only your own infrastructure (db rows, function invocations to issue / verify sessions)
+  note: "Auth.js is library code — costs are operational (DB rows, function invocations) not licence. v5 (the current major) reorganised exports — older docs referencing `next-auth/next` belong to v4. For Cloudflare Workers, use the experimental `next-auth@beta` runtime: 'edge' mode and an edge-compatible adapter (Drizzle/D1 works; Prisma does not). Magic-link email needs an email-sending integration (Resend, SendGrid) wired in via the `EmailProvider`."
+
+staleness_date: "2026-04-25"
