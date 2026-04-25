@@ -207,6 +207,24 @@ function workOnIssue(issue, opts = {}) {
     // Spawn claude -p
     console.log(`  Working on #${issue.number}: ${issue.title}`);
     const { args: denyArgs } = require('./tool-permissions').buildDenylistArgs();
+
+    // GC.4 (Phase 5): emit facade events around the self-improve
+    // dispatch so the audit trail captures every AI invocation Rouge
+    // makes on itself. The "project" here is the Rouge repo (ROUGE_ROOT)
+    // — events land in <ROUGE_ROOT>/.rouge/events.jsonl. The spawnSync
+    // mechanics stay (stdin-piped prompt; the facade subprocess strategy
+    // doesn't yet support stdin mode, and lifting that is a Phase 6+
+    // enhancement).
+    const facade = require('./facade.js');
+    try {
+      facade.emit({
+        projectDir: ROUGE_ROOT,
+        source: 'self-improve',
+        event: 'phase.start',
+        detail: { phase: 'self-improve.work-on-issue', issue: issue.number, branch, mode: 'subprocess' },
+      });
+    } catch (_e) { /* event emission must never block self-improve */ }
+
     const result = spawnSync('claude', ['-p', '--max-turns', '50', ...denyArgs], {
       input: prompt,
       cwd: ROUGE_ROOT,
@@ -214,6 +232,22 @@ function workOnIssue(issue, opts = {}) {
       timeout: 600000, // 10 min max per issue
       stdio: ['pipe', 'pipe', 'pipe'],
     });
+
+    try {
+      facade.emit({
+        projectDir: ROUGE_ROOT,
+        source: 'self-improve',
+        event: 'phase.end',
+        detail: {
+          phase: 'self-improve.work-on-issue',
+          issue: issue.number,
+          branch,
+          mode: 'subprocess',
+          exitCode: result.status,
+          ok: result.status === 0,
+        },
+      });
+    } catch (_e) { /* same: never block */ }
 
     if (result.status !== 0) {
       const errorMsg = `claude -p exited with status ${result.status}`;
