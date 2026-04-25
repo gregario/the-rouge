@@ -1,5 +1,7 @@
 # V2 State Machine — Complete Transition Map
 
+> ⚠️ **Historical reference (V2).** Superseded by [`state-machine-v3-transitions.md`](state-machine-v3-transitions.md). Kept as background context for the V2→V3 transition history. New work should reference the V3 doc.
+
 > Generated from code analysis of `src/launcher/rouge-loop.js`. Use this to produce diagrams.
 
 ## States

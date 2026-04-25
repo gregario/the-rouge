@@ -775,14 +775,33 @@ should be driven by dogfood signal — the GUI affordances people
 actually want, not a checklist swept through. Default per the plan:
 keep CLI-only unless GUI affordance is obviously valuable.
 
-**Phase 11 deferral note.** The plan called for removing the legacy
-`.rouge/state.json` back-compat path (gated on V3 in the wild for
-≥ 90 days), removing `seeding-state.json` if folded into
-`task_ledger.json`, and removing v1/v2 design docs. Each of these
-needs a project-by-project audit (no in-the-wild legacy state files
-remaining, schema fully migrated, no live references to v2 docs).
-Doing this safely warrants a separate PR with explicit before/after
-checks per item.
+**Phase 11 closeout (post-audit).** The plan called for three
+deletions; the audit found none of them are clean delete candidates:
+
+- *Legacy `state.json` (root) back-compat path*: still needed.
+  `state-path.js`'s fallback handles unmigrated projects; removing it
+  would break any user with a pre-V3 project who hasn't run
+  `migrate-state-to-rouge-dir.js`. The audit can only verify the
+  local machine, not the wild. Conservative: leave the fallback in
+  place. Re-evaluate after a release where ≥90 days of dogfood show
+  no legacy state files arriving.
+
+- *`seeding-state.json` fold into `task_ledger.json`*: contingent on
+  a not-yet-done migration. 18 active references across `src/` and
+  `dashboard/src/`; the file isn't vestigial, it's load-bearing.
+  Folding it is a separate design effort, not Phase 11 cleanup.
+
+- *V1/V2 design docs*: explicitly preserved as historical reference
+  by the V3 plans (`docs/plans/2026-04-04-v3-execution-plan.md` says
+  "Keep `state-schema-v2.md` and `state-machine-v2-transitions.md`
+  as historical reference"). `state-schema-v3.md` actively cites
+  `state-schema-v2.md` § global_improvements. Deleting them would
+  break inbound links and lose context. Done in this PR: added
+  deprecation banners to the three V2 docs so readers see they're
+  superseded at a glance, without losing the content.
+
+Phase 11 closeout: docs deprecation banners only. The deletion items
+deferred for cause, not for laziness.
 
 **What's now architecturally hard.** The 10/10 commitments from the
 plan-eng-review are all in place:

@@ -1,5 +1,7 @@
 # State Schema V2
 
+> ⚠️ **Historical reference (V2).** Superseded by [`state-schema-v3.md`](state-schema-v3.md). Still cited by the V3 doc for the `global_improvements.json` shape (§ global_improvements), which carries forward unchanged. New work should reference the V3 doc; this file remains for the cross-reference and for V2→V3 transition history.
+
 > Canonical schema reference for the V2 granularity refactor. All launcher code and prompts reference this document.
 
 **Supersedes:** The state.json schema documented in `docs/architecture.md` (V1).
