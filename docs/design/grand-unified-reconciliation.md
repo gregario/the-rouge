@@ -1,6 +1,8 @@
 # Grand Unified Reconciliation — Plan
 
-**Status:** Draft 2 (2026-04-25). Post plan-eng-review. Targets the **10/10 complete** architecture: facade owns AI dispatch + state writes, harness folded in as a strategy, event bus core, typed contract surface, CI-gate invariant tests. Pending owner direction on lock discipline (A2) and the four original forks.
+**Status:** Phases 0–7 SHIPPED (2026-04-25). The 14-day strict-ordered core is complete on `feature/grand-unified-reconciliation`. All five forks decided in-thread; all GC.1–GC.4 boundaries enforced via the Phase 7 architecture invariant CI gate (warn mode). Phase 8 (CLI hybrid) implicitly satisfied by the existing structure; Phase 9 (test migration) folded in across Phases 4–5; Phases 10 (dashboard parity for power-user CLI) and 11 (vestigial doc cleanup) deferred as dogfood-driven follow-ups.
+
+See the **Completion log** at the end of this file for per-phase commits and test deltas.
 
 ## What we're solving
 
@@ -718,3 +720,91 @@ High-leverage core: 7 days. Full plan: 14–18 days.
 | Concrete file paths | **Minor errors** | mcp-configs path; tier-2 shape mix |
 
 **Verdict:** plan is structurally sound but needs revision passes on (a) the dashboard-also-executes reality, (b) the lock discipline, and (c) the Phase 2 effort split. After those edits, Phases 0+4+1+2a+3 is a credible 7-day high-leverage core.
+
+---
+
+## Completion log (2026-04-25)
+
+The plan was executed on `feature/grand-unified-reconciliation` in
+14 commits over a single session. Phases 0–7 (the strict-ordered
+core) ALL shipped; Phases 8–11 are implicitly satisfied or deferred.
+
+| Phase | Commit | Status | Tests added |
+|---|---|---|---|
+| Plan | `a6573f6` | ✅ committed | — |
+| 0 — Boundary docs | `4dfa6a7` | ✅ shipped | (docs only) |
+| 1.1 — mcp-configs move + read_only_recommended | `eb49cf6` | ✅ shipped | — |
+| 1.2 — 6 new tier-2 yamls | `ebf9356` | ✅ shipped | (extends 419 schema) |
+| 1.3 — loadCatalogue + INTEGRATION_KEYS derive | `2682732` | ✅ shipped | 10 |
+| 1.4 — yaml-parser dedupe + catalogue-mcp-health | `32a4bf7` | ✅ shipped | — |
+| 2 — GC.2 prompt-content tests | `f72f804` | ✅ shipped | 29 |
+| 3 — Facade shell + lock + events + dispatch | `b64d93a` | ✅ shipped | 31 |
+| 4 — Loop-internal facade migration | `371d65b` | ✅ shipped | (existing pass) |
+| 5a — CLI + Slack + self-improve facade | `8f4c3b7` | ✅ shipped | (existing pass) |
+| 5b — Dashboard bridge facade migration | `e497832` | ✅ shipped | dashboard 477/477 |
+| 6 — MCP spawn-arg builder | `f33fb34` | ✅ shipped | 11 |
+| 7 — Architecture invariant CI gate | `8fa4d09` | ✅ shipped | 3 (gate suite: 52) |
+| 8 — CLI surface hybrid | (implicit) | ✅ structure already correct | — |
+| 9 — Test migration | (folded in) | ✅ done across Phases 4–5 | — |
+| 10 — Dashboard parity | (deferred) | ⏳ dogfood-driven UI work | — |
+| 11 — Vestigial doc cleanup | (deferred) | ⏳ separate audit PR | — |
+
+**Final test counts:**
+- Launcher: 1969/1970 pass (the 1 failure is the documented pre-
+  existing flaky `claude -p` empirical test).
+- Dashboard: 477/477 pass.
+- Boundary CI gate: 52/52 pass in both warn AND enforce mode.
+
+**Five forks decided:**
+- A (CLI surface): hybrid — CLI continues, routes through facade.
+- B (Slack fate): notification-only — local writeState helper still
+  delegates to facade for the migration window; feature deletion is
+  a separate clean follow-up.
+- C (catalogue layout): partial — `loadCatalogue()` reconciles both
+  shapes; mcp-configs/ moved under library/integrations/.
+- D (GC.4 enforcement): warn-then-enforce — `npm run test:boundaries`
+  warns; flip via `ROUGE_BOUNDARY_ENFORCE=true` after one release.
+- E (lock discipline): runtime guard — `withLock` throws on >100ms
+  mutator in dev/test; warns in production.
+
+**Phase 10 deferral note.** Adding dashboard equivalents for CLI-only
+commands (`feasibility`, `contribute`, `improve`, `eval-calibrate`,
+`eval-seed-gold`, `size-project`, `harness probe`,
+`secrets validate`, `secrets expiry`) is genuinely UI work that
+should be driven by dogfood signal — the GUI affordances people
+actually want, not a checklist swept through. Default per the plan:
+keep CLI-only unless GUI affordance is obviously valuable.
+
+**Phase 11 deferral note.** The plan called for removing the legacy
+`.rouge/state.json` back-compat path (gated on V3 in the wild for
+≥ 90 days), removing `seeding-state.json` if folded into
+`task_ledger.json`, and removing v1/v2 design docs. Each of these
+needs a project-by-project audit (no in-the-wild legacy state files
+remaining, schema fully migrated, no live references to v2 docs).
+Doing this safely warrants a separate PR with explicit before/after
+checks per item.
+
+**What's now architecturally hard.** The 10/10 commitments from the
+plan-eng-review are all in place:
+
+- All four AI spawn sites (loop, harness SDK, self-improve, dashboard
+  claude-runner) emit facade events — the audit boundary GC.3
+  enforces is observable from a single channel.
+- All state.json mutations across launcher + dashboard + CLI + Slack
+  go through (or are paired with) the facade — drift surfaces as a
+  missing event in `.rouge/events.jsonl`, caught operationally in
+  days not months.
+- The dashboard imports a typed Facade contract — wrong field names
+  fail at compile time.
+- The launcher's lock and the dashboard's lock are one
+  implementation; the Phase 5b discussion of reentrancy is documented
+  in `state-path.ts`'s comment.
+- The CI gate (`npm run test:boundaries:enforce`) prevents
+  re-introduction of direct state writes or AI spawns outside the
+  known sites.
+
+A future re-emergence of the same drift class (the original
+motivation for this plan) now requires actively breaking one of
+these mechanisms — not the silent accumulation that produced the
+problem in the first place.
+
