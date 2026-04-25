@@ -2259,13 +2259,17 @@ async function runPhase(projectDir) {
 
   const filesBefore = countFiles(projectDir);
 
-  // Async spawn with streaming output + progress-based watchdog
-  return new Promise((resolve) => {
-    const logStream = fs.createWriteStream(phaseLog, { flags: 'a' });
-    const logSizeAtStart = fs.existsSync(phaseLog) ? fs.statSync(phaseLog).size : 0;
-    let stderrChunks = [];
-    let killed = false;
+  // Phase 5: spawn + watchdog now live in
+  // src/launcher/facade/dispatch/subprocess.js. This function is the
+  // surrounding business logic — prompt construction, auth env,
+  // post-phase cost tracking, advanceState. It's a normal async
+  // function; the runPhaseSubprocess call awaits the dispatch result
+  // and we react in linear flow rather than the prior IIFE/Promise
+  // structure.
+  const logStream = fs.createWriteStream(phaseLog, { flags: 'a' });
+  const logSizeAtStart = fs.existsSync(phaseLog) ? fs.statSync(phaseLog).size : 0;
 
+  {
     // V3: Inject shared preamble with I/O contract
     const PHASE_DESCRIPTIONS = {
       'foundation': 'Build the project foundation — schema, auth, deploy pipeline, seed data',
@@ -2324,14 +2328,11 @@ async function runPhase(projectDir) {
     });
     log(`[${projectName}] Auth mode: ${authMode}`);
 
-    // GC.4 (Phase 4): emit a facade phase.start event before spawn so
-    // dashboard / Slack subscribers see the boundary even though the
-    // streaming orchestration below remains in this file. The
-    // corresponding phase.end is emitted in the close handler below.
-    // Full migration of the spawn into facade/dispatch/subprocess.js
-    // is a Phase 5+ concern; for now the facade event is the audit
-    // boundary, the existing phase-events.js stream stays the
-    // inside-the-spawn AI-activity channel.
+    // GC.4 (Phase 5): the entire spawn + watchdog + stream-handling
+    // block has been lifted into src/launcher/facade/dispatch/subprocess.js
+    // (runPhaseSubprocess). Loop business logic — building the prompt,
+    // selecting auth env, cost tracking after success, advanceState —
+    // stays here. The facade owns "spawn this and watch it."
     facade.emit({
       projectDir,
       source: 'loop',
@@ -2339,200 +2340,84 @@ async function runPhase(projectDir) {
       detail: { phase: currentState, model, mode: 'subprocess' },
     });
 
-    // spawn (not execFile) for real-time stdout streaming.
-    //
-    // --output-format stream-json + --verbose makes claude emit one JSONL
-    // record per internal event (assistant text, tool_use, tool_result,
-    // result). Without this, `claude -p` is almost entirely silent on
-    // stdout during tool use — which left the dashboard with no signal
-    // to show users for 30-60 minute foundation phases. The parsed
-    // stream is turned into compact events by phase-events.js and
-    // appended to <projectDir>/phase_events.jsonl; the dashboard tails
-    // that file to render a live tool-call feed.
+    const { runPhaseSubprocess } = require('./facade/dispatch/subprocess.js');
     const { args: denyArgs } = require('./tool-permissions').buildDenylistArgs();
-    const child = spawn('claude', [
-      '-p',
-      promptInstruction,
-      '--dangerously-skip-permissions',
-      '--model', model,
-      '--max-turns', '200',
-      '--output-format', 'stream-json',
-      '--verbose',
-      ...addDirs.flatMap(dir => ['--add-dir', dir]),
-      ...denyArgs,
-    ], {
-      cwd: projectDir,
-      env: claudeEnv,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-
-    // Stream claude's stream-json stdout to (a) the phase log verbatim
-    // for diagnostics, and (b) the phase-events writer which splits it
-    // into lines, parses each, and appends compact events the dashboard
-    // can render without re-implementing the parser client-side.
     const { createPhaseEventWriter } = require('./phase-events.js');
-    const eventWriter = createPhaseEventWriter({
+    const phaseEventWriter = createPhaseEventWriter({
       projectDir,
       phase: currentState,
-      pid: child.pid,
+      pid: undefined, // assigned post-spawn; phase-events.js tolerates undefined
       model,
-      // Story/milestone context at phase start, stamped on every
-      // event. Non-story phases (foundation, analyzing, shipping)
-      // leave story_id unset — the dashboard treats absence as
-      // "project-level activity" and shows it in the hero instead of
-      // any specific story card.
       storyId: state.current_story || undefined,
       milestoneName: state.current_milestone || undefined,
-      // A non-JSON stdout line (rare — only if stream-json isn't
-      // understood by this claude build) still gets teed to the phase
-      // log so nothing is silently lost.
       onRawLine: (line) => { try { logStream.write(line + '\n'); } catch {} },
     });
-    if (child.stdout) {
-      child.stdout.on('data', (chunk) => {
-        logStream.write(chunk);
-        eventWriter.onChunk(chunk);
-      });
+
+    const dispatchResult = await runPhaseSubprocess({
+      args: [
+        '-p',
+        promptInstruction,
+        '--dangerously-skip-permissions',
+        '--model', model,
+        '--max-turns', '200',
+        '--output-format', 'stream-json',
+        '--verbose',
+        ...addDirs.flatMap(dir => ['--add-dir', dir]),
+        ...denyArgs,
+      ],
+      cwd: projectDir,
+      env: claudeEnv,
+      logStream,
+      phaseLog,
+      logSizeAtStart,
+      phaseEventWriter,
+      progressStaleMs: PROGRESS_STALE_THRESHOLD,
+      logStaleMs: LOG_STALE_THRESHOLD,
+      hardCeilingMs: HARD_CEILING,
+      log: (msg) => log(`[${projectName}] ${msg}`),
+      onProgressEvents: (events) => {
+        log(`[${projectName}] Progress: ${events.join(' | ')}`);
+        if (process.env.ROUGE_SLACK_WEBHOOK) {
+          notifyRich('transition', {
+            project: projectName,
+            from: currentState,
+            to: currentState,
+            details: events.join(' | '),
+          });
+        }
+      },
+    }).catch((err) => {
+      log(`[${projectName}] Phase ${currentState} spawn error: ${(err.message || '').slice(0, 200)}`);
+      return { exitCode: null, killed: false, stderr: '', elapsedMs: 0, _spawnError: err };
+    });
+
+    // From here on out the loop reacts to the structured dispatch
+    // result. The previous IIFE-shaped Promise is gone; this is a
+    // straight async function body.
+    const { exitCode: code, killed, stderr, elapsedMs } = dispatchResult;
+    const phaseStartedAt = Date.now() - (elapsedMs || 0);
+
+    if (dispatchResult._spawnError) {
+      return { success: false };
     }
 
-    // Capture stderr for rate limit detection
-    if (child.stderr) {
-      child.stderr.on('data', (chunk) => {
-        stderrChunks.push(chunk);
-        logStream.write('\n[STDERR] ' + chunk);
-      });
+    facade.emit({
+      projectDir,
+      source: 'loop',
+      event: 'phase.end',
+      detail: { phase: currentState, model, mode: 'subprocess', exitCode: code, killed: !!killed },
+    });
+
+    if (killed) {
+      const elapsedMin = Math.floor((elapsedMs || 0) / 60000);
+      log(`[${projectName}] Phase ${currentState} killed after ${elapsedMin}min`);
+      return { success: false, timedOut: true };
     }
 
-    // --- Progress-based watchdog (FIX #57: detects file activity, not just stdout) ---
-    // Three progress signals, ANY counts as alive:
-    //   1. Log file growth (stdout captured to phase log)
-    //   2. Progress events in log content
-    //   3. File system activity in project dir (tool calls write files even when stdout is silent)
-    // Kills only when ALL three are stale AND hard ceiling exceeded.
-    const HEARTBEAT_INTERVAL = 30000; // check every 30s
-    let lastLogSize = logSizeAtStart;
-    let lastLogGrowthAt = Date.now();
-    let lastProgressEventAt = Date.now();
-    let lastFileActivityAt = Date.now();
-    const phaseStartedAt = Date.now();
-
-    /** Check if any file in the project was modified recently. */
-    function checkFileActivity() {
-      try {
-        const result = execSync(
-          `find "${projectDir}" -maxdepth 3 -newer "${phaseLog}" -not -path "*/node_modules/*" -not -path "*/.git/objects/*" -not -path "*/.next/*" -type f 2>/dev/null | head -1`,
-          { encoding: 'utf8', timeout: 5000 }
-        ).trim();
-        return result.length > 0;
-      } catch { return false; }
-    }
-
-    const heartbeat = setInterval(() => {
-      try {
-        const currentSize = fs.statSync(phaseLog).size;
-        const now = Date.now();
-        const elapsed = now - phaseStartedAt;
-
-        // Signal 1: Log file growth
-        if (currentSize > lastLogSize) {
-          lastLogGrowthAt = now;
-
-          // Extract progress events from new content
-          try {
-            const newContent = fs.readFileSync(phaseLog, 'utf8').slice(lastLogSize);
-            const { extractEvents } = require('./progress-streamer');
-            const events = extractEvents(newContent);
-            if (events.length > 0) {
-              lastProgressEventAt = now;
-              log(`[${projectName}] Progress: ${events.join(' | ')}`);
-              if (process.env.ROUGE_SLACK_WEBHOOK) {
-                notifyRich('transition', {
-                  project: projectName,
-                  from: currentState,
-                  to: currentState,
-                  details: events.join(' | '),
-                });
-              }
-            }
-          } catch {}
-          lastLogSize = currentSize;
-        }
-
-        // Signal 3: File system activity (FIX #57)
-        if (checkFileActivity()) {
-          lastFileActivityAt = now;
-          // Touch the phase log so the -newer check resets
-          try { fs.utimesSync(phaseLog, new Date(), new Date()); } catch {}
-        }
-
-        const logStaleDuration = now - lastLogGrowthAt;
-        const progressStaleDuration = now - lastProgressEventAt;
-        const fileStaleDuration = now - lastFileActivityAt;
-
-        // Decision logic: should we kill this phase?
-        let shouldKill = false;
-        let killReason = '';
-
-        // Hard ceiling — absolute safety net
-        if (elapsed >= HARD_CEILING) {
-          shouldKill = true;
-          killReason = `hard ceiling (${HARD_CEILING / 60000}min)`;
-        }
-        // ALL signals stale — agent is truly stuck (not just writing files silently)
-        else if (logStaleDuration >= LOG_STALE_THRESHOLD && progressStaleDuration >= PROGRESS_STALE_THRESHOLD && fileStaleDuration >= PROGRESS_STALE_THRESHOLD) {
-          shouldKill = true;
-          killReason = `no output for ${Math.floor(logStaleDuration / 60000)}min, no progress for ${Math.floor(progressStaleDuration / 60000)}min, no file activity for ${Math.floor(fileStaleDuration / 60000)}min`;
-        }
-
-        // Log stale status periodically (every 3 min of staleness)
-        const allStale = logStaleDuration >= 180000 && fileStaleDuration >= 180000;
-        if (allStale && logStaleDuration % 60000 < HEARTBEAT_INTERVAL) {
-          log(`[${projectName}] Phase ${currentState} — no output for ${Math.floor(logStaleDuration / 1000)}s, no file activity for ${Math.floor(fileStaleDuration / 1000)}s`);
-        } else if (logStaleDuration >= 180000 && fileStaleDuration < 60000 && logStaleDuration % 120000 < HEARTBEAT_INTERVAL) {
-          log(`[${projectName}] Phase ${currentState} — stdout silent but files active (last file change ${Math.floor(fileStaleDuration / 1000)}s ago)`);
-        }
-
-        if (shouldKill) {
-          killed = true;
-          clearInterval(heartbeat);
-          log(`[${projectName}] Phase ${currentState} killed: ${killReason}`);
-          try { child.kill('SIGTERM'); } catch {}
-          setTimeout(() => {
-            try { child.kill('SIGKILL'); } catch {}
-          }, 5000);
-        }
-      } catch {
-        // Log file doesn't exist yet — that's fine
-      }
-    }, HEARTBEAT_INTERVAL);
-
-    child.on('close', async (code) => {
-      try { clearInterval(heartbeat); } catch {}
-      try { logStream.end(); } catch {}
-      try { eventWriter.onEnd(code); } catch {}
-
-      // GC.4 (Phase 4): emit phase.end at the spawn boundary. ok is
-      // best-effort here — the close handler runs many additional
-      // checks (rate limit, killed, exit code) before the phase is
-      // declared truly complete; this event reports the spawn
-      // outcome, while later steps may still escalate.
-      try {
-        facade.emit({
-          projectDir,
-          source: 'loop',
-          event: 'phase.end',
-          detail: { phase: currentState, model, mode: 'subprocess', exitCode: code, killed: !!killed },
-        });
-      } catch (_e) { /* event emission must never block close handling */ }
-
-      const stderr = stderrChunks.map(c => typeof c === 'string' ? c : c.toString()).join('');
-
-      if (killed) {
-        const elapsed = Math.floor((Date.now() - phaseStartedAt) / 60000);
-        log(`[${projectName}] Phase ${currentState} killed after ${elapsed}min`);
-        resolve({ success: false, timedOut: true });
-        return;
-      }
+    // Inline the rest of the prior close-handler block. The IIFE
+    // structure that produced { success, timedOut, ... } now becomes
+    // direct returns from the runPhase function.
+    {
 
       // Exit code check FIRST — if process succeeded, don't second-guess it
       if (code === 0) {
@@ -2559,14 +2444,12 @@ async function runPhase(projectDir) {
         }
         if (rateLimitSource) {
           log(`[${projectName}] Rate limited (detected in ${rateLimitSource})`);
-          resolve({ success: false, rateLimited: true });
-          return;
+          return { success: false, rateLimited: true };
         }
 
         const errorLine = stderr.split('\n').filter(l => l.trim()).pop() || `exit code ${code}`;
         log(`[${projectName}] Phase ${currentState} failed: ${errorLine.slice(0, 200)}`);
-        resolve({ success: false });
-        return;
+        return { success: false };
       }
 
       // Success
@@ -2661,17 +2544,9 @@ async function runPhase(projectDir) {
       } catch (err) {
         log(`[${projectName}] advanceState error: ${(err.message || '').slice(0, 200)}`);
       }
-      resolve({ success: true });
-    });
-
-    // Handle spawn errors
-    child.on('error', (err) => {
-      clearInterval(heartbeat);
-      logStream.end();
-      log(`[${projectName}] Phase ${currentState} spawn error: ${err.message.slice(0, 200)}`);
-      resolve({ success: false });
-    });
-  });
+      return { success: true };
+    }
+  }
 }
 
 // --- Auth expiry check ---
