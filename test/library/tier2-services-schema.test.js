@@ -2,6 +2,7 @@ const { test, describe } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
+const { parseFlatYaml } = require('../../src/launcher/yaml-parser.js');
 
 // Schema test for tier-2 service manifests in the flat *.yaml format.
 //
@@ -19,108 +20,10 @@ const path = require('node:path');
 // teardown_steps, tested_with, free_tier_limits, staleness_date.
 //
 // This lock-in prevents silent drift as the catalogue grows (P4.1).
+// Parser shared with src/launcher/catalogue.js via yaml-parser.js so
+// the test harness and runtime see the same shape.
 
 const CATALOG_DIR = path.join(__dirname, '..', '..', 'library', 'integrations', 'tier-2');
-
-// Minimal YAML parser sufficient for the tier-2 flat format — scalar
-// fields, one-level nested objects (requires.*, free_tier_limits.*),
-// and string-list arrays (setup_steps, teardown_steps, etc.). The
-// suite avoids a yaml runtime dependency to keep the test harness
-// thin; if a future entry needs richer YAML, swap in js-yaml.
-function parseFlatYaml(text) {
-  const out = {};
-  const lines = text.split('\n');
-  let currentKey = null;
-  let currentList = null;
-  let currentMap = null;
-  let i = 0;
-  while (i < lines.length) {
-    const raw = lines[i];
-    const line = raw.replace(/\s+$/, '');
-    if (!line || line.startsWith('#')) { i++; continue; }
-
-    // Top-level scalar: `key: value`
-    const topScalar = /^([a-z_][a-z0-9_]*):\s*(.*)$/.exec(line);
-    if (topScalar && !raw.startsWith(' ') && !raw.startsWith('\t')) {
-      const [, key, rest] = topScalar;
-      currentKey = key;
-      currentList = null;
-      currentMap = null;
-
-      if (rest === '' || rest === undefined) {
-        // value on following lines — peek next line to decide list vs map
-        const next = lines[i + 1] || '';
-        if (/^\s+-\s*/.test(next)) {
-          currentList = [];
-          out[key] = currentList;
-        } else if (/^\s+[a-zA-Z_]/.test(next)) {
-          currentMap = {};
-          out[key] = currentMap;
-        } else {
-          out[key] = null;
-        }
-      } else if (rest === '>') {
-        // folded scalar — concatenate following indented lines
-        const folded = [];
-        i++;
-        while (i < lines.length && /^\s/.test(lines[i])) {
-          folded.push(lines[i].trim());
-          i++;
-        }
-        out[key] = folded.join(' ');
-        continue;
-      } else {
-        out[key] = stripQuotes(rest);
-      }
-      i++;
-      continue;
-    }
-
-    // List item: `  - value`
-    const listItem = /^\s+-\s*(.*)$/.exec(line);
-    if (listItem && currentList) {
-      currentList.push(stripQuotes(listItem[1]));
-      i++;
-      continue;
-    }
-
-    // Nested map field: `  key: value`
-    const nestedScalar = /^\s+([a-z_][a-z0-9_]*):\s*(.*)$/.exec(line);
-    if (nestedScalar && currentMap) {
-      const [, nkey, nrest] = nestedScalar;
-      if (nrest === '' || nrest === undefined) {
-        // nested list inside a map: `packages:` then `    - foo`
-        const inner = [];
-        let j = i + 1;
-        while (j < lines.length && /^\s+-\s*/.test(lines[j])) {
-          inner.push(stripQuotes(/^\s+-\s*(.*)$/.exec(lines[j])[1]));
-          j++;
-        }
-        currentMap[nkey] = inner;
-        i = j;
-        continue;
-      }
-      // Inline flow-style empty list: `cli_tools: []`
-      if (nrest.trim() === '[]') {
-        currentMap[nkey] = [];
-        i++;
-        continue;
-      }
-      currentMap[nkey] = stripQuotes(nrest);
-    }
-    i++;
-  }
-  return out;
-}
-
-function stripQuotes(s) {
-  if (typeof s !== 'string') return s;
-  const t = s.trim();
-  if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) {
-    return t.slice(1, -1);
-  }
-  return t;
-}
 
 const REQUIRED_TOP_LEVEL = [
   'id', 'name', 'tier', 'category', 'description', 'cost_tier',

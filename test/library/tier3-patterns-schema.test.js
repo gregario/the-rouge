@@ -2,6 +2,7 @@ const { test, describe } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
+const { parseFlatYaml } = require('../../src/launcher/yaml-parser.js');
 
 // Schema test for tier-3 pattern manifests in the flat *.yaml format.
 //
@@ -12,100 +13,11 @@ const path = require('node:path');
 // category, tags (non-empty list), description, applies_when,
 // requires, code_patterns, tested_with, scale_considerations.
 //
-// The parser here is shared with the tier-2 test — same flat-YAML
-// format.
+// Parser shared with the tier-2 test + src/launcher/catalogue.js via
+// yaml-parser.js — one implementation, three callers.
 
 const TIER3_DIR = path.join(__dirname, '..', '..', 'library', 'integrations', 'tier-3');
 const TIER2_DIR = path.join(__dirname, '..', '..', 'library', 'integrations', 'tier-2');
-
-function parseFlatYaml(text) {
-  const out = {};
-  const lines = text.split('\n');
-  let currentKey = null;
-  let currentList = null;
-  let currentMap = null;
-  let i = 0;
-  while (i < lines.length) {
-    const raw = lines[i];
-    const line = raw.replace(/\s+$/, '');
-    if (!line || line.startsWith('#')) { i++; continue; }
-
-    const topScalar = /^([a-z_][a-z0-9_]*):\s*(.*)$/.exec(line);
-    if (topScalar && !raw.startsWith(' ') && !raw.startsWith('\t')) {
-      const [, key, rest] = topScalar;
-      currentKey = key;
-      currentList = null;
-      currentMap = null;
-
-      if (rest === '' || rest === undefined) {
-        const next = lines[i + 1] || '';
-        if (/^\s+-\s*/.test(next)) {
-          currentList = [];
-          out[key] = currentList;
-        } else if (/^\s+[a-zA-Z_]/.test(next)) {
-          currentMap = {};
-          out[key] = currentMap;
-        } else {
-          out[key] = null;
-        }
-      } else if (rest === '>') {
-        const folded = [];
-        i++;
-        while (i < lines.length && /^\s/.test(lines[i])) {
-          folded.push(lines[i].trim());
-          i++;
-        }
-        out[key] = folded.join(' ');
-        continue;
-      } else {
-        out[key] = stripQuotes(rest);
-      }
-      i++;
-      continue;
-    }
-
-    const listItem = /^\s+-\s*(.*)$/.exec(line);
-    if (listItem && currentList !== null) {
-      currentList.push(stripQuotes(listItem[1]));
-      i++;
-      continue;
-    }
-
-    const nestedScalar = /^\s+([a-z_][a-z0-9_]*):\s*(.*)$/.exec(line);
-    if (nestedScalar && currentMap !== null) {
-      const [, nkey, nrest] = nestedScalar;
-      if (nrest === '' || nrest === undefined) {
-        const inner = [];
-        let j = i + 1;
-        while (j < lines.length && /^\s+-\s*/.test(lines[j])) {
-          inner.push(stripQuotes(/^\s+-\s*(.*)$/.exec(lines[j])[1]));
-          j++;
-        }
-        currentMap[nkey] = inner;
-        i = j;
-        continue;
-      }
-      // Inline flow-style empty list: `cli_tools: []`
-      if (nrest.trim() === '[]') {
-        currentMap[nkey] = [];
-        i++;
-        continue;
-      }
-      currentMap[nkey] = stripQuotes(nrest);
-    }
-    i++;
-  }
-  return out;
-}
-
-function stripQuotes(s) {
-  if (typeof s !== 'string') return s;
-  const t = s.trim();
-  if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) {
-    return t.slice(1, -1);
-  }
-  return t;
-}
 
 const REQUIRED_TOP_LEVEL = [
   'id', 'name', 'tier', 'service', 'category', 'tags',
