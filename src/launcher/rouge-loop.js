@@ -56,8 +56,15 @@ async function commitState(projectDir, state, eventDetail) {
     source: 'loop',
     mutator: () => state,
     eventDetail: eventDetail || {},
-    // The loop's mutator is `() => state` (a synchronous identity);
-    // it's never the slow path. allowSlow is left default (false).
+    // The loop's mutator IS a synchronous identity, but the work done
+    // inside the lock includes AJV schema validation against the v3
+    // state.json shape — on a cold validator cache (test runs, CI
+    // boot) this can spike past 100ms even though no I/O leaks into
+    // the mutator. allowSlow: true lets that pass; the guard still
+    // catches genuine "await fetch() inside mutator" mistakes in the
+    // dashboard/CLI/Slack callers (which use small mutators with no
+    // schema validation).
+    allowSlow: true,
   });
 }
 
@@ -2497,6 +2504,9 @@ async function runPhase(projectDir) {
               if (s) s.last_build_delta = delta;
             },
             eventDetail: { what: 'last_build_delta' },
+            // Schema validation inside the lock can spike past 100ms
+            // on a cold CI validator cache; same rationale as commitState.
+            allowSlow: true,
           });
         } catch {}
       }
