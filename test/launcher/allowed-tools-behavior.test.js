@@ -15,7 +15,17 @@ const { test, describe } = require('node:test');
 const assert = require('node:assert');
 const { spawnSync } = require('node:child_process');
 
-const SKIP = process.env.ROUGE_SKIP_CLI_TESTS === '1';
+// Skip when:
+//   - ROUGE_SKIP_CLI_TESTS=1 (explicit opt-out, e.g. fast unit-only runs)
+//   - the `claude` binary isn't on PATH (CI runners without Claude Code installed)
+// The empirical assertions can only run with a real claude CLI; auto-
+// skipping when it's missing keeps the suite green on stock GitHub
+// Actions runners while still catching regressions on dev machines.
+const SKIP = (() => {
+  if (process.env.ROUGE_SKIP_CLI_TESTS === '1') return true;
+  const probe = spawnSync('claude', ['--version'], { stdio: 'ignore' });
+  return probe.error != null || probe.status !== 0;
+})();
 const TIMEOUT_MS = 45_000;
 
 function runClaude(args, prompt) {
