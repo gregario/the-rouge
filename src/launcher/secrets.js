@@ -390,13 +390,69 @@ function getBackend() {
 // Integration key definitions
 // ---------------------------------------------------------------------------
 
+// Integration keychain dictionary — what `rouge setup <name>` knows how
+// to prompt for. Distinct from `library/integrations/tier-2/*.yaml`
+// which is the broader catalogue (32 entries as of 2026-04-25): the
+// catalogue documents every env var an integration uses, this dict
+// lists only the ones that are user-facing secrets (API keys, OAuth
+// client secrets, connection strings) — not derived config like
+// CLOUDINARY_URL which is composed from API key + cloud name, or the
+// session-cookie passwords that callers should generate themselves.
+//
+// New services from the catalogue should land here when they have a
+// stable user-facing secret surface and a real shipping product
+// expects to use them. Adding an entry here unblocks
+// `rouge setup <name>` and `rouge secrets check`.
+//
+// When a service shares a base id but has a different secret surface
+// (e.g. stripe vs stripe-connect), keep them separate so the two
+// flows don't conflate. The catalogue ids are the canonical key.
 const INTEGRATION_KEYS = {
-  stripe: ['STRIPE_SECRET_KEY', 'STRIPE_PUBLISHABLE_KEY'],
+  // Auth + identity
+  authjs: ['AUTH_SECRET', 'AUTH_URL', 'AUTH_GOOGLE_ID', 'AUTH_GOOGLE_SECRET'],
+  clerk: ['CLERK_SECRET_KEY', 'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', 'NEXT_PUBLIC_CLERK_SIGN_IN_URL', 'NEXT_PUBLIC_CLERK_SIGN_UP_URL'],
+  workos: ['WORKOS_API_KEY', 'WORKOS_CLIENT_ID', 'WORKOS_REDIRECT_URI', 'WORKOS_COOKIE_PASSWORD'],
+  // Database
+  neon: ['DATABASE_URL', 'DATABASE_URL_UNPOOLED'],
   supabase: ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_KEY'],
+  turso: ['TURSO_DATABASE_URL', 'TURSO_AUTH_TOKEN'],
+  convex: ['NEXT_PUBLIC_CONVEX_URL', 'CONVEX_DEPLOY_KEY'],
+  // Cache / queue / workflow
+  upstash: ['UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN'],
+  inngest: ['INNGEST_EVENT_KEY', 'INNGEST_SIGNING_KEY'],
+  // Email
+  resend: ['RESEND_API_KEY'],
+  sendgrid: ['SENDGRID_API_KEY'],
+  // Storage / media
+  'aws-s3': ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION', 'S3_BUCKET'],
+  'cloudflare-r2': ['R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET', 'R2_ACCOUNT_ID'],
+  cloudinary: ['CLOUDINARY_URL', 'CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'],
+  mux: ['MUX_TOKEN_ID', 'MUX_TOKEN_SECRET', 'NEXT_PUBLIC_MUX_ENV_KEY'],
+  // Analytics / monitoring
+  posthog: ['NEXT_PUBLIC_POSTHOG_KEY', 'NEXT_PUBLIC_POSTHOG_HOST', 'POSTHOG_API_KEY'],
+  plausible: ['NEXT_PUBLIC_PLAUSIBLE_DOMAIN'],
   sentry: ['SENTRY_AUTH_TOKEN', 'SENTRY_DSN'],
+  // Realtime / collab
+  pusher: ['PUSHER_APP_ID', 'PUSHER_KEY', 'PUSHER_SECRET', 'PUSHER_CLUSTER', 'NEXT_PUBLIC_PUSHER_KEY', 'NEXT_PUBLIC_PUSHER_CLUSTER'],
+  liveblocks: ['LIVEBLOCKS_SECRET_KEY', 'NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY'],
+  // Communications
+  twilio: ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_PHONE_NUMBER'],
   slack: ['ROUGE_SLACK_WEBHOOK', 'SLACK_BOT_TOKEN', 'SLACK_APP_TOKEN'],
+  // ML inference
+  openai: ['OPENAI_API_KEY'],
+  anthropic: ['ANTHROPIC_API_KEY'],
+  replicate: ['REPLICATE_API_TOKEN'],
+  // Payments
+  stripe: ['STRIPE_SECRET_KEY', 'STRIPE_PUBLISHABLE_KEY', 'STRIPE_WEBHOOK_SECRET'],
+  'stripe-connect': ['STRIPE_SECRET_KEY', 'STRIPE_PUBLISHABLE_KEY', 'STRIPE_WEBHOOK_SECRET', 'STRIPE_CONNECT_CLIENT_ID'],
+  // Deploy targets (vercel + cloudflare are catalogue tier-2 manifest
+  // entries via mcp-configs; their secrets surface stays on the
+  // platform-token level here).
   cloudflare: ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID'],
   vercel: ['VERCEL_TOKEN'],
+  // LLM router (for Bedrock / Vertex modes — coexists with the
+  // anthropic / openai single-provider entries for users who want
+  // direct-API access without going through a router).
   llm: [
     'ANTHROPIC_API_KEY',
     'AWS_BEDROCK_ACCESS_KEY_ID',
