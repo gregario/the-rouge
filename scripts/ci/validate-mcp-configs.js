@@ -7,11 +7,11 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const ROOT = path.resolve(__dirname, '..', '..', 'mcp-configs');
+const ROOT = path.resolve(__dirname, '..', '..', 'library', 'integrations', 'mcp-configs');
 
 const REQUIRED_FIELDS = [
   'name', 'description', 'origin', 'status', 'command',
-  'wire_into_phases', 'profiles_recommended',
+  'read_only_recommended', 'wire_into_phases', 'profiles_recommended',
 ];
 const ALLOWED_ORIGINS = ['ECC', 'Rouge', 'community'];
 const ALLOWED_STATUSES = ['active', 'draft', 'retired'];
@@ -36,7 +36,7 @@ const VALID_PROFILES = new Set([
 
 function main() {
   if (!fs.existsSync(ROOT)) {
-    console.log('[validate-mcp-configs] no mcp-configs/ directory — skipping');
+    console.log(`[validate-mcp-configs] no mcp-configs directory at ${ROOT} — skipping`);
     return;
   }
 
@@ -55,6 +55,10 @@ function main() {
 
     for (const f of REQUIRED_FIELDS) {
       if (manifest[f] === undefined) errors.push(`${file}: missing field '${f}'`);
+    }
+    if (manifest.read_only_recommended !== undefined
+        && typeof manifest.read_only_recommended !== 'boolean') {
+      errors.push(`${file}: read_only_recommended must be a boolean (got ${typeof manifest.read_only_recommended})`);
     }
     if (manifest.origin && !ALLOWED_ORIGINS.includes(manifest.origin)) {
       errors.push(`${file}: invalid origin '${manifest.origin}'`);

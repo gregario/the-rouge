@@ -66,6 +66,8 @@ Read `foundation_spec` from `cycle_context.json`. Your scope is EXACTLY what's l
   - Test stubs against sandbox/mock
   - Setup documentation for the project README
 
+**External-system interaction policy (GC.2).** When you need to interact with an external system (Vercel, Supabase, GitHub, Cloudflare, etc.) during foundation building: for *inspecting* state (list deployments, read schema, fetch project metadata), prefer the relevant MCP server when one is wired into this phase. For *mutating* state (deploy, migrate schema, push, delete), always use the CLI tool via the Bash tool. CLIs leave a Bash-tool audit trail; MCPs do not. If the only way to perform a needed mutation is via an MCP because no CLI exists, escalate rather than silently mutating through a side channel.
+
 ### Shared UI Components (if applicable)
 - App shell, navigation, layout
 - Theme tokens, design system primitives

@@ -190,6 +190,12 @@ Execute the production deployment. Read `infrastructure_manifest.json` (or `visi
 - **None** (`deployment_target: "none"`): Non-web deliverable (CLI tool, MCP server, library). Skip deploy; the ship step is whatever makes the artifact consumable (npm publish, binary release, etc.). If no distribution path is configured, ESCALATE.
 - **Other platforms**: Read the deployment pattern from the integration catalogue (`library/integrations/`) and execute accordingly. If no pattern exists for the target, ESCALATE — do not improvise a deploy command.
 
+#### MCP vs CLI for the deploy step (GC.2)
+
+Some deploy targets have an MCP server wired into this phase (e.g. Vercel, Cloudflare Workers, GitHub). The MCP is for *inspecting* state — list deployments, fetch deployment status, read project metadata. **Always run the actual deploy via the CLI** (`vercel`, `wrangler`, `gh`, etc.) through the Bash tool. The Bash invocation is the audit trail; MCP tool calls are not captured equivalently. Pattern: check via MCP, deploy via CLI, verify via either.
+
+If the MCP exposes a "deploy" tool and the parallel CLI command is unavailable, escalate. The audit-trail gap is the problem, not the convenience.
+
 **Failed promotions escalate; they do not auto-retry or auto-rollback.** A failed production deploy may have partially applied, so re-running blindly can worsen the inconsistent state. On failure:
 
 1. Log the error details to `cycle_context.json` under `ship_error`.
