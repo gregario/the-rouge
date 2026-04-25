@@ -97,7 +97,7 @@ async function updateDisciplineStatusInState(
 ): Promise<void> {
   const stateFile = statePath(projectDir)
   if (!existsSync(stateFile)) return
-  await withStateLock(projectDir, () => {
+  await withStateLock(projectDir, async () => {
     try {
       const rawState = JSON.parse(readFileSync(stateFile, 'utf-8'))
       if (!rawState.seedingProgress?.disciplines) return
@@ -140,7 +140,7 @@ async function updateDisciplineStatusInState(
         rawState.seedingProgress.currentDiscipline = current
       }
 
-      writeStateJson(projectDir, rawState)
+      await writeStateJson(projectDir, rawState)
     } catch {
       // If state.json is malformed, skip
     }

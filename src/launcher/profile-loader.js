@@ -24,7 +24,7 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '..', '..');
 const PROFILES_DIR = path.join(ROOT, 'profiles');
 const LIBRARY_DIR = path.join(ROOT, 'library');
-const MCP_DIR = path.join(ROOT, 'mcp-configs');
+const MCP_DIR = path.join(ROOT, 'library', 'integrations', 'mcp-configs');
 
 // "all" fallback: loaded when no profile is selected. Preserves
 // pre-profile behavior by listing every catalog entry.

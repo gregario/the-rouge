@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
+import { facade } from './facade'
 
 export const ROUGE_DIR = '.rouge'
 export const STATE_FILE = 'state.json'
@@ -27,21 +28,32 @@ export function hasStateFile(projectDir: string): boolean {
 }
 
 /**
- * Atomic write of a project's state.json. Writes to a per-pid tmp file
- * first, then rename(2)s into place — POSIX atomic on same-filesystem
- * paths. Trailing newline for consistency with the launcher's existing
- * writeJson helper.
+ * Atomic write of a project's state.json + facade event emission.
  *
- * Use this instead of `writeFileSync(statePath(dir), ...)` everywhere
- * state.json gets mutated. Multiple endpoints used to do the plain
- * write directly (pause, PATCH, resolve-escalation, build-runner,
- * seeding-state's updateStateJsonDiscipline). Concurrent requests could
- * clobber each other's updates silently. The atomic path prevents torn
- * writes; the concurrent-update-loss at the caller level is a separate
- * concern that needs a lock, but at minimum the file is never
- * half-written and readers don't see partial JSON.
+ * Phase 5b of the grand unified reconciliation. The dashboard's lock
+ * discipline is "caller acquires withStateLock, then writes inside the
+ * critical section" — see state-repair.ts, build-runner.ts,
+ * seeding-state.ts, the API route handlers. Routing the write through
+ * facade.writeState (which itself acquires a lock) caused reentrant
+ * deadlock; the facade lock is not reentrant.
+ *
+ * Compromise:
+ *   - The atomic byte-level write stays here, sync-equivalent (the
+ *     async wrapper is for API symmetry with the launcher).
+ *   - After commit, a 'state.write' event is emitted to the project's
+ *     events.jsonl so dashboard / Slack subscribers see the mutation.
+ *   - The lock is the caller's responsibility; the existing
+ *     withStateLock blocks across mutation sites guarantee
+ *     serialization.
+ *
+ * eventDetail is forwarded to the facade event so subscribers can
+ * identify what changed (e.g. { route: 'pause' }).
  */
-export function writeStateJson(projectDir: string, state: unknown): void {
+export async function writeStateJson(
+  projectDir: string,
+  state: unknown,
+  eventDetail?: Record<string, unknown>,
+): Promise<void> {
   const target = statePathForWrite(projectDir)
   // UUID suffix eliminates collision risk that the prior pid+Date.now()
   // pattern had in clustered dashboards or fast test loops where the
@@ -54,4 +66,16 @@ export function writeStateJson(projectDir: string, state: unknown): void {
     try { if (existsSync(tmp)) unlinkSync(tmp) } catch { /* ignore */ }
     throw err
   }
+  // GC.4 (Phase 5b): every dashboard state mutation emits a facade
+  // event so the boundary is observable even though the lock-and-write
+  // mechanics live here. Wrapping in try/catch — event emission must
+  // never block a successful state write.
+  try {
+    facade.emit({
+      projectDir,
+      source: 'dashboard',
+      event: 'state.write',
+      detail: eventDetail ?? {},
+    })
+  } catch { /* never block on event emission */ }
 }

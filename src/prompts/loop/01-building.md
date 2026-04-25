@@ -240,6 +240,15 @@ For each task:
 
 **Why this matters:** Without this step, an autonomous builder with no human watching is *more* likely to reinvent existing code than a supervised one. Code duplication compounds across cycles — the PO Review catches it as "code quality degradation" but by then the damage requires refactoring to undo. Finding reuse opportunities upfront is cheaper than fixing duplication later.
 
+### External-system interaction policy (GC.2)
+
+When a task requires interacting with an external system (Vercel, Supabase, GitHub, Cloudflare, etc.):
+
+- **Inspect via MCP** when one is wired into this phase. List deployments, read schema, fetch project metadata, query state — these are the read paths the MCP is shaped for, and they're fast and structured.
+- **Mutate via CLI** always. Deploy, migrate schema, push, delete, run-migration — these go through the CLI tool invoked via the Bash tool. The Bash trail is the audit log; MCP tool calls are not equivalently captured.
+
+If a needed mutation has no CLI surface and only an MCP path, escalate. Don't silently route the mutation through the MCP "because it works" — the missing audit trail is the problem, not the failure mode.
+
 ---
 
 ## Step 4: Build with TDD — Red, Green, Refactor

@@ -63,13 +63,13 @@ export async function POST(
   }
 
   let priorState: string | null = null;
-  await withStateLock(projectDir, () => {
+  await withStateLock(projectDir, async () => {
     try {
       const state = JSON.parse(readFileSync(stateFile, "utf-8"));
       priorState = state.current_state ?? null;
       if (UNSAFE_FOR_RESET.has(state.current_state)) return;
       state.current_state = "ready";
-      writeStateJson(projectDir, state);
+      await writeStateJson(projectDir, state);
     } catch {
       // malformed state.json — leave it for the user to inspect
     }

@@ -1,0 +1,42 @@
+id: exa
+name: Exa
+tier: 2
+category: search
+description: >
+  Neural web search API designed for LLM consumption. Better than keyword
+  search for "find products similar to X" / "papers about Y" queries used
+  in Rouge's seeding brainstorm and competition disciplines. Returns
+  semantically-relevant results with extractable highlights and full-text
+  contents. Has a generous free tier for prototyping; usage-based after.
+cost_tier: free-to-start
+
+requires:
+  env_vars:
+    - EXA_API_KEY
+  packages:
+    - exa-js
+  cli_tools: []
+
+setup_steps:
+  - Create an account at exa.ai
+  - Generate an API key in the dashboard
+  - Set EXA_API_KEY in .env.local for the exa MCP and any direct SDK use
+  - Install the JS SDK if calling directly- npm install exa-js
+  - Verify- the exa MCP wires into seeding.brainstorm and seeding.competition automatically
+
+teardown_steps:
+  - Revoke the API key in the Exa dashboard
+  - Optionally delete the Exa account if test-only
+  - Remove the package- npm uninstall exa-js
+
+tested_with:
+  - Exa API v1 (2026-04)
+  - exa-js 1.5+
+  - Exa MCP server (npx exa-mcp-server)
+
+free_tier_limits:
+  searches: 1000/month
+  contents_extracts: 1000/month
+  rate_limit: 10 req/sec
+
+staleness_date: 2026-04-25

@@ -1,0 +1,49 @@
+id: cloudflare-workers
+name: Cloudflare Workers
+tier: 2
+category: edge-compute
+description: >
+  Cloudflare's edge serverless runtime for JavaScript, TypeScript, Python,
+  Rust, and WASM. Deploys globally to 300+ data centers with sub-millisecond
+  cold start. Pairs with Cloudflare Pages for static sites, R2 for object
+  storage, KV for key-value, and D1 for SQLite at the edge. Generous free
+  tier covers most prototypes; usage-based pricing kicks in past it.
+cost_tier: free-to-start
+
+requires:
+  env_vars:
+    - CLOUDFLARE_API_TOKEN
+    - CLOUDFLARE_ACCOUNT_ID
+  packages:
+    - wrangler
+  cli_tools:
+    - wrangler
+
+setup_steps:
+  - Create a Cloudflare account at dash.cloudflare.com
+  - Get the Account ID from the right sidebar of the dashboard home
+  - Create an API token at My Profile > API Tokens > Create Token (use the "Edit Cloudflare Workers" template)
+  - Install wrangler globally or as a devDependency (npm install -g wrangler)
+  - Run `wrangler login` for interactive auth, OR set CLOUDFLARE_API_TOKEN for CI
+  - Configure environment variables in .env.local for the Workers MCP
+
+teardown_steps:
+  - Run `wrangler delete <worker-name>` for each deployed Worker
+  - Revoke the API token in My Profile > API Tokens
+  - Optionally delete the Cloudflare account if test-only
+
+tested_with:
+  - wrangler 3.x
+  - Workers runtime 2024-09-25
+  - Pages projects via wrangler pages deploy
+
+free_tier_limits:
+  workers: 100,000 requests/day
+  pages_builds: 500 builds/month
+  pages_bandwidth: unlimited
+  kv_reads: 100,000/day
+  kv_writes: 1000/day
+  d1_reads: 5M rows/day
+  d1_writes: 100k rows/day
+
+staleness_date: 2026-04-25

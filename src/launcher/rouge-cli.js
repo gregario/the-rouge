@@ -2222,14 +2222,35 @@ if (command === 'doctor') {
 
   // Mark the escalation as handed-off. Launcher picks this up on its
   // next loop tick and parks the project.
+  // GC.4 (Phase 5): write through the facade — same shape, but the
+  // dashboard now sees a state.write event for this CLI mutation.
   pending.human_response = {
     type: 'hand-off',
     text: 'Handed off to direct Claude Code session',
     submitted_at: new Date().toISOString(),
   };
-  const tmp = stateFile + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(state, null, 2) + '\n');
-  fs.renameSync(tmp, stateFile);
+  const facade = require('./facade.js');
+  // Top-level branch is sync; wrap the await in an IIFE that exits
+  // before the rest of the branch's user-facing output runs.
+  // eslint-disable-next-line no-inner-declarations
+  (async () => {
+    await facade.writeState({
+      projectDir,
+      source: 'cli',
+      mutator: (s) => {
+        // Re-locate and mark the same pending escalation in the freshly
+        // read state, so a concurrent dashboard mutation doesn't lose
+        // the escalations array.
+        const fresh = (s.escalations || []).find((e) => e.id === pending.id);
+        if (fresh) fresh.human_response = pending.human_response;
+        else if (s.escalations) s.escalations.push(pending);
+      },
+      eventDetail: { command: 'resume-escalation', escalationId: pending.id },
+    });
+  })().catch((err) => {
+    console.error(`  Failed to mark escalation handed-off: ${err.message}`);
+    process.exit(1);
+  });
 
   // Build a primed prompt for Claude Code.
   const logFile = path.join(projectDir, 'build.log');

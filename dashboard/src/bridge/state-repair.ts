@@ -73,12 +73,12 @@ export async function repairProjectState(projectDir: string): Promise<RepairRepo
   // Shape 2: in foundation but foundation object is null/undefined.
   // Re-read and fix inside the lock so an in-flight build-runner
   // transition can't clobber us.
-  const shape2Fixed = await withStateLock(projectDir, () => {
+  const shape2Fixed = await withStateLock(projectDir, async () => {
     try {
       const current = JSON.parse(readFileSync(sp, 'utf-8')) as Record<string, unknown>
       if (current.current_state === 'foundation' && !current.foundation) {
         current.foundation = { status: 'pending' }
-        writeStateJson(projectDir, current)
+        await writeStateJson(projectDir, current)
         return true
       }
     } catch {
@@ -98,7 +98,7 @@ export async function repairProjectState(projectDir: string): Promise<RepairRepo
   // user can Reset or Resume. rouge-loop's dispatcher was also hardened
   // to prevent the broken shape going forward; this handles projects
   // already persisted with it.
-  const shape3Fixed = await withStateLock(projectDir, () => {
+  const shape3Fixed = await withStateLock(projectDir, async () => {
     try {
       const current = JSON.parse(readFileSync(sp, 'utf-8')) as {
         current_state?: string
@@ -121,7 +121,7 @@ export async function repairProjectState(projectDir: string): Promise<RepairRepo
             status: 'pending',
             created_at: new Date().toISOString(),
           })
-          writeStateJson(projectDir, current)
+          await writeStateJson(projectDir, current)
           return true
         }
       }
@@ -154,7 +154,7 @@ export async function repairProjectState(projectDir: string): Promise<RepairRepo
   // (daemon is alive OR queue has drained). Lives OUTSIDE the
   // "add escalation" path so it runs every repair pass — otherwise
   // a crash-escalation persists forever after recovery.
-  const crashResolveFixed = await withStateLock(projectDir, () => {
+  const crashResolveFixed = await withStateLock(projectDir, async () => {
     try {
       const current = JSON.parse(readFileSync(sp, 'utf-8')) as {
         escalations?: Array<Record<string, unknown>>
@@ -175,7 +175,7 @@ export async function repairProjectState(projectDir: string): Promise<RepairRepo
         }
       }
       if (mutated) {
-        writeStateJson(projectDir, current)
+        await writeStateJson(projectDir, current)
         return true
       }
     } catch {
@@ -198,7 +198,7 @@ export async function repairProjectState(projectDir: string): Promise<RepairRepo
     // Only create a new escalation if one isn't already pending —
     // the repair pass runs on every scan + every detail fetch, and
     // re-creating would spam escalations.
-    const alreadyEscalated = await withStateLock(projectDir, () => {
+    const alreadyEscalated = await withStateLock(projectDir, async () => {
       try {
         const current = JSON.parse(readFileSync(sp, 'utf-8')) as {
           escalations?: Array<Record<string, unknown>>
@@ -219,7 +219,7 @@ export async function repairProjectState(projectDir: string): Promise<RepairRepo
           status: 'pending',
           created_at: new Date().toISOString(),
         })
-        writeStateJson(projectDir, current)
+        await writeStateJson(projectDir, current)
         return false
       } catch {
         return false

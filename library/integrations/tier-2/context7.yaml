@@ -1,0 +1,39 @@
+id: context7
+name: Context7
+tier: 2
+category: documentation-lookup
+description: >
+  Live documentation lookup MCP for frameworks and libraries. Highest-ROI
+  MCP in Rouge's catalogue because it directly addresses the
+  invented-API hallucination class- the factory asks "how does Stripe's
+  payment_intent.create work in v2024-12-01" and gets the real signature
+  rather than a plausible-sounding made-up one. Free without an API key
+  (rate-limited); optional key raises the limits.
+cost_tier: free
+
+requires:
+  env_vars: []
+  packages: []
+  cli_tools: []
+
+setup_steps:
+  - No setup needed for the rate-limited free tier- the context7 MCP works without credentials
+  - For higher rate limits- create an account at context7.com
+  - Generate an API key in the dashboard
+  - Set CONTEXT7_API_KEY in .env.local
+  - Verify- the context7 MCP wires into loop.building, loop.foundation, loop.code-review, seeding.spec automatically
+
+teardown_steps:
+  - If an API key was set- revoke it in the Context7 dashboard
+  - Otherwise no teardown- the MCP is npx-served and leaves no local state
+
+tested_with:
+  - Context7 MCP server "@upstash/context7-mcp@latest"
+  - Context7 API (Upstash-hosted)
+
+free_tier_limits:
+  cost: 0
+  rate_limit: ~60 req/min unauthenticated; higher with API key
+  docs_coverage: 200+ frameworks (Next.js, React, Stripe, Supabase, etc.)
+
+staleness_date: 2026-04-25

@@ -35,6 +35,13 @@ The Rouge CLI
     rouge secrets expiry set <s/K> <date>  Set expiry for a secret
     rouge feasibility <description> Assess feasibility of a proposed change
     rouge contribute <path>         Contribute a draft integration pattern via PR
+    rouge eval-calibrate            Gate: quadratic-weighted Kappa between gold-set labels and model output
+                                    --gold-set <dir>, --model-labels <file>, --min-kappa <float>, --verbose
+    rouge eval-seed-gold            Regenerate the synthetic gold set (refuses to clobber non-synthetic entries).
+                                    --gold-set <dir>, --dry-run, --force
+    rouge size-project              SIZING sub-phase driver: parses BRAINSTORM signals, classifies, writes
+                                    seed_spec/sizing.json. --project-dir <dir>, --override <XS|S|M|L|XL>,
+                                    --reasoning "<text>", --json
     rouge resume-escalation <slug>  Prime a direct Claude Code session for an
                                     escalation hand-off. Parks the project,
                                     prints the claude command + context.
@@ -51,7 +58,7 @@ The Rouge CLI
     rouge slack start               Start the Slack bot
     rouge slack test                Send a test webhook message
 
-  Integrations: stripe, supabase, sentry, slack, cloudflare, vercel, llm
+  Integrations: authjs, clerk, workos, neon, supabase, turso, convex, upstash, inngest, resend, sendgrid, aws-s3, cloudflare-r2, cloudinary, mux, posthog, plausible, sentry, pusher, liveblocks, twilio, slack, openai, anthropic, replicate, stripe, stripe-connect, cloudflare, vercel, llm, cloudflare-workers, counterscale, exa, firecrawl, github, vercel-blob, vercel-edge-config, cloudflare-pages
 
   Suppress experimental warnings: ROUGE_SUPPRESS_EXPERIMENTAL_WARNING=1
 ```

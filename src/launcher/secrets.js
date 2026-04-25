@@ -390,25 +390,37 @@ function getBackend() {
 // Integration key definitions
 // ---------------------------------------------------------------------------
 
-// Integration keychain dictionary — what `rouge setup <name>` knows how
-// to prompt for. Distinct from `library/integrations/tier-2/*.yaml`
-// which is the broader catalogue (32 entries as of 2026-04-25): the
-// catalogue documents every env var an integration uses, this dict
-// lists only the ones that are user-facing secrets (API keys, OAuth
-// client secrets, connection strings) — not derived config like
-// CLOUDINARY_URL which is composed from API key + cloud name, or the
-// session-cookie passwords that callers should generate themselves.
+// Override map (Phase 1 of the grand unified reconciliation).
 //
-// New services from the catalogue should land here when they have a
-// stable user-facing secret surface and a real shipping product
-// expects to use them. Adding an entry here unblocks
-// `rouge setup <name>` and `rouge secrets check`.
+// `INTEGRATION_KEYS` was historically a hand-maintained dictionary that
+// drifted from the catalogue (`library/integrations/tier-2/*.yaml`).
+// Phase 1 makes the catalogue authoritative: where an entry's
+// `requires.env_vars` is the user-prompted secret list, the catalogue
+// is the source. This map captures every per-service exception.
 //
-// When a service shares a base id but has a different secret surface
-// (e.g. stripe vs stripe-connect), keep them separate so the two
-// flows don't conflate. The catalogue ids are the canonical key.
-const INTEGRATION_KEYS = {
-  // Auth + identity
+// Two reasons a service appears here:
+//
+//   1. The catalogue lists *all* env vars the integration consumes
+//      (including derived/composed ones like CLOUDINARY_URL, or
+//      generated ones like AUTH_SECRET that the user shouldn't paste),
+//      while this list is only the user-facing secrets `rouge setup`
+//      prompts for.
+//
+//   2. The service has no catalogue entry yet (e.g. `llm` — a router
+//      identity, not a service in its own right) but still needs a
+//      stable secret surface.
+//
+// Empty array means "this id is known but has no user-prompted
+// secrets" (rare). Absent from this map means "use catalogue".
+//
+// As the catalogue gains alignment over time, entries here can be
+// removed; the test in test/library/catalogue.test.js plus
+// test/launcher/secrets.test.js together catch any drift.
+const INTEGRATION_KEYS_OVERRIDES = {
+  // Auth + identity — overridden because the catalogue lists prefixed
+  // names (e.g. NEXT_PUBLIC_*) for client-side use, but `rouge setup`
+  // prompts for the canonical secret names the user pastes from the
+  // provider dashboard.
   authjs: ['AUTH_SECRET', 'AUTH_URL', 'AUTH_GOOGLE_ID', 'AUTH_GOOGLE_SECRET'],
   clerk: ['CLERK_SECRET_KEY', 'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', 'NEXT_PUBLIC_CLERK_SIGN_IN_URL', 'NEXT_PUBLIC_CLERK_SIGN_UP_URL'],
   workos: ['WORKOS_API_KEY', 'WORKOS_CLIENT_ID', 'WORKOS_REDIRECT_URI', 'WORKOS_COOKIE_PASSWORD'],
@@ -426,6 +438,8 @@ const INTEGRATION_KEYS = {
   // Storage / media
   'aws-s3': ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION', 'S3_BUCKET'],
   'cloudflare-r2': ['R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET', 'R2_ACCOUNT_ID'],
+  // CLOUDINARY_URL is composed from cloud_name + api_key + api_secret;
+  // the user is prompted for all four so either form works.
   cloudinary: ['CLOUDINARY_URL', 'CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'],
   mux: ['MUX_TOKEN_ID', 'MUX_TOKEN_SECRET', 'NEXT_PUBLIC_MUX_ENV_KEY'],
   // Analytics / monitoring
@@ -445,14 +459,13 @@ const INTEGRATION_KEYS = {
   // Payments
   stripe: ['STRIPE_SECRET_KEY', 'STRIPE_PUBLISHABLE_KEY', 'STRIPE_WEBHOOK_SECRET'],
   'stripe-connect': ['STRIPE_SECRET_KEY', 'STRIPE_PUBLISHABLE_KEY', 'STRIPE_WEBHOOK_SECRET', 'STRIPE_CONNECT_CLIENT_ID'],
-  // Deploy targets (vercel + cloudflare are catalogue tier-2 manifest
-  // entries via mcp-configs; their secrets surface stays on the
-  // platform-token level here).
+  // Deploy targets — catalogue's vercel manifest also lists ORG_ID and
+  // PROJECT_ID, but those are linked-project metadata stored in
+  // .vercel/project.json by `vercel link`, not user-prompted secrets.
   cloudflare: ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID'],
   vercel: ['VERCEL_TOKEN'],
-  // LLM router (for Bedrock / Vertex modes — coexists with the
-  // anthropic / openai single-provider entries for users who want
-  // direct-API access without going through a router).
+  // LLM router — no catalogue entry (it's a routing identity, not a
+  // service with its own setup steps).
   llm: [
     'ANTHROPIC_API_KEY',
     'AWS_BEDROCK_ACCESS_KEY_ID',
@@ -463,6 +476,42 @@ const INTEGRATION_KEYS = {
     'GCP_VERTEX_ADC',
   ],
 };
+
+/**
+ * Derive INTEGRATION_KEYS from the catalogue + override map.
+ *
+ * For every catalogue entry: use the override list if present,
+ * otherwise the catalogue's `requires.env_vars`. Overrides without a
+ * catalogue parent (e.g. `llm`) are also included, so this dictionary
+ * captures every integration `rouge setup <name>` recognises.
+ *
+ * Computed once at module load. If the catalogue is unreadable for any
+ * reason (corrupt yaml, missing dir), falls back to the override map
+ * alone — `rouge setup` continues to work for the curated entries.
+ */
+function deriveIntegrationKeys() {
+  const result = { ...INTEGRATION_KEYS_OVERRIDES };
+  try {
+    const { loadCatalogue } = require('./catalogue.js');
+    const all = loadCatalogue();
+    for (const entry of all) {
+      if (result[entry.id] !== undefined) continue; // override wins
+      const env = entry.requires && Array.isArray(entry.requires.env_vars)
+        ? entry.requires.env_vars
+        : [];
+      if (env.length > 0) result[entry.id] = env;
+    }
+  } catch (e) {
+    // Catalogue unreadable — overrides alone are still usable.
+    // Surface the error to the caller via the audit log if available.
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn(`[secrets] catalogue load failed: ${e.message}; using override map only`);
+    }
+  }
+  return result;
+}
+
+const INTEGRATION_KEYS = deriveIntegrationKeys();
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -684,4 +733,6 @@ module.exports = {
   setExpiry,
   getExpiringSecrets,
   INTEGRATION_KEYS,
+  INTEGRATION_KEYS_OVERRIDES,
+  deriveIntegrationKeys,
 };

@@ -24,12 +24,45 @@ function readState(projectName) {
   return JSON.parse(fs.readFileSync(statePath, 'utf8'));
 }
 
+/**
+ * Persist state via the facade.
+ *
+ * Phase 5 of the grand unified reconciliation. Slack is now an entry
+ * adapter — every state write goes through src/launcher/facade.js,
+ * which holds the per-project lock, validates the schema, and emits
+ * a state.write event the dashboard subscribes to. The 17 writeState()
+ * callers in this file are unchanged; only this helper's body moves.
+ *
+ * Fork B (notification-only) is the long-term Slack direction; once
+ * the dashboard fully replaces seeding-via-Slack and pause-via-Slack,
+ * this whole helper goes away. For now we preserve the user feature
+ * surface while routing writes through the boundary.
+ *
+ * Returns a Promise; some Slack handlers `await` and some are sync
+ * fire-and-forget — both work because the facade write is awaited
+ * internally and the lock release runs before the Promise resolves.
+ */
 function writeState(projectName, state) {
-  const statePath = resolveStatePath(path.join(PROJECTS_DIR, projectName));
+  const projectDir = path.join(PROJECTS_DIR, projectName);
   state.timestamp = new Date().toISOString();
-  const tmp = statePath + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(state, null, 2) + '\n');
-  fs.renameSync(tmp, statePath);
+  const facade = require('../launcher/facade.js');
+  // Fire-and-forget shape preserves the existing call sites (most
+  // Slack handlers don't await). Internal failures log but never
+  // throw an unhandled rejection that would crash the bot.
+  return facade.writeState({
+    projectDir,
+    source: 'slack',
+    mutator: () => state,
+    eventDetail: { current_state: state.current_state },
+  }).catch((err) => {
+    // Don't crash Slack on a state-write failure (lock timeout,
+    // schema violation). The dashboard will still see the
+    // pre-mutation state; the Slack user gets their reply but no
+    // state change. Surface to console for operator visibility.
+    if (typeof console !== 'undefined' && console.error) {
+      console.error(`[slack] facade.writeState failed for ${projectName}: ${err.message}`);
+    }
+  });
 }
 
 function listProjects() {

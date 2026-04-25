@@ -167,6 +167,22 @@ export function runClaude(options: RunClaudeOptions): Promise<ClaudeResult> {
       args.push('--resume', sessionId)
     }
 
+    // GC.4 (Phase 5b): emit facade phase.start before the dashboard
+    // claude-runner spawns. The corresponding phase.end fires in the
+    // close handler. Lifting the entire spawn orchestration into
+    // facade/dispatch/subprocess.js is a Phase 6+ concern; for now
+    // the boundary events are the audit trail GC.4 enforces.
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { facade } = require('./facade') as typeof import('./facade')
+      facade.emit({
+        projectDir,
+        source: 'dashboard',
+        event: 'phase.start',
+        detail: { phase: 'dashboard.runClaude', model, mode: 'subprocess', sessionId: sessionId ?? null },
+      })
+    } catch (_e) { /* event emission must never block dashboard runs */ }
+
     const child = spawn('claude', args, {
       cwd: projectDir,
       env: { ...process.env },
@@ -197,6 +213,22 @@ export function runClaude(options: RunClaudeOptions): Promise<ClaudeResult> {
       if (resolved) return
       resolved = true
       clearTimeout(timer)
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { facade } = require('./facade') as typeof import('./facade')
+        facade.emit({
+          projectDir,
+          source: 'dashboard',
+          event: 'phase.end',
+          detail: {
+            phase: 'dashboard.runClaude',
+            model,
+            mode: 'subprocess',
+            exitCode: code,
+            ok: code === 0 || stdout.length > 0,
+          },
+        })
+      } catch (_e) { /* never block close */ }
       if (code !== 0 && !stdout) {
         resolve({ result: '', session_id: null, error: stderr || `claude exited ${code}` })
         return

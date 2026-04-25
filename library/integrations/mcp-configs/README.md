@@ -11,7 +11,7 @@ Curated set of Model Context Protocol servers Rouge products can be configured w
 Each MCP is a single JSON manifest:
 
 ```
-mcp-configs/<name>.json
+library/integrations/mcp-configs/<name>.json
 ```
 
 Manifest fields:
@@ -26,11 +26,17 @@ Manifest fields:
   "args": [],
   "env_required": ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"],
   "env_optional": ["SUPABASE_PROJECT_REF"],
+  "read_only_recommended": true,
   "wire_into_phases": ["loop.building", "loop.foundation"],
   "profiles_recommended": ["saas-webapp", "api-service"],
   "notes": "..."
 }
 ```
+
+`read_only_recommended` (required, boolean) declares whether the
+MCP is intended for read paths only (per GC.2 — read via MCP, mutate
+via CLI). True for nearly all MCPs in this catalogue; false documented
+per-case for the rare write-path MCP.
 
 ## Current curated set
 

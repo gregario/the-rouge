@@ -106,7 +106,7 @@ async function startBuildInner(
   const statePath = resolveStatePath(projectDir)
   let priorCurrentState: string | null = null
   if (existsSync(statePath)) {
-    const transition = await withStateLock(projectDir, () => {
+    const transition = await withStateLock(projectDir, async () => {
       try {
         const state = JSON.parse(readFileSync(statePath, 'utf-8'))
         if (state.current_state === 'ready' || state.current_state === 'seeding') {
@@ -122,7 +122,7 @@ async function startBuildInner(
           if (!state.foundation) {
             state.foundation = { status: 'pending' }
           }
-          writeStateJson(projectDir, state)
+          await writeStateJson(projectDir, state)
           return { prior, error: null }
         } else if (state.current_state === 'complete') {
           return { prior: null, error: `Project is complete — nothing to build` }
@@ -144,12 +144,12 @@ async function startBuildInner(
 
   const rollbackState = async () => {
     if (priorCurrentState === null) return
-    await withStateLock(projectDir, () => {
+    await withStateLock(projectDir, async () => {
       try {
         const st = JSON.parse(readFileSync(statePath, 'utf-8'))
         if (st.current_state === 'foundation' || st.current_state === 'story-building') {
           st.current_state = priorCurrentState
-          writeStateJson(projectDir, st)
+          await writeStateJson(projectDir, st)
         }
       } catch {
         // best effort
@@ -341,13 +341,13 @@ export async function stopBuild(
 async function rollbackZombieBuildState(projectDir: string): Promise<boolean> {
   const statePath = resolveStatePath(projectDir)
   if (!existsSync(statePath)) return false
-  return withStateLock(projectDir, () => {
+  return withStateLock(projectDir, async () => {
     try {
       const state = JSON.parse(readFileSync(statePath, 'utf-8'))
       const cur = state.current_state
       if (cur === 'foundation' || cur === 'story-building') {
         state.current_state = 'ready'
-        writeStateJson(projectDir, state)
+        await writeStateJson(projectDir, state)
         return true
       }
     } catch {

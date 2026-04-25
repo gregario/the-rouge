@@ -7,6 +7,7 @@
   "args": ["-y", "@modelcontextprotocol/server-github"],
   "env_required": ["GITHUB_PERSONAL_ACCESS_TOKEN"],
   "env_optional": [],
+  "read_only_recommended": true,
   "wire_into_phases": ["loop.ship-promote", "loop.document-release", "seeding.brainstorm"],
   "profiles_recommended": ["saas-webapp", "api-service", "mcp-server", "cli-tool", "internal-dashboard"],
   "notes": "Token scope: repo, workflow, read:org. Never use a token with admin permissions. Rotate quarterly."
