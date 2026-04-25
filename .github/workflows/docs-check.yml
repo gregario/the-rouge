@@ -14,7 +14,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Install root deps (typescript needed by gen:facade-types)
+        run: npm ci
       - name: Link + command check
         run: node scripts/check-docs.js
       - name: CLI reference in sync
         run: node scripts/generate-cli-reference.js --check
+      - name: Facade types snapshot in sync
+        run: node scripts/gen-facade-types.mjs --check
