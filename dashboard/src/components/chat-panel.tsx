@@ -24,11 +24,12 @@ interface ChatPanelProps {
   completedDisciplines?: string[]
   currentDiscipline?: string
   selectedDiscipline?: string
+  applicableDisciplines?: string[]
 }
 
-// Canonical discipline sequence — messages without metadata default to this order
-const DISCIPLINE_SEQUENCE = [
-  'brainstorming', 'competition', 'taste', 'sizing', 'spec',
+// Default ordering when no applicable list is provided
+const DEFAULT_DISCIPLINE_SEQUENCE = [
+  'brainstorming', 'sizing', 'taste', 'competition', 'spec',
   'infrastructure', 'design', 'legal-privacy', 'marketing',
 ] as const
 
@@ -60,6 +61,7 @@ export function ChatPanel({
   completedDisciplines,
   currentDiscipline,
   selectedDiscipline,
+  applicableDisciplines,
 }: ChatPanelProps) {
   const bridgeActive = isBridgeEnabled() && !!slug
   const seeding = useSeeding(bridgeActive ? slug : '')
@@ -121,16 +123,19 @@ export function ChatPanel({
       messagesByDiscipline.get(d)!.push(msg)
     }
 
-    // Only include disciplines that have messages
+    // Only include disciplines that have messages, ordered by applicable list
+    const sequence = applicableDisciplines && applicableDisciplines.length > 0
+      ? applicableDisciplines
+      : DEFAULT_DISCIPLINE_SEQUENCE as unknown as string[]
     const result: DisciplineGroup[] = []
-    for (const d of DISCIPLINE_SEQUENCE) {
+    for (const d of sequence) {
       const msgs = messagesByDiscipline.get(d)
       if (!msgs || msgs.length === 0) continue
       const status = complete.has(d) ? 'complete' : d === currentDiscipline ? 'current' : 'pending'
       result.push({ discipline: d, messages: msgs, status })
     }
     return result
-  }, [displayMessages, completedDisciplines, currentDiscipline])
+  }, [displayMessages, completedDisciplines, currentDiscipline, applicableDisciplines])
 
   // Auto-expand logic:
   // - If currentDiscipline is provided: expand that one

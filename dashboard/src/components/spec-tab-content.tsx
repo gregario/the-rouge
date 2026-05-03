@@ -178,6 +178,7 @@ function SeedingLayout({
           completedDisciplines={completedDisciplines}
           currentDiscipline={seedingProgress.currentDiscipline}
           selectedDiscipline={selectedDiscipline}
+          applicableDisciplines={seedingProgress.applicableDisciplines}
         />
       </div>
     </div>
