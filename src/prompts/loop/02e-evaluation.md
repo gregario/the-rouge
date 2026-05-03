@@ -21,6 +21,7 @@ From `cycle_context.json`:
 - `vision` — product vision for alignment assessment
 - `previous_cycles` — past evaluation results for trend comparison
 - `_cycle_number` — current cycle number
+- `human_resolution` (EVAL-008 FIX) — if present, contains commits and context from a hand-off session where the human fixed issues directly. Before emitting any finding, check whether it was already addressed by these commits. If a finding would duplicate a human fix, mark it as `resolved_by: "human-handoff"` and exclude from severity tallies.
 
 ## Quote-before-score discipline (P1.16)
 

@@ -306,16 +306,18 @@ If validated `this-milestone` improvement items exist AND the recommendation fro
 - Set `recommendation_reasoning` to explain that confidence is high enough to promote but non-blocking improvements should be addressed first
 - The `deepen:improvements` action routes to `generating-change-spec` via the existing launcher transition (`action.startsWith('deepen')`)
 
-#### Convergence guardrail
+#### Convergence guardrail (EVAL-007 FIX: added hard cap)
 
 When recommending `deepen:improvements`, check for convergence failure:
 
 1. Read `previous_cycles` for prior `deepen:improvements` recommendations within this milestone.
-2. If the SAME improvement items (by description similarity, not just ID) have appeared in **2+ consecutive** `deepen:improvements` cycles AND confidence delta is within +/-0.02:
+2. Count consecutive `deepen:improvements` cycles for this milestone (include the current cycle if you're about to recommend it).
+3. **Hard cap:** If count >= 5, override to `promote` — the loop has attempted quality improvements 5 times. Either the bar is subjective (needs human taste) or the gaps are unfixable with current capabilities. Move remaining items to `global_improvements.json` and promote.
+4. **Soft guardrail (pre-cap):** If count >= 2 AND the SAME improvement items (by description similarity, not just ID) have persisted AND confidence delta is within +/-0.02:
    - The loop is not converging. These improvements are either unfixable by the builder or subjective.
    - Override to `promote` — accept the remaining items.
    - Move the persistent items to `global_improvements.json` as `global` scope (final-review gets another chance to catch them).
-   - Log a `phase_decision`: "Convergence guardrail triggered: improvements [list] persisted across N deepen:improvements cycles with no confidence change. Promoting to avoid infinite polish loop. Items moved to global_improvements.json for final-review."
+5. Log a `phase_decision`: "Convergence guardrail triggered: [soft: N cycles, same items, no confidence change] OR [hard cap: 5 deepen cycles]. Promoting to avoid infinite polish loop. Items moved to global_improvements.json for final-review."
 
 This guardrail prevents the "Taylor series" problem — each fix cycle introducing new observations that prevent promotion forever.
 

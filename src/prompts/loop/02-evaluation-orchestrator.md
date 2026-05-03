@@ -222,8 +222,12 @@ Expected output shape:
 **Runs only if `evaluation_report.re_walk_requests[]` is non-empty.** The Evaluation phase flags observations it needs but couldn't find in the original walk. Re-Walk fills those specific gaps and appends to `product_walk`.
 
 - If `re_walk_requests[]` is empty, skip.
-- Otherwise: read `02f-re-walk.md`, execute, then re-run **only Sub-Phase 3 (Evaluation)** to re-judge with the augmented evidence. Do NOT re-run Code Review or the initial walk.
-- Cap at one re-walk iteration per evaluation run. If the re-walked evaluation still has `re_walk_requests`, surface the gap in `evaluator_observations` and proceed — don't loop forever.
+- Otherwise: check `cycle_context.re_walk_count` (default 0). If >= 1, skip (EVAL-005 FIX: hard cap to prevent infinite loop). Otherwise:
+  - Increment `cycle_context.re_walk_count`
+  - Read `02f-re-walk.md`, execute
+  - Re-run **only Sub-Phase 3 (Evaluation)** to re-judge with the augmented evidence
+  - Do NOT re-run Code Review or the initial walk
+- If re-walk was skipped due to cap, surface the gap in `evaluator_observations`: "Re-walk requested but cap reached (1 per evaluation). Observations may be incomplete for: <list re_walk_requests>."
 
 ### Step 4: Final Dashboard Check
 

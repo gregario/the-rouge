@@ -227,13 +227,12 @@ const PROGRESS_STALE_THRESHOLD = parseInt(process.env.ROUGE_PROGRESS_STALE || '1
 const LOG_STALE_THRESHOLD = parseInt(process.env.ROUGE_LOG_STALE || '10', 10) * 60 * 1000; // 10 min no log growth
 const HARD_CEILING = parseInt(process.env.ROUGE_HARD_CEILING || '60', 10) * 60 * 1000; // 60 min absolute max
 
+// BUILD-002 FIX: Added 'paused' back to SKIP_STATES. Slack bot (src/slack/bot.js
+// lines 798, 946, 961, 963, 1074) still writes this state when ROUGE_SLACK_ALLOW_WRITES
+// is set. Without this, projects marked paused continue executing (uat-test symptom).
 // States the loop does not actively advance — either terminal, awaiting
-// human input, or pre-build. 'paused' was removed from this set after a
-// codebase audit: it was listed here but no code path ever wrote it to
-// current_state. If a user-initiated pause ever returns, add it back
-// AND route at least one caller through a transition helper so the
-// marker is real, not decorative.
-const SKIP_STATES = new Set(['seeding', 'ready', 'waiting-for-human', 'escalation', 'complete']);
+// human input, or pre-build.
+const SKIP_STATES = new Set(['seeding', 'ready', 'waiting-for-human', 'escalation', 'complete', 'paused']);
 
 function readJson(filePath) {
   try {
@@ -1193,6 +1192,39 @@ async function advanceState(projectDir) {
         } catch {}
       }
 
+      // EVAL-006 FIX: Story-level semantic spin detection. Before checking
+      // the zero-delta time-based spin detector, check if this failure is
+      // IDENTICAL to recent failures (same eval report fingerprint). If so,
+      // escalate immediately instead of burning budget on 3 attempts at an
+      // unfixable issue.
+      if (outcome === 'fail') {
+        const evalReport = ctx?.evaluation_report;
+        if (evalReport) {
+          const { isSpin, recent } = recordEvalFingerprint(
+            projectDir,
+            'story-building',
+            evalReport,
+            { meta: { story_id: story.id, attempt: story.attempts } },
+          );
+          if (isSpin) {
+            log(`[${projectName}] Story-level semantic spin detected: identical eval findings ${recent.length} times`);
+            if (!state.escalations) state.escalations = [];
+            state.escalations.push({
+              id: `esc-story-semantic-spin-${Date.now()}`,
+              tier: 2,
+              classification: 'semantic-spin',
+              summary: `Story "${story.id}" has failed ${recent.length} times with identical evaluation findings. This is not a retry-fixable issue — either the spec is ambiguous, the eval is miscalibrated, or the fix requires capabilities Rouge doesn't have. Human judgment needed.`,
+              story_id: story.id,
+              status: 'pending',
+              created_at: new Date().toISOString(),
+            });
+            await commitState(projectDir, state);
+            next = 'escalation';
+            break;
+          }
+        }
+      }
+
       // V3: Spin detection — escalate if loop is spinning without progress
       const spinReason = shouldEscalateForSpin({
         stories_executed: state.stories_executed || [],
@@ -1366,16 +1398,15 @@ async function advanceState(projectDir) {
       const designVerdict = ctx?.evaluation_report?.design?.verdict || 'PASS';
       const poVerdict = ctx?.evaluation_report?.po?.verdict || 'READY';
 
-      // Route to milestone-fix when any lens fails hard. Prior version
-      // only checked QA; PO NEEDS_IMPROVEMENT and Design FAIL silently
-      // advanced to analyzing, dropping real quality signal. Audit
-      // prompt-regression finding #1. Soft verdicts (PO NOT_READY,
-      // Design NEEDS_IMPROVEMENT) also loop back to fixing — they're
-      // intentionally distinct from "ready".
+      // EVAL-001 FIX: Route to milestone-fix only for hard failures (bugs).
+      // PO NEEDS_IMPROVEMENT means "functionally correct but quality below
+      // bar" — those need new specs (analyzing → deepen), not bug fixes
+      // (milestone-fix). Design NEEDS_IMPROVEMENT removed per EVAL-002
+      // (02e only defines PASS|FAIL for design, not NEEDS_IMPROVEMENT).
       const lensFail =
         qaVerdict === 'FAIL' ||
-        designVerdict === 'FAIL' || designVerdict === 'NEEDS_IMPROVEMENT' ||
-        poVerdict === 'NOT_READY' || poVerdict === 'NEEDS_IMPROVEMENT';
+        designVerdict === 'FAIL' ||
+        poVerdict === 'NOT_READY';
 
       if (lensFail) {
         // Record + check for semantic spin. Testimonial ran
@@ -1612,6 +1643,13 @@ async function advanceState(projectDir) {
         }
       }
 
+      // EVAL-003 FIX: Mark that next milestone-check is a re-evaluation
+      // cycle (after analyzing deepen). This lets 02-evaluation-orchestrator
+      // use the correct tier and ensures PO lens runs when it should.
+      const ctxForMarker = readJson(contextFile) || {};
+      ctxForMarker.previous_phase = 'analyzing';
+      writeJson(contextFile, ctxForMarker);
+
       // Now find next story (including newly added fix stories)
       if (milestone) {
         const eligible = findNextStory(milestone, flatStories(state));
@@ -1725,6 +1763,11 @@ async function advanceState(projectDir) {
         if (!validation.ok) {
           log(`[${projectName}] Rejecting malformed human_response on escalation ${pendingEsc.id}: ${validation.reason}`);
           delete pendingEsc.human_response;
+          // BUILD-003 FIX: Mark original escalation as blocked (not pending)
+          // so user knows it needs re-submission. Prevents dashboard from
+          // showing two pending escalations when only the malformed one is
+          // actionable.
+          pendingEsc.status = 'blocked';
           state.escalations = state.escalations || [];
           state.escalations.push({
             id: `malformed-${Date.now()}`,
@@ -1805,6 +1848,14 @@ async function advanceState(projectDir) {
           next = resume.next;
           log(`[${projectName}] Story aborted — ${resume.detail}`);
         } else if (hrType === 'hand-off') {
+          // BUILD-005 FIX: Clear current_story if no milestone exists yet
+          // (escalation raised during foundation). Otherwise resume-after-handoff
+          // will try to find a story by dangling pointer.
+          const hrMs = (state.milestones || []).find(m => m.name === state.current_milestone);
+          if (!hrMs) {
+            state.current_story = null;
+          }
+
           // User is working through the problem in a direct Claude Code
           // session (`rouge resume-escalation <slug>` invocation). Mark
           // the escalation as in-progress but keep the project parked
@@ -2072,6 +2123,29 @@ async function runPhase(projectDir) {
 
   let currentState = state.current_state;
 
+  // EVAL-004 FIX: Check for escalations with human_response at every tick,
+  // not just when current_state === 'escalation'. This unblocks feedback
+  // submitted while the project is in milestone-check or story-building.
+  // Process the response immediately and write to cycle_context so the
+  // next phase (or current phase if we're about to run it) sees the feedback.
+  const pendingEscWithResponse = (state.escalations || []).find(
+    e => e.status === 'pending' && e.human_response
+  );
+  if (pendingEscWithResponse) {
+    const hrType = pendingEscWithResponse.human_response.type;
+    if (hrType === 'guidance') {
+      const ctx = readJson(contextFile) || {};
+      ctx.human_guidance = pendingEscWithResponse.human_response.text;
+      writeJson(contextFile, ctx);
+      log(`[${projectName}] Human guidance incorporated into cycle_context (escalation ${pendingEscWithResponse.id})`);
+    }
+    // Note: we do NOT resolve the escalation here — that still happens in
+    // case 'escalation'. This just makes the feedback VISIBLE to non-escalation
+    // phases. The escalation will be resolved on the next tick when we enter
+    // escalation state OR when the user's guidance leads to success and we
+    // never return to escalation.
+  }
+
   // V2: escalation state handles feedback via advanceState (checks feedback.json).
   // If in escalation and feedback exists, advanceState will resolve and transition.
   if (currentState === 'escalation') {
@@ -2147,6 +2221,18 @@ async function runPhase(projectDir) {
           // would render as "building a pending story".
           advanceStory(state, { story: nextPending });
           await commitState(projectDir, state);
+          // BUILD-004 FIX: Write checkpoint immediately after pre-dispatch
+          // advancement so timeline doesn't show gap. Pre-dispatch is an
+          // optimization that bypasses advanceState, but checkpoints are
+          // still important for audit trail and dashboard accuracy.
+          writeCheckpoint(checkpointsFile, {
+            phase: 'story-building',
+            project: projectName,
+            timestamp: new Date().toISOString(),
+            cycle_number: state.cycle_number || 0,
+            input: { from_story: state.current_story, to_story: nextPending.id },
+            output: { status: 'advanced', reason: 'pre-dispatch-optimization' },
+          });
         } else {
           // All stories done. Deploy to staging then advance to milestone-check.
           // Do NOT run story-building phase — it wastes credits and triggers spin detection.
@@ -2639,6 +2725,14 @@ async function main() {
         const result = await runPhase(projectDir);
 
         if (result.success) break;
+
+        // BUILD-006 FIX: Budget cap exceeded is terminal — don't retry.
+        // Retrying 3 times when budget is exhausted just burns more budget
+        // on doomed attempts.
+        if (result.budgetExceeded) {
+          log(`[${projectName}] Budget exceeded — skipping retries`);
+          break; // exit retry loop, escalation already created
+        }
 
         // FIX-3: Rate limits do NOT count toward retry limit
         if (result.rateLimited) {
