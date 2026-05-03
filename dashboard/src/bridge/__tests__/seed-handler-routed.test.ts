@@ -41,7 +41,7 @@ describe('handleSeedMessageRouted — flag OFF (inline path)', () => {
         session_id: 'mock-session',
       }),
       detectRateLimit: () => false,
-      extractMarkers: () => ({ disciplinesComplete: [], seedingComplete: false }),
+      extractMarkers: () => ({ disciplinesComplete: [], seedingComplete: false, disciplinesSkipped: [] }),
       segmentMarkers: () => [],
     }))
 
@@ -68,7 +68,7 @@ describe('handleSeedMessageRouted — flag ON (daemon path)', () => {
 
     // Mock ensureSeedDaemon so we don't actually spawn tsx.
     vi.doMock('../seed-daemon-spawn', () => ({
-      ensureSeedDaemon: vi.fn().mockReturnValue({ ok: true, pid: 99999, alreadyRunning: false }),
+      ensureSeedDaemon: vi.fn().mockResolvedValue({ ok: true, pid: 99999, alreadyRunning: false }),
     }))
 
     const { handleSeedMessageRouted } = await import('../seed-handler')
@@ -93,7 +93,7 @@ describe('handleSeedMessageRouted — flag ON (daemon path)', () => {
     vi.resetModules()
     vi.stubEnv('ROUGE_USE_SEED_DAEMON', '1')
     vi.doMock('../seed-daemon-spawn', () => ({
-      ensureSeedDaemon: vi.fn().mockReturnValue({ ok: true, pid: 99999 }),
+      ensureSeedDaemon: vi.fn().mockResolvedValue({ ok: true, pid: 99999 }),
     }))
 
     const { handleSeedMessageRouted } = await import('../seed-handler')
@@ -111,13 +111,13 @@ describe('handleSeedMessageRouted — flag ON (daemon path)', () => {
     vi.resetModules()
     vi.stubEnv('ROUGE_USE_SEED_DAEMON', '1')
     vi.doMock('../seed-daemon-spawn', () => ({
-      ensureSeedDaemon: vi.fn().mockReturnValue({ ok: true, pid: 99999 }),
+      ensureSeedDaemon: vi.fn().mockResolvedValue({ ok: true, pid: 99999 }),
     }))
 
     const { handleSeedMessageRouted } = await import('../seed-handler')
     const { drainQueue } = await import('../seed-queue')
     await handleSeedMessageRouted(testDir, 'carry the flag')
-    const batch = drainQueue(testDir)
+    const batch = await drainQueue(testDir)
     expect(batch).toHaveLength(1)
     expect(batch[0].humanAlreadyPersisted).toBe(true)
   })
@@ -127,7 +127,7 @@ describe('handleSeedMessageRouted — flag ON (daemon path)', () => {
     vi.stubEnv('ROUGE_USE_SEED_DAEMON', '1')
 
     vi.doMock('../seed-daemon-spawn', () => ({
-      ensureSeedDaemon: vi.fn().mockReturnValue({ ok: false, error: 'tsx binary not found' }),
+      ensureSeedDaemon: vi.fn().mockResolvedValue({ ok: false, error: 'tsx binary not found' }),
     }))
 
     const { handleSeedMessageRouted } = await import('../seed-handler')
@@ -149,7 +149,7 @@ describe('handleSeedMessageRouted — flag ON (daemon path)', () => {
     vi.resetModules()
     vi.stubEnv('ROUGE_USE_SEED_DAEMON', '1')
     vi.doMock('../seed-daemon-spawn', () => ({
-      ensureSeedDaemon: vi.fn().mockReturnValue({ ok: false, error: 'no tsx' }),
+      ensureSeedDaemon: vi.fn().mockResolvedValue({ ok: false, error: 'no tsx' }),
     }))
 
     const { handleSeedMessageRouted } = await import('../seed-handler')
@@ -164,7 +164,7 @@ describe('handleSeedMessageRouted — flag ON (daemon path)', () => {
     vi.resetModules()
     vi.stubEnv('ROUGE_USE_SEED_DAEMON', '1')
     vi.doMock('../seed-daemon-spawn', () => ({
-      ensureSeedDaemon: vi.fn().mockReturnValue({ ok: true, pid: 99999 }),
+      ensureSeedDaemon: vi.fn().mockResolvedValue({ ok: true, pid: 99999 }),
     }))
 
     const { handleSeedMessageRouted } = await import('../seed-handler')
@@ -173,7 +173,7 @@ describe('handleSeedMessageRouted — flag ON (daemon path)', () => {
     await handleSeedMessageRouted(testDir, 'third')
 
     const { drainQueue } = await import('../seed-queue')
-    const batch = drainQueue(testDir)
+    const batch = await drainQueue(testDir)
     expect(batch.map((e) => e.text)).toEqual(['first', 'second', 'third'])
   })
 
@@ -181,7 +181,7 @@ describe('handleSeedMessageRouted — flag ON (daemon path)', () => {
     vi.resetModules()
     vi.stubEnv('ROUGE_USE_SEED_DAEMON', '1')
     vi.doMock('../seed-daemon-spawn', () => ({
-      ensureSeedDaemon: vi.fn().mockReturnValue({ ok: true, pid: 99999 }),
+      ensureSeedDaemon: vi.fn().mockResolvedValue({ ok: true, pid: 99999 }),
     }))
 
     const { handleSeedMessageRouted } = await import('../seed-handler')

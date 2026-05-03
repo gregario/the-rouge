@@ -68,6 +68,11 @@ const heartbeatSnapshot = {
   status: 'idle' as 'idle' | 'processing',
 }
 
+// P1-010: Track the currently-processing message so we can re-queue it
+// on ownership loss. Set by processBatch when starting a turn, cleared
+// when done. Accessed by the ownership-loss check in main().
+let currentMessage: QueueEntry | null = null
+
 interface HeartbeatPayload {
   lastTickAt: string
   lastTurnId: string | null
@@ -181,11 +186,35 @@ async function main(): Promise<void> {
 
   try {
     while (true) {
-      // Race-loss check: another daemon may have been spawned while we
-      // were mid-turn (a user message arriving during a long
-      // runClaude). If our session lost, stop ASAP.
-      if (!stillOwned(projectDir, sessionId)) {
-        console.log('[seed-daemon] session ownership lost to another daemon — exiting without touching PID file')
+      // P1-005 fix: Grace period on ownership loss. A PID write race can
+      // cause a transient mismatch where the winner's write hasn't flushed
+      // yet. Check 3 times over 1s (300ms intervals) before exiting.
+      let ownershipLost = false
+      for (let i = 0; i < 3; i++) {
+        if (stillOwned(projectDir, sessionId)) {
+          ownershipLost = false
+          break
+        }
+        ownershipLost = true
+        if (i < 2) await sleep(300)
+      }
+      if (ownershipLost) {
+        console.log('[seed-daemon] session ownership lost after grace period — exiting without touching PID file')
+        // P1-010 fix: Re-queue the current message on ownership loss so
+        // the winning daemon picks it up. If no message in-flight, this
+        // is a no-op (batch is already drained by the time we check
+        // ownership, so nothing to re-queue on idle ticks).
+        if (currentMessage) {
+          console.log(`[seed-daemon] re-queueing message ${currentMessage.id} due to ownership loss`)
+          requeueFront(projectDir, [
+            {
+              ...currentMessage,
+              // Annotate for operator debugging: this message was
+              // in-flight when the daemon lost ownership.
+              text: `${currentMessage.text}\n\n[Note: Re-queued after daemon ownership loss]`,
+            },
+          ])
+        }
         process.exit(0)
       }
 
@@ -193,7 +222,8 @@ async function main(): Promise<void> {
         cleanExit('signal')
       }
 
-      const batch = drainQueue(projectDir)
+      // P0-009: drainQueue is now async (holds lock during drain)
+      const batch = await drainQueue(projectDir)
       if (batch.length === 0) {
         // Idle tick — check if we should shut down.
         heartbeatSnapshot.lastTurnId = null
@@ -246,6 +276,8 @@ async function processBatch(
 ): Promise<void> {
   for (let i = 0; i < batch.length; i++) {
     const entry = batch[i]
+    // P1-010: Track in-flight message so ownership-loss check can re-queue it.
+    currentMessage = entry
     heartbeatSnapshot.lastTurnId = entry.id
     heartbeatSnapshot.status = 'processing'
     writeHeartbeat(projectDir, {
@@ -288,7 +320,12 @@ async function processBatch(
       if (remaining.length > 0) {
         requeueFront(projectDir, remaining)
       }
+      // P1-010: Clear currentMessage on error path too.
+      currentMessage = null
       return
+    } finally {
+      // P1-010: Clear currentMessage after each turn completes (success or error).
+      currentMessage = null
     }
   }
 }

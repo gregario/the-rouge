@@ -1,4 +1,6 @@
 const fs = require('fs');
+const path = require('path');
+const { updateTaskLedger } = require('./task-ledger-lock.js');
 
 function readTaskLedger(filePath) {
   const content = fs.readFileSync(filePath, 'utf8');
@@ -15,12 +17,16 @@ function getNextMilestone(ledger) {
   return ledger.milestones.find(m => m.stories.some(s => s.status === 'pending')) || null;
 }
 
-function addFixStories(filePath, milestoneName, stories) {
-  const ledger = readTaskLedger(filePath);
-  const milestone = ledger.milestones.find(m => m.name === milestoneName);
-  if (!milestone) throw new Error(`Milestone ${milestoneName} not found`);
-  milestone.stories.push(...stories);
-  fs.writeFileSync(filePath, JSON.stringify(ledger, null, 2), 'utf8');
+async function addFixStories(filePath, milestoneName, stories) {
+  // P0-003 fix: use lock wrapper to prevent concurrent write corruption
+  const projectDir = path.dirname(filePath);
+  await updateTaskLedger(projectDir, (ledger) => {
+    if (!ledger) throw new Error('Task ledger not found');
+    const milestone = ledger.milestones.find(m => m.name === milestoneName);
+    if (!milestone) throw new Error(`Milestone ${milestoneName} not found`);
+    milestone.stories.push(...stories);
+    return ledger;
+  });
 }
 
 function isStoryCompleted(ledger, storyName) {

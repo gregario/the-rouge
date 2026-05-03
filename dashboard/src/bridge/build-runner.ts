@@ -149,7 +149,10 @@ async function startBuildInner(
         const st = JSON.parse(readFileSync(statePath, 'utf-8'))
         if (st.current_state === 'foundation' || st.current_state === 'story-building') {
           st.current_state = priorCurrentState
-          await writeStateJson(projectDir, st)
+          // P0-002 FIX: writeStateJson emits a watcher event via the facade,
+          // ensuring UI gets notified of the rollback immediately instead of
+          // staying in deadlock waiting for a state change that already happened.
+          await writeStateJson(projectDir, st, { what: 'rollback-on-spawn-failure' })
         }
       } catch {
         // best effort
@@ -268,11 +271,45 @@ async function startBuildInner(
   }
 
   // Still alive after settlement — consider the launch successful.
+  // P0-001 fix: Write PID with retry loop to handle concurrent Start race.
+  // Two clicks within the settlement window both spawn successfully, both
+  // try to write .build-pid, last-write-wins. The loser may write its PID,
+  // then be immediately overwritten by the winner. Read-after-write with
+  // retry detects this and returns the winner's PID instead of leaking the
+  // loser process.
   const info: BuildInfo = {
     pid: child.pid,
     startedAt: new Date().toISOString(),
   }
-  writeFileSync(join(projectDir, PID_FILE), JSON.stringify(info, null, 2))
+  const pidPath = join(projectDir, PID_FILE)
+  let retries = 0
+  const MAX_RETRIES = 3
+  const RETRY_DELAY_MS = 50
+  while (retries < MAX_RETRIES) {
+    writeFileSync(pidPath, JSON.stringify(info, null, 2))
+    // Read back immediately to verify our write stuck.
+    await new Promise((r) => setTimeout(r, 10)) // tiny pause for FS flush
+    const readBack = readBuildInfo(projectDir)
+    if (readBack && readBack.pid === child.pid) {
+      // Our PID is still there — we won the race.
+      return { ok: true, pid: child.pid }
+    }
+    // Lost race — another Start overwrote us. If the read-back PID is
+    // alive, that daemon won; return its PID instead of retrying forever.
+    if (readBack && readBack.pid !== child.pid) {
+      console.log(`[build-runner] PID race detected: our ${child.pid} lost to ${readBack.pid}`)
+      // Kill our subprocess to avoid leaking it, then return the winner's PID.
+      try { process.kill(child.pid, 'SIGKILL') } catch { /* already gone */ }
+      return { ok: true, pid: readBack.pid, alreadyRunning: true }
+    }
+    // PID file vanished or unreadable — retry with exponential backoff.
+    retries++
+    if (retries < MAX_RETRIES) {
+      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS * Math.pow(2, retries - 1)))
+    }
+  }
+  // All retries exhausted — fall back to best-effort write and hope.
+  writeFileSync(pidPath, JSON.stringify(info, null, 2))
   return { ok: true, pid: child.pid }
 }
 

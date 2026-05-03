@@ -231,7 +231,15 @@ If any check fails, revise the spec before writing it.
 ### Step 5: Write Change Specs to Disk and Update Context
 
 1. Write each change spec to the project's OpenSpec changes directory via the CLI
-2. **Append fix stories to `task_ledger.json`** (this phase is the only loop phase permitted to write `task_ledger.json` — see CLAUDE.md). Load the file, append each new fix story to `stories[]` under the appropriate milestone, and write atomically. Never overwrite; always append. Each fix story has:
+2. **Append fix stories to `task_ledger.json`** (this phase is the only loop phase permitted to write `task_ledger.json` — see CLAUDE.md). Use the lock-wrapped helper to prevent concurrent write corruption:
+
+   ```javascript
+   const { addFixStories } = require('./src/launcher/task-ledger.js');
+   const ledgerPath = path.join(projectDir, 'task_ledger.json');
+   await addFixStories(ledgerPath, milestoneName, newStories);
+   ```
+
+   Each fix story has:
    - `id` (e.g. `fix-sidebar-collapse-cycle-3`)
    - `milestone_name` (the milestone this belongs to; use `current_milestone` from state)
    - `status: "pending"`

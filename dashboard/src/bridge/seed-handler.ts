@@ -328,7 +328,7 @@ async function handleSeedMessageViaDaemon(
     }
   }
 
-  const spawn = ensureSeedDaemon(projectDir)
+  const spawn = await ensureSeedDaemon(projectDir)
   if (!spawn.ok) {
     // Daemon spawn failed — the message is queued (and the human
     // chat entry is persisted), but nothing's going to process it.
@@ -658,8 +658,10 @@ async function runSeedingTurn(
   // The marker format is `[DISCIPLINE_SKIPPED: <name> — <reason>]` where
   // <reason> is the tier-gate explanation. Extract just the discipline
   // name (first token before the em dash or hyphen separator).
+  // P0-007 fix: .trim() the raw marker BEFORE split to strip whitespace
+  // from malformed `[DISCIPLINE_SKIPPED: Marketing  — not a web app]`.
   for (const rawSkip of markers.disciplinesSkipped) {
-    const disciplineName = rawSkip.split(/\s*[—–-]\s*/)[0].trim()
+    const disciplineName = rawSkip.trim().split(/\s*[—–-]\s*/)[0].trim()
     if (!isKnownDiscipline(disciplineName)) {
       console.warn(`[seeding] unknown discipline in DISCIPLINE_SKIPPED: ${rawSkip}`)
       continue

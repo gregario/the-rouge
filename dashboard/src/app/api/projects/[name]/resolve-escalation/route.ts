@@ -41,6 +41,7 @@ export async function POST(
     escalation_id?: string;
     response_type?: string;
     text?: string;
+    expected_version?: number;
   };
 
   if (!body?.escalation_id || !body?.response_type) {
@@ -59,12 +60,31 @@ export async function POST(
   const projectDir = join(projectsRoot, name);
   const result = await withStateLock(projectDir, async () => {
     const raw = JSON.parse(readFileSync(stateFile, "utf-8"));
+
+    // P1-008 fix: Optimistic locking check. If the dashboard UI passed an
+    // expected_version and the current state version doesn't match, reject
+    // the write. This prevents clobbering concurrent escalation writes
+    // (e.g., rouge-loop adds a new escalation while the user is resolving
+    // a different one).
+    if (body.expected_version !== undefined) {
+      const currentVersion = raw._version || 0;
+      if (currentVersion !== body.expected_version) {
+        return {
+          notFound: false,
+          versionMismatch: true,
+          expectedVersion: body.expected_version,
+          currentVersion,
+          raw: null,
+        };
+      }
+    }
+
     const escalation = (raw.escalations || []).find(
       (e: { id: string; status: string }) =>
         e.id === body.escalation_id && e.status === "pending",
     );
     if (!escalation) {
-      return { notFound: true, raw: null };
+      return { notFound: true, versionMismatch: false, raw: null };
     }
 
     escalation.human_response = {
@@ -79,8 +99,19 @@ export async function POST(
     }
 
     await writeStateJson(projectDir, raw);
-    return { notFound: false, raw };
+    return { notFound: false, versionMismatch: false, raw };
   });
+
+  if (result.versionMismatch) {
+    return NextResponse.json(
+      {
+        error: "State version mismatch — another process modified state concurrently",
+        expectedVersion: result.expectedVersion,
+        currentVersion: result.currentVersion,
+      },
+      { status: 409 },
+    );
+  }
 
   if (result.notFound) {
     return NextResponse.json(

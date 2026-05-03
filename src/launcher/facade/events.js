@@ -75,7 +75,24 @@ function emit(opts) {
     detail: detail || {},
   };
   const line = JSON.stringify(entry) + '\n';
-  fs.appendFileSync(file, line, { encoding: 'utf8' });
+
+  // P1-007 fix: Use write-temp-rename to prevent malformed JSONL from
+  // interrupted append. Read existing content, append new line, write
+  // atomically via temp file + rename.
+  let existing = '';
+  if (fs.existsSync(file)) {
+    try {
+      existing = fs.readFileSync(file, 'utf8');
+    } catch {
+      // If read fails, proceed with empty — better to start fresh than
+      // leave a corrupt file unrepaired.
+    }
+  }
+  const updated = existing + line;
+  const tmp = `${file}.${Date.now()}.tmp`;
+  fs.writeFileSync(tmp, updated, { encoding: 'utf8' });
+  fs.renameSync(tmp, file);
+
   return entry;
 }
 

@@ -126,6 +126,11 @@ async function writeState(opts) {
     const state = readStateJson(projectDir) || {};
     const next = mutator(state);
     const finalState = next === undefined ? state : next;
+    // P1-008 fix: Increment version field for optimistic locking. This lets
+    // the dashboard detect concurrent escalation writes (dashboard resolves
+    // escalation while rouge-loop writes a new escalation) and reject the
+    // write instead of clobbering.
+    finalState._version = (finalState._version || 0) + 1;
     writeStateJson(projectDir, finalState, { validate });
     return finalState;
   }, { timeoutMs, allowSlow });

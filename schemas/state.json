@@ -6,6 +6,11 @@
   "additionalProperties": true,
   "required": ["current_state"],
   "properties": {
+    "_version": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Optimistic locking version. Incremented on every state write. Dashboard checks this before writing escalation resolutions to detect concurrent modifications (P1-008 fix)."
+    },
     "current_state": {
       "type": "string",
       "enum": [

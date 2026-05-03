@@ -79,8 +79,8 @@ describe('Task Ledger', () => {
     assert.equal(ms, null);
   });
 
-  test('addFixStories appends stories to milestone', () => {
-    addFixStories(ledgerPath, 'dashboard', [
+  test('addFixStories appends stories to milestone', async () => {
+    await addFixStories(ledgerPath, 'dashboard', [
       { id: 'fix1', name: 'fix-layout', status: 'pending' }
     ]);
     const updated = readTaskLedger(ledgerPath);
@@ -88,9 +88,9 @@ describe('Task Ledger', () => {
     assert.equal(updated.milestones[0].stories[2].name, 'fix-layout');
   });
 
-  test('addFixStories throws for unknown milestone', () => {
-    assert.throws(
-      () => addFixStories(ledgerPath, 'nonexistent', [{ id: 'f1', name: 'fix', status: 'pending' }]),
+  test('addFixStories throws for unknown milestone', async () => {
+    await assert.rejects(
+      async () => await addFixStories(ledgerPath, 'nonexistent', [{ id: 'f1', name: 'fix', status: 'pending' }]),
       /not found/
     );
   });

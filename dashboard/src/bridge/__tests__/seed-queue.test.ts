@@ -17,42 +17,42 @@ describe('seed-queue', () => {
     rmSync(testDir, { recursive: true, force: true })
   })
 
-  it('enqueue + drain returns the message in order', () => {
+  it('enqueue + drain returns the message in order', async () => {
     mkdirSync(testDir, { recursive: true })
     enqueueMessage(testDir, 'hello')
     enqueueMessage(testDir, 'world')
-    const batch = drainQueue(testDir)
+    const batch = await drainQueue(testDir)
     expect(batch.map((e) => e.text)).toEqual(['hello', 'world'])
   })
 
-  it('drain empties the queue — second drain returns nothing', () => {
+  it('drain empties the queue — second drain returns nothing', async () => {
     mkdirSync(testDir, { recursive: true })
     enqueueMessage(testDir, 'one')
-    drainQueue(testDir)
-    const second = drainQueue(testDir)
+    await drainQueue(testDir)
+    const second = await drainQueue(testDir)
     expect(second).toEqual([])
   })
 
-  it('drain returns [] when queue file does not exist', () => {
+  it('drain returns [] when queue file does not exist', async () => {
     mkdirSync(testDir, { recursive: true })
-    expect(drainQueue(testDir)).toEqual([])
+    expect(await drainQueue(testDir)).toEqual([])
   })
 
-  it('hasQueuedMessages is false on empty, true after enqueue', () => {
+  it('hasQueuedMessages is false on empty, true after enqueue', async () => {
     mkdirSync(testDir, { recursive: true })
     expect(hasQueuedMessages(testDir)).toBe(false)
     enqueueMessage(testDir, 'x')
     expect(hasQueuedMessages(testDir)).toBe(true)
-    drainQueue(testDir)
+    await drainQueue(testDir)
     expect(hasQueuedMessages(testDir)).toBe(false)
   })
 
-  it('enqueue returns a unique id per message', () => {
+  it('enqueue returns a unique id per message', async () => {
     mkdirSync(testDir, { recursive: true })
     const id1 = enqueueMessage(testDir, 'a')
     const id2 = enqueueMessage(testDir, 'b')
     expect(id1).not.toBe(id2)
-    const batch = drainQueue(testDir)
+    const batch = await drainQueue(testDir)
     expect(batch.find((e) => e.id === id1)?.text).toBe('a')
     expect(batch.find((e) => e.id === id2)?.text).toBe('b')
   })
@@ -72,7 +72,7 @@ describe('seed-queue', () => {
     expect(hasQueuedMessages(testDir)).toBe(false)
   })
 
-  it('drops malformed lines instead of failing the whole drain', () => {
+  it('drops malformed lines instead of failing the whole drain', async () => {
     mkdirSync(testDir, { recursive: true })
     // Mix valid entry with garbage.
     enqueueMessage(testDir, 'valid1')
@@ -83,35 +83,35 @@ describe('seed-queue', () => {
         `not valid json at all\n` +
         `{"id":"b","text":"valid2","enqueuedAt":"2026-04-19T00:00:01Z"}\n`,
     )
-    const batch = drainQueue(testDir)
+    const batch = await drainQueue(testDir)
     const texts = batch.map((e) => e.text)
     expect(texts).toContain('valid1')
     expect(texts).toContain('valid2')
     expect(texts).not.toContain('not valid json at all')
   })
 
-  it('requeueFront puts entries before any new appends', () => {
+  it('requeueFront puts entries before any new appends', async () => {
     mkdirSync(testDir, { recursive: true })
     enqueueMessage(testDir, 'new')
     requeueFront(testDir, [
       { id: 'old', text: 'old-message', enqueuedAt: '2026-04-19T00:00:00Z' },
     ])
-    const batch = drainQueue(testDir)
+    const batch = await drainQueue(testDir)
     expect(batch[0].text).toBe('old-message')
     expect(batch[1].text).toBe('new')
   })
 
-  it('requeueFront with an empty array is a no-op', () => {
+  it('requeueFront with an empty array is a no-op', async () => {
     mkdirSync(testDir, { recursive: true })
     enqueueMessage(testDir, 'x')
     requeueFront(testDir, [])
-    expect(drainQueue(testDir).map((e) => e.text)).toEqual(['x'])
+    expect((await drainQueue(testDir)).map((e) => e.text)).toEqual(['x'])
   })
 
-  it('drain phase leaves no stray .draining file behind', () => {
+  it('drain phase leaves no stray .draining file behind', async () => {
     mkdirSync(testDir, { recursive: true })
     enqueueMessage(testDir, 'x')
-    drainQueue(testDir)
+    await drainQueue(testDir)
     const files = existsSync(testDir)
       ? require('fs').readdirSync(testDir)
       : []
@@ -124,29 +124,29 @@ describe('seed-queue', () => {
   // entry. Without this the daemon double-writes the user message
   // under the flag-on path.
   describe('humanAlreadyPersisted flag', () => {
-    it('round-trips true via enqueue → drain', () => {
+    it('round-trips true via enqueue → drain', async () => {
       mkdirSync(testDir, { recursive: true })
       enqueueMessage(testDir, 'fix-b-message', { humanAlreadyPersisted: true })
-      const batch = drainQueue(testDir)
+      const batch = await drainQueue(testDir)
       expect(batch).toHaveLength(1)
       expect(batch[0].humanAlreadyPersisted).toBe(true)
       expect(batch[0].text).toBe('fix-b-message')
     })
 
-    it('defaults to undefined when opts not passed (backwards-compat with legacy entries)', () => {
+    it('defaults to undefined when opts not passed (backwards-compat with legacy entries)', async () => {
       mkdirSync(testDir, { recursive: true })
       enqueueMessage(testDir, 'legacy-shape')
-      const batch = drainQueue(testDir)
+      const batch = await drainQueue(testDir)
       expect(batch[0].humanAlreadyPersisted).toBeUndefined()
     })
 
-    it('legacy on-disk entry without the field parses as undefined flag', () => {
+    it('legacy on-disk entry without the field parses as undefined flag', async () => {
       mkdirSync(testDir, { recursive: true })
       writeFileSync(
         join(testDir, 'seed-queue.jsonl'),
         JSON.stringify({ id: 'old-1', text: 'pre-fixb', enqueuedAt: '2026-04-19T00:00:00Z' }) + '\n',
       )
-      const batch = drainQueue(testDir)
+      const batch = await drainQueue(testDir)
       expect(batch[0].humanAlreadyPersisted).toBeUndefined()
       expect(batch[0].text).toBe('pre-fixb')
     })

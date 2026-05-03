@@ -38,7 +38,8 @@ describe('facade.writeState — atomic state mutation', () => {
       validate: false,
       mutator: () => ({ replaced: 1 }),
     });
-    assert.deepEqual(state, { replaced: 1 });
+    // P1-008 fix: facade.writeState now adds _version field for optimistic locking
+    assert.deepEqual(state, { replaced: 1, _version: 1 });
   });
 
   test('emits a state.write event after commit', async () => {
@@ -98,7 +99,8 @@ describe('facade.readState — lock-free read', () => {
       mutator: () => ({ hello: 'world' }),
     });
     const got = facade.readState(projectDir);
-    assert.deepEqual(got, { hello: 'world' });
+    // P1-008 fix: facade.writeState now adds _version field for optimistic locking
+    assert.deepEqual(got, { hello: 'world', _version: 1 });
   });
 
   test('returns null when no state file exists', () => {

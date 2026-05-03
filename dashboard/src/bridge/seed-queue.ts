@@ -91,56 +91,74 @@ export function enqueueMessage(
  * only happens if the filesystem itself tore a write, which PIPE_BUF
  * guarantees it did not.
  *
- * Atomicity: we read the file content, then rename the current queue
- * to a `.drained` path and delete it. A concurrent writer that
- * appended between our read and the rename will lose its entry.
- * Mitigated by writing to the original path again after rename —
- * see the two-phase drain below.
+ * P0-009 FIX: Acquire exclusive lock before drain to prevent concurrent
+ * enqueue from racing with our rename operation. The prior two-phase
+ * rename strategy still had a window where a concurrent appendFileSync
+ * could create a new queue file after our rename but before our unlink,
+ * and that new file would be lost if we immediately drained again.
+ *
+ * With the lock held:
+ *   1. No concurrent enqueue can append during drain window
+ *   2. Rename is atomic relative to source path (POSIX guarantee)
+ *   3. We process the drained batch, then release lock
+ *   4. Next enqueue creates a fresh queue file safely
+ *
+ * NOTE: This makes drainQueue async. Caller (seed-daemon.ts) must await.
  */
-export function drainQueue(projectDir: string): QueueEntry[] {
+export async function drainQueue(projectDir: string): Promise<QueueEntry[]> {
+  // Import here to avoid circular dependency at module load time.
+  // state-lock.ts imports facade which might transitively import this module.
+  // Dynamic import is safe because drainQueue is only called from daemon
+  // context (seed-daemon.ts), never from HTTP handlers (which only enqueue).
+  const { withStateLock } = await import('./state-lock')
+
   const path = queuePath(projectDir)
   if (!existsSync(path)) return []
 
-  // Two-phase drain: rename to a unique name FIRST so any concurrent
-  // append from the HTTP handler lands in a fresh queue file (which
-  // will be drained on the next tick), not in the batch we're about
-  // to process. On POSIX, rename is atomic relative to the source
-  // path — a writer that was about to append to `queuePath` sees
-  // ENOENT (handled by appendFileSync creating it fresh) or races
-  // harmlessly.
-  const draining = `${path}.${randomUUID()}.draining`
-  try {
-    renameSync(path, draining)
-  } catch {
-    // Either the file vanished between existsSync and rename (race)
-    // or the rename failed. Either way, nothing to drain.
-    return []
-  }
+  // P0-009: Hold lock across entire drain operation
+  return withStateLock(projectDir, () => {
+    // Re-check existence after acquiring lock (file might have been
+    // drained by a concurrent daemon tick, though seed-daemon.ts
+    // should prevent this via single-process architecture).
+    if (!existsSync(path)) return []
 
-  let content: string
-  try {
-    content = readFileSync(draining, 'utf-8')
-  } catch {
-    // Unreadable after rename — drop it rather than hanging on it.
-    try { unlinkSync(draining) } catch { /* ignore */ }
-    return []
-  }
-  try { unlinkSync(draining) } catch { /* ignore */ }
-
-  const entries: QueueEntry[] = []
-  for (const line of content.split('\n')) {
-    const trimmed = line.trim()
-    if (!trimmed) continue
+    // Rename to unique temp path so any post-lock-release enqueue
+    // creates a fresh queue file instead of appending to the batch
+    // we're about to process.
+    const draining = `${path}.${randomUUID()}.draining`
     try {
-      const entry = JSON.parse(trimmed) as QueueEntry
-      if (typeof entry.text === 'string' && typeof entry.id === 'string') {
-        entries.push(entry)
-      }
+      renameSync(path, draining)
     } catch {
-      console.warn('[seed-queue] dropping malformed line:', trimmed.slice(0, 100))
+      // Either the file vanished between existsSync and rename (race)
+      // or the rename failed. Either way, nothing to drain.
+      return []
     }
-  }
-  return entries
+
+    let content: string
+    try {
+      content = readFileSync(draining, 'utf-8')
+    } catch {
+      // Unreadable after rename — drop it rather than hanging on it.
+      try { unlinkSync(draining) } catch { /* ignore */ }
+      return []
+    }
+    try { unlinkSync(draining) } catch { /* ignore */ }
+
+    const entries: QueueEntry[] = []
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim()
+      if (!trimmed) continue
+      try {
+        const entry = JSON.parse(trimmed) as QueueEntry
+        if (typeof entry.text === 'string' && typeof entry.id === 'string') {
+          entries.push(entry)
+        }
+      } catch {
+        console.warn('[seed-queue] dropping malformed line:', trimmed.slice(0, 100))
+      }
+    }
+    return entries
+  })
 }
 
 /**

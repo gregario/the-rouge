@@ -15,7 +15,24 @@ function writeCheckpoint(filePath, { phase, state, costs }) {
     costs: { ...costs }
   };
   const line = JSON.stringify(checkpoint) + '\n';
-  fs.appendFileSync(filePath, line, 'utf8');
+
+  // P1-006 fix: Use write-temp-rename to prevent malformed JSONL from
+  // interrupted append. Read existing content, append new line, write
+  // atomically via temp file + rename.
+  let existing = '';
+  if (fs.existsSync(filePath)) {
+    try {
+      existing = fs.readFileSync(filePath, 'utf8');
+    } catch {
+      // If read fails, proceed with empty — better to start fresh than
+      // leave a corrupt file unrepaired.
+    }
+  }
+  const updated = existing + line;
+  const tmp = `${filePath}.${Date.now()}.tmp`;
+  fs.writeFileSync(tmp, updated, 'utf8');
+  fs.renameSync(tmp, filePath);
+
   rotateJsonlIfNeeded(filePath, MAX_CHECKPOINT_ENTRIES);
   return checkpoint;
 }

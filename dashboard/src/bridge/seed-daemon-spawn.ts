@@ -115,8 +115,10 @@ export interface SpawnResult {
  * Scoped to the feature flag `ROUGE_USE_SEED_DAEMON`. Callers should
  * check the flag before invoking this helper; this function itself
  * does not.
+ *
+ * P0-006 fix: Made async to support post-spawn ownership verification.
  */
-export function ensureSeedDaemon(projectDir: string): SpawnResult {
+export async function ensureSeedDaemon(projectDir: string): Promise<SpawnResult> {
   const existing: SeedPidInfo | null = readSeedPid(projectDir)
   if (existing) {
     return { ok: true, pid: existing.pid, alreadyRunning: true }
@@ -169,6 +171,34 @@ export function ensureSeedDaemon(projectDir: string): SpawnResult {
 
   if (!child.pid) {
     return { ok: false, error: 'failed to spawn seed daemon (no PID)' }
+  }
+
+  // P0-006 fix: Ownership check immediately after spawn. The daemon writes
+  // its PID file on entry (seed-daemon.ts:124), but if TWO daemons spawn
+  // concurrently (HTTP handler race on two messages), the last-write wins
+  // and the loser's sessionId is overwritten. The loser daemon detects this
+  // on its NEXT poll (seed-daemon.ts:187), but that can be 10+ seconds
+  // later during a long turn. Check NOW so we know which daemon won and
+  // return its PID to the HTTP caller, not the loser's.
+  //
+  // Wait briefly for the daemon to write .seed-pid, then verify ownership.
+  await new Promise((r) => setTimeout(r, 100))
+  const writtenInfo = readSeedPid(projectDir)
+  if (!writtenInfo || writtenInfo.pid !== child.pid) {
+    // Another daemon won the race. Return its PID.
+    console.log(
+      `[seed-daemon-spawn] spawn race: our ${child.pid} lost to ${writtenInfo?.pid ?? '?'}`,
+    )
+    // Kill our subprocess to avoid leaking it.
+    try {
+      process.kill(child.pid, 'SIGKILL')
+    } catch {
+      /* already gone */
+    }
+    if (writtenInfo) {
+      return { ok: true, pid: writtenInfo.pid, alreadyRunning: true }
+    }
+    // Weird state: no PID file despite daemon startup. Fall through.
   }
 
   // We return immediately — the daemon writes its own .seed-pid

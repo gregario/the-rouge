@@ -123,7 +123,7 @@ export async function PATCH(
   if (!guard.ok) return guard.response;
 
   const { projectsRoot } = loadServerConfig();
-  const projectDir = join(projectsRoot, name);
+  let projectDir = join(projectsRoot, name);
   const stateFile = statePath(projectDir);
 
   if (!existsSync(stateFile)) {
@@ -137,71 +137,83 @@ export async function PATCH(
     budgetCap?: number;
   };
 
-  // Read, validate, and mutate inside a critical section so two
-  // concurrent PATCHes (e.g. rapid display-name + archive toggles) don't
-  // race on state.json. The filesystem rename below happens inside the
-  // lock window too — once we commit to the new slug the original path
-  // no longer exists, and we write against the post-rename directory.
+  // P0-008 FIX: Rename requires special handling because the lock file itself
+  // moves with the directory. Strategy: validate first, THEN hold lock only
+  // during state mutations (not during filesystem rename), THEN notify watcher.
+  // This prevents split-brain: no concurrent state write can happen during
+  // rename because the directory doesn't exist yet.
+
+  // Phase 1: Validate rename parameters (no lock needed)
+  let plannedRename: { newSlug: string; newDir: string } | null = null;
+
+  const stateFile = statePath(projectDir);
+  const preState = JSON.parse(readFileSync(stateFile, "utf-8"));
+  const currentState = preState.current_state ?? preState.state ?? "unknown";
+
+  if (
+    body.displayName !== undefined &&
+    body.slug === undefined &&
+    isPlaceholderSlug(name) &&
+    SLUG_RENAMEABLE_STATES.has(currentState)
+  ) {
+    const derived = slugify(body.displayName);
+    if (derived && /^[a-z][a-z0-9-]*$/.test(derived)) {
+      const unique = uniqueSlug(derived, projectsRoot, name);
+      if (unique && unique !== name) {
+        body.slug = unique;
+      }
+    }
+  }
+
+  if (body.slug && body.slug !== name) {
+    if (!SLUG_RENAMEABLE_STATES.has(currentState)) {
+      return NextResponse.json(
+        { error: `Slug rename not allowed in state "${currentState}". Rename only works during seeding or ready states, before the build loop starts.` },
+        { status: 409 }
+      );
+    }
+    const newSlug = slugify(body.slug);
+    if (!newSlug || !/^[a-z][a-z0-9-]*$/.test(newSlug)) {
+      return NextResponse.json(
+        { error: "Slug must start with a lowercase letter and contain only lowercase letters, digits, and hyphens." },
+        { status: 400 }
+      );
+    }
+    const newDir = join(projectsRoot, newSlug);
+    if (existsSync(newDir)) {
+      return NextResponse.json(
+        { error: `A project at slug "${newSlug}" already exists.` },
+        { status: 409 }
+      );
+    }
+    plannedRename = { newSlug, newDir };
+  }
+
+  // Phase 2: Execute filesystem rename BEFORE acquiring lock
+  // (so watcher doesn't emit stale events during the rename window)
+  let actualSlugChanged: string | null = null;
+  if (plannedRename) {
+    try {
+      renameSync(projectDir, plannedRename.newDir);
+      actualSlugChanged = plannedRename.newSlug;
+      // Update working directory reference for subsequent operations
+      projectDir = plannedRename.newDir;
+      // Lock file moved with directory; no cleanup needed here
+    } catch (err) {
+      console.error(`[projects/${name} PATCH rename] ${err instanceof Error ? err.stack : err}`);
+      return NextResponse.json(
+        { error: "Failed to rename project directory. Check dashboard logs for details." },
+        { status: 500 }
+      );
+    }
+  }
+
+  // Phase 3: Hold lock only for state.json mutations (not rename)
   const patchResult = await withStateLock(projectDir, async () => {
-    const state = JSON.parse(readFileSync(stateFile, "utf-8"));
-    const currentState = state.current_state ?? state.state ?? "unknown";
-
-    let slugChanged: string | null = null;
-
-    if (
-      body.displayName !== undefined &&
-      body.slug === undefined &&
-      isPlaceholderSlug(name) &&
-      SLUG_RENAMEABLE_STATES.has(currentState)
-    ) {
-      const derived = slugify(body.displayName);
-      if (derived && /^[a-z][a-z0-9-]*$/.test(derived)) {
-        const unique = uniqueSlug(derived, projectsRoot, name);
-        if (unique && unique !== name) {
-          body.slug = unique;
-        }
-      }
-    }
-
-    if (body.slug && body.slug !== name) {
-      if (!SLUG_RENAMEABLE_STATES.has(currentState)) {
-        return {
-          status: 409 as const,
-          error: `Slug rename not allowed in state "${currentState}". Rename only works during seeding or ready states, before the build loop starts.`,
-        };
-      }
-      const newSlug = slugify(body.slug);
-      if (!newSlug || !/^[a-z][a-z0-9-]*$/.test(newSlug)) {
-        return {
-          status: 400 as const,
-          error: "Slug must start with a lowercase letter and contain only lowercase letters, digits, and hyphens.",
-        };
-      }
-      const newDir = join(projectsRoot, newSlug);
-      if (existsSync(newDir)) {
-        return { status: 409 as const, error: `A project at slug "${newSlug}" already exists.` };
-      }
-      try {
-        renameSync(projectDir, newDir);
-        slugChanged = newSlug;
-        // The lockfile we're holding lived at `projectDir/.rouge/state.lock`
-        // and got moved to `newDir/.rouge/state.lock` by the rename above.
-        // `release()` on the original path will silently no-op (file is
-        // gone); the stray lockfile at the new path would otherwise
-        // survive ~30s before stale-eviction. Clear it here so a follow-up
-        // PATCH against the new slug isn't blocked by our own leftover.
-        try {
-          unlinkSync(join(newDir, ".rouge", "state.lock"));
-        } catch {
-          /* best-effort */
-        }
-      } catch (err) {
-        console.error(`[projects/${name} PATCH rename] ${err instanceof Error ? err.stack : err}`);
-        return { status: 500 as const, error: "Failed to rename project directory. Check dashboard logs for details." };
-      }
-    }
+    const state = JSON.parse(readFileSync(statePath(projectDir), "utf-8"));
 
     if (body.archived !== undefined) {
+      const currentState = state.current_state ?? state.state ?? "unknown";
       if (body.archived === true && (currentState === 'foundation' || currentState === 'foundation-eval' ||
           currentState === 'story-building' || currentState === 'milestone-check' ||
           currentState === 'milestone-fix')) {
@@ -234,11 +246,10 @@ export async function PATCH(
     }
 
     if (body.displayName !== undefined || body.archived !== undefined || body.budgetCap !== undefined) {
-      const targetDir = slugChanged ? join(projectsRoot, slugChanged) : projectDir;
-      await writeStateJson(targetDir, state);
+      await writeStateJson(projectDir, state);
     }
 
-    return { status: 200 as const, slugChanged };
+    return { status: 200 as const, slugChanged: actualSlugChanged };
   });
 
   if (patchResult.status !== 200) {

@@ -22,6 +22,7 @@ const { execFileSync, execSync, spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { loadProjectSecrets } = require('./secrets.js');
+const { updateCycleContext } = require('./cycle-context-lock.js');
 const { writeCheckpoint, readLatestCheckpoint, readAllCheckpoints } = require('./checkpoint.js');
 const { checkMilestoneLock, promoteMilestone, shouldEscalateForSpin, getCompletedStoryNames, isStoryDuplicate } = require('./safety.js');
 const { trackPhaseCost, trackPhaseCostFromLog, checkBudgetCap } = require('./cost-tracker.js');
@@ -1269,7 +1270,7 @@ async function advanceState(projectDir) {
             blocked_by: s.blocked_by || null,
             fix_memory: (state.fix_memory || {})[s.id] || [],
           }));
-          writeJson(contextFile, cbCtx);
+          await updateCycleContext(projectDir, ctx => ({...ctx, ...cbCtx}));
         }
 
         next = 'analyzing';
@@ -1387,7 +1388,7 @@ async function advanceState(projectDir) {
         const vSummary = validateCycleContext(ctx, { projectDir });
         if (vSummary.warnings.length > 0) {
           // Persist the mutated ctx so downstream phases see downgrades
-          writeJson(contextFile, ctx);
+          await updateCycleContext(projectDir, () => ctx);
           log(`[${projectName}] Finding validator: ${vSummary.downgraded} downgraded, ${vSummary.defaulted} defaulted, ${vSummary.invalid} invalid`);
         }
       } catch (e) {
@@ -1606,6 +1607,53 @@ async function advanceState(projectDir) {
     }
 
     case 'generating-change-spec': {
+      // P0-004 FIX: Re-read task_ledger.json and merge stories into state.milestones
+      // at generating-change-spec entry. The seeding disciplines (taste, spec, design)
+      // may have written new stories to task_ledger.json, but the build loop loaded
+      // state.milestones once at startup and never refreshed it. This creates a
+      // disconnect: the task ledger has 10 stories, state.milestones has 8, and
+      // generating-change-spec sees only the stale 8.
+      //
+      // Merge strategy:
+      //   1. Re-read task_ledger.json
+      //   2. For each milestone in ledger, merge stories not already in state.milestones
+      //   3. Preserve in-memory status fields (attempts, status) for existing stories
+      //   4. Add new stories from ledger with status='pending'
+      try {
+        const ledgerPath = path.join(projectDir, 'task_ledger.json');
+        if (fs.existsSync(ledgerPath)) {
+          const ledger = JSON.parse(fs.readFileSync(ledgerPath, 'utf-8'));
+          if (Array.isArray(ledger.milestones) && ledger.milestones.length > 0) {
+            for (const ledgerMs of ledger.milestones) {
+              let stateMs = (state.milestones || []).find(m => m.name === ledgerMs.name);
+              if (!stateMs) {
+                // Milestone doesn't exist in state yet — add it wholesale
+                state.milestones = state.milestones || [];
+                state.milestones.push(ledgerMs);
+                log(`[${projectName}] Added new milestone from task_ledger: ${ledgerMs.name}`);
+              } else {
+                // Milestone exists — merge stories from ledger that aren't in state yet
+                for (const ledgerStory of (ledgerMs.stories || [])) {
+                  const existing = (stateMs.stories || []).find(s => s.id === ledgerStory.id);
+                  if (!existing) {
+                    stateMs.stories = stateMs.stories || [];
+                    stateMs.stories.push({
+                      ...ledgerStory,
+                      status: 'pending', // Fresh from ledger, not started yet
+                      attempts: 0,
+                    });
+                    log(`[${projectName}] Merged story from task_ledger: ${ledgerStory.id}`);
+                  }
+                  // If story exists, keep in-memory state (status, attempts) — don't overwrite
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        log(`[${projectName}] Could not merge task_ledger at generating-change-spec: ${(err.message || '').slice(0, 100)}`);
+      }
+
       // Read fix stories from cycle_context and add them to state.json
       const ctx = readJson(contextFile);
       const pending = ctx?.change_specs_pending || [];
@@ -1646,9 +1694,7 @@ async function advanceState(projectDir) {
       // EVAL-003 FIX: Mark that next milestone-check is a re-evaluation
       // cycle (after analyzing deepen). This lets 02-evaluation-orchestrator
       // use the correct tier and ensures PO lens runs when it should.
-      const ctxForMarker = readJson(contextFile) || {};
-      ctxForMarker.previous_phase = 'analyzing';
-      writeJson(contextFile, ctxForMarker);
+      await updateCycleContext(projectDir, ctx => ({...ctx, previous_phase: 'analyzing'}));
 
       // Now find next story (including newly added fix stories)
       if (milestone) {
@@ -1813,9 +1859,10 @@ async function advanceState(projectDir) {
         };
 
         if (hrType === 'guidance') {
-          const hrCtx = readJson(contextFile) || {};
-          hrCtx.human_guidance = pendingEsc.human_response.text;
-          writeJson(contextFile, hrCtx);
+          await updateCycleContext(projectDir, ctx => ({
+            ...ctx,
+            human_guidance: pendingEsc.human_response.text
+          }));
           const hrStory = flat.find(s => s.id === pendingEsc.story_id);
           if (hrStory && (hrStory.status === 'blocked' || hrStory.status === 'pending')) hrStory.status = 'retrying';
           state.consecutive_failures = 0;
@@ -1888,9 +1935,10 @@ async function advanceState(projectDir) {
               new Set(commits.flatMap(c => c.files_changed || []))
             ),
           };
-          const resumeCtx = readJson(contextFile) || {};
-          resumeCtx.human_resolution = resolution;
-          writeJson(contextFile, resumeCtx);
+          await updateCycleContext(projectDir, ctx => ({
+            ...ctx,
+            human_resolution: resolution
+          }));
           state.consecutive_failures = 0;
           // If the escalation was story-scoped, flip the story back to
           // retrying so the next phase actually re-attempts it with
@@ -2134,9 +2182,10 @@ async function runPhase(projectDir) {
   if (pendingEscWithResponse) {
     const hrType = pendingEscWithResponse.human_response.type;
     if (hrType === 'guidance') {
-      const ctx = readJson(contextFile) || {};
-      ctx.human_guidance = pendingEscWithResponse.human_response.text;
-      writeJson(contextFile, ctx);
+      await updateCycleContext(projectDir, ctx => ({
+        ...ctx,
+        human_guidance: pendingEscWithResponse.human_response.text
+      }));
       log(`[${projectName}] Human guidance incorporated into cycle_context (escalation ${pendingEscWithResponse.id})`);
     }
     // Note: we do NOT resolve the escalation here — that still happens in
@@ -2278,13 +2327,12 @@ async function runPhase(projectDir) {
   // Sync _cycle_number and milestone/story metadata to cycle_context.json
   // (replaces V1's syncCycleMetadata — prompts read these fields)
   try {
-    const ctx = readJson(contextFile);
-    if (ctx) {
-      ctx._cycle_number = state.cycle_number || 1;
-      ctx._current_milestone = state.current_milestone || null;
-      ctx._current_story = state.current_story || null;
-      writeJson(contextFile, ctx);
-    }
+    await updateCycleContext(projectDir, ctx => ({
+      ...ctx,
+      _cycle_number: state.cycle_number || 1,
+      _current_milestone: state.current_milestone || null,
+      _current_story: state.current_story || null
+    }));
   } catch {}
 
   // V2: Assemble focused context views before invoking prompts
@@ -2322,8 +2370,10 @@ async function runPhase(projectDir) {
         if (findings.length > 0) {
           const checkContext = buildCapabilityContext(projectDir, state, config, ctx);
           const assessments = findings.map((f) => assessCapability(f, checkContext));
-          ctx.capability_assessments = assessments;
-          writeJson(contextFile, ctx);
+          await updateCycleContext(projectDir, ctx => ({
+            ...ctx,
+            capability_assessments: assessments
+          }));
           const infeasible = assessments.filter((a) => !a.capability_feasible).length;
           if (infeasible > 0) {
             log(`[${projectName}] Capability screen: ${infeasible}/${assessments.length} finding(s) flagged capability-gap`);
