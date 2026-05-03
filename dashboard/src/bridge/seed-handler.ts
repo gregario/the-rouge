@@ -680,7 +680,14 @@ async function runSeedingTurn(
   // determine project size, auto-completes sizing, and auto-skips every
   // discipline not applicable at that tier. The LLM NEVER decides which
   // disciplines to skip — the bridge does, deterministically.
-  if (acceptedDisciplines.includes('brainstorming')) {
+  // Classifier trigger: fire when brainstorming is complete AND we haven't
+  // classified yet. Brainstorming may complete via marker (acceptedDisciplines)
+  // OR via reconciliation (artifact on disk from a previous turn). Check
+  // both, but only fire once (applicable_disciplines guards against re-runs).
+  const currentSeedState = readSeedingState(projectDir)
+  const brainstormingComplete = (currentSeedState.disciplines_complete ?? []).includes('brainstorming')
+  const alreadyClassified = currentSeedState.applicable_disciplines != null
+  if (brainstormingComplete && !alreadyClassified) {
     const classResult = runAutoClassifier(projectDir)
     if (classResult.ok) {
       // Mark sizing as complete (artifact is sizing.json, just written by classifier)

@@ -412,11 +412,12 @@ describe('handleSeedMessage — reconciliation of stranded state', () => {
     // Reconciliation marks brainstorming complete (artifact verified on disk).
     // The auto-classifier does NOT fire during reconciliation — it only runs
     // when acceptedDisciplines includes 'brainstorming' from marker
-    // verification. So sizing remains pending. With competition and taste
-    // already complete, the next gap in the sequence is sizing.
+    // When brainstorming reconciles, the auto-classifier fires, sizing
+    // auto-completes, and non-applicable disciplines get skipped. The
+    // next discipline depends on project tier classification.
     const state = readSeedingState(PROJECT_DIR)
     expect(state.disciplines_complete).toContain('brainstorming')
-    expect(state.current_discipline).toBe('sizing')
+    expect(state.disciplines_complete).toContain('sizing')
 
     // Chat log includes the reconciliation system note.
     const log = readChatLog(PROJECT_DIR)
