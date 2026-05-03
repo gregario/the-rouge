@@ -146,8 +146,8 @@ export async function PATCH(
   // Phase 1: Validate rename parameters (no lock needed)
   let plannedRename: { newSlug: string; newDir: string } | null = null;
 
-  const stateFile = statePath(projectDir);
-  const preState = JSON.parse(readFileSync(stateFile, "utf-8"));
+  let stateFilePath = statePath(projectDir);
+  const preState = JSON.parse(readFileSync(stateFilePath, "utf-8"));
   const currentState = preState.current_state ?? preState.state ?? "unknown";
 
   if (
