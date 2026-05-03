@@ -164,12 +164,21 @@ async function startBuildInner(
     return { ok: true, pid: existing.pid, alreadyRunning: true }
   }
 
-  // Derive rouge-loop.js path from the CLI path (they're in the same dir)
+  // Derive rouge-loop.js path from the CLI path. Two cases:
+  // 1. Dev: rouge-cli.js and rouge-loop.js are in src/launcher/
+  // 2. Global install: rouge wrapper is in /opt/homebrew/bin/rouge, but
+  //    the actual source is at ../lib/node_modules/the-rouge/src/launcher/
   const { dirname } = require('path')
-  const loopScript = join(dirname(rougeCliPath), 'rouge-loop.js')
+  let loopScript = join(dirname(rougeCliPath), 'rouge-loop.js')
   if (!existsSync(loopScript)) {
-    await rollbackState()
-    return { ok: false, error: `rouge-loop.js not found at ${loopScript}` }
+    // Try global install path (npm installs the-rouge to node_modules)
+    const globalAttempt = join(dirname(rougeCliPath), '..', 'lib', 'node_modules', 'the-rouge', 'src', 'launcher', 'rouge-loop.js')
+    if (existsSync(globalAttempt)) {
+      loopScript = globalAttempt
+    } else {
+      await rollbackState()
+      return { ok: false, error: `rouge-loop.js not found at ${loopScript} or ${globalAttempt}` }
+    }
   }
 
   let child: ReturnType<typeof spawn>
