@@ -3,7 +3,7 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/the-rouge"><img src="https://img.shields.io/npm/v/the-rouge.svg" alt="npm version"></a>
   <a href="https://www.npmjs.com/package/the-rouge"><img src="https://img.shields.io/npm/dm/the-rouge.svg" alt="npm downloads"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm%20NC-blue.svg" alt="PolyForm Noncommercial"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT"></a>
   <a href="https://github.com/sponsors/gregario"><img src="https://img.shields.io/badge/sponsor-♥-ea4aaa.svg" alt="Sponsor"></a>
 </p>
 
@@ -253,14 +253,8 @@ Current priorities:
 - **Dashboard polish** — the dashboard ships as the primary control plane; next steps are live SSE event streaming and the onboarding wizard
 - **Community patterns** — every product Rouge builds can contribute integration patterns back to the catalogue, making Rouge better at building the next one
 
-Early access to new capabilities for [sponsors](https://github.com/sponsors/gregario).
-
 ## License
 
-Rouge is source-available under [PolyForm Noncommercial 1.0.0](LICENSE) with a tiered commercial license on top. See [COMMERCIAL.md](COMMERCIAL.md) for full terms.
+[MIT](LICENSE). Use it for whatever you want — personal projects, commercial products, hosted services, reselling, anything. The only thing the license asks is that you keep the copyright notice in copies you distribute.
 
-- **Free (Noncommercial)** — personal projects, research, learning, teaching, hobby work.
-- **Internal Commercial — $100/month** via [GitHub Sponsors](https://github.com/sponsors/gregario). Single company, internal use only, ≤ 5 developers, ≤ $1M ARR. Does **not** permit hosting Rouge as a service, reselling, white-labeling, or offering Rouge-powered services to third parties as a primary component.
-- **Enterprise / Scale / Hosting** — contact gregj64@gmail.com. Required for hosted services, resale, OEM, teams above the caps, or any use where Rouge is a primary functional component of a product or service offered to third parties.
-
-Not sure which tier fits? See the FAQ in [COMMERCIAL.md](COMMERCIAL.md) or email gregj64@gmail.com.
+If Rouge is useful to you, [sponsorship](https://github.com/sponsors/gregario) helps fund continued development, but it's not required.

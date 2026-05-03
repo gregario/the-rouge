@@ -18,7 +18,7 @@ GStack (used for browser QA) is macOS only. Everything else works on Linux. Play
 Currently Next.js on Cloudflare with Supabase. The architecture is stack-agnostic -- what Rouge can build depends on what's in the integration catalogue. New stacks are added via catalogue contributions.
 
 **Can I use it commercially?**
-PolyForm Noncommercial for personal use. [$100/month Commercial tier](https://github.com/sponsors/gregario) for business use.
+Yes. Rouge is [MIT licensed](../../LICENSE) — use it for anything, personal or commercial. [Sponsorship](https://github.com/sponsors/gregario) is appreciated but not required.
 
 **How do I contribute?**
 See [CONTRIBUTING.md](../../CONTRIBUTING.md).
