@@ -163,12 +163,28 @@ export async function finalizeSeeding(projectDir: string): Promise<FinalizeResul
         if (existsSync(seedingStatePath)) {
           const seedingState = JSON.parse(readFileSync(seedingStatePath, 'utf-8'))
           const completed = new Set(seedingState.disciplines_complete || [])
-          // Import discipline registry to get applicable list
-          const registryPath = join(__dirname, '../../src/launcher/discipline-registry.js')
-          if (existsSync(registryPath)) {
-            const { listApplicable } = require(registryPath)
-            const applicable = listApplicable(projectSize)
-            const missingDisciplines = applicable.filter((d: string) => !completed.has(d))
+
+          // Inline tier mapping (can't import from src/launcher in dashboard)
+          const DISCIPLINE_TIERS: Record<string, string> = {
+            brainstorming: 'XS',
+            competition: 'M',
+            taste: 'XS',
+            sizing: 'XS',
+            spec: 'XS',
+            infrastructure: 'S',
+            design: 'S',
+            'legal-privacy': 'S',
+            marketing: 'M',
+          }
+          const TIER_ORDER = ['XS', 'S', 'M', 'L', 'XL']
+          const sizeIndex = TIER_ORDER.indexOf(projectSize)
+
+          if (sizeIndex !== -1) {
+            const applicable = Object.entries(DISCIPLINE_TIERS)
+              .filter(([_, tier]) => TIER_ORDER.indexOf(tier) <= sizeIndex)
+              .map(([discipline]) => discipline)
+
+            const missingDisciplines = applicable.filter(d => !completed.has(d))
             if (missingDisciplines.length > 0) {
               missing.push(
                 `disciplines: ${missingDisciplines.join(', ')} ` +
