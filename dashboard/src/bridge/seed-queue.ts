@@ -113,14 +113,17 @@ export async function drainQueue(projectDir: string): Promise<QueueEntry[]> {
   const { withStateLock } = await import('./state-lock')
 
   const path = queuePath(projectDir)
-  if (!existsSync(path)) return []
+  if (!existsSync(path)) {
+    // No queue file — nothing to drain. Return early without acquiring lock.
+    return []
+  }
 
   // P0-009: Hold lock across entire drain operation
-  return withStateLock(projectDir, () => {
+  const result = await withStateLock(projectDir, () => {
     // Re-check existence after acquiring lock (file might have been
     // drained by a concurrent daemon tick, though seed-daemon.ts
     // should prevent this via single-process architecture).
-    if (!existsSync(path)) return []
+    if (!existsSync(path)) return { entries: [], parseErrors: [] }
 
     // Rename to unique temp path so any post-lock-release enqueue
     // creates a fresh queue file instead of appending to the batch
@@ -131,7 +134,7 @@ export async function drainQueue(projectDir: string): Promise<QueueEntry[]> {
     } catch {
       // Either the file vanished between existsSync and rename (race)
       // or the rename failed. Either way, nothing to drain.
-      return []
+      return { entries: [], parseErrors: [] }
     }
 
     let content: string
@@ -140,11 +143,12 @@ export async function drainQueue(projectDir: string): Promise<QueueEntry[]> {
     } catch {
       // Unreadable after rename — drop it rather than hanging on it.
       try { unlinkSync(draining) } catch { /* ignore */ }
-      return []
+      return { entries: [], parseErrors: [] }
     }
     try { unlinkSync(draining) } catch { /* ignore */ }
 
     const entries: QueueEntry[] = []
+    const parseErrors: string[] = []
     for (const line of content.split('\n')) {
       const trimmed = line.trim()
       if (!trimmed) continue
@@ -152,13 +156,43 @@ export async function drainQueue(projectDir: string): Promise<QueueEntry[]> {
         const entry = JSON.parse(trimmed) as QueueEntry
         if (typeof entry.text === 'string' && typeof entry.id === 'string') {
           entries.push(entry)
+        } else {
+          const errorMsg = `Queue entry missing required fields (text or id): ${trimmed.slice(0, 100)}`
+          console.error('[seed-queue]', errorMsg)
+          parseErrors.push(errorMsg)
         }
-      } catch {
-        console.warn('[seed-queue] dropping malformed line:', trimmed.slice(0, 100))
+      } catch (parseErr) {
+        const errorMsg = `JSONL parse failed for line: ${trimmed.slice(0, 100)}`
+        console.error('[seed-queue]', errorMsg, parseErr)
+        parseErrors.push(errorMsg)
       }
     }
-    return entries
+
+    return { entries, parseErrors }
   })
+
+  // P2-004 fix: Append user-visible error if any lines failed to parse.
+  // This prevents silent message loss — the human sees the error in
+  // chat and can retry. We do this AFTER releasing the lock so the
+  // chat append (which also acquires a lock) doesn't deadlock.
+  if (result.parseErrors.length > 0) {
+    try {
+      const { appendChatMessage } = await import('./chat-reader')
+      appendChatMessage(projectDir, {
+        id: `parse-error-${Date.now()}`,
+        role: 'rouge',
+        content: `Queue parse error: ${result.parseErrors.length} message(s) couldn't be read from the queue file. Please retry your last message.`,
+        timestamp: new Date().toISOString(),
+        kind: 'system_note',
+      })
+    } catch (innerErr) {
+      console.error('[seed-queue] failed to append parse error note:', innerErr)
+    }
+  }
+
+  // withStateLock returns the object { entries, parseErrors } from the
+  // callback. Extract just the entries array for backwards compatibility.
+  return result.entries
 }
 
 /**

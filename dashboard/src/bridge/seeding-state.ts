@@ -51,20 +51,29 @@ export function updateSessionId(projectDir: string, sessionId: string): void {
 }
 
 export async function markDisciplineComplete(projectDir: string, discipline: string): Promise<void> {
-  // Update seeding-state.json (internal tracking)
-  const state = readSeedingState(projectDir)
-  const complete = state.disciplines_complete ?? []
-  if (!complete.includes(discipline)) {
-    complete.push(discipline)
-    state.disciplines_complete = complete
-  }
-  // Advance current_discipline to the next one in the standard sequence
-  state.current_discipline = nextDiscipline(complete)
-  state.last_activity = new Date().toISOString()
-  writeSeedingState(projectDir, state)
+  // P3-003 fix: Wrap both file writes in a single lock to prevent
+  // consistency races. Without this, a concurrent read between the two
+  // writes sees mismatched state (seeding-state.json says complete,
+  // state.json.seedingProgress still says in-progress).
+  await withStateLock(projectDir, async () => {
+    // Update seeding-state.json (internal tracking)
+    const state = readSeedingState(projectDir)
+    const complete = state.disciplines_complete ?? []
+    if (!complete.includes(discipline)) {
+      complete.push(discipline)
+      state.disciplines_complete = complete
+    }
+    // Advance current_discipline to the next one in the standard sequence
+    state.current_discipline = nextDiscipline(complete)
+    state.last_activity = new Date().toISOString()
+    writeSeedingState(projectDir, state)
 
-  // Also update state.json.seedingProgress so the dashboard sees progress
-  await updateDisciplineStatusInState(projectDir, discipline, 'complete')
+    // Also update state.json.seedingProgress so the dashboard sees progress
+    // Note: updateDisciplineStatusInState already acquires the lock internally,
+    // but since we're already inside withStateLock, we need to call the inner
+    // logic directly. Extract that to a helper.
+    await updateDisciplineStatusInStateUnlocked(projectDir, discipline, 'complete')
+  })
 }
 
 function nextDiscipline(complete: string[]): string {
@@ -89,62 +98,78 @@ function nextDiscipline(complete: string[]): string {
  * ONLY when a discipline becomes complete — an in-progress transition
  * leaves `currentDiscipline` pointing at this discipline (because it
  * IS the one being worked on).
+ *
+ * P3-003: This function acquires the lock internally. If you're already
+ * inside a withStateLock block, use updateDisciplineStatusInStateUnlocked
+ * instead to avoid deadlock.
  */
 async function updateDisciplineStatusInState(
   projectDir: string,
   discipline: string,
   targetStatus: 'in-progress' | 'complete',
 ): Promise<void> {
+  await withStateLock(projectDir, async () => {
+    await updateDisciplineStatusInStateUnlocked(projectDir, discipline, targetStatus)
+  })
+}
+
+/**
+ * Unlocked version of updateDisciplineStatusInState. Only call this if
+ * you're already inside a withStateLock block (P3-003 fix).
+ */
+async function updateDisciplineStatusInStateUnlocked(
+  projectDir: string,
+  discipline: string,
+  targetStatus: 'in-progress' | 'complete',
+): Promise<void> {
   const stateFile = statePath(projectDir)
   if (!existsSync(stateFile)) return
-  await withStateLock(projectDir, async () => {
-    try {
-      const rawState = JSON.parse(readFileSync(stateFile, 'utf-8'))
-      if (!rawState.seedingProgress?.disciplines) return
+  try {
+    const rawState = JSON.parse(readFileSync(stateFile, 'utf-8'))
+    if (!rawState.seedingProgress?.disciplines) return
 
-      const disciplines = rawState.seedingProgress.disciplines as Array<{ discipline: string; status: string }>
-      const entry = disciplines.find(d => d.discipline === discipline)
-      if (!entry) return
+    const disciplines = rawState.seedingProgress.disciplines as Array<{ discipline: string; status: string }>
+    const entry = disciplines.find(d => d.discipline === discipline)
+    if (!entry) return
 
-      // Monotonic forward-only promotion. Rank: pending < in-progress < complete.
-      const rank = (s: string) => (s === 'complete' ? 2 : s === 'in-progress' ? 1 : 0)
-      if (rank(targetStatus) > rank(entry.status)) {
-        entry.status = targetStatus
-      } else {
-        // No-op — already at or past the target status. Skip the write
-        // to avoid thrashing the mtime (and the watcher) for idempotent
-        // calls.
-        return
-      }
-
-      rawState.seedingProgress.completedCount = disciplines.filter(d => d.status === 'complete').length
-
-      // Keep `seedingProgress.currentDiscipline` in sync with whichever
-      // discipline is actively being worked on — that's what the
-      // dashboard stepper reads to highlight the active row, and what
-      // the bridge watcher diffs to emit a `seeding-progress` event.
-      //
-      // - Promoting pending → in-progress: this discipline IS the
-      //   current one. Point currentDiscipline at it. Without this,
-      //   `currentDiscipline` stays `null` for the whole time brainstorming
-      //   is being worked on (nobody else writes it during active work),
-      //   the watcher's diff check sees no change, and the dashboard
-      //   never learns the daemon finished a turn.
-      // - Promoting something → complete: advance currentDiscipline to
-      //   the next uncompleted one in DISCIPLINE_SEQUENCE.
-      if (targetStatus === 'in-progress') {
-        rawState.seedingProgress.currentDiscipline = discipline
-      } else if (targetStatus === 'complete') {
-        const complete = disciplines.filter(d => d.status === 'complete').map(d => d.discipline)
-        const current = DISCIPLINE_SEQUENCE.find(d => !complete.includes(d)) ?? DISCIPLINE_SEQUENCE[DISCIPLINE_SEQUENCE.length - 1]
-        rawState.seedingProgress.currentDiscipline = current
-      }
-
-      await writeStateJson(projectDir, rawState)
-    } catch {
-      // If state.json is malformed, skip
+    // Monotonic forward-only promotion. Rank: pending < in-progress < complete.
+    const rank = (s: string) => (s === 'complete' ? 2 : s === 'in-progress' ? 1 : 0)
+    if (rank(targetStatus) > rank(entry.status)) {
+      entry.status = targetStatus
+    } else {
+      // No-op — already at or past the target status. Skip the write
+      // to avoid thrashing the mtime (and the watcher) for idempotent
+      // calls.
+      return
     }
-  })
+
+    rawState.seedingProgress.completedCount = disciplines.filter(d => d.status === 'complete').length
+
+    // Keep `seedingProgress.currentDiscipline` in sync with whichever
+    // discipline is actively being worked on — that's what the
+    // dashboard stepper reads to highlight the active row, and what
+    // the bridge watcher diffs to emit a `seeding-progress` event.
+    //
+    // - Promoting pending → in-progress: this discipline IS the
+    //   current one. Point currentDiscipline at it. Without this,
+    //   `currentDiscipline` stays `null` for the whole time brainstorming
+    //   is being worked on (nobody else writes it during active work),
+    //   the watcher's diff check sees no change, and the dashboard
+    //   never learns the daemon finished a turn.
+    // - Promoting something → complete: advance currentDiscipline to
+    //   the next uncompleted one in DISCIPLINE_SEQUENCE.
+    if (targetStatus === 'in-progress') {
+      rawState.seedingProgress.currentDiscipline = discipline
+    } else if (targetStatus === 'complete') {
+      const complete = disciplines.filter(d => d.status === 'complete').map(d => d.discipline)
+      const current = DISCIPLINE_SEQUENCE.find(d => !complete.includes(d)) ?? DISCIPLINE_SEQUENCE[DISCIPLINE_SEQUENCE.length - 1]
+      rawState.seedingProgress.currentDiscipline = current
+    }
+
+    await writeStateJson(projectDir, rawState)
+  } catch {
+    // If state.json is malformed, skip
+  }
 }
 
 export function markSeedingComplete(projectDir: string): void {

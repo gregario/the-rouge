@@ -28,7 +28,10 @@ describe('recoveryPromptFor', () => {
   it('returns a generic fallback for unknown discipline', () => {
     const p = recoveryPromptFor('some-new-phase-we-dont-know-about')
     expect(p.text).toMatch(/^\[SYSTEM\]/)
-    expect(p.text).toContain('Continue the current discipline')
+    // P2-006 fix: unknown discipline should get a prompt that names the
+    // discipline explicitly so Claude knows what artifact to look for.
+    expect(p.text).toContain('some-new-phase-we-dont-know-about')
+    expect(p.text).toContain('Continue that work')
   })
 
   it('returns a generic fallback for null discipline', () => {

@@ -140,47 +140,69 @@
 
 ### P2-001: Watcher stateCache desync on rapid writes
 - **File:** `dashboard/src/bridge/watcher.ts:266-305`
-- **Status:** ⬜ TODO
+- **Status:** ✅ FIXED
+- **Fix:** Added sequence numbers to all state events; client can ignore out-of-order events
+- **Implementation:** Added `stateCacheSeq` map, increment seq on each state change, include seq in all state/progress events
 
 ### P2-002: Chat size cache race creates duplicate events
 - **File:** `dashboard/src/bridge/watcher.ts:235-264`
-- **Status:** ⬜ TODO
+- **Status:** ✅ FIXED
+- **Fix:** Atomic cache update - set cache before emit
+- **Implementation:** Moved `chatSizeCache.set()` before emit to prevent race where second rapid write sees stale cache and emits duplicate
 
 ### P2-003: SSE client leak when send() throws
 - **File:** `dashboard/src/lib/watcher-singleton.ts:84-104`
-- **Status:** ⬜ TODO
+- **Status:** ✅ FIXED
+- **Fix:** Update lastActiveAt BEFORE send(), not after
+- **Implementation:** Move `client.lastActiveAt = Date.now()` before try-catch so throwing clients get timestamp updated and are reaped by idle timeout
 
 ### P2-004: Queue corruption on malformed JSONL silently drops message
 - **File:** `dashboard/src/bridge/seed-queue.ts:140`
-- **Status:** ⬜ TODO
+- **Status:** ✅ FIXED
+- **Fix:** Collect parse errors, append user-visible system_note if any lines failed
+- **Implementation:** drainQueue accumulates parse errors and appends a system_note to chat if any messages failed validation or JSONL parse, preventing silent message loss
 
 ### P2-005: Daemon heartbeat write failure causes false stall
 - **File:** `dashboard/src/bridge/seed-daemon.ts:100-102`
-- **Status:** ⬜ TODO
+- **Status:** ✅ FIXED
+- **Fix:** Track last successful heartbeat, fall back on write failure
+- **Implementation:** heartbeatSnapshot tracks lastSuccessfulWrite, writeHeartbeat falls back to that value on write failure to prevent missing heartbeat file
 
 ### P2-006: Recovery prompt for unknown discipline loses context
 - **File:** `dashboard/src/bridge/recovery-prompts.ts:96-99`
-- **Status:** ⬜ TODO
+- **Status:** ✅ FIXED
+- **Fix:** Generic recovery includes explicit discipline name when unknown
+- **Implementation:** recoveryPromptFor returns generic prompt with discipline name interpolated when not in RECOVERY_BY_DISCIPLINE table
 
 ### P2-007: DISCIPLINE_SKIPPED with malformed reason fails parse
 - **File:** `dashboard/src/bridge/seed-handler.ts:662`
-- **Status:** ⬜ TODO
+- **Status:** ✅ FIXED
+- **Fix:** Accept full rawSkip as name if split produces single element
+- **Implementation:** Parser extracts first element from split, falls back to full trimmed rawSkip if no separator found (handles bare `[DISCIPLINE_SKIPPED: Marketing]`)
 
 ### P2-008: Gate cleared but new gate set mid-turn causes double-prompt
 - **File:** `dashboard/src/bridge/seed-handler.ts:419,702`
-- **Status:** ⬜ TODO
+- **Status:** ✅ FIXED
+- **Fix:** Re-check gate status immediately before auto-continuation kickoff
+- **Implementation:** Read finalGateCheck before both shouldContinueForAdvance and shouldContinueForAutonomous paths, skip continuation if mode is awaiting_gate
 
 ### P2-009: State transition races on Stop + watcher rollback
 - **File:** `dashboard/src/bridge/build-runner.ts:301-368`
-- **Status:** ⬜ TODO
+- **Status:** ✅ FIXED
+- **Fix:** Hold state lock during PID cleanup
+- **Implementation:** Wrap `cleanupPidFile()` calls in `withStateLock()` to prevent watcher from seeing intermediate states during Stop
 
 ### P2-010: Discovery polling creates duplicate project-discovered events
 - **File:** `dashboard/src/bridge/watcher.ts:138-169`
-- **Status:** ⬜ TODO
+- **Status:** ✅ FIXED
+- **Fix:** Check watchers.has() after async poll returns
+- **Implementation:** Added early return `if (this.watchers.has(projectDir)) return` at top of checkForState to prevent duplicate discovery
 
 ### P2-011: Slow mutator guard false-positive on cold schema
 - **File:** `src/launcher/facade/lock.js:153-159`
-- **Status:** ⬜ TODO
+- **Status:** ✅ FIXED
+- **Fix:** Add allowSlow: true to dashboard escalation writes
+- **Implementation:** Added `{ allowSlow: true }` option to withStateLock call in resolve-escalation route (line 105), skipping the 100ms guard for legitimate schema validation work
 
 ---
 
@@ -188,27 +210,39 @@
 
 ### P3-001: Recovery log memory leak on long daemon sessions
 - **File:** `dashboard/src/bridge/seed-daemon.ts:59-60,338-340`
-- **Status:** ⬜ TODO
+- **Status:** ✅ FIXED
+- **Fix:** Add background pruning timer
+- **Implementation:** Added recoveryPruner setInterval that runs every 5 minutes, prunes expired entries from recoveryLog based on RECOVERY_WINDOW_MS. Cleared in cleanExit alongside backgroundTicker.
 
 ### P3-002: Recovery cap note appears out-of-order in chat
 - **File:** `dashboard/src/bridge/seed-daemon.ts:345-356`
-- **Status:** ⬜ TODO
+- **Status:** ✅ FIXED
+- **Fix:** Append note AFTER recovery turn completes
+- **Implementation:** Moved "Automatically continuing..." appendChatMessage call from before handleSeedMessage (line 438-445) to after successful completion (inside try block after line 466). Note now only appears if recovery actually ran.
 
 ### P3-003: markDisciplineComplete consistency race
 - **File:** `dashboard/src/bridge/seeding-state.ts:53-68`
-- **Status:** ⬜ TODO
+- **Status:** ✅ FIXED
+- **Fix:** Wrap both file writes in single lock
+- **Implementation:** Wrapped markDisciplineComplete in withStateLock, created updateDisciplineStatusInStateUnlocked helper to avoid nested lock acquisition. Both seeding-state.json and state.json.seedingProgress now update atomically.
 
 ### P3-004: Daemon idle exit adds 0-5s latency
 - **File:** `dashboard/src/bridge/seed-daemon.ts:217-229`
-- **Status:** ⬜ TODO
+- **Status:** ✅ FIXED
+- **Fix:** Reduce IDLE_EXIT_MS to 2s, check queue before sleep
+- **Implementation:** Reduced IDLE_EXIT_MS from 5000 to 2000 (60% latency reduction). Added hasQueuedMessages check immediately before sleep() to process arriving messages without waiting for next poll.
 
 ### P3-005: DISCIPLINE_COMPLETE + GATE ordering not checked
 - **File:** `dashboard/src/bridge/seed-handler.ts:626-632`
-- **Status:** ⬜ TODO
+- **Status:** ✅ FIXED
+- **Fix:** Verify complete comes BEFORE gate in segment array
+- **Implementation:** Added orderViolation flag that checks segment array ordering (line 618-625). Enhanced rejection reason to explicitly mention ordering violation when DISCIPLINE_COMPLETE appears AFTER GATE.
 
 ### P3-006: Watcher debounce map unbounded growth
 - **File:** `dashboard/src/bridge/watcher.ts:27`
-- **Status:** ⬜ TODO
+- **Status:** ✅ FIXED
+- **Fix:** Prune stale entries periodically
+- **Implementation:** Added debounceLastAccess Map to track access times (1h stale threshold). Prune check fires every ~100 debounce calls (modulo check). Clears both timer and access time on expiry. Prevents unbounded growth over long dashboard sessions.
 
 ---
 
@@ -260,4 +294,4 @@
 
 ---
 
-**Current status: 18/50 fixed (13 earlier + 5 Phase 4 directory operations), 32 remaining**
+**Current status: 35/50 fixed (28 earlier + 1 P2 + 6 P3), 15 remaining**

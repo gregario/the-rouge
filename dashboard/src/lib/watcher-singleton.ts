@@ -85,9 +85,14 @@ async function ensureWatcher(): Promise<ProjectWatcher> {
       const line = `data: ${JSON.stringify(event)}\n\n`;
       const dead: number[] = [];
       for (const client of state.clients.values()) {
+        // P2-003: Update lastActiveAt BEFORE send() so that if send throws,
+        // the client is still marked active and will be reaped by the idle
+        // timeout sweep instead of leaking forever. Without this, a client
+        // whose send() always throws stays in the map with a stale timestamp
+        // that never updates.
+        client.lastActiveAt = Date.now();
         try {
           client.send(line);
-          client.lastActiveAt = Date.now();
         } catch {
           // Broken pipe / aborted fetch — evict now, don't rely on
           // the caller ever invoking close(). One throw is enough —

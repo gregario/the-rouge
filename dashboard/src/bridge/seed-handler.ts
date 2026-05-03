@@ -614,6 +614,18 @@ async function runSeedingTurn(
   const prelimSegments = segmentMarkers(result.result)
   const turnHasGate = prelimSegments.some((s) => s.kind === 'gate')
 
+  // P3-005 fix: Verify that if both DISCIPLINE_COMPLETE and GATE appear,
+  // the COMPLETE comes BEFORE the GATE in the segment array. Claude should
+  // never emit [GATE:] prose [DISCIPLINE_COMPLETE:] in that order.
+  let orderViolation = false
+  if (turnHasGate) {
+    const gateIndex = prelimSegments.findIndex((s) => s.kind === 'gate')
+    const completeIndex = prelimSegments.findIndex((s) => s.kind === 'discipline_complete')
+    if (completeIndex !== -1 && completeIndex > gateIndex) {
+      orderViolation = true
+    }
+  }
+
   const acceptedDisciplines: string[] = []
   const rejectedDisciplines: Array<{ discipline: string; reason: string }> = []
 
@@ -624,9 +636,14 @@ async function runSeedingTurn(
       continue
     }
     if (turnHasGate) {
+      // P3-005: Include ordering information in the rejection reason if
+      // the COMPLETE appeared AFTER the GATE (order violation).
+      const reason = orderViolation
+        ? `cannot emit [GATE:] then [DISCIPLINE_COMPLETE:] in the same turn — gates must be at the END of a turn, after all other markers. End the turn after the gate, wait for the human answer, then complete on a later turn.`
+        : `cannot emit DISCIPLINE_COMPLETE and a [GATE:] in the same turn — end the turn after the gate, wait for the human answer, then complete on a later turn.`
       rejectedDisciplines.push({
         discipline: d,
-        reason: `cannot emit DISCIPLINE_COMPLETE and a [GATE:] in the same turn — end the turn after the gate, wait for the human answer, then complete on a later turn.`,
+        reason,
       })
       continue
     }
@@ -660,8 +677,13 @@ async function runSeedingTurn(
   // name (first token before the em dash or hyphen separator).
   // P0-007 fix: .trim() the raw marker BEFORE split to strip whitespace
   // from malformed `[DISCIPLINE_SKIPPED: Marketing  — not a web app]`.
+  // P2-007 fix: If split produces only one element (no separator found),
+  // accept the entire trimmed rawSkip as the discipline name rather than
+  // failing silently. This handles bare `[DISCIPLINE_SKIPPED: Marketing]`
+  // where the reason was omitted.
   for (const rawSkip of markers.disciplinesSkipped) {
-    const disciplineName = rawSkip.trim().split(/\s*[—–-]\s*/)[0].trim()
+    const parts = rawSkip.trim().split(/\s*[—–-]\s*/)
+    const disciplineName = parts.length > 0 ? parts[0].trim() : rawSkip.trim()
     if (!isKnownDiscipline(disciplineName)) {
       console.warn(`[seeding] unknown discipline in DISCIPLINE_SKIPPED: ${rawSkip}`)
       continue
@@ -795,7 +817,14 @@ async function runSeedingTurn(
     postContinuationState.status === 'active' &&
     !atDepthLimit
 
-  if (shouldContinueForAdvance) {
+  // P2-008 fix: Re-check gate status immediately before auto-continuation.
+  // applyMarkerStateEffects (line 709) may have set a NEW gate mid-turn
+  // (e.g. user answered gate A, Claude cleared it, then emitted gate B
+  // in the same response). If that happened, postContinuationState.mode
+  // will be awaiting_gate and we must NOT fire a continuation — that
+  // would double-prompt (continuation kickoff + unanswered gate).
+  const finalGateCheck = readSeedingState(projectDir)
+  if (shouldContinueForAdvance && finalGateCheck.mode !== 'awaiting_gate') {
     const nextDiscipline = resolveActiveDiscipline(postContinuationState.current_discipline)
     const alreadyKicked = postContinuationState.disciplines_prompted ?? []
     if (nextDiscipline && !alreadyKicked.includes(nextDiscipline)) {
@@ -807,7 +836,7 @@ async function runSeedingTurn(
       ].join(' ')
       await runContinuationTurn(projectDir, kickoffText, chunkDepth + 1, `kickoff-${nextDiscipline}`)
     }
-  } else if (shouldContinueForAutonomous) {
+  } else if (shouldContinueForAutonomous && finalGateCheck.mode !== 'awaiting_gate') {
     const activeDisc = resolveActiveDiscipline(postContinuationState.current_discipline)
     const continuationText = [
       '[SYSTEM] Continue the autonomous chunk for the current discipline.',

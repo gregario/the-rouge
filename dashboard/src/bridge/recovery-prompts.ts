@@ -92,8 +92,25 @@ const RECOVERY_BY_DISCIPLINE: Record<string, RecoveryPrompt> = {
 /**
  * Return the discipline-specific recovery prompt, or the generic
  * fallback. Call site: seed-daemon's maybeFireRecovery.
+ *
+ * P2-006 fix: When the discipline is unknown (not in our table), return
+ * a generic prompt that explicitly names the current discipline so
+ * Claude knows which artifact to look for. Without this, the fallback
+ * prompt says "continue the current discipline" but Claude has no idea
+ * what "current" means when the discipline name is unrecognized.
  */
 export function recoveryPromptFor(discipline: string | null | undefined): RecoveryPrompt {
   if (!discipline) return GENERIC_RECOVERY
-  return RECOVERY_BY_DISCIPLINE[discipline] ?? GENERIC_RECOVERY
+  const known = RECOVERY_BY_DISCIPLINE[discipline]
+  if (known) return known
+  // Unknown discipline — return generic with explicit discipline name.
+  return {
+    text:
+      `[SYSTEM] Recovery: the previous turn returned without markers. ` +
+      `You are in the "${discipline}" discipline. Continue that work — emit ` +
+      '`[DECISION:]`, `[WROTE:]`, `[HEARTBEAT:]`, `[GATE:]`, or ' +
+      `\`[DISCIPLINE_COMPLETE: ${discipline}]\` as appropriate. ` +
+      'If you have a question for the human, emit `[GATE:]` and stop. ' +
+      'If you are mid-autonomous-work, emit a `[DECISION:]` or `[HEARTBEAT:]` and return.',
+  }
 }

@@ -58,6 +58,9 @@ export async function POST(
   }
 
   const projectDir = join(projectsRoot, name);
+  // P2-011 fix: Dashboard escalation writes involve schema validation +
+  // JSON parse/stringify and can exceed the 100ms slow-mutator guard.
+  // Pass allowSlow to skip the guard for this legitimate long-running use.
   const result = await withStateLock(projectDir, async () => {
     const raw = JSON.parse(readFileSync(stateFile, "utf-8"));
 
@@ -100,7 +103,7 @@ export async function POST(
 
     await writeStateJson(projectDir, raw);
     return { notFound: false, versionMismatch: false, raw };
-  });
+  }, { allowSlow: true });
 
   if (result.versionMismatch) {
     return NextResponse.json(

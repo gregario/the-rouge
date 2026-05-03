@@ -36,7 +36,12 @@ import { recoveryPromptFor } from './recovery-prompts'
 
 const HEARTBEAT_FILENAME = 'seed-heartbeat.json'
 const POLL_INTERVAL_MS = 1000
-const IDLE_EXIT_MS = 5000  // how long queue must be empty before we shut down
+// P3-004 fix: Reduce idle exit delay from 5s to 2s. A 5s grace period
+// added noticeable latency when the user sent a follow-up message — the
+// daemon sat idle for up to 5s before processing the new message. 2s
+// still prevents thrashing (spawn overhead is ~100ms) but cuts the
+// worst-case user-visible lag by 60%.
+const IDLE_EXIT_MS = 2000  // how long queue must be empty before we shut down
 
 // Phase 3 self-heal bounds. A turn that returns bare prose (no gate,
 // no discipline-complete, no autonomous markers) is a "stall" — Rouge
@@ -63,9 +68,14 @@ const recoveryLog: Array<{ projectDir: string; at: number }> = []
 // mutate it as they transition between 'processing' and 'idle'. This
 // keeps the heartbeat fresh during long `await runClaude` blocks
 // without requiring explicit checkpointing inside the main loop.
+//
+// P2-005: Track the last successfully-written heartbeat so a write
+// failure can fall back to that value instead of leaving the heartbeat
+// file missing (which would trigger false stall detection in the UI).
 const heartbeatSnapshot = {
   lastTurnId: null as string | null,
   status: 'idle' as 'idle' | 'processing',
+  lastSuccessfulWrite: null as HeartbeatPayload | null,
 }
 
 // P1-010: Track the currently-processing message so we can re-queue it
@@ -102,8 +112,27 @@ function writeHeartbeat(
   try {
     writeFileSync(tmp, JSON.stringify(full, null, 2) + '\n', 'utf-8')
     renameSync(tmp, target)
+    // P2-005 fix: Track successful write so a future failure can fall
+    // back to this value instead of leaving the file missing.
+    heartbeatSnapshot.lastSuccessfulWrite = full
   } catch (err) {
+    // P2-005 fix: On write failure, log the error and attempt to write
+    // the last successful heartbeat value. This prevents the UI from
+    // seeing a missing heartbeat file and triggering false stall
+    // detection. If we have no previous value, the write failure is
+    // unrecoverable — log and continue (daemon stays alive, next tick
+    // may succeed).
     console.warn('[seed-daemon] heartbeat write failed:', err instanceof Error ? err.message : err)
+    if (heartbeatSnapshot.lastSuccessfulWrite) {
+      console.log('[seed-daemon] falling back to last successful heartbeat value')
+      try {
+        const fallbackTmp = `${target}.${randomUUID()}.fallback`
+        writeFileSync(fallbackTmp, JSON.stringify(heartbeatSnapshot.lastSuccessfulWrite, null, 2) + '\n', 'utf-8')
+        renameSync(fallbackTmp, target)
+      } catch (fallbackErr) {
+        console.error('[seed-daemon] fallback heartbeat write also failed:', fallbackErr instanceof Error ? fallbackErr.message : fallbackErr)
+      }
+    }
   }
 }
 
@@ -157,12 +186,26 @@ async function main(): Promise<void> {
   }, 5000)
   backgroundTicker.unref()
 
+  // P3-001 fix: Background pruning timer for recoveryLog. Without this
+  // the in-memory log grows unbounded during long daemon sessions (a
+  // single daemon can survive multiple seeding runs if the user
+  // restarts one product after another without closing the dashboard).
+  // Prune expired entries every 5 minutes so the array stays bounded.
+  const recoveryPruner = setInterval(() => {
+    const now = Date.now()
+    while (recoveryLog.length > 0 && now - recoveryLog[0].at > RECOVERY_WINDOW_MS) {
+      recoveryLog.shift()
+    }
+  }, 5 * 60 * 1000)
+  recoveryPruner.unref()
+
   let idleSince: number | null = null
   let terminalSignalReceived = false
 
   const cleanExit = (reason: string, code = 0) => {
     console.log(`[seed-daemon] exiting (${reason})`)
     clearInterval(backgroundTicker)
+    clearInterval(recoveryPruner)
     // Only remove the PID file if WE still own it. If another daemon
     // took over, its PID file is theirs to manage.
     if (stillOwned(projectDir, sessionId)) {
@@ -253,6 +296,16 @@ async function main(): Promise<void> {
             continue
           }
           cleanExit('idle')
+        }
+
+        // P3-004 fix: Check queue immediately before sleep. Without this,
+        // a message that arrives right before the sleep() call sits
+        // unprocessed for up to POLL_INTERVAL_MS (1s), even though we
+        // could process it now. The check is cheap (existsSync + statSync)
+        // and cuts the worst-case latency from 1s to ~0ms.
+        if (hasQueuedMessages(projectDir)) {
+          idleSince = null
+          continue
         }
 
         await sleep(POLL_INTERVAL_MS)
@@ -396,16 +449,6 @@ async function maybeFireRecovery(projectDir: string, sessionId: string): Promise
   console.log(`[seed-daemon] stall detected in ${projectDir} — firing recovery turn`)
   recoveryLog.push({ projectDir, at: now })
 
-  // Append a visible system note so the user sees we noticed + acted.
-  appendChatMessage(projectDir, {
-    id: `recovery-${randomUUID().slice(0, 8)}`,
-    role: 'rouge',
-    content:
-      'Rouge returned without a gate, decision, or completion marker. Automatically continuing the current discipline…',
-    timestamp: new Date().toISOString(),
-    kind: 'system_note',
-  })
-
   // Fire the recovery turn. Use humanMessageAlreadyPersisted:true so
   // the handler doesn't try to append our [SYSTEM] text as a human
   // chat entry.
@@ -425,6 +468,18 @@ async function maybeFireRecovery(projectDir: string, sessionId: string): Promise
   try {
     await handleSeedMessage(projectDir, recoveryPrompt.text, {
       humanMessageAlreadyPersisted: true,
+    })
+    // P3-002 fix: Append the "automatically continuing" note AFTER the
+    // recovery turn completes successfully. Appending before (as the
+    // old code did) meant the note appeared in chat but if the turn
+    // failed or was slow, the user saw a promise with no delivery.
+    appendChatMessage(projectDir, {
+      id: `recovery-${randomUUID().slice(0, 8)}`,
+      role: 'rouge',
+      content:
+        'Rouge returned without a gate, decision, or completion marker. Automatically continuing the current discipline…',
+      timestamp: new Date().toISOString(),
+      kind: 'system_note',
     })
   } catch (err) {
     console.error(`[seed-daemon] recovery turn failed:`, err)

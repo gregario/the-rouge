@@ -22,10 +22,17 @@ export class ProjectWatcher extends EventEmitter {
   // on whatever it rendered last.
   private chatWatchers: Map<string, FSWatcher> = new Map()
   private stateCache: Map<string, string> = new Map()
+  private stateCacheSeq: Map<string, number> = new Map() // P2-001: sequence numbers for state events
   private chatSizeCache: Map<string, number> = new Map()
   private rootWatcher: FSWatcher | null = null
   private debounceTimers: Map<string, ReturnType<typeof setTimeout>> = new Map()
   private static readonly DEBOUNCE_MS = 100
+  // P3-006 fix: Track last access time for debounce entries so we can
+  // prune stale ones. Without this, the map grows unbounded as projects
+  // are created/renamed/deleted — each unique key (projectDir or
+  // root:filename) gets a timer entry that's never cleaned up.
+  private debounceLastAccess: Map<string, number> = new Map()
+  private static readonly DEBOUNCE_STALE_MS = 60 * 60 * 1000 // 1 hour
 
   constructor(projectsRoot: string) {
     super()
@@ -103,6 +110,7 @@ export class ProjectWatcher extends EventEmitter {
     }
 
     this.stateCache.clear()
+    this.stateCacheSeq.clear()
   }
 
   private initProject(projectDir: string): void {
@@ -139,6 +147,10 @@ export class ProjectWatcher extends EventEmitter {
     // Check periodically for state.json (it may arrive slightly after the dir)
     const checkForState = (attempts: number) => {
       if (attempts <= 0) return
+
+      // P2-010: Check if watcher was already added by another poll iteration
+      // or concurrent discovery. Prevents duplicate project-discovered events.
+      if (this.watchers.has(projectDir)) return
 
       const stateFile = statePath(projectDir)
       if (existsSync(stateFile)) {
@@ -244,6 +256,10 @@ export class ProjectWatcher extends EventEmitter {
     }
     const previous = this.chatSizeCache.get(projectDir) ?? 0
     if (size === previous) return // spurious event (touch / metadata)
+
+    // P2-002: Atomic cache update — set cache BEFORE emit to prevent
+    // race where a second rapid write fires between emit and cache update,
+    // sees stale cache value, and emits duplicate event.
     this.chatSizeCache.set(projectDir, size)
 
     // Only emit on GROWTH. A shrink means someone truncated/rotated
@@ -276,6 +292,10 @@ export class ProjectWatcher extends EventEmitter {
     const previousContent = this.stateCache.get(projectDir)
     if (content === previousContent) return // No actual change
 
+    // P2-001: Increment sequence number and update cache atomically
+    // before emitting any events. Client will ignore out-of-order events.
+    const seq = (this.stateCacheSeq.get(projectDir) ?? 0) + 1
+    this.stateCacheSeq.set(projectDir, seq)
     this.stateCache.set(projectDir, content)
 
     let parsed: any
@@ -299,6 +319,7 @@ export class ProjectWatcher extends EventEmitter {
         data: {
           from: previousParsed.current_state ?? null,
           to: parsed.current_state,
+          seq, // P2-001: include sequence number
         },
       }
       this.emit('event', event)
@@ -321,6 +342,7 @@ export class ProjectWatcher extends EventEmitter {
           to: curDiscipline,
           completedCount: parsed?.seedingProgress?.completedCount ?? 0,
           totalCount: parsed?.seedingProgress?.totalCount ?? 8,
+          seq, // P2-001: include sequence number
         },
       }
       this.emit('event', event)
@@ -345,6 +367,7 @@ export class ProjectWatcher extends EventEmitter {
           milestone_to: curMilestone,
           story_from: prevStory,
           story_to: curStory,
+          seq, // P2-001: include sequence number
         },
       }
       this.emit('event', event)
@@ -387,9 +410,43 @@ export class ProjectWatcher extends EventEmitter {
 
     const timer = setTimeout(() => {
       this.debounceTimers.delete(key)
+      this.debounceLastAccess.delete(key)
       fn()
     }, ProjectWatcher.DEBOUNCE_MS)
 
     this.debounceTimers.set(key, timer)
+    // P3-006 fix: Track last access time for this key. Every
+    // DEBOUNCE_STALE_MS (1 hour), we'll prune entries that haven't been
+    // accessed recently. This prevents the map from growing unbounded as
+    // projects are created and deleted over a long-running dashboard session.
+    this.debounceLastAccess.set(key, Date.now())
+
+    // Prune stale entries every ~100 calls. The modulo check is cheap (one
+    // integer operation) and keeps pruning overhead low — we only walk the
+    // full map once per ~100 debounce calls. For a typical session (a few
+    // projects, a few events per second), this means pruning fires once
+    // every few seconds at most, which is negligible.
+    if (this.debounceTimers.size % 100 === 0) {
+      this.pruneStaleDebounceEntries()
+    }
+  }
+
+  private pruneStaleDebounceEntries(): void {
+    const now = Date.now()
+    const staleKeys: string[] = []
+    for (const [key, lastAccess] of this.debounceLastAccess.entries()) {
+      if (now - lastAccess > ProjectWatcher.DEBOUNCE_STALE_MS) {
+        staleKeys.push(key)
+      }
+    }
+    for (const key of staleKeys) {
+      const timer = this.debounceTimers.get(key)
+      if (timer) clearTimeout(timer)
+      this.debounceTimers.delete(key)
+      this.debounceLastAccess.delete(key)
+    }
+    if (staleKeys.length > 0) {
+      console.log(`[watcher] pruned ${staleKeys.length} stale debounce entries`)
+    }
   }
 }

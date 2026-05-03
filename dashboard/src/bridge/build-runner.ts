@@ -360,7 +360,12 @@ export async function stopBuild(
   const start = Date.now()
   while (Date.now() - start < graceMs) {
     if (!isPidAlive(pid)) {
-      cleanupPidFile(projectDir)
+      // P2-009: Hold state lock during PID cleanup to prevent watcher from
+      // seeing intermediate state. Without this, Stop + concurrent state write
+      // can race, causing the watcher to emit events based on stale cache.
+      await withStateLock(projectDir, async () => {
+        cleanupPidFile(projectDir)
+      })
       return { ok: true, killed: 'sigint' }
     }
     await sleep(200)
@@ -375,7 +380,10 @@ export async function stopBuild(
 
   // Give the OS a moment to clean up
   await sleep(200)
-  cleanupPidFile(projectDir)
+  // P2-009: Hold state lock during PID cleanup
+  await withStateLock(projectDir, async () => {
+    cleanupPidFile(projectDir)
+  })
   return { ok: true, killed: 'sigkill' }
 }
 
