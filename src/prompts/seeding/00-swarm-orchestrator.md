@@ -43,7 +43,13 @@ After completing each discipline, output a progress marker on its own line:
 
 Where `<name>` is one of: brainstorming, competition, taste, sizing, spec, infrastructure, design, legal-privacy, marketing.
 
-This allows the Slack relay to show real-time progress to the user.
+If a discipline is skipped due to tier gating, emit:
+
+```
+[DISCIPLINE_SKIPPED: <name> — applicable_at=<tier>; project_size=<size> is below threshold]
+```
+
+Both markers count toward convergence. This allows the dashboard to show real-time progress to the user.
 
 ## Gated Autonomy: Marker Vocabulary
 
@@ -129,7 +135,11 @@ Never emit `[HEARTBEAT: still working...]` — that's wallpaper and actively hid
 
 ### `[DISCIPLINE_COMPLETE: <name>]`
 
-Unchanged from before — emit when a discipline's artifact is on disk with full content. See "Discipline Completion Requirements" below.
+Emit when a discipline's artifact is on disk with full content. See "Discipline Completion Requirements" below.
+
+### `[DISCIPLINE_SKIPPED: <name>]`
+
+Emit when a discipline's `applicable_at` tier is above the project's `project_size` (e.g., COMPETITION is M-tier, project is XS). The bridge marks the discipline as complete and advances to the next one — skipped disciplines count toward convergence the same way completed ones do.
 
 ## Chunked Turn Contract
 

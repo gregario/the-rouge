@@ -50,6 +50,23 @@ describe('extractMarkers', () => {
     expect(extractMarkers(text).disciplinesComplete).toEqual(['brainstorming', 'competition'])
   })
 
+  it('finds discipline skipped markers', () => {
+    const text = '[DISCIPLINE_SKIPPED: competition — applicable_at=M; project_size=XS is below threshold]'
+    const markers = extractMarkers(text).disciplinesSkipped
+    // The regex captures the full marker content including the reason.
+    // The handler splits on em dash to extract just the discipline name.
+    expect(markers).toHaveLength(1)
+    expect(markers[0]).toContain('competition')
+  })
+
+  it('finds both complete and skipped markers', () => {
+    const text = '[DISCIPLINE_COMPLETE: brainstorming]\n[DISCIPLINE_SKIPPED: competition — tier gate]\n[DISCIPLINE_COMPLETE: taste]'
+    const markers = extractMarkers(text)
+    expect(markers.disciplinesComplete).toEqual(['brainstorming', 'taste'])
+    expect(markers.disciplinesSkipped).toHaveLength(1)
+    expect(markers.disciplinesSkipped[0]).toContain('competition')
+  })
+
   it('detects SEEDING_COMPLETE', () => {
     expect(extractMarkers('All done. SEEDING_COMPLETE').seedingComplete).toBe(true)
     expect(extractMarkers('Everything looks good.').seedingComplete).toBe(false)
@@ -106,6 +123,15 @@ describe('segmentMarkers (gated autonomy)', () => {
     expect(segs[0].kind).toBe('wrote')
     expect(segs[0].id).toBe('fa5-spec-written')
     expect(segs[0].content).toContain('31 ACs')
+  })
+
+  it('parses [DISCIPLINE_SKIPPED:] as a discipline_skipped segment', () => {
+    const text = '[DISCIPLINE_SKIPPED: competition — applicable_at=M; project_size=XS is below threshold]\nTier gate evaluation: XS < M.'
+    const segs = segmentMarkers(text)
+    expect(segs).toHaveLength(1)
+    expect(segs[0].kind).toBe('discipline_skipped')
+    expect(segs[0].id).toBe('competition — applicable_at=M; project_size=XS is below threshold')
+    expect(segs[0].content).toContain('Tier gate')
   })
 
   it('preserves content boundaries across consecutive markers', () => {

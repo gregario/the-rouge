@@ -99,11 +99,11 @@ function appendSegmentedRougeMessages(
   discipline?: string,
 ): void {
   for (const seg of segments) {
-    // discipline_complete and seeding_complete are state-machine
-    // signals — the marker itself isn't shown to the user as its own
-    // chat bubble; the acceptance/rejection SYSTEM NOTEs downstream
-    // cover the UX. Skip here so we don't double-post.
-    if (seg.kind === 'discipline_complete' || seg.kind === 'seeding_complete') {
+    // discipline_complete, discipline_skipped, and seeding_complete are
+    // state-machine signals — the marker itself isn't shown to the user
+    // as its own chat bubble; the acceptance/rejection SYSTEM NOTEs
+    // downstream cover the UX. Skip here so we don't double-post.
+    if (seg.kind === 'discipline_complete' || seg.kind === 'discipline_skipped' || seg.kind === 'seeding_complete') {
       continue
     }
     const kind = segmentKindToMessageKind(seg.kind)
@@ -616,6 +616,8 @@ async function runSeedingTurn(
 
   const acceptedDisciplines: string[] = []
   const rejectedDisciplines: Array<{ discipline: string; reason: string }> = []
+
+  // Process DISCIPLINE_COMPLETE markers (require artifact verification).
   for (const d of markers.disciplinesComplete) {
     if (!isKnownDiscipline(d)) {
       rejectedDisciplines.push({ discipline: d, reason: 'unknown discipline name' })
@@ -646,6 +648,33 @@ async function runSeedingTurn(
       )
       rejectedDisciplines.push({ discipline: d, reason: check.reason ?? 'artifact missing' })
     }
+  }
+
+  // Process DISCIPLINE_SKIPPED markers (no artifact required — tier gate).
+  // Skipped disciplines are accepted unconditionally and advance state
+  // the same way completed disciplines do. The orchestrator already
+  // evaluated applicability; the bridge just records the skip.
+  //
+  // The marker format is `[DISCIPLINE_SKIPPED: <name> — <reason>]` where
+  // <reason> is the tier-gate explanation. Extract just the discipline
+  // name (first token before the em dash or hyphen separator).
+  for (const rawSkip of markers.disciplinesSkipped) {
+    const disciplineName = rawSkip.split(/\s*[—–-]\s*/)[0].trim()
+    if (!isKnownDiscipline(disciplineName)) {
+      console.warn(`[seeding] unknown discipline in DISCIPLINE_SKIPPED: ${rawSkip}`)
+      continue
+    }
+    await markDisciplineComplete(projectDir, disciplineName)
+    acceptedDisciplines.push(disciplineName)
+    // Append a system note so the user sees the skip in the chat.
+    appendChatMessage(projectDir, {
+      id: genId(),
+      role: 'rouge',
+      content: `Discipline ${disciplineName.toUpperCase()} skipped — not applicable at this project size.`,
+      timestamp: new Date().toISOString(),
+      kind: 'system_note',
+      metadata: { discipline: disciplineName },
+    })
   }
 
   // Append conversation. Human entry first (skipped on kickoff — the

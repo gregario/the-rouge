@@ -10,10 +10,12 @@ export interface ClaudeResult {
 
 export interface Markers {
   disciplinesComplete: string[]
+  disciplinesSkipped: string[]
   seedingComplete: boolean
 }
 
-const DISCIPLINE_MARKER = /\[DISCIPLINE_COMPLETE:\s*(\S+?)\]/g
+const DISCIPLINE_MARKER = /\[DISCIPLINE_COMPLETE:\s*([^\]]+?)\]/g
+const DISCIPLINE_SKIPPED_MARKER = /\[DISCIPLINE_SKIPPED:\s*([^\]]+?)\]/g
 const SEEDING_COMPLETE_MARKER = /\bSEEDING_COMPLETE\b/
 
 // Unified marker detector for the gated-autonomy protocol. Matches:
@@ -21,10 +23,11 @@ const SEEDING_COMPLETE_MARKER = /\bSEEDING_COMPLETE\b/
 //   [DECISION: <id>]    — autonomous call, narrates what Rouge chose
 //   [WROTE: <slug>]     — artifact completion report, not a decision
 //   [HEARTBEAT: <id>]   — still-working ping, resets the UI staleness
-//   [DISCIPLINE_COMPLETE: <name>]  — unchanged from pre-gated flow
+//   [DISCIPLINE_COMPLETE: <name>]  — discipline done, artifact verified
+//   [DISCIPLINE_SKIPPED: <name>]   — discipline not applicable (tier gate)
 // The id capture is permissive — allows slashes (brainstorming/H1-...)
 // and any non-bracket characters so callers can use descriptive slugs.
-const SEGMENT_MARKER = /\[(GATE|DECISION|WROTE|HEARTBEAT|DISCIPLINE_COMPLETE):\s*([^\]]+?)\]/g
+const SEGMENT_MARKER = /\[(GATE|DECISION|WROTE|HEARTBEAT|DISCIPLINE_COMPLETE|DISCIPLINE_SKIPPED):\s*([^\]]+?)\]/g
 
 export type MessageSegmentKind =
   | 'prose'
@@ -33,12 +36,14 @@ export type MessageSegmentKind =
   | 'wrote'
   | 'heartbeat'
   | 'discipline_complete'
+  | 'discipline_skipped'
   | 'seeding_complete'
 
 export interface MessageSegment {
   kind: MessageSegmentKind
   /** Marker id for gate/decision/heartbeat; discipline name for
-   *  discipline_complete; undefined for prose and seeding_complete. */
+   *  discipline_complete/discipline_skipped; undefined for prose and
+   *  seeding_complete. */
   id?: string
   /** Text following the marker up to the next marker or end of message.
    *  Always trimmed. May be empty for a bare marker. */
@@ -71,13 +76,22 @@ export function detectRateLimit(text: string): boolean {
 
 export function extractMarkers(text: string): Markers {
   const disciplinesComplete: string[] = []
+  const disciplinesSkipped: string[] = []
   let match: RegExpExecArray | null
-  const regex = new RegExp(DISCIPLINE_MARKER.source, 'g')
-  while ((match = regex.exec(text)) !== null) {
+
+  const completeRegex = new RegExp(DISCIPLINE_MARKER.source, 'g')
+  while ((match = completeRegex.exec(text)) !== null) {
     disciplinesComplete.push(match[1])
   }
+
+  const skippedRegex = new RegExp(DISCIPLINE_SKIPPED_MARKER.source, 'g')
+  while ((match = skippedRegex.exec(text)) !== null) {
+    disciplinesSkipped.push(match[1])
+  }
+
   return {
     disciplinesComplete,
+    disciplinesSkipped,
     seedingComplete: SEEDING_COMPLETE_MARKER.test(text),
   }
 }
@@ -123,7 +137,8 @@ export function segmentMarkers(text: string): MessageSegment[] {
       : hit.kindStr === 'DECISION' ? 'decision'
       : hit.kindStr === 'WROTE' ? 'wrote'
       : hit.kindStr === 'HEARTBEAT' ? 'heartbeat'
-      : 'discipline_complete'
+      : hit.kindStr === 'DISCIPLINE_COMPLETE' ? 'discipline_complete'
+      : 'discipline_skipped'
     segments.push({ kind, id: hit.id, content })
   }
 
