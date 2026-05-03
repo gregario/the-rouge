@@ -8,15 +8,19 @@ import { phaseLabel, phaseGloss } from '@/lib/phase-labels'
 // so the user couldn't tell at a glance whether Rouge was executing
 // (building), reviewing (milestone-check), or fixing (milestone-fix).
 // The three families:
-//   blue = actively producing code (foundation / story-building /
-//          generating-change-spec)
-//   amber = evaluating / reviewing (foundation-eval / milestone-check
-//           / vision-check / analyzing)
+//   blue = actively producing code (story-building /
+//          generating-change-spec / foundation (legacy))
+//   amber = evaluating / reviewing (milestone-check / foundation-eval
+//           (legacy) / vision-check / analyzing)
 //   orange = fixing something that failed review (milestone-fix)
 //   purple = forming / exploratory (seeding)
 //   green = success (complete)
 //   red = needs human (escalation / waiting-for-human)
 //   slate = parked / final gate (ready / final-review)
+//
+// NOTE: foundation and foundation-eval are legacy states kept for
+// backward compatibility with older projects. New projects use
+// story-building for foundation stories (Foundation is milestone[0]).
 const stateStyles: Record<string, string> = {
   escalation: 'bg-red-50 text-red-700 border-red-300',
   'waiting-for-human': 'bg-red-50 text-red-700 border-red-300',

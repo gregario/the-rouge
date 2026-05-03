@@ -96,8 +96,7 @@ export function ActionBar({
   // Start/Stop/Reset go through confirmation; other commands run
   // immediately. "resume" is an alias for start-without-confirm —
   // used by the Resume Build button shown in mid-phase zombie states,
-  // where the Start dialog's "Rouge will run foundation first" copy
-  // would be misleading.
+  // where the Start dialog's copy would be misleading.
   const execCommand = useCallback(async (command: string) => {
     if (command === 'resume') {
       await runCommand('start')
@@ -193,8 +192,8 @@ export function ActionBar({
           <>
             <p>Rouge will run the autonomous build loop:</p>
             <ul className="mt-2 space-y-1 list-disc pl-5">
-              <li>Foundation phase first (schema, auth, deploy setup)</li>
-              <li>Then milestone-by-milestone story execution</li>
+              <li>Foundation milestone first (scaffold, schema, auth, deploy)</li>
+              <li>Then feature milestones, story by story</li>
               <li>Budget cap: <strong>$50</strong> (set in rouge.config.json)</li>
               <li>Max runtime: 60 minutes per phase</li>
               <li>You can Stop at any time</li>
@@ -249,11 +248,10 @@ export function ActionBar({
             <p className="mt-2">
               Commits, milestones, and cycle context on disk are
               <strong> preserved</strong>. On the next Start, rouge-loop
-              will begin from foundation again — already-built files
-              short-circuit quickly.
+              will resume from the first incomplete milestone.
             </p>
             <p className="mt-2 text-xs text-gray-500">
-              Use Resume instead if you want to pick up at <strong>{state}</strong> without re-running foundation.
+              Use Resume instead if you want to pick up at <strong>{state}</strong> without restarting.
             </p>
           </>
         }
@@ -353,7 +351,7 @@ function renderActions(
           className="gap-1.5"
           onClick={() => execCommand('reset')}
           disabled={loading !== null}
-          title={`Force state back to Ready. Commits on disk are preserved; the loop will start from foundation on next Start.`}
+          title={`Force state back to Ready. Commits on disk are preserved; the loop will resume from the first incomplete milestone on next Start.`}
         >
           {icon('reset', RotateCcw)}
           Reset to Ready

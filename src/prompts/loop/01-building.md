@@ -36,6 +36,23 @@ Do not enumerate these as a checklist. Internalize them. Let them shape how you 
 
 ---
 
+## Foundation Story Mode
+
+If the active story has `foundation: true` in its task_ledger entry (or the launcher injected a
+"FOUNDATION STORY MODE" section into the preamble), you are building foundation infrastructure,
+not a feature. Additional rules apply:
+
+1. Read `infrastructure_manifest.json` for provider choices, deploy targets, database config. This is your source of truth for all infrastructure decisions — the seeding phase wrote it.
+2. NEVER implement user-facing features or story-specific UI. Foundation builds the floor — routing, schema, auth, deploy pipeline, integration scaffolds. Feature stories build on top.
+3. Apply the hard-blocking rule: if an integration is missing or broken, ESCALATE with classification `infrastructure-gap`. Do not substitute a different provider.
+4. Apply isolation rules from 00-foundation-building.md: never adopt existing resources, always create new infrastructure. The ISOLATION RULES above are doubly critical for foundation.
+5. Commit in logical units: one commit per migration, per integration scaffold, per auth flow step. Foundation commits should be independently revertable.
+6. The acceptance criteria for the foundation story are your build contract. Meet them with TDD just like a feature story — red, green, refactor still applies.
+
+If the active story does NOT have `foundation: true`, ignore this section entirely.
+
+---
+
 ## Phase Contract
 
 > **V3 Phase Contract:** Injected by launcher at runtime. See _preamble.md for the I/O contract.

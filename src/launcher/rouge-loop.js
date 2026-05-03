@@ -778,14 +778,134 @@ async function advanceState(projectDir) {
   switch (current) {
 
     // ──────────────────────────────────────────────
-    // Foundation (ENFORCED — always runs evaluator)
+    // Foundation (story-based or legacy fallback)
     // ──────────────────────────────────────────────
 
     case 'foundation': {
-      // P0-SEEDING-002 FIX: Check for completion signal before advancing.
-      // Foundation phase must write {_phase_complete: "foundation"} to
-      // cycle_context.json. Without this marker, we stay in foundation
-      // state and the phase runs again on next tick.
+      // Foundation-as-stories: if the task_ledger has a Foundation
+      // milestone with stories, run deterministic provisioning first,
+      // then route to story-building for the creative work.
+      const foundationMs = (state.milestones || []).find(m => m.name === 'Foundation');
+      if (foundationMs && Array.isArray(foundationMs.stories) && foundationMs.stories.length > 0) {
+
+        // Step 1: Deterministic provisioning (runs once, before any stories)
+        // Creates DB, deploy target, git repo — mechanical shell commands.
+        if (!state.foundation?.provisioned) {
+          state.foundation = state.foundation || {};
+          state.foundation.started_at = new Date().toISOString();
+          log(`[${projectName}] Foundation: running deterministic provisioning...`);
+
+          // GitHub repo creation
+          try {
+            const hasRemote = (() => {
+              try {
+                execSync('git remote get-url origin', { cwd: projectDir, encoding: 'utf8', timeout: 5000, stdio: 'pipe' });
+                return true;
+              } catch { return false; }
+            })();
+            if (!hasRemote) {
+              log(`[${projectName}] Creating private GitHub repo as backup...`);
+              try { execSync('git add -A && git diff --cached --quiet || git commit -m "rouge: initial project scaffold"', { cwd: projectDir, encoding: 'utf8', timeout: 30000, stdio: 'pipe', shell: true }); } catch {}
+              const ghOwner = (() => {
+                if (process.env.ROUGE_GITHUB_OWNER) return process.env.ROUGE_GITHUB_OWNER;
+                try {
+                  const cfg = readJson(path.join(ROUGE_ROOT, 'rouge.config.json'));
+                  if (cfg?.github_owner) return cfg.github_owner;
+                } catch {}
+                try {
+                  return execSync('gh api user --jq .login', {
+                    encoding: 'utf8', timeout: 5000, stdio: ['ignore', 'pipe', 'ignore'],
+                  }).trim();
+                } catch { return null; }
+              })();
+              if (ghOwner) {
+                const repoOutput = execSync(
+                  `gh repo create "${ghOwner}/${projectName}" --private --source=. --push 2>&1 || true`,
+                  { cwd: projectDir, encoding: 'utf8', timeout: 60000, stdio: 'pipe' }
+                );
+                if (repoOutput.includes('github.com')) {
+                  const repoUrl = repoOutput.match(/https:\/\/github\.com\/[^\s]+/)?.[0] || `https://github.com/${ghOwner}/${projectName}`;
+                  log(`[${projectName}] Private repo created: ${repoUrl}`);
+                  state.github_repo = repoUrl;
+                }
+              }
+            }
+          } catch (err) {
+            log(`[${projectName}] GitHub repo setup failed (non-blocking): ${(err.message || '').slice(0, 150)}`);
+          }
+
+          // Infrastructure provisioning (create DB, deploy target)
+          const infra = readJson(path.join(projectDir, 'vision.json'))?.infrastructure || {};
+          log(`[${projectName}] Provisioning dev infrastructure...`);
+          try {
+            execFileSync('node', [path.join(__dirname, 'provision-infrastructure.js'), projectDir], {
+              encoding: 'utf8', timeout: 300000, stdio: 'inherit',
+            });
+            const updatedCtx = readJson(contextFile);
+            if (updatedCtx?.infrastructure?.staging_url) {
+              log(`[${projectName}] Staging URL: ${updatedCtx.infrastructure.staging_url}`);
+            }
+          } catch (err) {
+            log(`[${projectName}] Provisioning failed: ${(err.message || '').slice(0, 200)}`);
+            const deployTarget = infra?.deployment_target || state.deployment_target;
+            const needsDb = !!infra?.needs_database;
+            const missingHints = [];
+            if (deployTarget) {
+              try {
+                const { getManifest } = require('./integration-catalog.js');
+                const m = getManifest(deployTarget);
+                if (m && Array.isArray(m.secrets_required)) {
+                  for (const sec of m.secrets_required) {
+                    if (sec.optional) continue;
+                    missingHints.push(`${sec.key} (for ${deployTarget})`);
+                  }
+                }
+              } catch {}
+            }
+            if (needsDb) {
+              missingHints.push('SUPABASE_ACCESS_TOKEN (Supabase CLI management token — run `supabase login` or get from dashboard → Settings → Access Tokens, then `rouge secrets set supabase SUPABASE_ACCESS_TOKEN <token>`)');
+            }
+            const reason = (err.message || '').slice(0, 150);
+            const summary = missingHints.length > 0
+              ? `Infrastructure provisioning for ${deployTarget || 'this project'} failed: ${reason}. Verify: ${missingHints.join(', ')}. Store via \`rouge setup <provider>\` if missing.`
+              : `Infrastructure provisioning failed: ${reason}`;
+            next = escalate(state, {
+              id: `esc-provisioning-failed-${Date.now()}`,
+              tier: 1,
+              classification: 'infrastructure-gap',
+              summary,
+            });
+            await commitState(projectDir, state);
+            break;
+          }
+
+          state.foundation.provisioned = true;
+          await commitState(projectDir, state);
+          log(`[${projectName}] Foundation provisioning complete`);
+        }
+
+        // Step 2: Route to story-building for foundation stories
+        foundationMs.status = 'in-progress';
+        const flat = flatStories(state);
+        const eligible = findNextStory(foundationMs, flat);
+        if (eligible) {
+          next = startStory(state, foundationMs, eligible);
+          await commitState(projectDir, state);
+          log(`[${projectName}] Foundation milestone — starting story: ${eligible.id}`);
+        } else {
+          // All foundation stories already done — advance to eval
+          state.foundation = state.foundation || {};
+          state.foundation.status = 'evaluating';
+          await commitState(projectDir, state);
+          next = 'foundation-eval';
+          log(`[${projectName}] Foundation stories all done — evaluating`);
+        }
+        break;
+      }
+
+      // ── Legacy fallback for projects without foundation stories ────
+      // (pre-foundation-as-stories projects that use the monolithic
+      // foundation prompt with _phase_complete marker)
       const ctx = readJson(contextFile);
       if (ctx?._phase_complete !== 'foundation') {
         // Track start time for timeout watchdog
@@ -886,6 +1006,9 @@ async function advanceState(projectDir) {
 
       state.foundation.status = 'complete';
       state.foundation.completed_at = new Date().toISOString();
+      // Mark Foundation milestone as done (foundation-as-stories path)
+      const foundationMs = (state.milestones || []).find(m => m.name === 'Foundation');
+      if (foundationMs) foundationMs.status = 'done';
       // Load task_ledger milestones into state.milestones if they're
       // missing. V3 projects that complete seeding but don't go
       // through the approval handshake end up with state.milestones=[]
@@ -907,7 +1030,10 @@ async function advanceState(projectDir) {
         }
       }
       // Also mark the foundation milestone as complete so findNextMilestone skips it
-      const foundationMilestone = (state.milestones || []).find(m => m.name === 'foundation');
+      // Check both 'foundation' (legacy) and 'Foundation' (foundation-as-stories)
+      const foundationMilestone = (state.milestones || []).find(
+        m => m.name === 'foundation' || m.name === 'Foundation'
+      );
       if (foundationMilestone) foundationMilestone.status = 'complete';
       await commitState(projectDir, state);
       log(`[${projectName}] Foundation PASS`);
@@ -1355,7 +1481,20 @@ async function advanceState(projectDir) {
           next = 'escalation';
         } else {
           log(`[${projectName}] Staging deploy complete: ${deployResult.url}`);
-          next = 'milestone-check';
+          // Foundation milestone routes to foundation-eval (6-dimension
+          // evaluation), not the standard milestone-check. This preserves
+          // the foundation evaluation quality gate while using the
+          // story-building loop for execution.
+          const isFoundationMilestone = state.current_milestone === 'Foundation';
+          if (isFoundationMilestone) {
+            state.foundation = state.foundation || {};
+            state.foundation.status = 'evaluating';
+            await commitState(projectDir, state);
+            next = 'foundation-eval';
+            log(`[${projectName}] Foundation milestone complete — routing to foundation-eval`);
+          } else {
+            next = 'milestone-check';
+          }
         }
         break;
       }
@@ -1376,8 +1515,18 @@ async function advanceState(projectDir) {
         await commitState(projectDir, state);
         log(`[${projectName}] Next story: ${eligible.id}`);
       } else {
-        log(`[${projectName}] No eligible stories — milestone check`);
-        next = 'milestone-check';
+        // Foundation milestone routes to foundation-eval, not milestone-check
+        const isFoundationMs = state.current_milestone === 'Foundation';
+        if (isFoundationMs) {
+          state.foundation = state.foundation || {};
+          state.foundation.status = 'evaluating';
+          await commitState(projectDir, state);
+          next = 'foundation-eval';
+          log(`[${projectName}] No eligible foundation stories — foundation-eval`);
+        } else {
+          log(`[${projectName}] No eligible stories — milestone check`);
+          next = 'milestone-check';
+        }
       }
       break;
     }
@@ -2335,13 +2484,31 @@ async function runPhase(projectDir) {
               await commitState(projectDir, state);
             } else {
               log(`[${projectName}] Staging deploy complete: ${deployResult.url}`);
-              state.current_state = 'milestone-check';
-              state.current_story = null;
+              // Foundation milestone routes to foundation-eval
+              const isFoundationMs = state.current_milestone === 'Foundation';
+              if (isFoundationMs) {
+                state.foundation = state.foundation || {};
+                state.foundation.status = 'evaluating';
+                state.current_state = 'foundation-eval';
+                state.current_story = null;
+                log(`[${projectName}] Foundation milestone — routing to foundation-eval`);
+              } else {
+                state.current_state = 'milestone-check';
+                state.current_story = null;
+              }
               await commitState(projectDir, state);
             }
           } catch (err) {
             log(`[${projectName}] Deploy error: ${(err.message || '').slice(0, 200)}`);
-            state.current_state = 'milestone-check';
+            // Foundation milestone routes to foundation-eval even on deploy error
+            const isFoundationMs = state.current_milestone === 'Foundation';
+            if (isFoundationMs) {
+              state.foundation = state.foundation || {};
+              state.foundation.status = 'evaluating';
+              state.current_state = 'foundation-eval';
+            } else {
+              state.current_state = 'milestone-check';
+            }
             state.current_story = null;
             await commitState(projectDir, state);
           }
@@ -2483,6 +2650,17 @@ async function runPhase(projectDir) {
 
     // Build the prompt instruction with V3 preamble
     let promptInstruction = `${preambleText}\n\n---\n\nRead the phase prompt at ${promptFile} and execute it. The project directory is ${projectDir}. Read cycle_context.json for context.`;
+
+    // Foundation-as-stories: when building a foundation story, inject
+    // additional context so the building prompt applies foundation-specific
+    // rules (read infrastructure_manifest, never implement features, etc.)
+    if (currentState === 'story-building' && state.current_story) {
+      const currentMs = (state.milestones || []).find(m => m.name === state.current_milestone);
+      const currentSt = currentMs && (currentMs.stories || []).find(s => s.id === state.current_story);
+      if (currentSt && currentSt.foundation) {
+        promptInstruction += `\n\n---\n\n## FOUNDATION STORY MODE\n\nThe active story "${currentSt.id}" has \`foundation: true\`. You are building foundation infrastructure, not a feature. Additional rules apply:\n\n1. Read \`infrastructure_manifest.json\` in the project directory for provider choices, deploy targets, database config.\n2. NEVER implement user-facing features or story-specific UI. Foundation builds the floor.\n3. Apply the hard-blocking rule: if an integration is missing or broken, ESCALATE with classification \`infrastructure-gap\`, do not substitute.\n4. Apply isolation rules from 00-foundation-building.md: never adopt existing resources, always create new infrastructure.\n5. Commit in logical units: one commit per migration, per integration scaffold, per auth flow step.\n6. The acceptance criteria for this foundation story are your build contract. Meet them with TDD just like a feature story.`;
+      }
+    }
 
     // FIX-6: Save state.json before phase — restore if phase overwrites it
     const stateBeforePhase = JSON.stringify(readJson(stateFile));

@@ -91,4 +91,50 @@ describe('StoryList', () => {
     const { container } = render(<StoryList milestones={[]} />)
     expect(container.innerHTML).toBe('')
   })
+
+  it('renders foundation stories when Foundation is the selected milestone', () => {
+    // Foundation is now a regular milestone with discrete stories,
+    // rendered in StoryList the same way as feature milestones.
+    const foundationMilestones: Milestone[] = [
+      {
+        id: 'ms-foundation',
+        title: 'Foundation',
+        description: 'Project setup',
+        status: 'in-progress',
+        stories: [
+          {
+            id: 'f-scaffold',
+            title: 'Project scaffold',
+            status: 'done',
+            acceptanceCriteria: ['Framework initialized', 'Dev server starts'],
+          },
+          {
+            id: 'f-database',
+            title: 'Database setup (Supabase, 5 entities)',
+            status: 'in-progress',
+            acceptanceCriteria: ['Schema covers all entities', 'Migrations run cleanly'],
+          },
+          {
+            id: 'f-deploy',
+            title: 'Staging deploy',
+            status: 'pending',
+            acceptanceCriteria: ['Deploy succeeds', 'URL accessible'],
+          },
+        ],
+      },
+      {
+        id: 'ms-core',
+        title: 'Core Features',
+        description: 'Main feature',
+        status: 'pending',
+        stories: [],
+      },
+    ]
+    render(<StoryList milestones={foundationMilestones} selectedMilestoneId="ms-foundation" />)
+    expect(screen.getByText('Foundation')).toBeInTheDocument()
+    expect(screen.getByText('Project scaffold')).toBeInTheDocument()
+    expect(screen.getByText('Database setup (Supabase, 5 entities)')).toBeInTheDocument()
+    expect(screen.getByText('Staging deploy')).toBeInTheDocument()
+    expect(screen.getByText('1/3 stories')).toBeInTheDocument()
+  })
 })

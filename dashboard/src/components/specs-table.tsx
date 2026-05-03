@@ -130,7 +130,7 @@ export function SpecsTable({ specs }: { specs: ProjectSummary[] }) {
       }
       // "Promotion" = starting the build loop. A spec in `ready` has
       // everything it needs; /start kicks off the Karpathy Loop and the
-      // project moves into `foundation` (building).
+      // project begins building the Foundation milestone (story-building).
       const res = await fetch(`/api/projects/${encodeURIComponent(confirmSlug)}/start`, {
         method: 'POST',
       })

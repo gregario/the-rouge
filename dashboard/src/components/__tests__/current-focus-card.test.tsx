@@ -46,16 +46,19 @@ describe('CurrentFocusCard', () => {
     expect(screen.getByText(/1m 30s/)).toBeInTheDocument()
   })
 
-  it('does not show a story name for foundation phase (there is no story yet)', () => {
+  it('shows the story name for foundation phase (foundation stories are discrete)', () => {
+    // Foundation stories now run through the same story-building loop
+    // as feature stories, so they have a current story name. The legacy
+    // foundation state also shows story names for backward compat.
     render(
       <CurrentFocusCard
         state="foundation"
         buildRunning={true}
-        currentStoryName="Should-not-show"
+        currentStoryName="f-scaffold"
       />,
     )
-    expect(screen.queryByText('Should-not-show')).not.toBeInTheDocument()
-    expect(screen.getByText(/setting up the project/i)).toBeInTheDocument()
+    expect(screen.getByText('f-scaffold')).toBeInTheDocument()
+    expect(screen.getByText(/building foundation/i)).toBeInTheDocument()
   })
 
   it('surfaces the latest tool call when provided', () => {

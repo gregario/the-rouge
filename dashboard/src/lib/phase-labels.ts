@@ -30,12 +30,12 @@ const LABELS: Record<string, Label> = {
     gloss: 'The spec is locked and Rouge is waiting for you to press Start.',
   },
   foundation: {
-    short: 'Setting up the project',
-    gloss: 'Scaffolding the database schema, auth, deploy pipeline, and seed data before any user story runs. Internal phase: foundation.',
+    short: 'Building foundation',
+    gloss: 'Building the Foundation milestone (scaffold, schema, auth, deploy). Foundation stories run through the same story-building loop as feature stories. Internal phase: foundation (legacy).',
   },
   'foundation-eval': {
-    short: 'Checking the setup',
-    gloss: 'Evaluating foundation completeness across 6 dimensions before starting stories. Internal phase: foundation-eval.',
+    short: 'Reviewing foundation',
+    gloss: 'Evaluating foundation completeness before starting feature stories. Internal phase: foundation-eval (legacy).',
   },
   'story-building': {
     short: 'Building this story',

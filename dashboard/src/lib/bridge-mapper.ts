@@ -262,6 +262,9 @@ export function mapRougeStateToProjectDetail(raw: unknown, slug: string): Projec
   const state = raw as RougeState
   const now = new Date().toISOString()
 
+  // Foundation stories now run as story-building (Foundation = milestone[0]).
+  // Legacy projects may still have current_state === 'foundation', so we
+  // keep the fallback.
   const isBuilding = state.current_state === 'story-building' || state.current_state === 'foundation'
   const activeStoryId = isBuilding ? state.current_story : undefined
   const isReviewing = state.current_state === 'milestone-check'

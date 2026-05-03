@@ -109,10 +109,11 @@ export function CurrentFocusCard({
   }
 
   // Mid-phase building state. Compose the sub-line from whatever we
-  // have: active story title (if one exists for this phase — foundation
-  // / foundation-eval don't have one), latest tool call (if the phase
+  // have: active story title (if any), latest tool call (if the phase
   // events feed saw one), or the phase gloss as a fallback.
-  const hasStoryContext = Boolean(currentStoryName && state === 'story-building')
+  // Foundation stories now run through story-building, so the story
+  // name is always available when building.
+  const hasStoryContext = Boolean(currentStoryName && (state === 'story-building' || state === 'foundation'))
   const elapsed = buildStartedAt
     ? formatElapsed(now - new Date(buildStartedAt).getTime())
     : null

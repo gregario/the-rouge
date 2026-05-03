@@ -92,6 +92,9 @@ interface Section {
 }
 
 const needsAttentionStates = new Set<ProjectState>(['escalation', 'waiting-for-human'])
+// foundation + foundation-eval are legacy states kept for backward
+// compatibility. New projects run foundation stories through
+// story-building (Foundation = milestone[0]).
 const buildingStates = new Set<ProjectState>([
   'foundation', 'foundation-eval', 'story-building',
   'milestone-check', 'milestone-fix', 'analyzing', 'generating-change-spec',

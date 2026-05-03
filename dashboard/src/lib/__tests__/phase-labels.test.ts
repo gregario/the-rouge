@@ -23,12 +23,11 @@ describe('phaseLabel', () => {
     expect(phaseLabel('some-future-state')).toBe('some-future-state')
   })
 
-  it('translates foundation to setting-up language (not the product-milestone synonym)', () => {
-    // Regression: the user's testimonial product had a milestone called
-    // "Foundation & First-Run Setup", which visually conflicted with
-    // the internal "foundation" scaffolding phase. The label must
-    // clearly differentiate.
-    expect(phaseLabel('foundation').toLowerCase()).toContain('setting up')
+  it('translates foundation to building-foundation language (foundation is now a milestone)', () => {
+    // Foundation is now a regular milestone with discrete stories that
+    // run through the same story-building loop. The legacy "foundation"
+    // state label says "Building foundation" to match.
+    expect(phaseLabel('foundation').toLowerCase()).toContain('foundation')
   })
 })
 

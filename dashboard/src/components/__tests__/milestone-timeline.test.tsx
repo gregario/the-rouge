@@ -95,4 +95,46 @@ describe('MilestoneTimeline', () => {
     await user.click(buttons[2])
     expect(onSelect).not.toHaveBeenCalled()
   })
+
+  it('renders Foundation as milestone[0] alongside feature milestones', () => {
+    // Foundation is now a regular milestone with stories, rendered in
+    // the same timeline as feature milestones. No special-case UI.
+    const withFoundation: Milestone[] = [
+      {
+        id: 'ms-foundation',
+        title: 'Foundation',
+        description: 'Project setup',
+        status: 'promoted',
+        stories: [
+          { id: 'f-scaffold', title: 'Project scaffold', status: 'done', acceptanceCriteria: [] },
+          { id: 'f-deploy', title: 'Staging deploy', status: 'done', acceptanceCriteria: [] },
+        ],
+      },
+      {
+        id: 'ms-core',
+        title: 'Core Game',
+        description: 'Main feature',
+        status: 'in-progress',
+        stories: [
+          { id: 'deck', title: 'Deck and shuffle', status: 'in-progress', acceptanceCriteria: [] },
+        ],
+      },
+      {
+        id: 'ms-polish',
+        title: 'Polish',
+        description: 'Final touches',
+        status: 'pending',
+        stories: [],
+      },
+    ]
+    render(<MilestoneTimeline milestones={withFoundation} selectedId="ms-core" />)
+    const steps = screen.getAllByTestId('milestone-step')
+    expect(steps).toHaveLength(3)
+    expect(screen.getByText('Foundation')).toBeInTheDocument()
+    expect(screen.getByText('Core Game')).toBeInTheDocument()
+    // Foundation is promoted (done)
+    const icons = screen.getAllByTestId('milestone-icon')
+    expect(icons[0]).toHaveAttribute('data-status', 'promoted')
+    expect(icons[1]).toHaveAttribute('data-status', 'in-progress')
+  })
 })
