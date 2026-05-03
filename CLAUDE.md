@@ -77,16 +77,18 @@ The Rouge has three layers:
 
 ```
 src/
-  launcher/     — CLI, loop runner, secrets, deploy, safety hooks, feasibility
+  launcher/     — CLI, loop runner, facade, secrets, deploy, safety hooks, feasibility
   prompts/
-    seeding/    — one-time interactive phases (brainstorm, competition, taste, spec, design...)
-    loop/       — repeating autonomous phases (build, evaluate, analyse, ship...)
-    final/      — final validation gate
-  slack/        — Slack bot and control plane
+    seeding/    — one-time interactive phases (brainstorm, competition, taste, sizing, spec, design, legal-privacy, marketing, infrastructure)
+    loop/       — repeating autonomous phases (build, evaluate, analyse, ship, vision-check, final-review)
+  slack/        — Slack bot (notification-only sidecar; legacy write paths gated by ROUGE_SLACK_ALLOW_WRITES)
 schemas/        — JSON schemas for state, vision, cycle-context
-library/        — accumulated design intelligence (heuristics, integrations)
-tests/          — test suites
-docs/           — guides, design docs, diagrams
+library/        — accumulated design intelligence (heuristics, integrations, rubrics, agents, gold-sets)
+dashboard/      — Next.js control plane (canonical onboarding surface)
+tests/          — Node test suites
+test/           — newer Node test suites (catalogue, prompts, facade, etc.)
+docs/           — user-facing docs (tutorials, how-to, reference, explanation, current design)
+docs/archive/   — historical scaffolding (plans, research, deprecated explanations)
 ```
 
 ## Key files

@@ -18,7 +18,7 @@ The system has three layers:
 
 Phase prompts live in `src/prompts/` and are organized into two stages:
 
-- **Seeding** (`src/prompts/seeding/`) -- One-time phases that take a product from idea to first ship: brainstorming, competition review, taste evaluation, spec, design, legal, marketing.
+- **Seeding** (`src/prompts/seeding/`) -- One-time phases that take a product from idea to first ship: brainstorming, competition review, taste evaluation, spec, design, legal, marketing, infrastructure (eight disciplines), plus a sizing sub-phase that classifies project complexity (XS/S/M/L/XL) so subsequent disciplines scale depth appropriately.
 - **Loop** (`src/prompts/loop/`) -- Repeating phases that iteratively improve a shipped product: building, evaluation, QA fixing, analysis, vision checks, shipping, retrospective.
 
 Each phase prompt is a standalone document that gets assembled into a `claude -p` invocation by the launcher (`src/launcher/`). The Library (`library/`) provides heuristics and taste entries that feed into phase prompts as context.

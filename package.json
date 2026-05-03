@@ -1,6 +1,6 @@
 {
   "name": "the-rouge",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Autonomous product development system that builds production-quality products through iterative self-evaluation",
   "type": "commonjs",
   "license": "PolyForm-Noncommercial-1.0.0",
@@ -26,7 +26,7 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.90.0",
+    "@anthropic-ai/sdk": "^0.92.0",
     "@slack/bolt": "^4.6.0",
     "ajv": "^8.18.0"
   },
@@ -71,17 +71,23 @@
     "library/rubrics/",
     "library/gold-sets/",
     "library/README.md",
-    "mcp-configs/",
     "profiles/",
     "scripts/ci/",
+    "scripts/gen-facade-types.mjs",
     "rouge.config.json",
+    "rouge-vision.json",
     "LICENSE",
     "README.md",
+    "CHANGELOG.md",
     "CONTRIBUTING.md",
     "CODE_OF_CONDUCT.md",
+    "SECURITY.md",
     "VISION.md",
-    "docs/slack-setup.md",
-    "docs/troubleshooting.md",
-    "docs/seeding-example.md"
+    "docs/README.md",
+    "docs/explanation/",
+    "docs/how-to/",
+    "docs/tutorials/",
+    "docs/reference/",
+    "docs/contributing/"
   ]
 }

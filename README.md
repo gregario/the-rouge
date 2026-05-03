@@ -27,11 +27,16 @@ rouge build my-product      # Start the autonomous loop
 rouge status
 ```
 
-> **Experimental. Full filesystem access.** Rouge runs `claude -p --dangerously-skip-permissions` — Claude Code with no permission checks, no workspace boundaries, and full read/write access to your entire machine. It deploys to real infrastructure, makes real git commits, and manages real cloud resources (Vercel, Supabase, GitHub).
+> [!CAUTION]
+> **Open source, experimental, runs with `--dangerously-skip-permissions`. Misconfiguration can cost thousands of dollars.**
 >
-> **Recommended:** run Rouge on a dedicated machine, VM, or user account — not a machine with sensitive personal data. Rouge includes safety hooks (`rouge-safety-check.sh`) that block some destructive patterns, and prompt-level isolation rules that instruct the model not to touch other projects' infrastructure. These are **convention, not security boundaries** — they reduce the likelihood of accidents but cannot prevent a determined or confused model from accessing anything on the filesystem.
+> Rouge spawns Claude Code with no permission checks, no workspace boundaries, and full read/write access to your entire machine. It deploys to real infrastructure, makes real git commits, manages real cloud resources, and burns real Anthropic API credits — there is no sandbox around it.
 >
-> It will not, to our knowledge, sell your grandmother. Use at your own risk.
+> **Before any real build:** set `budget_cap_usd` in `rouge.config.json` so the loop escalates instead of running away. Run on a dedicated machine, VM, or user account — not a machine with sensitive personal data. Keep your work committed; git is your undo button.
+>
+> Rouge includes safety hooks (`rouge-safety-check.sh`) that block some destructive patterns, and prompt-level isolation rules that instruct the model not to touch other projects' infrastructure. These reduce the likelihood of accidents but cannot prevent a determined or confused model from accessing anything on the filesystem.
+>
+> Use at your own risk.
 
 ## How it works
 
@@ -45,9 +50,9 @@ rouge status
   <img src="https://github.com/user-attachments/assets/4d744aab-c27d-485c-a6c9-897ab02eb118" alt="Rouge Dashboard — flight control tower showing project status, escalations, milestones, and build progress" width="720">
 </p>
 
-The dashboard is your control plane: real-time project visibility, escalation responses, build logs, milestone progress, and seeding sessions. One process, one port, auto-opens in your browser. Start it with `rouge dashboard start` (background) or `rouge dashboard` (foreground). Global installs ship a prebuilt Next.js standalone server — cold start is ~2s, no dev toolchain required. Pass `--no-open` to skip the auto-open.
+The dashboard is your control plane: real-time project visibility, escalation responses, build logs, milestone progress, and seeding sessions. One process, one port (default 3001; override via `ROUGE_DASHBOARD_PORT`), auto-opens in your browser. Start it with `rouge dashboard start` (background) or `rouge dashboard` (foreground). Global installs ship a prebuilt Next.js standalone server — cold start is ~2s, no dev toolchain required. Pass `--no-open` to skip the auto-open.
 
-A Slack bot integration exists in `src/slack/` but is no longer recommended — the dashboard is the supported control surface. See [docs/how-to/slack-setup.md](docs/how-to/slack-setup.md) if you're keeping a pre-existing Slack setup running.
+A Slack integration exists in `src/slack/` as a notification-only sidecar. It's no longer recommended for new setups — the dashboard is the supported control surface. Existing Slack setups can opt back into the legacy write paths via `ROUGE_SLACK_ALLOW_WRITES=1` during the deprecation window. See [docs/how-to/slack-setup.md](docs/how-to/slack-setup.md).
 
 ### The loop
 
@@ -109,19 +114,19 @@ Taste encoded as testable signals: "page load under 2 seconds," "core tasks in 3
 
 ## Economics
 
-Rouge runs on your Claude Code subscription. Each phase consumes session time (roughly 10-20 minutes of model time). A simple product takes a few hours. A complex product might take a day or more across sessions.
+> **Set `budget_cap_usd` in `rouge.config.json` before any real build.** The loop escalates when the cap is hit. Without a cap, a misconfigured run can burn through thousands of dollars of API credits before you notice.
 
-Rouge runs on Opus by default for every phase. One exception: `milestone-check` is a boolean "are all stories done?" bookkeeping step that runs on Sonnet. Prior versions split work more aggressively between the two models to chase cost savings, but the "mechanical" phases (foundation, shipping, story-diagnosis) turned out to be judgement-heavy in practice and the quality delta wasn't worth the 30-40% cost dip. Override per-phase via `rouge.config.json.model_overrides`.
-
-If you run via API keys, token costs apply. These are rough estimates — actual costs depend on product complexity, evaluation cycles, and how many fix stories the loop generates:
+Rouge runs on your Claude Code subscription or via direct API keys. Each phase consumes either session time (subscription) or token credits (API). Costs vary widely with product complexity, evaluation cycles, and how many fix stories the loop generates — these are rough order-of-magnitude estimates, not guarantees:
 
 | Product size | Estimated API cost | Estimated time |
 |-------------|----------|-------------|
-| Small (1-3 features) | $5-20 | 2-4 hours |
-| Medium SaaS (5-10 features) | $50-150 | 1-3 days |
+| Small (1-3 features) | $5–20 | 2–4 hours |
+| Medium SaaS (5–10 features) | $50–150 | 1–3 days |
 | Large SaaS (10+ features) | $150+ | 3+ days |
 
-Set a budget cap in `rouge.config.json` (`budget_cap_usd`) to prevent runaway costs. The loop escalates when the cap is hit. Infrastructure (Cloudflare free tier, Supabase free tier) adds nothing for small projects. Run `rouge cost <project>` for a live estimate.
+Rouge runs on Opus by default for every phase except `milestone-check` (a bookkeeping step that runs on Sonnet). Override per-phase via `rouge.config.json.model_overrides`.
+
+Run `rouge cost <project>` for a live estimate during a build. Infrastructure on free tiers (Cloudflare, Supabase, Vercel hobby) typically adds nothing for small projects.
 
 ## Built with
 
@@ -181,7 +186,7 @@ rouge dashboard             # Foreground mode (Ctrl+C to stop)
 rouge dashboard --no-open   # Skip the auto-open
 ```
 
-The dashboard is the primary control plane: real-time project visibility, escalation responses, build logs, milestone progress, and seeding sessions. It runs on port 3001 and reads live project state from `~/.rouge/projects/`. Override the port with `ROUGE_DASHBOARD_PORT`.
+The dashboard is the primary control plane: real-time project visibility, escalation responses, build logs, milestone progress, and seeding sessions. It runs on port 3001 by default (override via `ROUGE_DASHBOARD_PORT`) and reads live project state from `~/.rouge/projects/`. The actual URL is printed when the dashboard starts.
 
 ### Set up integrations
 
@@ -193,9 +198,9 @@ rouge secrets list
 
 Secrets stored in your OS credential store (macOS Keychain, Linux secret-service, Windows Credential Manager). Rouge never sees the values.
 
-### Alternative: Slack control plane (retired)
+### Alternative: Slack notification-only sidecar (legacy)
 
-The Slack bot control plane is retired and no longer recommended. Code stays in `src/slack/` for users with existing setups; new features and bug fixes land in the dashboard only. See [docs/how-to/slack-setup.md](docs/how-to/slack-setup.md) if you're keeping a pre-existing setup.
+The Slack control plane is deprecated. Code stays in `src/slack/` as a notification-only sidecar — incoming write commands are skipped with a deprecation warning. Existing setups can opt back into the legacy write paths via `ROUGE_SLACK_ALLOW_WRITES=1` during the deprecation window. New features and bug fixes land in the dashboard only. See [docs/how-to/slack-setup.md](docs/how-to/slack-setup.md).
 
 ### Build a product
 

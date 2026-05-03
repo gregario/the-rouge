@@ -1,5 +1,7 @@
 # FAQ & Troubleshooting
 
+> ⚠️ **Open source, experimental, runs with `--dangerously-skip-permissions`.** Misconfiguration can cost thousands of dollars. Set a budget cap. Read the [README's safety section](../../README.md#safety) before starting a real build.
+
 Quick answers to common questions and fixes for common problems. For the full walkthrough, see [your-first-product.md](../tutorials/your-first-product.md). For Slack-specific issues, see the [Slack setup troubleshooting section](slack-setup.md#troubleshooting).
 
 ---
@@ -22,7 +24,7 @@ PolyForm Noncommercial for personal use. [$100/month Commercial tier](https://gi
 See [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
 **Do I need Slack?**
-No — it's retired and no longer recommended. The dashboard (`rouge dashboard start`, opens at `http://localhost:3000`) is the supported control surface: start/stop, pause, seeding chat, escalation responses, build logs, aggregate spend. Slack code remains in `src/slack/` for pre-existing setups; new features land in the dashboard.
+No. Slack is now a notification-only sidecar. The dashboard (`rouge dashboard start`, opens at the URL Rouge prints) is the supported control surface: start/stop, pause, seeding chat, escalation responses, build logs, aggregate spend. Slack code remains in `src/slack/`; existing setups can opt back into the legacy write paths via `ROUGE_SLACK_ALLOW_WRITES=1` during the deprecation window.
 
 ---
 
