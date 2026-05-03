@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync, existsSync, unlinkSync, openSync, statSync
 import { join } from 'path'
 import { statePath as resolveStatePath, writeStateJson } from './state-path'
 import { withStateLock } from './state-lock'
+import { killProcessTree, isPidAlive as isProcessAlive } from './process-reaper'
 
 const PID_FILE = '.build-pid'
 
@@ -349,17 +350,17 @@ export async function stopBuild(
 
   const { pid } = info
 
-  // Try SIGINT first (graceful)
-  try {
-    process.kill(pid, 'SIGINT')
-  } catch (err) {
-    return { ok: false, error: `Failed to send SIGINT: ${err instanceof Error ? err.message : String(err)}` }
-  }
+  // Kill the entire process tree (parent rouge-loop + child claude
+  // sessions). killProcessTree sends SIGTERM first, waits 3 s, then
+  // escalates to SIGKILL — covers the same grace window as before but
+  // also catches orphaned claude children that the old single-PID kill
+  // missed.
+  await killProcessTree(pid)
 
-  // Wait for process to exit
+  // Verify the process is dead
   const start = Date.now()
   while (Date.now() - start < graceMs) {
-    if (!isPidAlive(pid)) {
+    if (!isProcessAlive(pid)) {
       // P2-009: Hold state lock during PID cleanup to prevent watcher from
       // seeing intermediate state. Without this, Stop + concurrent state write
       // can race, causing the watcher to emit events based on stale cache.
@@ -371,11 +372,11 @@ export async function stopBuild(
     await sleep(200)
   }
 
-  // Still alive — escalate to SIGKILL
+  // Still alive after killProcessTree + graceMs — one more SIGKILL attempt
   try {
     process.kill(pid, 'SIGKILL')
-  } catch (err) {
-    return { ok: false, error: `Failed to send SIGKILL: ${err instanceof Error ? err.message : String(err)}` }
+  } catch {
+    // Already dead
   }
 
   // Give the OS a moment to clean up

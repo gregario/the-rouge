@@ -4,6 +4,7 @@ import { join, basename, dirname } from 'path'
 import type { FSWatcher } from 'fs'
 import type { BridgeEvent } from './types'
 import { statePath } from './state-path'
+import { reapStaleProcesses, startPeriodicReaper } from './process-reaper'
 
 /**
  * Watches Rouge project directories for state.json changes.
@@ -25,6 +26,7 @@ export class ProjectWatcher extends EventEmitter {
   private stateCacheSeq: Map<string, number> = new Map() // P2-001: sequence numbers for state events
   private chatSizeCache: Map<string, number> = new Map()
   private rootWatcher: FSWatcher | null = null
+  private reaperHandle: ReturnType<typeof setInterval> | null = null
   private debounceTimers: Map<string, ReturnType<typeof setTimeout>> = new Map()
   private static readonly DEBOUNCE_MS = 100
   // P3-006 fix: Track last access time for debounce entries so we can
@@ -40,6 +42,22 @@ export class ProjectWatcher extends EventEmitter {
   }
 
   start(): void {
+    // Reap stale PID/lock files left behind by crashed or orphaned
+    // processes. Run once synchronously on boot so the dashboard starts
+    // with a clean slate, then kick off the periodic 60 s sweep.
+    try {
+      const { cleaned } = reapStaleProcesses(this.projectsRoot)
+      if (cleaned.length > 0) {
+        console.log(
+          `[watcher] boot reap cleaned ${cleaned.length} stale files:`,
+          cleaned,
+        )
+      }
+    } catch (err) {
+      console.error('[watcher] boot reap error:', err)
+    }
+    this.reaperHandle = startPeriodicReaper(this.projectsRoot)
+
     // Scan for existing projects
     if (existsSync(this.projectsRoot)) {
       try {
@@ -86,6 +104,12 @@ export class ProjectWatcher extends EventEmitter {
   }
 
   stop(): void {
+    // Stop periodic reaper
+    if (this.reaperHandle) {
+      clearInterval(this.reaperHandle)
+      this.reaperHandle = null
+    }
+
     // Clear all debounce timers
     for (const timer of this.debounceTimers.values()) {
       clearTimeout(timer)

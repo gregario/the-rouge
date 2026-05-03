@@ -32,6 +32,12 @@ const { planFix: selfHealPlan } = require('./self-heal-planner.js');
 const { applyPlan: selfHealApply } = require('./self-heal-applier.js');
 const facade = require('./facade.js');
 
+// --- Active child process tracking (orphan cleanup) ---
+// Maps projectDir → child PID for in-flight claude -p subprocesses.
+// Used by the SIGINT handler to kill orphaned children on shutdown, and
+// by runPhase to prevent two claude sessions for the same project.
+const activeChildren = new Map();
+
 /**
  * Commit the current in-memory state to disk via the facade.
  *
@@ -2747,6 +2753,21 @@ async function runPhase(projectDir) {
       onRawLine: (line) => { try { logStream.write(line + '\n'); } catch {} },
     });
 
+    // Orphan guard: if a previous claude child is still running for this
+    // project (e.g. previous phase crashed without cleanup), kill it
+    // before spawning a new one to prevent concurrent claude sessions.
+    const previousChildPid = activeChildren.get(projectDir);
+    if (previousChildPid) {
+      try {
+        process.kill(previousChildPid, 0); // alive check
+        log(`[${projectName}] Killing orphaned claude child PID ${previousChildPid} before new phase`);
+        try { process.kill(previousChildPid, 'SIGKILL'); } catch {}
+      } catch {
+        // Already dead — clean up the stale entry
+      }
+      activeChildren.delete(projectDir);
+    }
+
     const dispatchResult = await runPhaseSubprocess({
       args: [
         '-p',
@@ -2769,6 +2790,10 @@ async function runPhase(projectDir) {
       logStaleMs: LOG_STALE_THRESHOLD,
       hardCeilingMs: HARD_CEILING,
       log: (msg) => log(`[${projectName}] ${msg}`),
+      onSpawn: (childPid) => {
+        activeChildren.set(projectDir, childPid);
+        log(`[${projectName}] Claude child spawned: PID ${childPid}`);
+      },
       onProgressEvents: (events) => {
         log(`[${projectName}] Progress: ${events.join(' | ')}`);
         if (process.env.ROUGE_SLACK_WEBHOOK) {
@@ -2784,6 +2809,9 @@ async function runPhase(projectDir) {
       log(`[${projectName}] Phase ${currentState} spawn error: ${(err.message || '').slice(0, 200)}`);
       return { exitCode: null, killed: false, stderr: '', elapsedMs: 0, _spawnError: err };
     });
+
+    // Phase complete — remove child from active tracking
+    activeChildren.delete(projectDir);
 
     // From here on out the loop reacts to the structured dispatch
     // result. The previous IIFE-shaped Promise is gone; this is a
@@ -3115,6 +3143,13 @@ process.on('SIGHUP', () => {
 
 process.on('SIGINT', () => {
   log('SIGINT received — shutting down');
+  // Kill any active claude children before exiting to prevent orphans.
+  for (const [project, pid] of activeChildren) {
+    log(`Killing active child for ${path.basename(project)}: PID ${pid}`);
+    try { process.kill(-pid); } catch {} // kill process group if detached
+    try { process.kill(pid, 'SIGKILL'); } catch {} // direct kill as fallback
+  }
+  activeChildren.clear();
   process.exit(130);
 });
 

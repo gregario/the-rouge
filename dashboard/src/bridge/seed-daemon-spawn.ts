@@ -1,7 +1,8 @@
 import { spawn } from 'child_process'
 import { existsSync, openSync } from 'fs'
 import { join, resolve } from 'path'
-import { readSeedPid, type SeedPidInfo } from './seed-daemon-pid'
+import { readSeedPid, clearSeedPid, type SeedPidInfo } from './seed-daemon-pid'
+import { killProcessTree, isPidAlive } from './process-reaper'
 
 /**
  * Spawn the seeding daemon (detached) for a project if one is not
@@ -122,6 +123,30 @@ export async function ensureSeedDaemon(projectDir: string): Promise<SpawnResult>
   const existing: SeedPidInfo | null = readSeedPid(projectDir)
   if (existing) {
     return { ok: true, pid: existing.pid, alreadyRunning: true }
+  }
+
+  // Orphan cleanup: if a .seed-pid file exists with a dead PID, the
+  // readSeedPid call above already deletes it. But an orphaned daemon
+  // may have left behind child claude processes that are still alive.
+  // Check the heartbeat file — if stale and PID is dead, clean up
+  // explicitly so the new daemon starts clean.
+  try {
+    const heartbeatPath = join(projectDir, 'seed-heartbeat.json')
+    if (existsSync(heartbeatPath)) {
+      const { readFileSync } = require('fs')
+      const hb = JSON.parse(readFileSync(heartbeatPath, 'utf-8'))
+      if (hb.pid && !isPidAlive(hb.pid)) {
+        // Heartbeat references a dead PID — kill its process tree to
+        // clean up any orphaned claude children, then clear the PID file.
+        console.log(
+          `[seed-daemon-spawn] cleaning up orphaned daemon PID ${hb.pid} before new spawn`,
+        )
+        await killProcessTree(hb.pid)
+        clearSeedPid(projectDir)
+      }
+    }
+  } catch {
+    // Best-effort cleanup — don't block the new spawn
   }
 
   const tsxBin = resolveTsxBinary()

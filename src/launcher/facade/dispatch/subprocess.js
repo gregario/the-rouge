@@ -141,6 +141,8 @@ function checkFileActivity(projectDir, phaseLog) {
  *   - log(msg)          structured-logging callback (default no-op)
  *   - onProgressEvents([events]) — called when stale-log heartbeat
  *                       extracts progress markers from new log content
+ *   - onSpawn(pid)      called immediately after the child is spawned
+ *                       with the child's PID (used for orphan tracking)
  *
  * @returns {Promise<{
  *   exitCode: number|null,
@@ -170,6 +172,7 @@ async function runPhaseSubprocess(opts) {
     hardCeilingMs = DEFAULT_HARD_CEILING_MS,
     log = () => {},
     onProgressEvents = () => {},
+    onSpawn = () => {},
   } = opts || {};
 
   if (!Array.isArray(args)) throw new Error('dispatch/subprocess.runPhaseSubprocess: args (array) required');
@@ -192,6 +195,11 @@ async function runPhaseSubprocess(opts) {
       env,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
+
+    // Notify caller of child PID for orphan tracking
+    if (child.pid) {
+      try { onSpawn(child.pid); } catch { /* caller error is not fatal */ }
+    }
 
     if (child.stdout) {
       child.stdout.on('data', (chunk) => {
