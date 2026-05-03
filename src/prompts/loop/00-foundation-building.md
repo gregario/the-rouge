@@ -508,10 +508,18 @@ After committing all work and writing back to `cycle_context.json`:
 2. Verify the staging deployment is accessible (if deployed).
 3. Verify `cycle_context.json` is valid JSON and contains all required fields.
 4. Verify `foundation_completion` accurately reflects what was built and what's missing.
-5. Write only to `cycle_context.json` for state; the launcher owns transitions across the other state files.
-6. Skip PR creation — that happens in the ship-promote phase.
-7. Report results; phase routing is the Runner's job. Your output is the foundation work plus the `cycle_context.json` writeback; the Runner decides what phase runs next.
-8. Exit.
+5. **Write the completion signal to `cycle_context.json`** (P0-SEEDING-002 FIX):
+   ```json
+   {
+     "_phase_complete": "foundation",
+     "foundation_completion": { ... }
+   }
+   ```
+   The launcher polls for `_phase_complete` to know the phase is done. Without this marker, the loop will not advance to foundation-eval and will spin forever.
+6. Write only to `cycle_context.json` for state; the launcher owns transitions across the other state files.
+7. Skip PR creation — that happens in the ship-promote phase.
+8. Report results; phase routing is the Runner's job. Your output is the foundation work plus the `cycle_context.json` writeback; the Runner decides what phase runs next.
+9. Exit.
 
 ---
 

@@ -260,10 +260,20 @@ There are no background agents, no async workers, and no parallel subprocesses. 
 
 3. **After each discipline completes**, evaluate loop-back triggers. If triggered, explain to the human via Slack what changed and why you're looping back.
 
-4. **When all disciplines have run and no new triggers fire**, present the SEED SUMMARY to the human as a **hard gate** — the final approval before seeding closes. Emit `[GATE: seeding/H-final-approval]` at the top of this turn, then follow it with the summary body below. Stop and return after emitting the gate — do NOT continue writing artifacts or emit SEEDING_COMPLETE until the human has replied.
+4. **When all disciplines have run and no new triggers fire**, validate completion before presenting the final gate (P0-SEEDING-001 FIX):
+   
+   **Pre-Gate Validation:**
+   - Read `seeding-state.json` to get `disciplines_complete[]`
+   - Read `seed_spec/sizing.json` to get `project_size`
+   - Compare against the tier table (lines 10-19). For an XS project: brainstorming, taste, sizing, spec must be complete. For S: add infrastructure, design, legal-privacy. For M+: all 9.
+   - If any applicable discipline is missing from `disciplines_complete[]`, DO NOT proceed to final approval. Loop back to the first missing discipline.
+   - Skipped disciplines (those you emitted `[DISCIPLINE_SKIPPED: ...]` for) count as complete — they're in `disciplines_complete[]`.
+   
+   Only after validation passes, present the SEED SUMMARY to the human as a **hard gate** — the final approval before seeding closes. Emit `[GATE: seeding/H-final-approval]` at the top of this turn, then follow it with the summary body below. Stop and return after emitting the gate — do NOT continue writing artifacts or emit SEEDING_COMPLETE until the human has replied.
 
    Summary body (under the gate marker):
    - Product name and one-liner
+   - **Disciplines completed** — list only disciplines in `seeding-state.json.disciplines_complete[]`, not what you think should have run. If this is an S-tier project and the list shows only 3 disciplines, something went wrong — loop back, don't hallucinate completion.
    - Milestone count (with names)
    - Story count (total across all milestones)
    - Stories per milestone (verify 3-8 cap per milestone)
@@ -280,6 +290,7 @@ There are no background agents, no async workers, and no parallel subprocesses. 
    Composing this summary is real work — if it's going to take you more than ~45s of gathering, emit a `[HEARTBEAT: assembling SEED SUMMARY]` first so the dashboard doesn't appear stalled.
 
 5. **On human approval** (the human replied `approve` or similar to the H-final-approval gate), write all artifacts to the project directory:
+   - **`task_ledger.json`** (P1-SEEDING-004 FIX) — V3 story/milestone tracking (schema: `schemas/task-ledger-v1.json`). This is the launcher's source of truth. Write the SAME milestones structure you're about to write to state.json. Each milestone has `name`, `status: "pending"`, `stories[]`. Each story has `id`, `name`, `status: "pending"`, `depends_on`, `affected_entities`, `affected_screens`.
    - `vision.json` — structured vision document
    - `product_standard.json` — inherited global + domain + project overrides
    - `seed_spec/` — milestones with stories, each story with acceptance criteria, PO checks, dependencies, affected entities/screens

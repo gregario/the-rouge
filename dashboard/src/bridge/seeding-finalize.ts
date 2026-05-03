@@ -150,6 +150,39 @@ export async function finalizeSeeding(projectDir: string): Promise<FinalizeResul
     missing.push('product_standard.json')
   }
 
+  // P1-SEEDING-003 FIX: Validate that all applicable disciplines for the
+  // project tier actually completed. Prevents orchestrator from hallucinating
+  // completion when only 1/7 disciplines ran.
+  const sizingPath = join(projectDir, 'seed_spec/sizing.json')
+  if (existsSync(sizingPath)) {
+    try {
+      const sizing = JSON.parse(readFileSync(sizingPath, 'utf-8'))
+      const projectSize = sizing.project_size
+      if (projectSize && ['XS', 'S', 'M', 'L', 'XL'].includes(projectSize)) {
+        const seedingStatePath = join(projectDir, 'seeding-state.json')
+        if (existsSync(seedingStatePath)) {
+          const seedingState = JSON.parse(readFileSync(seedingStatePath, 'utf-8'))
+          const completed = new Set(seedingState.disciplines_complete || [])
+          // Import discipline registry to get applicable list
+          const registryPath = join(__dirname, '../../src/launcher/discipline-registry.js')
+          if (existsSync(registryPath)) {
+            const { listApplicable } = require(registryPath)
+            const applicable = listApplicable(projectSize)
+            const missingDisciplines = applicable.filter((d: string) => !completed.has(d))
+            if (missingDisciplines.length > 0) {
+              missing.push(
+                `disciplines: ${missingDisciplines.join(', ')} ` +
+                `(required for ${projectSize}-tier, only ${[...completed].join(', ')} completed)`
+              )
+            }
+          }
+        }
+      }
+    } catch (err) {
+      // sizing.json malformed — artifact check already caught it
+    }
+  }
+
   if (missing.length > 0) {
     return { ok: false, missingArtifacts: missing }
   }

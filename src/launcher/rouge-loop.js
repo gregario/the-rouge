@@ -782,11 +782,41 @@ async function advanceState(projectDir) {
     // ──────────────────────────────────────────────
 
     case 'foundation': {
+      // P0-SEEDING-002 FIX: Check for completion signal before advancing.
+      // Foundation phase must write {_phase_complete: "foundation"} to
+      // cycle_context.json. Without this marker, we stay in foundation
+      // state and the phase runs again on next tick.
+      const ctx = readJson(contextFile);
+      if (ctx?._phase_complete !== 'foundation') {
+        // Track start time for timeout watchdog
+        if (!state.foundation?.started_at) {
+          state.foundation = state.foundation || {};
+          state.foundation.started_at = new Date().toISOString();
+          await commitState(projectDir, state);
+        }
+        // P2-SEEDING-005: Timeout after 2 hours
+        const elapsed = Date.now() - new Date(state.foundation.started_at).getTime();
+        const TWO_HOURS = 2 * 60 * 60 * 1000;
+        if (elapsed > TWO_HOURS) {
+          log(`[${projectName}] Foundation timeout after ${Math.floor(elapsed / 60000)}min — escalating`);
+          next = escalate(state, {
+            id: `esc-foundation-timeout-${Date.now()}`,
+            tier: 1,
+            classification: 'phase-timeout',
+            summary: `Foundation ran for ${Math.floor(elapsed / 60000)} min without completing. cycle_context has foundation_completion but no _phase_complete marker. The phase may have crashed or be waiting for input.`,
+          });
+          break;
+        }
+        log(`[${projectName}] Foundation still running (no completion signal, ${Math.floor(elapsed / 60000)}min elapsed)...`);
+        next = 'foundation';
+        break;
+      }
+      // Phase signaled completion — advance to eval
       state.foundation = state.foundation || {};
       state.foundation.status = 'evaluating';
       await commitState(projectDir, state);
       next = 'foundation-eval';
-      log(`[${projectName}] Foundation build done — evaluating (enforced, no bypass)`);
+      log(`[${projectName}] Foundation build done — evaluating`);
       break;
     }
 
