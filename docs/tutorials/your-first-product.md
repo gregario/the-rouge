@@ -1,6 +1,6 @@
 # Your first product
 
-> ⚠️ **Open source, experimental, runs with `--dangerously-skip-permissions`.** Rouge gives Claude Code full filesystem access and burns real Anthropic API credits. Misconfiguration can cost thousands of dollars. Set `budget_cap_usd` in `rouge.config.json` before any real build. Run on a dedicated machine or VM, not your daily-driver. Read the [README's safety section](../../README.md#safety) before starting.
+> ⚠️ **Open source, experimental, runs with `--dangerously-skip-permissions`.** Rouge gives Claude Code full filesystem access. It can wipe your filesystem, force-push over your git history, and run up thousands of dollars in API charges in a single session. `budget_cap_usd`, dedicated-machine isolation, and frequent commits reduce risk but **don't guarantee** safety — bugs in the cap path and other mitigations have shipped before. Read the [README's safety section](../../README.md#safety) before starting.
 
 You've installed Rouge, run `rouge doctor`, and read the [seeding example](seeding-example.md). Now you want to actually build something. Here's what happens end to end.
 
