@@ -1,8 +1,10 @@
 # Your first product
 
-> ⚠️ **Onboarding is being refactored.** The canonical path is now: run `rouge setup`, open the dashboard, click **New Project**. The CLI steps below still work but are no longer the recommended path for new users. See `docs/plans/2026-04-15-onboarding-refactor.md` for the full plan.
+> ⚠️ **Open source, experimental, runs with `--dangerously-skip-permissions`.** Rouge gives Claude Code full filesystem access and burns real Anthropic API credits. Misconfiguration can cost thousands of dollars. Set `budget_cap_usd` in `rouge.config.json` before any real build. Run on a dedicated machine or VM, not your daily-driver. Read the [README's safety section](../../README.md#safety) before starting.
 
 You've installed Rouge, run `rouge doctor`, and read the [seeding example](seeding-example.md). Now you want to actually build something. Here's what happens end to end.
+
+The canonical path is: run `rouge setup`, open the dashboard, click **New Project**, and follow the seeding chat. The CLI commands below still work as an automation surface but the dashboard is the recommended onboarding path.
 
 ## Before you start
 
@@ -15,7 +17,7 @@ Run `rouge doctor` and make sure everything is green. If anything is red, fix it
 
 **Start simple.** Your first Rouge product should not be a fleet management SaaS with 5 feature areas and a map integration. Pick something with 2-3 features. A recipe organiser. A habit tracker. A reading list. You want to learn the loop, not stress-test it.
 
-**Start the dashboard.** `rouge dashboard start` opens a browser window at `http://localhost:3000`. That's your cockpit: live build logs, escalation responses, seeding chat, and project status. The whole point of autonomous building is that you walk away and check back — the dashboard keeps the state visible without needing you at a terminal.
+**Start the dashboard.** `rouge dashboard start` opens a browser window at the URL it prints (default port 3001; override via `ROUGE_DASHBOARD_PORT`). That's your cockpit: live build logs, escalation responses, seeding chat, and project status. The whole point of autonomous building is that you walk away and check back — the dashboard keeps the state visible without needing you at a terminal.
 
 ## Initialise
 
@@ -67,7 +69,7 @@ In Slack, you'll see:
 
 > **Rouge:** Building my-first-app — story "add-task-list" (milestone: core-features)
 
-You can walk away now. Check `rouge status` whenever you're curious, or watch the dashboard at `http://localhost:3000`. The loop runs until it's done or it hits an escalation that needs you.
+You can walk away now. Check `rouge status` whenever you're curious, or watch the dashboard. The loop runs until it's done or it hits an escalation that needs you.
 
 How long? For a simple product, expect 2-4 hours of session time. Most stories take 20-40 minutes. Rouge runs on Opus for every phase by default except `milestone-check` (a boolean "are all stories done?" bookkeeping step, which uses Sonnet).
 

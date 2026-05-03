@@ -109,6 +109,40 @@ function warnExperimental(cmd) {
 }
 
 // ---------------------------------------------------------------------------
+// Safety banner — printed on every command that triggers a real build path
+// (build, seed, dashboard start) so the danger is visible on every entry,
+// not just buried in the README. Surfaces three things the user must know:
+//
+//   1. Rouge runs `claude -p --dangerously-skip-permissions` — full
+//      filesystem access to your machine, no sandbox.
+//   2. Misconfiguration can cost thousands of dollars in API credits.
+//   3. The mitigations (budget cap, dedicated machine).
+//
+// Suppress with ROUGE_SUPPRESS_SAFETY_BANNER=1 for automation. Operators
+// running Rouge in unattended mode (CI, scheduled builds) should set this
+// after they've satisfied themselves they understand the surface.
+// ---------------------------------------------------------------------------
+
+function showSafetyBanner() {
+  if (process.env.ROUGE_SUPPRESS_SAFETY_BANNER === '1') return;
+  const RED = process.stderr.isTTY ? '\x1b[31m' : '';
+  const BOLD = process.stderr.isTTY ? '\x1b[1m' : '';
+  const RESET = process.stderr.isTTY ? '\x1b[0m' : '';
+  console.error(`\n${RED}${BOLD}┌─ SAFETY ──────────────────────────────────────────────────────────────┐${RESET}`);
+  console.error(`${RED}${BOLD}│${RESET}                                                                       ${RED}${BOLD}│${RESET}`);
+  console.error(`${RED}${BOLD}│${RESET}  Rouge spawns Claude Code with ${BOLD}--dangerously-skip-permissions${RESET}.        ${RED}${BOLD}│${RESET}`);
+  console.error(`${RED}${BOLD}│${RESET}  Full filesystem access. No sandbox. Real cloud resources. Real API   ${RED}${BOLD}│${RESET}`);
+  console.error(`${RED}${BOLD}│${RESET}  credits. Misconfiguration ${BOLD}can cost thousands of dollars${RESET}.            ${RED}${BOLD}│${RESET}`);
+  console.error(`${RED}${BOLD}│${RESET}                                                                       ${RED}${BOLD}│${RESET}`);
+  console.error(`${RED}${BOLD}│${RESET}  • Set ${BOLD}budget_cap_usd${RESET} in rouge.config.json before any real build.    ${RED}${BOLD}│${RESET}`);
+  console.error(`${RED}${BOLD}│${RESET}  • Run on a dedicated machine or VM, not your daily-driver.           ${RED}${BOLD}│${RESET}`);
+  console.error(`${RED}${BOLD}│${RESET}  • Keep your work committed. Git is your undo button.                 ${RED}${BOLD}│${RESET}`);
+  console.error(`${RED}${BOLD}│${RESET}                                                                       ${RED}${BOLD}│${RESET}`);
+  console.error(`${RED}${BOLD}│${RESET}  Suppress this banner with ROUGE_SUPPRESS_SAFETY_BANNER=1.            ${RED}${BOLD}│${RESET}`);
+  console.error(`${RED}${BOLD}└───────────────────────────────────────────────────────────────────────┘${RESET}\n`);
+}
+
+// ---------------------------------------------------------------------------
 // Control plane config — rouge.config.json declares which control plane
 // (dashboard vs slack) is active. When `control_plane_lock` is true, the
 // CLI refuses to start the non-selected plane so the two can't race on
@@ -490,6 +524,7 @@ function cmdSecretsExpiry(action, ...rest) {
 // ---------------------------------------------------------------------------
 
 function cmdInit(name) {
+  showSafetyBanner();
   warnExperimental('init');
   if (!name) {
     console.error('Usage: rouge init <name>');
@@ -508,7 +543,7 @@ function cmdInit(name) {
   console.log(`\n  Project created: ${name}`);
   console.log(`  Path: ${projectPath}`);
   console.log(`\n  Next: run \`rouge seed ${name} "<what you want to build>"\` to start seeding`);
-  console.log(`        or open the dashboard at http://localhost:3000 for interactive seeding.`);
+  console.log(`        or open the dashboard at ${DASHBOARD_URL} for interactive seeding.`);
   // Nudge about dashboard if not running
   const ROUGE_HOME = process.env.ROUGE_HOME || path.join(require('os').homedir(), '.rouge');
   const pidFile = path.join(ROUGE_HOME, 'dashboard.pid');
@@ -536,6 +571,7 @@ function cmdInit(name) {
 // dashboard. This replaces the pre-seed-loop implementation that
 // spawned `claude -p` inline and bypassed the observable architecture.
 async function cmdSeed(name, firstMessage) {
+  showSafetyBanner();
   warnExperimental('seed');
   if (!name) {
     console.error('Usage: rouge seed <name> "<first message>"');
@@ -554,7 +590,7 @@ async function cmdSeed(name, firstMessage) {
   if (!firstMessage || !firstMessage.trim()) {
     console.error('Error: `rouge seed` requires a message.');
     console.error('\nUsage: rouge seed <name> "<first message>"');
-    console.error('\nFor an interactive experience, use the dashboard at http://localhost:3000');
+    console.error(`\nFor an interactive experience, use the dashboard at ${DASHBOARD_URL}`);
     process.exit(1);
   }
 
@@ -798,6 +834,7 @@ function printSeedChatEntry(entry) {
 }
 
 function cmdBuild(name) {
+  showSafetyBanner();
   warnExperimental('build');
   const env = { ...process.env };
   if (name) {
@@ -2022,6 +2059,11 @@ if (command === 'doctor') {
       process.exit(0);
     }
 
+    // Show the safety banner before starting the dashboard. The dashboard
+    // is the canonical entry into the build loop; surfacing the danger
+    // here is the first chance the user has to see it on every fresh run.
+    showSafetyBanner();
+
     // Port discipline: fail loud if something else holds the port. Binding
     // only one address family silently (IPv4 while another app has IPv6,
     // or vice versa) leaves the browser to pick by DNS resolution order —
@@ -2136,6 +2178,7 @@ if (command === 'doctor') {
       process.exit(1);
     }
 
+    showSafetyBanner();
     console.log(`Starting dashboard in foreground (${hasPrebuilt ? 'prebuilt' : 'dev mode'}).`);
     console.log(`  URL:             ${DASHBOARD_URL}`);
     console.log(`  Ctrl+C or closing this terminal stops THIS instance only.`);

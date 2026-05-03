@@ -1,14 +1,16 @@
 # The Rouge — Setup Guide
 
-> **Dashboard-first** — the fast path for new users is `rouge setup` → `rouge dashboard start` → open `http://localhost:3000` → **New Project**. The CLI steps below cover the per-integration configuration (OS keychain, Cloudflare, Supabase, Sentry, GitHub). Slack steps remain for pre-existing setups but are retired — new installs should ignore them.
+> ⚠️ **Open source, experimental, runs with `--dangerously-skip-permissions`.** Rouge gives Claude Code full filesystem access and burns real Anthropic API credits. Misconfiguration can cost thousands of dollars. Set `budget_cap_usd` in `rouge.config.json` before any real build. Run on a dedicated machine or VM. Read the [README's safety section](../../README.md#safety) first.
+
+> **Dashboard-first.** The fast path for new users is `rouge setup` → `rouge dashboard start` → open the URL Rouge prints → **New Project**. The CLI steps below cover the per-integration configuration (OS keychain, Cloudflare, Supabase, Sentry, GitHub). Slack remains as a notification-only sidecar for pre-existing setups; new installs should use the dashboard.
 
 One-time setup for running The Rouge on your machine.
 
 ## Prerequisites
 
-- macOS (V1) or Linux (V2)
+- macOS or Linux (Windows via WSL2)
 - Claude Code CLI installed and authenticated (`claude login`)
-- Node.js 22+
+- Node.js 18+
 - Homebrew (macOS)
 
 ## 1. CLI Tools
@@ -88,7 +90,7 @@ rouge doctor           # Shows which integrations are configured
 ## 5. Start The Rouge
 
 ```bash
-# Start the dashboard (your control plane — auto-opens http://localhost:3000)
+# Start the dashboard (your control plane — auto-opens the URL Rouge prints)
 rouge dashboard start       # Background mode, survives terminal close
 # or: rouge dashboard       # Foreground (for debugging)
 

@@ -1,6 +1,6 @@
 # Slack Setup Guide
 
-> ⚠️ **Retired.** The Slack control plane is no longer recommended and is not covered by ongoing maintenance. The dashboard at `http://localhost:3000` is the supported control surface for seeding, monitoring, and responding to escalations. The Slack integration code remains in `src/slack/` for users who had it wired up before this change, but expect feature parity with the dashboard to drift. New features land in the dashboard only.
+> ⚠️ **Notification-only sidecar.** The Slack control plane is deprecated. The dashboard (opens at the URL `rouge dashboard start` prints) is the supported surface for seeding, monitoring, and responding to escalations. Slack code remains in `src/slack/` and operates as a notification-only sidecar by default — incoming write commands log a deprecation warning and are skipped. Set `ROUGE_SLACK_ALLOW_WRITES=1` to opt back into the legacy write paths during the deprecation window.
 >
 > If you're setting up Rouge for the first time, skip this document and use the dashboard — `rouge init` then open the URL it prints.
 >
