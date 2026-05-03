@@ -27,6 +27,14 @@ rouge build my-product      # Start the autonomous loop
 rouge status
 ```
 
+<p align="center">
+  <img src="docs/diagrams/rouge-v3-process-map-gen2.png" alt="V3 Process Map: Rouge Spec (8 disciplines) → Foundation → Story Building Loop (with safety layer) → Ship + Self-Improvement" width="720">
+</p>
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/4d744aab-c27d-485c-a6c9-897ab02eb118" alt="Rouge Dashboard — flight control tower showing project status, escalations, milestones, and build progress" width="720">
+</p>
+
 > [!CAUTION]
 > **Open source, experimental, runs with `--dangerously-skip-permissions`.**
 >
@@ -44,15 +52,7 @@ rouge status
 
 ## How it works
 
-<p align="center">
-  <img src="docs/diagrams/rouge-v3-process-map-gen2.png" alt="V3 Process Map: Rouge Spec (8 disciplines) → Foundation → Story Building Loop (with safety layer) → Ship + Self-Improvement" width="720">
-</p>
-
 ### Dashboard
-
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/4d744aab-c27d-485c-a6c9-897ab02eb118" alt="Rouge Dashboard — flight control tower showing project status, escalations, milestones, and build progress" width="720">
-</p>
 
 The dashboard is your control plane: real-time project visibility, escalation responses, build logs, milestone progress, and seeding sessions. One process, one port (default 3001; override via `ROUGE_DASHBOARD_PORT`), auto-opens in your browser. Start it with `rouge dashboard start` (background) or `rouge dashboard` (foreground). Global installs ship a prebuilt Next.js standalone server — cold start is ~2s, no dev toolchain required. Pass `--no-open` to skip the auto-open.
 
