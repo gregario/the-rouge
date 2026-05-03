@@ -46,7 +46,6 @@ function checkLinks() {
   files.push(path.join(REPO, 'README.md'));
   files.push(path.join(REPO, 'CLAUDE.md'));
   files.push(path.join(REPO, 'VISION.md'));
-  files.push(path.join(REPO, 'COMMERCIAL.md'));
 
   for (const file of files) {
     if (!fs.existsSync(file)) continue;
