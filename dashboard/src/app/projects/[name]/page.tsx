@@ -10,6 +10,7 @@ import { getProjectActivity } from '@/data/activity-by-project'
 import { ProjectHeader } from '@/components/project-header'
 import { MilestoneTimeline } from '@/components/milestone-timeline'
 import { StoryList } from '@/components/story-list'
+import { ProvisioningChecklist } from '@/components/provisioning-checklist'
 import { ActivityLog } from '@/components/activity-log'
 import { BuildLogTail } from '@/components/build-log-tail'
 import type { StoryContext } from '@/bridge/story-context-reader'
@@ -378,6 +379,15 @@ export default function ProjectPage({
               onSelect={setSelectedMilestoneId}
             />
             <div className="mt-4 border-t border-gray-200 pt-4">
+              {/* Show provisioning checklist when Foundation milestone is selected */}
+              {(() => {
+                const selMs = project.milestones.find(m => m.id === selectedMilestoneId)
+                const isFoundation = selMs?.name === 'Foundation'
+                const provSteps = project.foundation?.provisioning_steps
+                return isFoundation && provSteps && Object.keys(provSteps).length > 0
+                  ? <ProvisioningChecklist steps={provSteps} />
+                  : null
+              })()}
               <StoryList
                 milestones={project.milestones}
                 selectedMilestoneId={selectedMilestoneId}

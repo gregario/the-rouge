@@ -290,6 +290,17 @@ export interface ProjectDetail {
   awaitingGate?: boolean
   pendingGateDiscipline?: SeedingDiscipline
   lastHeartbeatAt?: string
+  foundation?: {
+    status?: string
+    provisioned?: boolean
+    provisioning_steps?: Record<string, {
+      status: 'done' | 'in-progress' | 'failed' | 'skipped'
+      url?: string | null
+      target?: string
+      provider?: string
+      reason?: string
+    }>
+  }
   createdAt: string
   updatedAt: string
   archived?: boolean

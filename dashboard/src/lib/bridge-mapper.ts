@@ -351,6 +351,7 @@ export function mapRougeStateToProjectDetail(raw: unknown, slug: string): Projec
     awaitingGate: state.awaitingGate,
     pendingGateDiscipline: state.pendingGateDiscipline as SeedingDiscipline | undefined,
     lastHeartbeatAt: state.lastHeartbeatAt,
+    foundation: state.foundation ?? undefined,
     createdAt: now,
     updatedAt: now,
     archived: state.archived === true,

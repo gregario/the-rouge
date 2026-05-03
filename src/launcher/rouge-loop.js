@@ -793,7 +793,9 @@ async function advanceState(projectDir) {
         if (!state.foundation?.provisioned) {
           state.foundation = state.foundation || {};
           state.foundation.started_at = new Date().toISOString();
+          state.foundation.provisioning_steps = {};
           log(`[${projectName}] Foundation: running deterministic provisioning...`);
+          await commitState(projectDir, state);
 
           // GitHub repo creation
           try {
@@ -827,28 +829,64 @@ async function advanceState(projectDir) {
                   const repoUrl = repoOutput.match(/https:\/\/github\.com\/[^\s]+/)?.[0] || `https://github.com/${ghOwner}/${projectName}`;
                   log(`[${projectName}] Private repo created: ${repoUrl}`);
                   state.github_repo = repoUrl;
+                  state.foundation.provisioning_steps.github_repo = { status: 'done', url: repoUrl };
+                } else {
+                  state.foundation.provisioning_steps.github_repo = { status: 'skipped', reason: 'creation failed or name taken' };
                 }
+              } else {
+                state.foundation.provisioning_steps.github_repo = { status: 'skipped', reason: 'no GitHub owner resolved' };
               }
+            } else {
+              const remoteUrl = (() => { try { return execSync('git remote get-url origin', { cwd: projectDir, encoding: 'utf8', timeout: 5000, stdio: 'pipe' }).trim(); } catch { return null; } })();
+              state.foundation.provisioning_steps.github_repo = { status: 'done', url: remoteUrl || 'existing remote' };
             }
+            await commitState(projectDir, state);
           } catch (err) {
             log(`[${projectName}] GitHub repo setup failed (non-blocking): ${(err.message || '').slice(0, 150)}`);
+            state.foundation.provisioning_steps.github_repo = { status: 'failed', reason: (err.message || '').slice(0, 100) };
+            await commitState(projectDir, state);
           }
 
           // Infrastructure provisioning (create DB, deploy target)
           const infra = readJson(path.join(projectDir, 'vision.json'))?.infrastructure || {};
+          const deployTarget = infra?.deployment_target || state.deployment_target;
+          const needsDb = !!infra?.needs_database;
+          const needsAuth = !!infra?.needs_auth;
+
+          if (deployTarget) {
+            state.foundation.provisioning_steps.deploy_target = { status: 'in-progress', target: deployTarget };
+            await commitState(projectDir, state);
+          }
+          if (needsDb) {
+            state.foundation.provisioning_steps.database = { status: 'in-progress', provider: infra?.database_provider || 'supabase' };
+            await commitState(projectDir, state);
+          }
+
           log(`[${projectName}] Provisioning dev infrastructure...`);
           try {
             execFileSync('node', [path.join(__dirname, 'provision-infrastructure.js'), projectDir], {
               encoding: 'utf8', timeout: 300000, stdio: 'inherit',
             });
             const updatedCtx = readJson(contextFile);
+            if (deployTarget) {
+              state.foundation.provisioning_steps.deploy_target = { status: 'done', target: deployTarget, url: updatedCtx?.infrastructure?.staging_url || null };
+            }
+            if (needsDb) {
+              state.foundation.provisioning_steps.database = { status: 'done', provider: infra?.database_provider || 'supabase' };
+            }
             if (updatedCtx?.infrastructure?.staging_url) {
               log(`[${projectName}] Staging URL: ${updatedCtx.infrastructure.staging_url}`);
             }
+            await commitState(projectDir, state);
           } catch (err) {
             log(`[${projectName}] Provisioning failed: ${(err.message || '').slice(0, 200)}`);
-            const deployTarget = infra?.deployment_target || state.deployment_target;
-            const needsDb = !!infra?.needs_database;
+            if (deployTarget) {
+              state.foundation.provisioning_steps.deploy_target = { status: 'failed', target: deployTarget, reason: (err.message || '').slice(0, 100) };
+            }
+            if (needsDb) {
+              state.foundation.provisioning_steps.database = { status: 'failed', reason: (err.message || '').slice(0, 100) };
+            }
+            await commitState(projectDir, state);
             const missingHints = [];
             if (deployTarget) {
               try {
