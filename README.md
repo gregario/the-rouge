@@ -19,12 +19,8 @@ Not one-shot code generation. Iterative product development: build, evaluate aga
 npm install -g the-rouge
 
 rouge setup                 # First-time: install dashboard, check prerequisites
-rouge dashboard start       # Start the dashboard (optional, recommended)
+rouge dashboard start       # Start the dashboard
 
-rouge init my-product
-rouge seed my-product       # Interactive co-design (~10-20 min)
-rouge build my-product      # Start the autonomous loop
-rouge status
 ```
 
 <p align="center">
