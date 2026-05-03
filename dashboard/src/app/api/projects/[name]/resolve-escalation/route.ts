@@ -96,15 +96,25 @@ export async function POST(
   // to progress. startBuild is idempotent — if the loop is already
   // running, it returns { alreadyRunning: true } without re-spawning.
   let loopStarted = false;
+  let startError: string | undefined;
   if (!readBuildInfo(projectDir)) {
     try {
       const spawn = await startBuild(projectsRoot, rougeCli, name);
-      loopStarted = spawn.ok && !("alreadyRunning" in spawn && spawn.alreadyRunning);
-    } catch {
-      // Non-fatal — the resolution is persisted. Surface a hint so the
-      // user knows to click Start/Resume if needed.
+      if (spawn.ok) {
+        loopStarted = !("alreadyRunning" in spawn && spawn.alreadyRunning);
+      } else {
+        startError = spawn.error;
+        console.error(`[resolve-escalation] Failed to auto-start build for ${name}: ${spawn.error}`);
+      }
+    } catch (err) {
+      startError = err instanceof Error ? err.message : String(err);
+      console.error(`[resolve-escalation] Exception starting build for ${name}:`, err);
     }
   }
 
-  return NextResponse.json({ ...result.raw, loopStarted });
+  return NextResponse.json({
+    ...result.raw,
+    loopStarted,
+    ...(startError && { startError }),
+  });
 }

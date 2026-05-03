@@ -988,7 +988,12 @@ async function advanceState(projectDir) {
         if (needsDb) {
           // Supabase is the only database provider currently supported;
           // if that expands, read from a database-kind manifest.
-          missingHints.push('SUPABASE_ACCESS_TOKEN (for database)');
+          // SUPABASE_ACCESS_TOKEN is the Supabase CLI management token
+          // (for creating projects via their API), distinct from the
+          // database access keys (SUPABASE_URL/ANON_KEY/SERVICE_KEY).
+          // Obtained via `supabase login` or Supabase dashboard → Settings
+          // → Access Tokens.
+          missingHints.push('SUPABASE_ACCESS_TOKEN (Supabase CLI management token — run `supabase login` or get from dashboard → Settings → Access Tokens, then `rouge secrets set supabase SUPABASE_ACCESS_TOKEN <token>`)');
         }
         const reason = (err.message || '').slice(0, 150);
         const summary = missingHints.length > 0
