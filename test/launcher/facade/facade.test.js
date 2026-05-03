@@ -75,9 +75,14 @@ describe('facade.writeState — atomic state mutation', () => {
     // mutator's prior-read would be stale and one increment would be
     // lost. With the lock, the final state must be n: 2.
     fs.writeFileSync(statePath(projectDir), JSON.stringify({ n: 0 }));
+    // allowSlow: this test is intentionally about lock contention. On a
+    // slow CI runner the lock-acquire retries can push the second writer
+    // past the 100ms slow-mutator guard even though the mutator itself
+    // is a trivial in-memory increment. The mutator-duration heuristic
+    // doesn't apply when the slow path is the lock, not the work.
     await Promise.all([
-      facade.writeState({ projectDir, source: 'test', validate: false, mutator: (s) => { s.n = (s.n || 0) + 1; } }),
-      facade.writeState({ projectDir, source: 'test', validate: false, mutator: (s) => { s.n = (s.n || 0) + 1; } }),
+      facade.writeState({ projectDir, source: 'test', validate: false, allowSlow: true, mutator: (s) => { s.n = (s.n || 0) + 1; } }),
+      facade.writeState({ projectDir, source: 'test', validate: false, allowSlow: true, mutator: (s) => { s.n = (s.n || 0) + 1; } }),
     ]);
     const final = JSON.parse(fs.readFileSync(statePath(projectDir), 'utf8'));
     assert.equal(final.n, 2);
