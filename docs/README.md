@@ -1,6 +1,6 @@
 # The Rouge — Documentation
 
-> ⚠️ **Open source, experimental, runs with `--dangerously-skip-permissions`.** Rouge gives Claude Code full filesystem access on your machine and burns real Anthropic API credits. Misconfiguration can cost thousands of dollars. Set a budget cap. Run on a dedicated machine or VM. Read the safety section in the [README](../README.md#safety) first.
+> ⚠️ **Open source, experimental, runs with `--dangerously-skip-permissions`.** Rouge gives Claude Code full filesystem access. It can wipe your filesystem, force-push over your git history, and run up thousands of dollars in API charges in a single session. `budget_cap_usd`, dedicated-machine isolation, and frequent commits reduce risk but **don't guarantee** safety — bugs in the cap path and other mitigations have shipped before. Read the safety section in the [README](../README.md#safety) first.
 
 Docs follow the [Diátaxis](https://diataxis.fr/) framework. Four purposes, four folders:
 

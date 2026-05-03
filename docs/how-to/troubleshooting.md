@@ -1,6 +1,6 @@
 # FAQ & Troubleshooting
 
-> ⚠️ **Open source, experimental, runs with `--dangerously-skip-permissions`.** Misconfiguration can cost thousands of dollars. Set a budget cap. Read the [README's safety section](../../README.md#safety) before starting a real build.
+> ⚠️ **Open source, experimental, runs with `--dangerously-skip-permissions`.** Rouge can wipe your filesystem, force-push over your git history, and run up thousands of dollars in API charges in a single session. `budget_cap_usd`, dedicated-machine isolation, and frequent commits reduce risk but **don't guarantee** safety — bugs in the cap path and other mitigations have shipped before. Read the [README's safety section](../../README.md#safety) first.
 
 Quick answers to common questions and fixes for common problems. For the full walkthrough, see [your-first-product.md](../tutorials/your-first-product.md). For Slack-specific issues, see the [Slack setup troubleshooting section](slack-setup.md#troubleshooting).
 

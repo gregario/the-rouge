@@ -72,14 +72,17 @@ export function SafetyBanner() {
             <code className="rounded bg-red-100 px-1 py-0.5 font-mono text-xs">
               --dangerously-skip-permissions
             </code>
-            . Misconfiguration can cost thousands of dollars.
+            .
           </p>
           <p className="mt-1 text-red-800">
             Full filesystem access, real cloud resources, real API credits, no
-            sandbox. Set <code className="font-mono text-xs">budget_cap_usd</code>{' '}
-            in <code className="font-mono text-xs">rouge.config.json</code>{' '}
-            before any real build, run on a dedicated machine, and keep your
-            work committed.
+            sandbox. It can wipe your filesystem, force-push your git history,
+            and run up <strong>thousands of dollars</strong> in API charges in
+            a single session.{' '}
+            <code className="font-mono text-xs">budget_cap_usd</code>,
+            dedicated-machine isolation, and frequent commits all reduce risk
+            but <strong>none guarantee</strong> safety — bugs in the cap path
+            and other mitigations have shipped before.
           </p>
         </div>
         <button

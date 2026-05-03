@@ -131,13 +131,17 @@ function showSafetyBanner() {
   console.error(`\n${RED}${BOLD}┌─ SAFETY ──────────────────────────────────────────────────────────────┐${RESET}`);
   console.error(`${RED}${BOLD}│${RESET}                                                                       ${RED}${BOLD}│${RESET}`);
   console.error(`${RED}${BOLD}│${RESET}  Rouge spawns Claude Code with ${BOLD}--dangerously-skip-permissions${RESET}.        ${RED}${BOLD}│${RESET}`);
-  console.error(`${RED}${BOLD}│${RESET}  Full filesystem access. No sandbox. Real cloud resources. Real API   ${RED}${BOLD}│${RESET}`);
-  console.error(`${RED}${BOLD}│${RESET}  credits. Misconfiguration ${BOLD}can cost thousands of dollars${RESET}.            ${RED}${BOLD}│${RESET}`);
+  console.error(`${RED}${BOLD}│${RESET}  Full filesystem access. No sandbox. It can wipe your filesystem,    ${RED}${BOLD}│${RESET}`);
+  console.error(`${RED}${BOLD}│${RESET}  force-push your git history, and run up ${BOLD}thousands of dollars${RESET} in    ${RED}${BOLD}│${RESET}`);
+  console.error(`${RED}${BOLD}│${RESET}  API charges in a single session.                                     ${RED}${BOLD}│${RESET}`);
   console.error(`${RED}${BOLD}│${RESET}                                                                       ${RED}${BOLD}│${RESET}`);
-  console.error(`${RED}${BOLD}│${RESET}  • Set ${BOLD}budget_cap_usd${RESET} in rouge.config.json before any real build.    ${RED}${BOLD}│${RESET}`);
-  console.error(`${RED}${BOLD}│${RESET}  • Run on a dedicated machine or VM, not your daily-driver.           ${RED}${BOLD}│${RESET}`);
-  console.error(`${RED}${BOLD}│${RESET}  • Keep your work committed. Git is your undo button.                 ${RED}${BOLD}│${RESET}`);
+  console.error(`${RED}${BOLD}│${RESET}  Mitigations are guardrails, ${BOLD}not guarantees${RESET}:                         ${RED}${BOLD}│${RESET}`);
+  console.error(`${RED}${BOLD}│${RESET}    • budget_cap_usd reduces runaway-spend risk; cap-enforcement       ${RED}${BOLD}│${RESET}`);
+  console.error(`${RED}${BOLD}│${RESET}      bugs have shipped before                                         ${RED}${BOLD}│${RESET}`);
+  console.error(`${RED}${BOLD}│${RESET}    • dedicated machine / VM limits blast radius, not damage           ${RED}${BOLD}│${RESET}`);
+  console.error(`${RED}${BOLD}│${RESET}    • git is undo for code, not for cloud deploys or API charges       ${RED}${BOLD}│${RESET}`);
   console.error(`${RED}${BOLD}│${RESET}                                                                       ${RED}${BOLD}│${RESET}`);
+  console.error(`${RED}${BOLD}│${RESET}  Use at your own risk.                                                ${RED}${BOLD}│${RESET}`);
   console.error(`${RED}${BOLD}│${RESET}  Suppress this banner with ROUGE_SUPPRESS_SAFETY_BANNER=1.            ${RED}${BOLD}│${RESET}`);
   console.error(`${RED}${BOLD}└───────────────────────────────────────────────────────────────────────┘${RESET}\n`);
 }

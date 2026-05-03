@@ -1,6 +1,6 @@
 # Architecture
 
-> ⚠️ **Open source, experimental, runs with `--dangerously-skip-permissions`.** Read the safety section in the [README](../../README.md#safety) before starting a real build. Misconfiguration can cost thousands of dollars and produce unexpected commits or deploys. Set a budget cap.
+> ⚠️ **Open source, experimental, runs with `--dangerously-skip-permissions`.** Rouge can wipe your filesystem, force-push over your git history, and run up thousands of dollars in API charges in a single session. The mitigations described in this doc reduce risk but **don't guarantee** safety — bugs in the cap path and other safety mechanisms have shipped before. Read the [README's safety section](../../README.md#safety) first.
 
 A short tour of how Rouge is put together. For the user-facing story (what Rouge does, how it judges, what it costs), read [how-rouge-works.md](how-rouge-works.md). This doc covers the parts a contributor or maintainer needs.
 

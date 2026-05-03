@@ -28,13 +28,17 @@ rouge status
 ```
 
 > [!CAUTION]
-> **Open source, experimental, runs with `--dangerously-skip-permissions`. Misconfiguration can cost thousands of dollars.**
+> **Open source, experimental, runs with `--dangerously-skip-permissions`.**
 >
-> Rouge spawns Claude Code with no permission checks, no workspace boundaries, and full read/write access to your entire machine. It deploys to real infrastructure, makes real git commits, manages real cloud resources, and burns real Anthropic API credits — there is no sandbox around it.
+> Rouge spawns Claude Code with no permission checks, no workspace boundaries, and full read/write access to your machine. It can wipe your filesystem, force-push over your git history, deploy code you didn't review, and run up thousands of dollars in Anthropic API charges in a single session. Real cloud resources. Real money. No sandbox.
 >
-> **Before any real build:** set `budget_cap_usd` in `rouge.config.json` so the loop escalates instead of running away. Run on a dedicated machine, VM, or user account — not a machine with sensitive personal data. Keep your work committed; git is your undo button.
+> Rouge has mitigations, but **none of them are guarantees**:
 >
-> Rouge includes safety hooks (`rouge-safety-check.sh`) that block some destructive patterns, and prompt-level isolation rules that instruct the model not to touch other projects' infrastructure. These reduce the likelihood of accidents but cannot prevent a determined or confused model from accessing anything on the filesystem.
+> - `budget_cap_usd` in `rouge.config.json` is supposed to halt the loop when spend exceeds the cap. Bugs in cap enforcement have shipped before and may again — treat the cap as a soft guardrail, not a circuit breaker.
+> - `rouge-safety-check.sh` blocks some destructive Bash and Write patterns at the spawn boundary. It can't catch what it doesn't recognise.
+> - Prompt-level isolation rules instruct the model not to touch other projects' infrastructure. These are convention, not enforcement.
+> - Running on a dedicated machine, VM, or fresh user account limits blast radius. It doesn't prevent damage to that machine.
+> - Committing your work frequently gives you git as an undo button for code changes. It does not undo cloud deploys, force-pushed remotes, or charges to your API account.
 >
 > Use at your own risk.
 

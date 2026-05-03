@@ -1,6 +1,6 @@
 # The Rouge — Setup Guide
 
-> ⚠️ **Open source, experimental, runs with `--dangerously-skip-permissions`.** Rouge gives Claude Code full filesystem access and burns real Anthropic API credits. Misconfiguration can cost thousands of dollars. Set `budget_cap_usd` in `rouge.config.json` before any real build. Run on a dedicated machine or VM. Read the [README's safety section](../../README.md#safety) first.
+> ⚠️ **Open source, experimental, runs with `--dangerously-skip-permissions`.** Rouge gives Claude Code full filesystem access. It can wipe your filesystem, force-push over your git history, and run up thousands of dollars in API charges in a single session. `budget_cap_usd`, dedicated-machine isolation, and frequent commits reduce risk but **don't guarantee** safety — bugs in the cap path and other mitigations have shipped before. Read the [README's safety section](../../README.md#safety) first.
 
 > **Dashboard-first.** The fast path for new users is `rouge setup` → `rouge dashboard start` → open the URL Rouge prints → **New Project**. The CLI steps below cover the per-integration configuration (OS keychain, Cloudflare, Supabase, Sentry, GitHub). Slack remains as a notification-only sidecar for pre-existing setups; new installs should use the dashboard.
 
