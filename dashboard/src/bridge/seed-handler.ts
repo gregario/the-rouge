@@ -2,13 +2,15 @@ import { existsSync, readFileSync } from 'fs'
 import { resolve } from 'path'
 import { runClaude, detectRateLimit, extractMarkers, segmentMarkers, type MessageSegment } from './claude-runner'
 import { appendChatMessage } from './chat-reader'
-import { readSeedingState, updateSessionId, markDisciplineComplete, markDisciplinePrompted, markSeedingComplete, setStatus, appendPendingCorrection, peekPendingCorrection, clearPendingCorrection, isAwaitingGateFor, setAwaitingGate, clearPendingGate, updateHeartbeat, effectiveMode } from './seeding-state'
+import { readSeedingState, writeSeedingState, updateSessionId, markDisciplineComplete, markDisciplinePrompted, markSeedingComplete, setStatus, appendPendingCorrection, peekPendingCorrection, clearPendingCorrection, isAwaitingGateFor, setAwaitingGate, clearPendingGate, updateHeartbeat, effectiveMode } from './seeding-state'
 import type { SeedingMessageKind } from './types'
 import { finalizeSeeding } from './seeding-finalize'
 import { maybeDeriveWorkingTitle } from './derive-title'
 import { loadDisciplinePrompt, type Discipline } from './discipline-prompts'
 import { verifyDisciplineArtifact } from './discipline-artifacts'
 import { DISCIPLINE_SEQUENCE } from './types'
+import { runAutoClassifier } from './auto-classifier'
+import { listApplicableDisciplines, validateTierCompletion, type ProjectSize } from './tier-registry'
 
 // Locate the seeding orchestrator prompt at startup.
 //
@@ -452,11 +454,12 @@ async function runSeedingTurn(
       const finalizeResult = await finalizeSeeding(projectDir)
       if (finalizeResult.ok) {
         markSeedingComplete(projectDir)
+        const totalDisc = DISCIPLINE_SEQUENCE.length
         appendChatMessage(projectDir, {
           id: genId(),
           role: 'rouge',
           content:
-            'All 8 disciplines complete. Seeding finalized — project is now ready to build. ' +
+            `All ${totalDisc} disciplines complete. Seeding finalized — project is now ready to build. ` +
             'Click "Build this" in the specs table when you want the build loop to start.',
           timestamp: new Date().toISOString(),
           kind: 'system_note',
@@ -477,8 +480,12 @@ async function runSeedingTurn(
   const activeDiscipline = resolveActiveDiscipline(state.current_discipline)
   const alreadyPrompted = state.disciplines_prompted ?? []
   const isFirstTurn = state.session_id === null
+  // Sizing is auto-completed by the classifier — never inject its prompt
+  // into a Claude session. The LLM doesn't decide project size.
   const needsDisciplinePrompt =
-    activeDiscipline !== null && !alreadyPrompted.includes(activeDiscipline)
+    activeDiscipline !== null &&
+    activeDiscipline !== 'sizing' &&
+    !alreadyPrompted.includes(activeDiscipline)
 
   // Build the prompt. Two injections can fire:
   //
@@ -667,6 +674,82 @@ async function runSeedingTurn(
     }
   }
 
+  // ─── Deterministic tier gating: auto-classify after brainstorming ───
+  //
+  // When brainstorming completes, the bridge runs the auto-classifier to
+  // determine project size, auto-completes sizing, and auto-skips every
+  // discipline not applicable at that tier. The LLM NEVER decides which
+  // disciplines to skip — the bridge does, deterministically.
+  if (acceptedDisciplines.includes('brainstorming')) {
+    const classResult = runAutoClassifier(projectDir)
+    if (classResult.ok) {
+      // Mark sizing as complete (artifact is sizing.json, just written by classifier)
+      await markDisciplineComplete(projectDir, 'sizing')
+      acceptedDisciplines.push('sizing')
+
+      const applicable = listApplicableDisciplines(classResult.projectSize)
+
+      // Write applicable_disciplines and project_size to seeding state
+      const postClassState = readSeedingState(projectDir)
+      postClassState.applicable_disciplines = applicable
+      postClassState.project_size = classResult.projectSize
+      writeSeedingState(projectDir, postClassState)
+
+      // Auto-skip non-applicable disciplines
+      for (const disc of DISCIPLINE_SEQUENCE) {
+        if (disc === 'brainstorming' || disc === 'sizing') continue
+        if (!applicable.includes(disc)) {
+          await markDisciplineComplete(projectDir, disc)
+          acceptedDisciplines.push(disc)
+          appendChatMessage(projectDir, {
+            id: genId(),
+            role: 'rouge',
+            content: `Discipline ${disc.toUpperCase()} auto-skipped — not applicable at ${classResult.projectSize} tier.`,
+            timestamp: new Date().toISOString(),
+            kind: 'system_note',
+            metadata: { discipline: disc },
+          })
+        }
+      }
+
+      // Announce the classification result
+      appendChatMessage(projectDir, {
+        id: genId(),
+        role: 'rouge',
+        content:
+          `Project classified as **${classResult.projectSize}** tier ` +
+          `(${classResult.signalSource === 'explicit-section' ? 'from classifier signals section' : 'from keyword analysis'}). ` +
+          `${applicable.length} discipline(s) applicable: ${applicable.join(', ')}. ` +
+          `${classResult.reasoning}`,
+        timestamp: new Date().toISOString(),
+        kind: 'system_note',
+        metadata: { discipline: 'sizing' },
+      })
+    } else {
+      // Classification failed — stash a correction so the LLM adds
+      // the ## Classifier Signals section on the next brainstorming turn
+      appendChatMessage(projectDir, {
+        id: genId(),
+        role: 'rouge',
+        content:
+          `Auto-classification failed: ${classResult.reason}. ` +
+          `The brainstorming artifact needs a ## Classifier Signals section with ` +
+          `entity_count, integration_count, role_count, journey_count, screen_count.`,
+        timestamp: new Date().toISOString(),
+        kind: 'system_note',
+        metadata: { discipline: 'sizing' },
+      })
+      appendPendingCorrection(
+        projectDir,
+        `[SYSTEM NOTE] Auto-classification of project size failed: ${classResult.reason}. ` +
+        `Your brainstorming artifact must include a ## Classifier Signals section at the end ` +
+        `with these fields as "- field_name: N" lines: entity_count, integration_count, ` +
+        `role_count, journey_count, screen_count. Add this section to the brainstorming ` +
+        `artifact and re-emit [DISCIPLINE_COMPLETE: brainstorming].`,
+      )
+    }
+  }
+
   // Process DISCIPLINE_SKIPPED markers (no artifact required — tier gate).
   // Skipped disciplines are accepted unconditionally and advance state
   // the same way completed disciplines do. The orchestrator already
@@ -764,16 +847,37 @@ async function runSeedingTurn(
     void maybeDeriveWorkingTitle(projectDir, text)
   }
 
-  // Check for SEEDING_COMPLETE
+  // Check for SEEDING_COMPLETE — tier validation gate.
+  // Before delegating to finalizeSeeding, run the deterministic tier check.
+  // If the tier check fails, REJECT the marker with a system note and
+  // pending correction so the LLM knows what's still missing.
   let readyTransition = false
   let missingArtifacts: string[] | undefined
   if (markers.seedingComplete) {
-    const finalizeResult = await finalizeSeeding(projectDir)
-    if (finalizeResult.ok) {
-      markSeedingComplete(projectDir)
-      readyTransition = true
+    const tierCheck = validateTierCompletion(projectDir)
+    if (!tierCheck.ok) {
+      // Tier validation failed — reject SEEDING_COMPLETE
+      const tierNote =
+        `SEEDING_COMPLETE rejected — tier validation failed: ${tierCheck.reason}. ` +
+        `Complete the missing disciplines before emitting SEEDING_COMPLETE.`
+      appendChatMessage(projectDir, {
+        id: genId(),
+        role: 'rouge',
+        content: tierNote,
+        timestamp: new Date().toISOString(),
+        kind: 'system_note',
+        metadata: { discipline: activeDiscipline ?? undefined },
+      })
+      appendPendingCorrection(projectDir, `[SYSTEM NOTE] ${tierNote}`)
+      missingArtifacts = tierCheck.missing
     } else {
-      missingArtifacts = finalizeResult.missingArtifacts
+      const finalizeResult = await finalizeSeeding(projectDir)
+      if (finalizeResult.ok) {
+        markSeedingComplete(projectDir)
+        readyTransition = true
+      } else {
+        missingArtifacts = finalizeResult.missingArtifacts
+      }
     }
   }
 

@@ -7,9 +7,9 @@ import { Check, Circle, Loader2, Minus } from 'lucide-react'
 
 const DISCIPLINE_ORDER: SeedingDiscipline[] = [
   'brainstorming',
-  'competition',
-  'taste',
   'sizing',
+  'taste',
+  'competition',
   'spec',
   'infrastructure',
   'design',
@@ -100,6 +100,11 @@ interface DisciplineStepperProps {
   // When set, the matching discipline gets an amber "awaiting you"
   // dot so users see which discipline is blocked on their input.
   pendingGateDiscipline?: SeedingDiscipline
+  // Post-classification: only show applicable disciplines for the project tier.
+  // Pre-classification (undefined): show only "Brainstorming".
+  applicableDisciplines?: SeedingDiscipline[]
+  // Project tier size label for the "N disciplines skipped" summary.
+  projectSize?: string
 }
 
 export function DisciplineStepper({
@@ -108,10 +113,23 @@ export function DisciplineStepper({
   selectedDiscipline,
   onSelectDiscipline,
   pendingGateDiscipline,
+  applicableDisciplines,
+  projectSize,
 }: DisciplineStepperProps) {
   const statusMap = new Map(
     disciplines.map((d) => [d.discipline, d.status])
   )
+
+  // Pre-classification: show only brainstorming (it's the only discipline
+  // guaranteed to run regardless of tier). Post-classification: show only
+  // applicable disciplines for the project's tier.
+  const visibleDisciplines = applicableDisciplines
+    ? DISCIPLINE_ORDER.filter(d => applicableDisciplines.includes(d))
+    : ['brainstorming' as SeedingDiscipline]
+
+  const skippedCount = applicableDisciplines
+    ? DISCIPLINE_ORDER.length - applicableDisciplines.length
+    : 0
 
   // Track which disciplines flipped to complete this render cycle so we
   // can retrigger the pulse animation on just those. Keyed on the
@@ -120,7 +138,7 @@ export function DisciplineStepper({
   const [justCompleted, setJustCompleted] = useState<Set<SeedingDiscipline>>(new Set())
   useEffect(() => {
     const newly = new Set<SeedingDiscipline>()
-    for (const d of DISCIPLINE_ORDER) {
+    for (const d of visibleDisciplines) {
       const prev = prevStatusRef.current.get(d)
       const cur = statusMap.get(d)
       if (cur === 'complete' && prev !== 'complete') newly.add(d)
@@ -140,7 +158,7 @@ export function DisciplineStepper({
       data-testid="discipline-stepper"
       aria-label="Seeding disciplines"
     >
-      {DISCIPLINE_ORDER.map((discipline, i) => {
+      {visibleDisciplines.map((discipline, i) => {
         const rawStatus = statusMap.get(discipline) ?? 'pending'
         const isCurrent = discipline === currentDiscipline
         // The launcher only writes 'pending' / 'complete' to state.json —
@@ -152,7 +170,7 @@ export function DisciplineStepper({
           isCurrent && rawStatus === 'pending' ? 'in-progress' : rawStatus
         const isSelected = discipline === (selectedDiscipline ?? currentDiscipline)
         const isClickable = status === 'complete' || status === 'in-progress'
-        const isLast = i === DISCIPLINE_ORDER.length - 1
+        const isLast = i === visibleDisciplines.length - 1
 
         return (
           <button
@@ -211,6 +229,14 @@ export function DisciplineStepper({
           </button>
         )
       })}
+      {skippedCount > 0 && (
+        <div
+          className="mt-1 px-9 text-xs text-muted-foreground/60"
+          data-testid="disciplines-skipped-summary"
+        >
+          {skippedCount} discipline{skippedCount > 1 ? 's' : ''} skipped ({projectSize} project)
+        </div>
+      )}
     </nav>
   )
 }

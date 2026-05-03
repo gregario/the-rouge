@@ -68,8 +68,9 @@ export async function POST(request: Request) {
     seedingProgress: {
       disciplines: [
         { discipline: "brainstorming", status: "pending" },
-        { discipline: "competition", status: "pending" },
+        { discipline: "sizing", status: "pending" },
         { discipline: "taste", status: "pending" },
+        { discipline: "competition", status: "pending" },
         { discipline: "spec", status: "pending" },
         { discipline: "infrastructure", status: "pending" },
         { discipline: "design", status: "pending" },
@@ -77,7 +78,7 @@ export async function POST(request: Request) {
         { discipline: "marketing", status: "pending" },
       ],
       completedCount: 0,
-      totalCount: 8,
+      totalCount: 9,
     },
     createdAt: new Date().toISOString(),
   };

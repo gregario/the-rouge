@@ -76,6 +76,8 @@ interface RougeState {
     completedCount?: number
     totalCount?: number
     currentDiscipline?: string
+    applicableDisciplines?: string[]
+    projectSize?: string
   }
   // Checkpoint summary from latest checkpoint (added by bridge)
   costUsd?: number | null
@@ -121,11 +123,21 @@ function mapSeedingProgress(raw: RougeState['seedingProgress']): SeedingProgress
       return { discipline, status }
     })
     .filter((x): x is { discipline: SeedingDiscipline; status: DisciplineStatus } => x !== null)
+  // Narrow applicableDisciplines to known enum values
+  const applicableDisciplines = raw.applicableDisciplines
+    ? (raw.applicableDisciplines
+        .map((d: string) => narrowEnum(d, SEEDING_DISCIPLINES, 'seedingProgress.applicableDisciplines'))
+        .filter((x): x is SeedingDiscipline => x !== null))
+    : undefined
+
   return {
     disciplines,
     completedCount: raw.completedCount ?? 0,
     totalCount: raw.totalCount ?? 8,
     currentDiscipline: narrowEnum(raw.currentDiscipline, SEEDING_DISCIPLINES, 'seedingProgress.currentDiscipline'),
+    ...(applicableDisciplines && applicableDisciplines.length > 0
+      ? { applicableDisciplines, projectSize: raw.projectSize }
+      : {}),
   }
 }
 

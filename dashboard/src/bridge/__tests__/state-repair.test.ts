@@ -26,7 +26,7 @@ function seedArtifacts(): void {
 }
 
 describe('repairProjectState', () => {
-  it('heals stuck-seeding: all 8 disciplines complete but seeding_complete null', async () => {
+  it('heals stuck-seeding: all 9 disciplines complete but seeding_complete null', async () => {
     dir = mkdtempSync(join(tmpdir(), 'repair-'))
     seedArtifacts()
     seedProject(
@@ -36,8 +36,9 @@ describe('repairProjectState', () => {
         seedingProgress: {
           disciplines: [
             { discipline: 'brainstorming', status: 'complete' },
-            { discipline: 'competition', status: 'complete' },
+            { discipline: 'sizing', status: 'complete' },
             { discipline: 'taste', status: 'complete' },
+            { discipline: 'competition', status: 'complete' },
             { discipline: 'spec', status: 'complete' },
             { discipline: 'infrastructure', status: 'complete' },
             { discipline: 'design', status: 'complete' },
@@ -50,7 +51,7 @@ describe('repairProjectState', () => {
         session_id: 's',
         status: 'active',
         disciplines_complete: [
-          'brainstorming', 'competition', 'taste', 'spec',
+          'brainstorming', 'sizing', 'taste', 'competition', 'spec',
           'infrastructure', 'design', 'legal-privacy', 'marketing',
         ],
       },

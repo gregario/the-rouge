@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync, statSync, writeFileSync, renameS
 import { join } from 'path'
 import { statePath as resolveStatePath, writeStateJson } from './state-path'
 import { withStateLock } from './state-lock'
+import { validateTierCompletion } from './tier-registry'
 
 export interface FinalizeResult {
   ok: boolean
@@ -152,51 +153,14 @@ export async function finalizeSeeding(projectDir: string): Promise<FinalizeResul
 
   // P1-SEEDING-003 FIX: Validate that all applicable disciplines for the
   // project tier actually completed. Prevents orchestrator from hallucinating
-  // completion when only 1/7 disciplines ran.
-  const sizingPath = join(projectDir, 'seed_spec/sizing.json')
-  if (existsSync(sizingPath)) {
-    try {
-      const sizing = JSON.parse(readFileSync(sizingPath, 'utf-8'))
-      const projectSize = sizing.project_size
-      if (projectSize && ['XS', 'S', 'M', 'L', 'XL'].includes(projectSize)) {
-        const seedingStatePath = join(projectDir, 'seeding-state.json')
-        if (existsSync(seedingStatePath)) {
-          const seedingState = JSON.parse(readFileSync(seedingStatePath, 'utf-8'))
-          const completed = new Set(seedingState.disciplines_complete || [])
-
-          // Inline tier mapping (can't import from src/launcher in dashboard)
-          const DISCIPLINE_TIERS: Record<string, string> = {
-            brainstorming: 'XS',
-            competition: 'M',
-            taste: 'XS',
-            sizing: 'XS',
-            spec: 'XS',
-            infrastructure: 'S',
-            design: 'S',
-            'legal-privacy': 'S',
-            marketing: 'M',
-          }
-          const TIER_ORDER = ['XS', 'S', 'M', 'L', 'XL']
-          const sizeIndex = TIER_ORDER.indexOf(projectSize)
-
-          if (sizeIndex !== -1) {
-            const applicable = Object.entries(DISCIPLINE_TIERS)
-              .filter(([_, tier]) => TIER_ORDER.indexOf(tier) <= sizeIndex)
-              .map(([discipline]) => discipline)
-
-            const missingDisciplines = applicable.filter(d => !completed.has(d))
-            if (missingDisciplines.length > 0) {
-              missing.push(
-                `disciplines: ${missingDisciplines.join(', ')} ` +
-                `(required for ${projectSize}-tier, only ${[...completed].join(', ')} completed)`
-              )
-            }
-          }
-        }
-      }
-    } catch (err) {
-      // sizing.json malformed — artifact check already caught it
-    }
+  // completion when only 1/7 disciplines ran. Now delegated to the shared
+  // tier-registry module — single source of truth for tier mappings.
+  const tierCheck = validateTierCompletion(projectDir)
+  if (!tierCheck.ok) {
+    missing.push(
+      `disciplines: ${tierCheck.missing.join(', ')} ` +
+      `(required for ${tierCheck.tier}-tier, only ${tierCheck.completed.join(', ') || 'none'} completed)`
+    )
   }
 
   if (missing.length > 0) {

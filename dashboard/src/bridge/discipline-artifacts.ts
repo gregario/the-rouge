@@ -34,6 +34,9 @@ type ArtifactSpec =
 // Infrastructure stays strict because `infrastructure_manifest.json` is
 // consumed by the launcher at build time — the path is load-bearing.
 const ARTIFACT_SPECS: Record<Discipline, ArtifactSpec[]> = {
+  sizing: [
+    { kind: 'file', path: 'seed_spec/sizing.json', minBytes: 50 },
+  ],
   brainstorming: [
     { kind: 'file', path: 'seed_spec/brainstorming.md', minBytes: 500 },
     { kind: 'file', path: 'seed_spec/brainstorming-design-doc.md', minBytes: 500 },

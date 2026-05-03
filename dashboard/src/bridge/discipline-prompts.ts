@@ -18,6 +18,7 @@ import { resolve } from 'node:path'
 
 export type Discipline =
   | 'brainstorming'
+  | 'sizing'
   | 'competition'
   | 'taste'
   | 'spec'
@@ -27,8 +28,11 @@ export type Discipline =
   | 'marketing'
 
 // Maps discipline names to their prompt filenames in `src/prompts/seeding/`.
+// Sizing has a prompt file on disk but is auto-completed by the classifier —
+// the prompt is never injected into a Claude session.
 const DISCIPLINE_FILES: Record<Discipline, string> = {
   brainstorming: '01-brainstorming.md',
+  sizing: '03b-sizing.md',
   competition: '02-competition.md',
   taste: '03-taste.md',
   spec: '04-spec.md',

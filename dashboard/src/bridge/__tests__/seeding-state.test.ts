@@ -62,8 +62,8 @@ describe('seeding-state', () => {
     mkdirSync(testDir, { recursive: true })
     writeSeedingState(testDir, { session_id: null, status: 'active' })
     await markDisciplineComplete(testDir, 'brainstorming')
-    expect(readSeedingState(testDir).current_discipline).toBe('competition')
-    await markDisciplineComplete(testDir, 'competition')
+    expect(readSeedingState(testDir).current_discipline).toBe('sizing')
+    await markDisciplineComplete(testDir, 'sizing')
     expect(readSeedingState(testDir).current_discipline).toBe('taste')
   })
 
@@ -72,7 +72,7 @@ describe('seeding-state', () => {
     writeSeedingState(testDir, {
       session_id: null,
       status: 'active',
-      disciplines_complete: ['brainstorming', 'competition', 'taste'],
+      disciplines_complete: ['brainstorming', 'sizing', 'taste', 'competition'],
     })
     await markDisciplineComplete(testDir, 'spec')
     expect(readSeedingState(testDir).current_discipline).toBe('infrastructure')

@@ -243,16 +243,31 @@ export interface SeedingSessionState {
   // seen during an autonomous run. UI traffic-light decays from this:
   // <45s green, 45s-2m orange, 2m-3m red, >3m stall.
   last_heartbeat_at?: string
+
+  // ─── Deterministic tier gating (bridge layer) ───────────────────
+  //
+  // Set by the auto-classifier after brainstorming completes. The
+  // bridge uses these to auto-skip non-applicable disciplines rather
+  // than trusting the LLM to decide.
+
+  /** Disciplines that apply at this project's tier. */
+  applicable_disciplines?: string[]
+  /** Project size tier from the auto-classifier. */
+  project_size?: string
 }
 
-// The canonical sequence of disciplines used when auto-advancing current_discipline
+// The canonical sequence of disciplines used when auto-advancing current_discipline.
+// Sizing is second — auto-completed by the classifier after brainstorming.
+// Disciplines gated by tier are ordered so the bridge can auto-skip non-applicable
+// ones without the LLM's involvement.
 export const DISCIPLINE_SEQUENCE = [
   'brainstorming',
-  'competition',
+  'sizing',          // auto-completed by classifier
   'taste',
+  'competition',     // M+ only
   'spec',
-  'infrastructure',
-  'design',
-  'legal-privacy',
-  'marketing',
+  'infrastructure',  // S+ only
+  'design',          // S+ only
+  'legal-privacy',   // S+ only
+  'marketing',       // M+ only
 ] as const

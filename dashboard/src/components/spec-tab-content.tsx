@@ -166,6 +166,8 @@ function SeedingLayout({
             selectedDiscipline={selectedDiscipline}
             onSelectDiscipline={onSelectDiscipline}
             pendingGateDiscipline={pendingGateDiscipline}
+            applicableDisciplines={seedingProgress.applicableDisciplines}
+            projectSize={seedingProgress.projectSize}
           />
         </div>
       </div>

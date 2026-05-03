@@ -178,6 +178,11 @@ export interface SeedingProgress {
   currentDiscipline?: SeedingDiscipline
   completedCount: number
   totalCount: number
+  /** Disciplines applicable to this project's tier size. Set after the
+   *  classifier runs (sizing.json exists). Undefined pre-classification. */
+  applicableDisciplines?: SeedingDiscipline[]
+  /** Project tier size (XS/S/M/L/XL). Set after classification. */
+  projectSize?: string
 }
 
 export interface ConfidencePoint {

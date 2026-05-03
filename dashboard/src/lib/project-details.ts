@@ -6,6 +6,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { DISCIPLINE_SEQUENCE } from "@/bridge/types";
 import { readSeedingState } from "@/bridge/seeding-state";
+import { readProjectSize, listApplicableDisciplines } from "@/bridge/tier-registry";
 
 /**
  * Merge milestones from `task_ledger.json` into the raw state when
@@ -55,7 +56,26 @@ export function mergeSeedingProgress(
   projectDir: string,
   rawState: Record<string, unknown>,
 ): Record<string, unknown> {
-  if (rawState.seedingProgress) return rawState;
+  // Read tier data regardless — we need to enrich even pre-existing
+  // seedingProgress with applicableDisciplines/projectSize.
+  const tierSize = readProjectSize(projectDir);
+  const applicable = tierSize ? listApplicableDisciplines(tierSize) : undefined;
+
+  if (rawState.seedingProgress) {
+    // Enrich existing seedingProgress with tier data if not already present
+    const existing = rawState.seedingProgress as Record<string, unknown>;
+    if (!existing.applicableDisciplines && applicable) {
+      return {
+        ...rawState,
+        seedingProgress: {
+          ...existing,
+          applicableDisciplines: applicable,
+          projectSize: tierSize,
+        },
+      };
+    }
+    return rawState;
+  }
 
   const seedState = readSeedingState(projectDir);
   if (seedState.status === "not-started" && !seedState.disciplines_complete) {
@@ -74,6 +94,7 @@ export function mergeSeedingProgress(
       completedCount: complete.size,
       totalCount: DISCIPLINE_SEQUENCE.length,
       currentDiscipline: seedState.current_discipline,
+      ...(applicable ? { applicableDisciplines: applicable, projectSize: tierSize } : {}),
     },
   };
 }
