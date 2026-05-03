@@ -165,7 +165,8 @@ async function startBuildInner(
   }
 
   // Derive rouge-loop.js path from the CLI path (they're in the same dir)
-  const loopScript = join(rougeCliPath, '..', 'rouge-loop.js')
+  const { dirname } = require('path')
+  const loopScript = join(dirname(rougeCliPath), 'rouge-loop.js')
   if (!existsSync(loopScript)) {
     await rollbackState()
     return { ok: false, error: `rouge-loop.js not found at ${loopScript}` }
