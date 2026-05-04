@@ -65,9 +65,11 @@ interface ChatMessageProps {
   onApproveSeeding?: () => void
   /** True while an approval API call is in flight. */
   approvalLoading?: boolean
+  /** Called when user clicks a gate option chip (sends the letter as message). */
+  onSendGateAnswer?: (text: string) => void
 }
 
-export function ChatMessage({ message, onResume, resumeDisabled, onApproveDiscipline, onApproveSeeding, approvalLoading }: ChatMessageProps) {
+export function ChatMessage({ message, onResume, resumeDisabled, onApproveDiscipline, onApproveSeeding, approvalLoading, onSendGateAnswer }: ChatMessageProps) {
   const [reasoningOpen, setReasoningOpen] = useState(false)
 
   // Human messages
@@ -103,7 +105,7 @@ export function ChatMessage({ message, onResume, resumeDisabled, onApproveDiscip
   // into prose and gates visually demand an answer.
   if (message.kind === 'gate_question') {
     return (
-      <GateQuestionMessage message={message} />
+      <GateQuestionMessage message={message} onSendAnswer={onSendGateAnswer} answerDisabled={resumeDisabled} />
     )
   }
   if (message.kind === 'autonomous_decision') {
@@ -235,10 +237,43 @@ export function ChatMessage({ message, onResume, resumeDisabled, onApproveDiscip
   )
 }
 
-// A hard or soft gate — Rouge is waiting on the user. Render
-// prominently so it's visually distinct from prose/decisions and the
-// user knows this is the thing blocking progress.
-function GateQuestionMessage({ message }: { message: ChatMessageType }) {
+interface ParsedOption {
+  letter: string
+  text: string
+}
+
+function parseGateOptions(content: string): { body: string; options: ParsedOption[]; recommendation?: string } {
+  const lines = content.split('\n')
+  const options: ParsedOption[] = []
+  const bodyLines: string[] = []
+  let recommendation: string | undefined
+
+  for (const line of lines) {
+    const optMatch = line.match(/^([A-Z])\)\s+(.+)/)
+    const recMatch = line.match(/^Recommendation:\s*([A-Z])\b/)
+    if (optMatch) {
+      options.push({ letter: optMatch[1], text: optMatch[2] })
+    } else if (recMatch) {
+      recommendation = recMatch[1]
+    } else {
+      bodyLines.push(line)
+    }
+  }
+
+  return { body: bodyLines.join('\n').trim(), options, recommendation }
+}
+
+function GateQuestionMessage({
+  message,
+  onSendAnswer,
+  answerDisabled,
+}: {
+  message: ChatMessageType
+  onSendAnswer?: (text: string) => void
+  answerDisabled?: boolean
+}) {
+  const { body, options, recommendation } = parseGateOptions(message.content)
+
   return (
     <div
       data-testid="chat-message"
@@ -263,7 +298,43 @@ function GateQuestionMessage({ message }: { message: ChatMessageType }) {
           </Badge>
         )}
       </div>
-      <Markdown content={message.content} />
+      <Markdown content={body} />
+
+      {options.length > 0 && (
+        <div className="mt-3 flex flex-col gap-2" data-testid="gate-option-chips">
+          {options.map((opt) => (
+            <button
+              key={opt.letter}
+              type="button"
+              onClick={() => onSendAnswer?.(opt.letter)}
+              disabled={answerDisabled || !onSendAnswer}
+              className={cn(
+                'flex items-start gap-2.5 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors',
+                'hover:bg-blue-100/80 disabled:opacity-50 disabled:cursor-not-allowed',
+                opt.letter === recommendation
+                  ? 'border-blue-400 bg-blue-100/50'
+                  : 'border-blue-200 bg-white',
+              )}
+              data-testid={`gate-option-${opt.letter}`}
+            >
+              <span className={cn(
+                'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-xs font-bold',
+                opt.letter === recommendation
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-blue-100 text-blue-700',
+              )}>
+                {opt.letter}
+              </span>
+              <span className="text-gray-800">{opt.text}</span>
+              {opt.letter === recommendation && (
+                <span className="ml-auto mt-0.5 shrink-0 text-[10px] font-medium uppercase tracking-wide text-blue-600">
+                  Recommended
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

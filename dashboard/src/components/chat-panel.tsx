@@ -257,9 +257,11 @@ export function ChatPanel({
     }
   }
 
-  // Callback for the Continue button on resume_prompt messages. Routes
-  // through the same sendMessage path as typed input so the chain
-  // resumes with a fresh auto-continuation budget.
+  async function handleGateAnswer(text: string) {
+    if (!bridgeActive || seeding.isSending) return
+    await seeding.sendMessage(text)
+  }
+
   async function handleResume() {
     if (!bridgeActive || seeding.isSending) return
     await seeding.sendMessage('continue')
@@ -299,16 +301,11 @@ export function ChatPanel({
                 onApproveDiscipline={bridgeActive ? seeding.approveDiscipline : onApproveDiscipline}
                 onApproveSeeding={bridgeActive ? seeding.approveSeeding : onApproveSeeding}
                 approvalLoading={bridgeActive ? seeding.isApproving : approvalLoading}
+                onSendGateAnswer={bridgeActive ? handleGateAnswer : undefined}
               />
             ))
           ) : (
             groups.map((group) => (
-              // Transition banners between completed sections were
-              // removed — the "Complete" pill in the section header
-              // plus the left-sidebar stepper already convey handoff.
-              // Stacking both produced ladders of green between every
-              // completed discipline. See feedback from 2026-04-17 PR
-              // #164 dogfood.
               <DisciplineSection
                 key={group.discipline}
                 group={group}
@@ -320,6 +317,7 @@ export function ChatPanel({
                 onApproveDiscipline={bridgeActive ? seeding.approveDiscipline : onApproveDiscipline}
                 onApproveSeeding={bridgeActive ? seeding.approveSeeding : onApproveSeeding}
                 approvalLoading={bridgeActive ? seeding.isApproving : approvalLoading}
+                onSendGateAnswer={bridgeActive ? handleGateAnswer : undefined}
               />
             ))
           )}
@@ -488,6 +486,7 @@ function DisciplineSection({
   onApproveDiscipline,
   onApproveSeeding,
   approvalLoading,
+  onSendGateAnswer,
 }: {
   group: DisciplineGroup
   expanded: boolean
@@ -498,6 +497,7 @@ function DisciplineSection({
   onApproveDiscipline?: (discipline: string) => void
   onApproveSeeding?: () => void
   approvalLoading?: boolean
+  onSendGateAnswer?: (text: string) => void
 }) {
   const label = DISCIPLINE_LABELS[group.discipline] ?? group.discipline
 
@@ -554,6 +554,7 @@ function DisciplineSection({
               onApproveDiscipline={onApproveDiscipline}
               onApproveSeeding={onApproveSeeding}
               approvalLoading={approvalLoading}
+              onSendGateAnswer={onSendGateAnswer}
             />
           ))}
         </div>
