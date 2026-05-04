@@ -6,6 +6,14 @@ All notable changes to Rouge ship here. Format follows
 
 ## [Unreleased]
 
+## [0.5.3] — 2026-05-04
+
+### Fixed
+
+- GitHub Pages deploy uses `--repo` flag to push directly to remote,
+  preventing working tree disruption that killed the build loop and
+  made projects vanish from the dashboard during deploys.
+
 ## [0.5.2] — 2026-05-04
 
 ### Fixed
