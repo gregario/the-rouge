@@ -754,24 +754,47 @@ async function runSeedingTurn(
     }
     const check = verifyDisciplineArtifact(projectDir, d)
     if (check.ok) {
-      // Don't complete immediately — enter awaiting_approval so the
-      // user must click "Accept & continue" before state advances.
-      setAwaitingApproval(projectDir, d)
-      await updateDisciplineStatusInState(projectDir, d, 'awaiting_approval')
-      acceptedDisciplines.push(d)
+      // If the user answered a gate for this discipline this turn, they
+      // already gave consent — skip the approval card and complete
+      // directly. The approval card is only for when artifacts appear
+      // without a preceding gate answer (autonomous completion or
+      // reconciliation).
+      const userAnsweredGateForThis = preGatePending?.discipline === d
+      if (userAnsweredGateForThis) {
+        await markDisciplineComplete(projectDir, d)
+        acceptedDisciplines.push(d)
+        if (d === 'taste' && check.killVerdict) {
+          const ss = readSeedingState(projectDir)
+          ss.taste_kill = true
+          ss.taste_kill_at = new Date().toISOString()
+          writeSeedingState(projectDir, ss)
+        }
+        appendChatMessage(projectDir, {
+          id: genId(),
+          role: 'rouge',
+          content: `${d} complete — artifact verified. Advancing to the next discipline.`,
+          timestamp: new Date().toISOString(),
+          kind: 'system_note',
+          metadata: { discipline: d },
+        })
+      } else {
+        setAwaitingApproval(projectDir, d)
+        await updateDisciplineStatusInState(projectDir, d, 'awaiting_approval')
+        acceptedDisciplines.push(d)
 
-      const isKill = d === 'taste' && check.killVerdict
-      const approvalContent = isKill
-        ? `**Taste verdict: KILL.** The idea didn't pass the taste gate. Review the graveyard entry and archive this project, or revise to continue.`
-        : `**${d}** artifact verified on disk. Accept to continue to the next discipline, or reply with feedback to revise.`
-      appendChatMessage(projectDir, {
-        id: genId(),
-        role: 'rouge',
-        content: approvalContent,
-        timestamp: new Date().toISOString(),
-        kind: 'approve_prompt',
-        metadata: { discipline: d, killVerdict: isKill || undefined },
-      })
+        const isKill = d === 'taste' && check.killVerdict
+        const approvalContent = isKill
+          ? `**Taste verdict: KILL.** The idea didn't pass the taste gate. Review the graveyard entry and archive this project, or revise to continue.`
+          : `**${d}** artifact verified on disk. Accept to continue to the next discipline, or reply with feedback to revise.`
+        appendChatMessage(projectDir, {
+          id: genId(),
+          role: 'rouge',
+          content: approvalContent,
+          timestamp: new Date().toISOString(),
+          kind: 'approve_prompt',
+          metadata: { discipline: d, killVerdict: isKill || undefined },
+        })
+      }
     } else {
       console.warn(
         `[seeding] rejecting DISCIPLINE_COMPLETE(${d}) — ${check.reason}`,

@@ -260,6 +260,21 @@ function parseGateOptions(content: string): { body: string; options: ParsedOptio
     }
   }
 
+  // Fallback: if no lettered options found but the content contains
+  // acceptance language, synthesize an "Accept" chip so the user
+  // doesn't have to type.
+  if (options.length === 0) {
+    const lower = content.toLowerCase()
+    const hasAcceptLanguage = ['accept', 'sign off', 'approve', 'as-is',
+      'recommendations', 'accept the verdict', 'accept the'].some(
+      (phrase) => lower.includes(phrase),
+    )
+    if (hasAcceptLanguage) {
+      options.push({ letter: '✓', text: 'Accept' })
+      recommendation = '✓'
+    }
+  }
+
   return { body: bodyLines.join('\n').trim(), options, recommendation }
 }
 
@@ -306,7 +321,7 @@ function GateQuestionMessage({
             <button
               key={opt.letter}
               type="button"
-              onClick={() => onSendAnswer?.(opt.letter)}
+              onClick={() => onSendAnswer?.(opt.letter === '✓' ? 'accept' : opt.letter)}
               disabled={answerDisabled || !onSendAnswer}
               className={cn(
                 'flex items-start gap-2.5 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors',
