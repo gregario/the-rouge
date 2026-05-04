@@ -478,15 +478,15 @@ async function runSeedingTurn(
           kind: 'system_note',
           metadata: { discipline: disc },
         })
-        // Read the new state and fire kickoff for the next discipline
-        const postApprovalState = readSeedingState(projectDir)
-        const nextDisc = postApprovalState.current_discipline
-        if (nextDisc && !(postApprovalState.disciplines_complete ?? []).includes(nextDisc) && nextDisc !== 'sizing') {
+        // Fire a continuation that triggers the classifier (after
+        // brainstorming) and kicks off the next applicable discipline.
+        try {
           await runContinuationTurn(projectDir, [
             `[SYSTEM] Discipline ${disc} approved by user. State has advanced.`,
-            `You are now entering ${nextDisc.toUpperCase()}. The sub-prompt for that discipline is attached to this turn; follow its rules exactly.`,
-            `Begin the new discipline by asking its first question to the human.`,
-          ].join(' '), 0, `kickoff-${nextDisc}`)
+            `Continue with the next discipline.`,
+          ].join(' '), 0, `post-approval-${disc}`)
+        } catch (err) {
+          console.error(`[seeding] post-approval kickoff failed:`, err)
         }
         return { ok: true, status: 200, disciplineComplete: [disc], seedingComplete: false, readyTransition: false }
       }

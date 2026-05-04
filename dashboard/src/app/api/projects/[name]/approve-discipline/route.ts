@@ -4,12 +4,16 @@ import { loadServerConfig } from '@/lib/server-config'
 import { guardMutation } from '@/lib/route-guards'
 import {
   readSeedingState,
+  writeSeedingState,
   clearAwaitingApproval,
   markDisciplineComplete,
   isAwaitingApproval,
-  updateDisciplineStatusInState,
 } from '@/bridge/seeding-state'
+import { appendChatMessage } from '@/bridge/chat-reader'
 import { handleSeedMessage } from '@/bridge/seed-handler'
+import { runAutoClassifier } from '@/bridge/auto-classifier'
+import { listApplicableDisciplines } from '@/bridge/tier-registry'
+import { DISCIPLINE_SEQUENCE } from '@/bridge/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -66,10 +70,43 @@ export async function POST(
     return NextResponse.json({ ok: true, killed: true })
   }
 
-  // Fire a kickoff turn into the next discipline
-  const postState = readSeedingState(projectDir)
-  const nextDisc = postState.current_discipline
-  if (nextDisc && !(postState.disciplines_complete ?? []).includes(nextDisc) && nextDisc !== 'sizing') {
+  // After brainstorming: run auto-classifier + tier-based auto-skipping.
+  // This normally runs inside runSeedingTurn, but the approval endpoint
+  // needs to do it before the kickoff so the next discipline is correct.
+  let midState = readSeedingState(projectDir)
+  if (body.discipline === 'brainstorming' && !midState.applicable_disciplines) {
+    const classResult = runAutoClassifier(projectDir)
+    if (classResult.ok) {
+      await markDisciplineComplete(projectDir, 'sizing')
+      const applicable = listApplicableDisciplines(classResult.projectSize)
+      const ss = readSeedingState(projectDir)
+      ss.applicable_disciplines = applicable
+      ss.project_size = classResult.projectSize
+      writeSeedingState(projectDir, ss)
+
+      for (const disc of DISCIPLINE_SEQUENCE) {
+        if (disc === 'brainstorming' || disc === 'sizing') continue
+        if (!applicable.includes(disc)) {
+          await markDisciplineComplete(projectDir, disc)
+        }
+      }
+
+      const genId = () => `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+      appendChatMessage(projectDir, {
+        id: genId(),
+        role: 'rouge',
+        content: `Project classified as **${classResult.projectSize}** tier. ${applicable.length} discipline(s) applicable: ${applicable.join(', ')}.`,
+        timestamp: new Date().toISOString(),
+        kind: 'system_note',
+        metadata: { discipline: 'sizing' },
+      })
+    }
+    midState = readSeedingState(projectDir)
+  }
+
+  // Fire a kickoff turn into the next applicable discipline
+  const nextDisc = midState.current_discipline
+  if (nextDisc && !(midState.disciplines_complete ?? []).includes(nextDisc) && nextDisc !== 'sizing') {
     try {
       await handleSeedMessage(projectDir, [
         `[SYSTEM] Discipline ${body.discipline} approved by user. State has advanced.`,
@@ -81,5 +118,6 @@ export async function POST(
     }
   }
 
-  return NextResponse.json({ ok: true, nextDiscipline: nextDisc })
+  const postState = readSeedingState(projectDir)
+  return NextResponse.json({ ok: true, nextDiscipline: postState.current_discipline })
 }
