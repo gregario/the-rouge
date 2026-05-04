@@ -725,6 +725,7 @@ async function runSeedingTurn(
 
   const acceptedDisciplines: string[] = []
   const rejectedDisciplines: Array<{ discipline: string; reason: string }> = []
+  const deferredApprovalCards: Array<{ discipline: string; isKill: boolean }> = []
 
   // Process DISCIPLINE_COMPLETE markers (require artifact verification).
   for (const d of markers.disciplinesComplete) {
@@ -782,17 +783,13 @@ async function runSeedingTurn(
         await updateDisciplineStatusInState(projectDir, d, 'awaiting_approval')
         acceptedDisciplines.push(d)
 
-        const isKill = d === 'taste' && check.killVerdict
-        const approvalContent = isKill
-          ? `**Taste verdict: KILL.** The idea didn't pass the taste gate. Review the graveyard entry and archive this project, or revise to continue.`
-          : `**${d}** artifact verified on disk. Accept to continue to the next discipline, or reply with feedback to revise.`
-        appendChatMessage(projectDir, {
-          id: genId(),
-          role: 'rouge',
-          content: approvalContent,
-          timestamp: new Date().toISOString(),
-          kind: 'approve_prompt',
-          metadata: { discipline: d, killVerdict: isKill || undefined },
+        // Defer the approval card — append it AFTER Claude's response
+        // segments (which include [WROTE:] summaries) so the user sees
+        // what was produced before being asked to accept.
+        const isKill = d === 'taste' && check.killVerdict === true
+        deferredApprovalCards.push({
+          discipline: d,
+          isKill,
         })
       }
     } else {
@@ -942,6 +939,21 @@ async function runSeedingTurn(
   }
   // Reuse the segments parsed above for the gate-and-complete guard.
   appendSegmentedRougeMessages(projectDir, prelimSegments, activeDiscipline ?? undefined)
+  // Now append deferred approval cards — AFTER the response segments
+  // so [WROTE:] summaries appear before the "Accept" prompt.
+  for (const card of deferredApprovalCards) {
+    const approvalContent = card.isKill
+      ? `**Taste verdict: KILL.** The idea didn't pass the taste gate. Review the graveyard entry and archive this project, or revise to continue.`
+      : `**${card.discipline}** artifact verified on disk. Accept to continue to the next discipline, or reply with feedback to revise.`
+    appendChatMessage(projectDir, {
+      id: genId(),
+      role: 'rouge',
+      content: approvalContent,
+      timestamp: new Date().toISOString(),
+      kind: 'approve_prompt',
+      metadata: { discipline: card.discipline, killVerdict: card.isKill || undefined },
+    })
+  }
   applyMarkerStateEffects(projectDir, prelimSegments, activeDiscipline)
   if (rejectedDisciplines.length > 0) {
     // Claude-facing note keeps the [SYSTEM NOTE] prefix — that text is

@@ -139,8 +139,7 @@ export function ChatPanel({
       : DEFAULT_DISCIPLINE_SEQUENCE as unknown as string[]
     const result: DisciplineGroup[] = []
     for (const d of sequence) {
-      const msgs = messagesByDiscipline.get(d)
-      if (!msgs || msgs.length === 0) continue
+      const msgs = messagesByDiscipline.get(d) ?? []
       const status = complete.has(d)
         ? 'complete'
         : d === awaitingApprovalDiscipline
@@ -148,6 +147,10 @@ export function ChatPanel({
           : d === currentDiscipline
             ? 'current'
             : 'pending'
+      // Show disciplines that have messages, are complete, are currently
+      // active, or are awaiting approval. Skip pending disciplines with
+      // no messages — they haven't started yet.
+      if (msgs.length === 0 && status === 'pending') continue
       result.push({ discipline: d, messages: msgs, status })
     }
     return result
@@ -323,6 +326,19 @@ export function ChatPanel({
               />
             ))
           )}
+          {/* Project-level messages (seeding_summary, approve_prompt without
+              a discipline tag) render outside the discipline sections. These
+              are project-wide, not discipline-scoped. */}
+          {displayMessages
+            .filter((m) => (m.kind === 'seeding_summary' || (m.kind === 'approve_prompt' && !m._discipline)) && !m.isPending)
+            .map((msg) => (
+              <ChatMessage
+                key={msg.id}
+                message={msg}
+                onApproveSeeding={bridgeActive ? seeding.approveSeeding : onApproveSeeding}
+                approvalLoading={bridgeActive ? seeding.isApproving : approvalLoading}
+              />
+            ))}
           {/*
             Activity indicator — shows for the WHOLE time Rouge is
             working, not just during the HTTP send. Before Phase 2:
@@ -545,22 +561,36 @@ function DisciplineSection({
         </span>
       </button>
 
-      {expanded && (
-        <div className="mt-2 flex flex-col gap-4 border-l-2 border-gray-200 pl-4">
-          {group.messages.map((msg) => (
-            <ChatMessage
-              key={msg.id}
-              message={msg}
-              onResume={msg.id === lastMessageId ? onResume : undefined}
-              resumeDisabled={resumeDisabled}
-              onApproveDiscipline={onApproveDiscipline}
-              onApproveSeeding={onApproveSeeding}
-              approvalLoading={approvalLoading}
-              onSendGateAnswer={onSendGateAnswer}
-            />
-          ))}
-        </div>
-      )}
+      {expanded && (() => {
+        const lastApproveIdx = group.messages.reduce(
+          (idx, m, i) => (m.kind === 'approve_prompt' ? i : idx), -1,
+        )
+        return (
+          <div className="mt-2 flex flex-col gap-4 border-l-2 border-gray-200 pl-4">
+            {group.messages.length === 0 && group.status === 'current' && (
+              <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
+                <Loader2 className="size-3 animate-spin" />
+                <span>Working...</span>
+              </div>
+            )}
+            {group.messages.map((msg, idx) => {
+              if (msg.kind === 'approve_prompt' && idx !== lastApproveIdx) return null
+              return (
+                <ChatMessage
+                  key={msg.id}
+                  message={msg}
+                  onResume={msg.id === lastMessageId ? onResume : undefined}
+                  resumeDisabled={resumeDisabled}
+                  onApproveDiscipline={onApproveDiscipline}
+                  onApproveSeeding={onApproveSeeding}
+                  approvalLoading={approvalLoading}
+                  onSendGateAnswer={onSendGateAnswer}
+                />
+              )
+            })}
+          </div>
+        )
+      })()}
     </div>
   )
 }
