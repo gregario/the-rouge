@@ -6,6 +6,18 @@ All notable changes to Rouge ship here. Format follows
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-05-04
+
+### Fixed
+
+- Spec view and story list handle object-shaped acceptance criteria
+  (GIVEN/WHEN/THEN format) without crashing.
+- Dashboard TypeScript build excludes `dist/` directory from type checking.
+- `needs_auth`/`needs_database` treat `"none"` as falsy in vision generation.
+- state.json.milestones populated from task_ledger on finalization (critical
+  fix — build loop was escalating with "no milestones in state").
+- Approval errors surfaced to user instead of swallowed silently.
+
 ## [0.5.0] — 2026-05-04
 
 The seeding integrity release. 35 audit bugs fixed, discipline transitions
