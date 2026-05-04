@@ -1,6 +1,6 @@
 {
   "name": "the-rouge",
-  "version": "0.5.3",
+  "version": "0.6.0",
   "description": "Autonomous product development system that builds production-quality products through iterative self-evaluation",
   "type": "commonjs",
   "license": "MIT",

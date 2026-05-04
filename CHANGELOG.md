@@ -6,6 +6,39 @@ All notable changes to Rouge ship here. Format follows
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-05-04
+
+### Added
+
+- Instance lock (`instance-lock.js`) prevents concurrent rouge-loop
+  processes on the same project. Zombie accumulation no longer possible.
+- `rouge stop <name>` command to kill a running build by project name.
+- Per-story model selection: routes routine stories to Sonnet (5× cheaper
+  cache reads), reserves Opus for novel/foundation/retry stories.
+- Relevant source files inlined into build prompt — eliminates ~15
+  exploration turns per story.
+- Post-build pipeline tests (23 tests covering vision-check → complete).
+- Instance lock tests (11 tests).
+
+### Changed
+
+- Build prompt (`01-building.md`) reduced from 773 to 78 lines. Process
+  instructions removed; the model receives spec + context + guardrails.
+- `--max-turns` now dynamic: 40 for Sonnet stories, 80 for Opus (was 200).
+- SIGTERM triggers graceful shutdown (was ignored — caused zombie processes).
+- Loop exits cleanly when filtered project reaches terminal state.
+- `ROUGE_PROJECT_FILTER` actually enforced in `listProjects()` (was dead code).
+
+### Fixed
+
+- Budget persistence: cost-tracking no longer overwrites entire state.json,
+  preserving dashboard budget edits made mid-phase.
+- Shipping handler checks `ship_blocked`/`escalation_needed` before advancing
+  to final-review (was unconditional).
+- FIX-6 state restore preserves `budget_cap_usd` from external edits.
+- 22 stale test failures across discipline-registry, advance-state,
+  escalation-response, and prompt contract tests.
+
 ## [0.5.3] — 2026-05-04
 
 ### Fixed
