@@ -478,15 +478,45 @@ async function runSeedingTurn(
           kind: 'system_note',
           metadata: { discipline: disc },
         })
-        // Fire a continuation that triggers the classifier (after
-        // brainstorming) and kicks off the next applicable discipline.
-        try {
-          await runContinuationTurn(projectDir, [
-            `[SYSTEM] Discipline ${disc} approved by user. State has advanced.`,
-            `Continue with the next discipline.`,
-          ].join(' '), 0, `post-approval-${disc}`)
-        } catch (err) {
-          console.error(`[seeding] post-approval kickoff failed:`, err)
+        // After brainstorming: run classifier + tier gating inline
+        // before the kickoff, same as the approval endpoint does.
+        let postApprovalState = readSeedingState(projectDir)
+        if (disc === 'brainstorming' && !postApprovalState.applicable_disciplines) {
+          const classResult = runAutoClassifier(projectDir)
+          if (classResult.ok) {
+            await markDisciplineComplete(projectDir, 'sizing')
+            const applicable = listApplicableDisciplines(classResult.projectSize)
+            const ss = readSeedingState(projectDir)
+            ss.applicable_disciplines = applicable
+            ss.project_size = classResult.projectSize
+            writeSeedingState(projectDir, ss)
+            for (const d2 of DISCIPLINE_SEQUENCE) {
+              if (d2 === 'brainstorming' || d2 === 'sizing') continue
+              if (!applicable.includes(d2)) {
+                await markDisciplineComplete(projectDir, d2)
+              }
+            }
+            appendChatMessage(projectDir, {
+              id: genId(), role: 'rouge',
+              content: `Project classified as **${classResult.projectSize}** tier. ${applicable.length} discipline(s) applicable: ${applicable.join(', ')}.`,
+              timestamp: new Date().toISOString(), kind: 'system_note',
+              metadata: { discipline: 'sizing' },
+            })
+          }
+          postApprovalState = readSeedingState(projectDir)
+        }
+
+        const nextDisc = postApprovalState.current_discipline
+        if (nextDisc && !(postApprovalState.disciplines_complete ?? []).includes(nextDisc) && nextDisc !== 'sizing') {
+          try {
+            await runContinuationTurn(projectDir, [
+              `[SYSTEM] Discipline ${disc} approved by user. State has advanced.`,
+              `You are now entering ${nextDisc.toUpperCase()}. Follow its sub-prompt rules exactly.`,
+              `Begin the new discipline by asking its first question to the human.`,
+            ].join(' '), 0, `kickoff-${nextDisc}`)
+          } catch (err) {
+            console.error(`[seeding] post-approval kickoff failed:`, err)
+          }
         }
         return { ok: true, status: 200, disciplineComplete: [disc], seedingComplete: false, readyTransition: false }
       }
