@@ -1,5 +1,5 @@
 import { spawn } from 'child_process'
-import { readFileSync, writeFileSync, existsSync, unlinkSync, openSync, statSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, unlinkSync, openSync, closeSync, statSync } from 'fs'
 import { join } from 'path'
 import { statePath as resolveStatePath, writeStateJson } from './state-path'
 import { withStateLock } from './state-lock'
@@ -204,6 +204,11 @@ async function startBuildInner(
         ROUGE_PROJECT_FILTER: slug,
       },
     })
+    // Close the log fd in the parent process immediately after spawn.
+    // The child inherited it and holds its own copy. Without this, a
+    // second project's build spawn inherits this fd through process.env
+    // and writes to the wrong project's build.log.
+    closeSync(logFd)
   } catch (err) {
     await rollbackState()
     return {

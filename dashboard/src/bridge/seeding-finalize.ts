@@ -692,5 +692,36 @@ export async function finalizeSeeding(projectDir: string): Promise<FinalizeResul
     })
   }
 
+  // Commit all state files to the project's git repo so they survive
+  // git clean / git checkout operations by the build loop. Without this,
+  // the build loop's foundation scaffold can wipe untracked files.
+  try {
+    const { execSync } = require('child_process')
+    const gitOpts = { cwd: projectDir, stdio: 'pipe', timeout: 15000 }
+    // Init git if not already a repo
+    if (!existsSync(join(projectDir, '.git'))) {
+      execSync('git init', gitOpts)
+    }
+    // Add all state/seeding artifacts
+    const filesToTrack = [
+      '.rouge/state.json',
+      'vision.json',
+      'task_ledger.json',
+      'product_standard.json',
+      'seeding-state.json',
+      'seed_spec/',
+      'infrastructure_manifest.json',
+    ]
+    for (const f of filesToTrack) {
+      if (existsSync(join(projectDir, f))) {
+        execSync(`git add "${f}"`, gitOpts)
+      }
+    }
+    execSync('git commit -m "rouge: seeding complete — state artifacts committed" --allow-empty', gitOpts)
+  } catch {
+    // Non-fatal — state files might already be tracked, or git might
+    // not be available. The project still works without this commit.
+  }
+
   return { ok: true }
 }
