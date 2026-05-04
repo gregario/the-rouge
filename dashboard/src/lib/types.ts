@@ -48,7 +48,7 @@ export type SeedingDiscipline =
   | 'design'
   | 'legal-privacy'
   | 'marketing'
-export type DisciplineStatus = 'pending' | 'in-progress' | 'complete' | 'skipped'
+export type DisciplineStatus = 'pending' | 'in-progress' | 'complete' | 'skipped' | 'awaiting_approval'
 export type DeployStatus = 'success' | 'failed' | 'rollback'
 export type EscalationTier = 0 | 1 | 2 | 3
 export type Provider = 'vercel' | 'cloudflare' | 'github-pages' | 'supabase' | 'sentry' | 'posthog'
@@ -69,6 +69,8 @@ export type ChatMessageKind =
   | 'system_note'
   | 'resume_prompt'
   | 'wrote_artifact'
+  | 'approve_prompt'
+  | 'seeding_summary'
 
 export type ActivityEventType =
   | 'deploy'
@@ -183,6 +185,10 @@ export interface SeedingProgress {
   applicableDisciplines?: SeedingDiscipline[]
   /** Project tier size (XS/S/M/L/XL). Set after classification. */
   projectSize?: string
+  /** Discipline whose artifact is verified, waiting for user to approve. */
+  awaitingApprovalDiscipline?: SeedingDiscipline
+  /** True when all disciplines approved but final seeding sign-off pending. */
+  seedingAwaitingFinalApproval?: boolean
 }
 
 export interface ConfidencePoint {

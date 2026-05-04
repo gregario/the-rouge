@@ -254,3 +254,25 @@ export async function sendSeedMessage(slug: string, text: string): Promise<SendS
   const data = await res.json()
   return { ...data, ok: res.ok }
 }
+
+export async function approveDiscipline(
+  slug: string,
+  discipline: string,
+): Promise<{ ok: boolean; nextDiscipline?: string; killed?: boolean; error?: string }> {
+  const res = await fetch(`${BRIDGE_URL}/api/projects/${slug}/approve-discipline`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ discipline }),
+  })
+  return res.json()
+}
+
+export async function approveSeeding(
+  slug: string,
+): Promise<{ ok: boolean; error?: string; missingArtifacts?: string[] }> {
+  const res = await fetch(`${BRIDGE_URL}/api/projects/${slug}/approve-seeding`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  })
+  return res.json()
+}
