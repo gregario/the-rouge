@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { fetchSeedingMessages, fetchSeedingStatus, sendSeedMessage, type SeedingChatMessage, type SeedingLivenessStatus } from './bridge-client'
+import { fetchSeedingMessages, fetchSeedingStatus, sendSeedMessage, approveDiscipline as approveDisciplineApi, approveSeeding as approveSeedingApi, type SeedingChatMessage, type SeedingLivenessStatus } from './bridge-client'
 import { stallThresholdMsForDiscipline } from './discipline-timing'
 
 // Phase 2 of the seed-loop architecture plan (see
@@ -65,6 +65,10 @@ interface UseSeedingResult {
   heartbeatAgeMs: number | null
   sendMessage: (text: string) => Promise<void>
   refetch: () => Promise<void>
+  approveDiscipline: (discipline: string) => Promise<void>
+  approveSeeding: () => Promise<void>
+  isApproving: boolean
+  approvalError: string | null
 }
 
 export function useSeeding(slug: string): UseSeedingResult {
@@ -208,6 +212,47 @@ export function useSeeding(slug: string): UseSeedingResult {
     return 'waiting'
   }, [status, heartbeatAgeMs])
 
+  const [isApproving, setIsApproving] = useState(false)
+
+  const [approvalError, setApprovalError] = useState<string | null>(null)
+
+  const approveDiscipline = useCallback(async (discipline: string) => {
+    if (!slug || isApproving) return
+    setIsApproving(true)
+    setApprovalError(null)
+    try {
+      const result = await approveDisciplineApi(slug, discipline)
+      if (!result.ok) {
+        setApprovalError(result.error ?? 'Discipline approval failed')
+      }
+      await refetch()
+    } catch (err) {
+      setApprovalError(err instanceof Error ? err.message : 'Discipline approval failed')
+    } finally {
+      setIsApproving(false)
+    }
+  }, [slug, isApproving, refetch])
+
+  const approveSeeding = useCallback(async () => {
+    if (!slug || isApproving) return
+    setIsApproving(true)
+    setApprovalError(null)
+    try {
+      const result = await approveSeedingApi(slug)
+      if (!result.ok) {
+        const detail = result.missingArtifacts?.length
+          ? `Missing: ${result.missingArtifacts.join(', ')}`
+          : result.error ?? 'Seeding approval failed'
+        setApprovalError(detail)
+      }
+      await refetch()
+    } catch (err) {
+      setApprovalError(err instanceof Error ? err.message : 'Seeding approval failed')
+    } finally {
+      setIsApproving(false)
+    }
+  }, [slug, isApproving, refetch])
+
   return {
     messages,
     status,
@@ -221,5 +266,9 @@ export function useSeeding(slug: string): UseSeedingResult {
     heartbeatAgeMs,
     sendMessage,
     refetch,
+    approveDiscipline,
+    approveSeeding,
+    isApproving,
+    approvalError,
   }
 }

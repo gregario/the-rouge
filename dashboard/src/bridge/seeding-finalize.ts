@@ -300,6 +300,149 @@ function ensureProductStandard(projectDir: string): void {
 }
 
 /**
+ * Generate vision.json from existing discipline artifacts if it doesn't exist.
+ * Assembles from brainstorming (product name, persona, problem), taste
+ * (scope), sizing (project_size), and infrastructure manifest (deploy target).
+ */
+function ensureVision(projectDir: string): void {
+  const visionPath = join(projectDir, 'vision.json')
+  if (existsSync(visionPath) && statSync(visionPath).size >= 200) return
+
+  // Read brainstorming artifact for product identity
+  let productName = 'Untitled'
+  let oneLiner = ''
+  let persona = ''
+  let problem = ''
+  for (const candidate of ['seed_spec/brainstorming.md', 'seed_spec/brainstorming-design-doc.md', 'docs/brainstorming.md']) {
+    const p = join(projectDir, candidate)
+    if (!existsSync(p)) continue
+    try {
+      const text = readFileSync(p, 'utf-8')
+      // Extract product name from first H1: "# Product Name — subtitle"
+      const h1 = text.match(/^#\s+(.+)/m)
+      if (h1) {
+        const parts = h1[1].split(/\s*[—–-]\s*/)
+        productName = parts[0].trim()
+        if (parts[1]) oneLiner = parts[1].trim()
+      }
+      // Extract persona from "## The User" or "**Persona:**" sections
+      const personaMatch = text.match(/(?:##\s*The User|Persona)[:\s]*\n+\*\*(.+?)\*\*/)
+        ?? text.match(/Persona[:\s]+(.+?)(?:\n|$)/i)
+      if (personaMatch) persona = personaMatch[1].trim()
+      // Extract problem from "## The Problem" section
+      const problemMatch = text.match(/##\s*The Problem\s*\n+([\s\S]*?)(?=\n##|\n$)/i)
+      if (problemMatch) problem = problemMatch[1].trim().split('\n')[0]
+      break
+    } catch { /* try next */ }
+  }
+
+  // Read taste for scope
+  let scope: { in: string[]; out: string[]; deferred: string[] } | undefined
+  for (const candidate of ['seed_spec/taste.md', 'seed_spec/taste_verdict.md']) {
+    const p = join(projectDir, candidate)
+    if (!existsSync(p)) continue
+    try {
+      const text = readFileSync(p, 'utf-8')
+      const jsonMatch = text.match(/```json\s*([\s\S]*?)```/)
+      if (jsonMatch) {
+        const data = JSON.parse(jsonMatch[1])
+        const brief = data.sharpened_brief
+        if (brief) {
+          scope = {
+            in: Array.isArray(brief.scope_in) ? brief.scope_in : [],
+            out: Array.isArray(brief.scope_out) ? brief.scope_out : [],
+            deferred: Array.isArray(brief.scope_deferred) ? brief.scope_deferred : [],
+          }
+          if (brief.one_liner) oneLiner = brief.one_liner
+          if (brief.persona) persona = brief.persona
+          if (brief.problem) problem = brief.problem
+        }
+      }
+      break
+    } catch { /* try next */ }
+  }
+
+  // Read sizing for project_size
+  let projectSize: string | undefined
+  try {
+    const sizing = JSON.parse(readFileSync(join(projectDir, 'seed_spec/sizing.json'), 'utf-8'))
+    projectSize = sizing.project_size
+  } catch { /* no sizing */ }
+
+  // Read infrastructure manifest
+  let infrastructure: Record<string, unknown> = {}
+  try {
+    const manifest = JSON.parse(readFileSync(join(projectDir, 'infrastructure_manifest.json'), 'utf-8'))
+    infrastructure = {
+      deployment_target: manifest.deploy?.target,
+      needs_database: !!(manifest.database?.provider && manifest.database.provider !== 'none'),
+      needs_auth: !!(manifest.auth?.strategy && manifest.auth.strategy !== 'none'),
+    }
+  } catch { /* no manifest */ }
+
+  const vision: Record<string, unknown> = {
+    product_name: productName,
+    one_liner: oneLiner || `${productName} — a ${projectSize ?? 'small'} project`,
+    persona: persona || 'users',
+    problem: problem || '',
+    infrastructure,
+    generated: true,
+    generated_at: new Date().toISOString(),
+  }
+  if (scope) vision.scope = scope
+  if (projectSize) {
+    vision.complexity_profile = {
+      primary: projectSize === 'XS' ? 'single-page' : 'multi-route',
+    }
+  }
+
+  writeJsonAtomic(visionPath, vision)
+}
+
+/**
+ * Generate task_ledger.json from seed_spec/milestones.json if it doesn't exist.
+ * The milestones file is schema-validated by the spec discipline's artifact
+ * check, so by the time finalization runs it's guaranteed to be well-formed.
+ */
+function ensureTaskLedger(projectDir: string): void {
+  const ledgerPath = join(projectDir, 'task_ledger.json')
+  if (existsSync(ledgerPath)) return
+
+  // Read milestones.json — the source of truth for story structure
+  const milestonesPath = join(projectDir, 'seed_spec/milestones.json')
+  if (!existsSync(milestonesPath)) return
+  let milestones: unknown[]
+  try {
+    const data = JSON.parse(readFileSync(milestonesPath, 'utf-8'))
+    milestones = Array.isArray(data.milestones) ? data.milestones : []
+  } catch {
+    return
+  }
+  if (milestones.length === 0) return
+
+  // Read project name from brainstorming
+  let projectName = 'untitled'
+  for (const candidate of ['seed_spec/brainstorming.md', 'seed_spec/brainstorming-design-doc.md']) {
+    const p = join(projectDir, candidate)
+    if (!existsSync(p)) continue
+    try {
+      const h1 = readFileSync(p, 'utf-8').match(/^#\s+(.+)/m)
+      if (h1) {
+        projectName = h1[1].split(/\s*[—–-]\s*/)[0].trim()
+      }
+      break
+    } catch { /* try next */ }
+  }
+
+  writeJsonAtomic(ledgerPath, {
+    project: projectName,
+    seeded_at: new Date().toISOString(),
+    seeded_by: 'bridge',
+    milestones,
+  })
+}
+
+/**
  * Mirror infrastructure decisions from `infrastructure_manifest.json` into
  * `vision.json.infrastructure` (and `cycle_context.json.vision.infrastructure`),
  * where the launcher's provisioner actually looks them up.
@@ -332,8 +475,8 @@ function propagateInfrastructureFromManifest(projectDir: string): void {
   const target = manifest.deploy?.target
   if (!target || typeof target !== 'string') return
 
-  const needsDatabase = !!(manifest.database && manifest.database.provider)
-  const needsAuth = !!(manifest.auth && (manifest.auth.strategy || manifest.auth.provider))
+  const needsDatabase = !!(manifest.database && manifest.database.provider && manifest.database.provider !== 'none')
+  const needsAuth = !!(manifest.auth && manifest.auth.strategy && manifest.auth.strategy !== 'none')
 
   const visionPath = join(projectDir, 'vision.json')
   if (existsSync(visionPath)) {
@@ -387,8 +530,10 @@ function propagateInfrastructureFromManifest(projectDir: string): void {
 }
 
 export async function finalizeSeeding(projectDir: string): Promise<FinalizeResult> {
-  // Generate product_standard.json from library defaults if no
-  // discipline wrote it. Must run before the artifact check below.
+  // Generate missing artifacts from existing discipline outputs.
+  // These run before the artifact check so the check validates them.
+  ensureVision(projectDir)
+  ensureTaskLedger(projectDir)
   ensureProductStandard(projectDir)
 
   // Propagate deployment_target and needs_* from the infrastructure
@@ -518,17 +663,28 @@ export async function finalizeSeeding(projectDir: string): Promise<FinalizeResul
       }
 
       state.current_state = 'ready'
-      // Initialize the foundation field. Previously the orchestrator
-      // prompt was supposed to do this on human approval, but the bridge
-      // finalize path runs independently and left `foundation: null`
-      // behind — testimonial reached state=foundation with a null
-      // foundation field and rouge-loop crashed when it tried to read
-      // `state.foundation.status`. Setting `{ status: 'pending' }` here
-      // guarantees the shape is sound whenever state advances to 'ready'.
-      //
-      // If the caller (orchestrator) has already set foundation to
-      // something more specific (e.g., `{ status: 'complete' }` when the
-      // complexity profile waives foundation), preserve it.
+
+      // Copy milestones from task_ledger.json into state.json. The build
+      // loop reads task_ledger.json, but the dashboard reads state.json
+      // for the milestone timeline UI. Without this, state.milestones
+      // stays empty and the build escalates with "no milestones in state."
+      if (!state.milestones || state.milestones.length === 0) {
+        const lp = join(projectDir, 'task_ledger.json')
+        if (existsSync(lp)) {
+          try {
+            const ledger = JSON.parse(readFileSync(lp, 'utf-8'))
+            if (Array.isArray(ledger.milestones) && ledger.milestones.length > 0) {
+              state.milestones = ledger.milestones.map((m: { name: string; status?: string; stories?: unknown[] }) => ({
+                name: m.name,
+                status: m.status ?? 'pending',
+                stories: Array.isArray(m.stories) ? m.stories : [],
+              }))
+            }
+          } catch { /* malformed ledger — milestones stay empty, build will escalate */ }
+        }
+      }
+
+      // Initialize the foundation field.
       if (!state.foundation) {
         state.foundation = { status: 'pending' }
       }

@@ -179,6 +179,10 @@ export type SeedingMessageKind =
   // produced-work notification. Used heavily by spec for per-FA
   // completions.
   | 'wrote_artifact'
+  // Discipline approval prompt: artifact verified, user must accept or revise.
+  | 'approve_prompt'
+  // Final seeding summary: all disciplines done, user must approve to start build.
+  | 'seeding_summary'
 
 export interface SeedingChatMessage {
   id: string           // e.g. "msg-1712345678-abc"
@@ -195,6 +199,7 @@ export interface SeedingChatMessage {
     // anchor a reply to the right gate and lets the override mechanism
     // (PR 2) rewind to a specific decision.
     markerId?: string
+    killVerdict?: boolean
   }
 }
 
@@ -237,7 +242,7 @@ export interface SeedingSessionState {
   //   [HEARTBEAT:] markers. The next user message becomes an override,
   //   not a gate answer.
   // Undefined on legacy state files = treated as 'running_autonomous'.
-  mode?: 'awaiting_gate' | 'running_autonomous'
+  mode?: 'awaiting_gate' | 'running_autonomous' | 'awaiting_approval'
 
   // The gate Rouge is currently waiting on. Must be set iff
   // mode === 'awaiting_gate'.
@@ -262,6 +267,20 @@ export interface SeedingSessionState {
   applicable_disciplines?: string[]
   /** Project size tier from the auto-classifier. */
   project_size?: string
+
+  // ─── Discipline approval gate ─────────────────────────────────────
+  //
+  // Set when a discipline's artifact is verified but the user hasn't
+  // approved advancement yet. The bridge pauses here — no continuation
+  // turns fire, no discipline advancement happens — until the user
+  // clicks "Accept & continue" or sends revision feedback.
+
+  /** Discipline whose artifact is verified, awaiting user approval. */
+  discipline_awaiting_approval?: string
+  /** ISO 8601 timestamp when approval was requested. */
+  approval_requested_at?: string
+  /** True when all disciplines are approved but final seeding sign-off is pending. */
+  seeding_awaiting_final_approval?: boolean
 
   // ─── Taste kill gate ──────────────────────────────────────────────
   //

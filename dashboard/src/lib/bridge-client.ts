@@ -193,12 +193,11 @@ export interface SeedingChatMessage {
   timestamp: string
   // Marker kind for gated-autonomy messages — undefined on legacy
   // or plain prose. Drives distinct rendering in the chat UI.
-  kind?: 'prose' | 'gate_question' | 'autonomous_decision' | 'heartbeat' | 'system_note' | 'resume_prompt' | 'wrote_artifact'
+  kind?: 'prose' | 'gate_question' | 'autonomous_decision' | 'heartbeat' | 'system_note' | 'resume_prompt' | 'wrote_artifact' | 'approve_prompt' | 'seeding_summary'
   metadata?: {
     discipline?: string
-    // Gate id ('brainstorming/H2-north-star') or decision slug —
-    // lets the override mechanism address specific decisions.
     markerId?: string
+    killVerdict?: boolean
   }
 }
 
@@ -253,4 +252,26 @@ export async function sendSeedMessage(slug: string, text: string): Promise<SendS
   })
   const data = await res.json()
   return { ...data, ok: res.ok }
+}
+
+export async function approveDiscipline(
+  slug: string,
+  discipline: string,
+): Promise<{ ok: boolean; nextDiscipline?: string; killed?: boolean; error?: string }> {
+  const res = await fetch(`${BRIDGE_URL}/api/projects/${slug}/approve-discipline`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ discipline }),
+  })
+  return res.json()
+}
+
+export async function approveSeeding(
+  slug: string,
+): Promise<{ ok: boolean; error?: string; missingArtifacts?: string[] }> {
+  const res = await fetch(`${BRIDGE_URL}/api/projects/${slug}/approve-seeding`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  })
+  return res.json()
 }

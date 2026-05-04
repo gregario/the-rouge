@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { ChevronRight, HelpCircle, CircleDot, Activity, Info, Play, FileCheck2 } from 'lucide-react'
+import { ChevronRight, HelpCircle, CircleDot, Activity, Info, Play, FileCheck2, CheckCircle2, Rocket, Loader2 } from 'lucide-react'
 
 // Markdown renderer with tight spacing matched to the chat panel's style
 function Markdown({ content, className }: { content: string; className?: string }) {
@@ -59,9 +59,17 @@ interface ChatMessageProps {
   /** True while a send is in flight — disables the Continue button on
    *  resume prompts so it doesn't fire twice. */
   resumeDisabled?: boolean
+  /** Called when user clicks "Accept & continue" on an approve_prompt. */
+  onApproveDiscipline?: (discipline: string) => void
+  /** Called when user clicks "Approve & start build" on a seeding_summary. */
+  onApproveSeeding?: () => void
+  /** True while an approval API call is in flight. */
+  approvalLoading?: boolean
+  /** Called when user clicks a gate option chip (sends the letter as message). */
+  onSendGateAnswer?: (text: string) => void
 }
 
-export function ChatMessage({ message, onResume, resumeDisabled }: ChatMessageProps) {
+export function ChatMessage({ message, onResume, resumeDisabled, onApproveDiscipline, onApproveSeeding, approvalLoading, onSendGateAnswer }: ChatMessageProps) {
   const [reasoningOpen, setReasoningOpen] = useState(false)
 
   // Human messages
@@ -97,7 +105,7 @@ export function ChatMessage({ message, onResume, resumeDisabled }: ChatMessagePr
   // into prose and gates visually demand an answer.
   if (message.kind === 'gate_question') {
     return (
-      <GateQuestionMessage message={message} />
+      <GateQuestionMessage message={message} onSendAnswer={onSendGateAnswer} answerDisabled={resumeDisabled} />
     )
   }
   if (message.kind === 'autonomous_decision') {
@@ -127,6 +135,24 @@ export function ChatMessage({ message, onResume, resumeDisabled }: ChatMessagePr
   if (message.kind === 'wrote_artifact') {
     return (
       <WroteArtifactMessage message={message} />
+    )
+  }
+  if (message.kind === 'approve_prompt') {
+    return (
+      <ApprovePromptMessage
+        message={message}
+        onApprove={onApproveDiscipline}
+        loading={approvalLoading}
+      />
+    )
+  }
+  if (message.kind === 'seeding_summary') {
+    return (
+      <SeedingSummaryMessage
+        message={message}
+        onApprove={onApproveSeeding}
+        loading={approvalLoading}
+      />
     )
   }
 
@@ -211,10 +237,58 @@ export function ChatMessage({ message, onResume, resumeDisabled }: ChatMessagePr
   )
 }
 
-// A hard or soft gate — Rouge is waiting on the user. Render
-// prominently so it's visually distinct from prose/decisions and the
-// user knows this is the thing blocking progress.
-function GateQuestionMessage({ message }: { message: ChatMessageType }) {
+interface ParsedOption {
+  letter: string
+  text: string
+}
+
+function parseGateOptions(content: string): { body: string; options: ParsedOption[]; recommendation?: string } {
+  const lines = content.split('\n')
+  const options: ParsedOption[] = []
+  const bodyLines: string[] = []
+  let recommendation: string | undefined
+
+  for (const line of lines) {
+    const optMatch = line.match(/^([A-Z])\)\s+(.+)/)
+    const recMatch = line.match(/^Recommendation:\s*([A-Z])\b/)
+    if (optMatch) {
+      options.push({ letter: optMatch[1], text: optMatch[2] })
+    } else if (recMatch) {
+      recommendation = recMatch[1]
+    } else {
+      bodyLines.push(line)
+    }
+  }
+
+  // Fallback: if no lettered options found but the content contains
+  // acceptance language, synthesize an "Accept" chip so the user
+  // doesn't have to type.
+  if (options.length === 0) {
+    const lower = content.toLowerCase()
+    const hasAcceptLanguage = ['accept', 'sign off', 'approve', 'as-is',
+      'recommendations', 'accept the verdict', 'accept the'].some(
+      (phrase) => lower.includes(phrase),
+    )
+    if (hasAcceptLanguage) {
+      options.push({ letter: '✓', text: 'Accept' })
+      recommendation = '✓'
+    }
+  }
+
+  return { body: bodyLines.join('\n').trim(), options, recommendation }
+}
+
+function GateQuestionMessage({
+  message,
+  onSendAnswer,
+  answerDisabled,
+}: {
+  message: ChatMessageType
+  onSendAnswer?: (text: string) => void
+  answerDisabled?: boolean
+}) {
+  const { body, options, recommendation } = parseGateOptions(message.content)
+
   return (
     <div
       data-testid="chat-message"
@@ -239,7 +313,43 @@ function GateQuestionMessage({ message }: { message: ChatMessageType }) {
           </Badge>
         )}
       </div>
-      <Markdown content={message.content} />
+      <Markdown content={body} />
+
+      {options.length > 0 && (
+        <div className="mt-3 flex flex-col gap-2" data-testid="gate-option-chips">
+          {options.map((opt) => (
+            <button
+              key={opt.letter}
+              type="button"
+              onClick={() => onSendAnswer?.(opt.letter === '✓' ? 'accept' : opt.letter)}
+              disabled={answerDisabled || !onSendAnswer}
+              className={cn(
+                'flex items-start gap-2.5 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors',
+                'hover:bg-blue-100/80 disabled:opacity-50 disabled:cursor-not-allowed',
+                opt.letter === recommendation
+                  ? 'border-blue-400 bg-blue-100/50'
+                  : 'border-blue-200 bg-white',
+              )}
+              data-testid={`gate-option-${opt.letter}`}
+            >
+              <span className={cn(
+                'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-xs font-bold',
+                opt.letter === recommendation
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-blue-100 text-blue-700',
+              )}>
+                {opt.letter}
+              </span>
+              <span className="text-gray-800">{opt.text}</span>
+              {opt.letter === recommendation && (
+                <span className="ml-auto mt-0.5 shrink-0 text-[10px] font-medium uppercase tracking-wide text-blue-600">
+                  Recommended
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -611,5 +721,92 @@ function ReasoningBlock({
         </div>
       </CollapsibleContent>
     </Collapsible>
+  )
+}
+
+function ApprovePromptMessage({
+  message,
+  onApprove,
+  loading,
+}: {
+  message: ChatMessageType
+  onApprove?: (discipline: string) => void
+  loading?: boolean
+}) {
+  const discipline = message.metadata?.discipline ?? message.discipline ?? 'unknown'
+  const isKill = message.metadata?.killVerdict === true
+  return (
+    <div
+      data-testid="chat-message"
+      data-role="rouge"
+      data-kind="approve_prompt"
+      className="rounded-lg border-2 border-amber-300 bg-amber-50/60 px-4 py-3"
+    >
+      <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-amber-900">
+        <CheckCircle2 className="size-4" />
+        {isKill ? 'Taste verdict: KILL' : `${discipline} ready for review`}
+      </div>
+      <div className="mb-3 text-sm leading-relaxed text-amber-800">
+        <Markdown content={message.content} />
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          onClick={() => onApprove?.(discipline)}
+          disabled={loading || !onApprove}
+          className={cn(
+            'h-8 gap-1.5 text-xs font-medium',
+            isKill
+              ? 'bg-red-600 hover:bg-red-700 text-white'
+              : 'bg-green-600 hover:bg-green-700 text-white',
+          )}
+          data-testid="approve-discipline-button"
+        >
+          {loading ? <Loader2 className="size-3 animate-spin" /> : <CheckCircle2 className="size-3" />}
+          {isKill ? 'Archive project' : 'Accept & continue'}
+        </Button>
+        <span className="text-xs text-amber-700">or reply with feedback to revise</span>
+      </div>
+    </div>
+  )
+}
+
+function SeedingSummaryMessage({
+  message,
+  onApprove,
+  loading,
+}: {
+  message: ChatMessageType
+  onApprove?: () => void
+  loading?: boolean
+}) {
+  return (
+    <div
+      data-testid="chat-message"
+      data-role="rouge"
+      data-kind="seeding_summary"
+      className="rounded-lg border-2 border-green-300 bg-green-50/60 px-4 py-3"
+    >
+      <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-green-900">
+        <Rocket className="size-4" />
+        Seeding complete — ready to build
+      </div>
+      <div className="mb-3 text-sm leading-relaxed text-green-800">
+        <Markdown content={message.content} />
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          onClick={onApprove}
+          disabled={loading || !onApprove}
+          className="h-8 gap-1.5 bg-green-600 text-xs font-medium text-white hover:bg-green-700"
+          data-testid="approve-seeding-button"
+        >
+          {loading ? <Loader2 className="size-3 animate-spin" /> : <Rocket className="size-3" />}
+          Approve &amp; start build
+        </Button>
+        <span className="text-xs text-green-700">or reply to revise a discipline</span>
+      </div>
+    </div>
   )
 }

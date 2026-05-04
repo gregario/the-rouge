@@ -25,6 +25,10 @@ interface ChatPanelProps {
   currentDiscipline?: string
   selectedDiscipline?: string
   applicableDisciplines?: string[]
+  onApproveDiscipline?: (discipline: string) => void
+  onApproveSeeding?: () => void
+  approvalLoading?: boolean
+  awaitingApprovalDiscipline?: string
 }
 
 // Default ordering when no applicable list is provided
@@ -50,7 +54,7 @@ type MessageWithDiscipline = ChatMessageType & { _discipline?: string }
 interface DisciplineGroup {
   discipline: string
   messages: MessageWithDiscipline[]
-  status: 'complete' | 'current' | 'pending'
+  status: 'complete' | 'current' | 'pending' | 'awaiting_approval'
 }
 
 export function ChatPanel({
@@ -62,6 +66,10 @@ export function ChatPanel({
   currentDiscipline,
   selectedDiscipline,
   applicableDisciplines,
+  onApproveDiscipline,
+  onApproveSeeding,
+  approvalLoading,
+  awaitingApprovalDiscipline,
 }: ChatPanelProps) {
   const bridgeActive = isBridgeEnabled() && !!slug
   const seeding = useSeeding(bridgeActive ? slug : '')
@@ -80,6 +88,8 @@ export function ChatPanel({
         timestamp: m.timestamp,
         kind: m.kind,
         markerId: m.metadata?.markerId,
+        discipline: m.metadata?.discipline as import('@/lib/types').SeedingDiscipline | undefined,
+        metadata: m.metadata ? { discipline: m.metadata.discipline, killVerdict: m.metadata.killVerdict } : undefined,
         _discipline: m.metadata?.discipline,
       }))
       // Optimistic pending human message: append at the end so the
@@ -129,13 +139,22 @@ export function ChatPanel({
       : DEFAULT_DISCIPLINE_SEQUENCE as unknown as string[]
     const result: DisciplineGroup[] = []
     for (const d of sequence) {
-      const msgs = messagesByDiscipline.get(d)
-      if (!msgs || msgs.length === 0) continue
-      const status = complete.has(d) ? 'complete' : d === currentDiscipline ? 'current' : 'pending'
+      const msgs = messagesByDiscipline.get(d) ?? []
+      const status = complete.has(d)
+        ? 'complete'
+        : d === awaitingApprovalDiscipline
+          ? 'awaiting_approval'
+          : d === currentDiscipline
+            ? 'current'
+            : 'pending'
+      // Show disciplines that have messages, are complete, are currently
+      // active, or are awaiting approval. Skip pending disciplines with
+      // no messages — they haven't started yet.
+      if (msgs.length === 0 && status === 'pending') continue
       result.push({ discipline: d, messages: msgs, status })
     }
     return result
-  }, [displayMessages, completedDisciplines, currentDiscipline, applicableDisciplines])
+  }, [displayMessages, completedDisciplines, currentDiscipline, applicableDisciplines, awaitingApprovalDiscipline])
 
   // Auto-expand logic:
   // - If currentDiscipline is provided: expand that one
@@ -243,9 +262,11 @@ export function ChatPanel({
     }
   }
 
-  // Callback for the Continue button on resume_prompt messages. Routes
-  // through the same sendMessage path as typed input so the chain
-  // resumes with a fresh auto-continuation budget.
+  async function handleGateAnswer(text: string) {
+    if (!bridgeActive || seeding.isSending) return
+    await seeding.sendMessage(text)
+  }
+
   async function handleResume() {
     if (!bridgeActive || seeding.isSending) return
     await seeding.sendMessage('continue')
@@ -280,23 +301,16 @@ export function ChatPanel({
               <ChatMessage
                 key={msg.id}
                 message={msg}
-                // Resume button is only live on the last message — a
-                // resume_prompt buried in history is stale (the user
-                // either resumed it manually or Rouge has since moved
-                // on). Non-last resume_prompts render with a disabled
-                // button.
                 onResume={msg.id === lastMessageId ? handleResume : undefined}
                 resumeDisabled={bridgeActive && seeding.isSending}
+                onApproveDiscipline={bridgeActive ? seeding.approveDiscipline : onApproveDiscipline}
+                onApproveSeeding={bridgeActive ? seeding.approveSeeding : onApproveSeeding}
+                approvalLoading={bridgeActive ? seeding.isApproving : approvalLoading}
+                onSendGateAnswer={bridgeActive ? handleGateAnswer : undefined}
               />
             ))
           ) : (
             groups.map((group) => (
-              // Transition banners between completed sections were
-              // removed — the "Complete" pill in the section header
-              // plus the left-sidebar stepper already convey handoff.
-              // Stacking both produced ladders of green between every
-              // completed discipline. See feedback from 2026-04-17 PR
-              // #164 dogfood.
               <DisciplineSection
                 key={group.discipline}
                 group={group}
@@ -305,8 +319,30 @@ export function ChatPanel({
                 onResume={handleResume}
                 resumeDisabled={bridgeActive && seeding.isSending}
                 lastMessageId={lastMessageId}
+                onApproveDiscipline={bridgeActive ? seeding.approveDiscipline : onApproveDiscipline}
+                onApproveSeeding={bridgeActive ? seeding.approveSeeding : onApproveSeeding}
+                approvalLoading={bridgeActive ? seeding.isApproving : approvalLoading}
+                onSendGateAnswer={bridgeActive ? handleGateAnswer : undefined}
               />
             ))
+          )}
+          {/* Project-level messages (seeding_summary, approve_prompt without
+              a discipline tag) render outside the discipline sections. These
+              are project-wide, not discipline-scoped. */}
+          {displayMessages
+            .filter((m) => (m.kind === 'seeding_summary' || (m.kind === 'approve_prompt' && !m._discipline)) && !m.isPending)
+            .map((msg) => (
+              <ChatMessage
+                key={msg.id}
+                message={msg}
+                onApproveSeeding={bridgeActive ? seeding.approveSeeding : onApproveSeeding}
+                approvalLoading={bridgeActive ? seeding.isApproving : approvalLoading}
+              />
+            ))}
+          {bridgeActive && seeding.approvalError && (
+            <div className="rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
+              <strong>Approval failed:</strong> {seeding.approvalError}
+            </div>
           )}
           {/*
             Activity indicator — shows for the WHOLE time Rouge is
@@ -470,6 +506,10 @@ function DisciplineSection({
   onResume,
   resumeDisabled,
   lastMessageId,
+  onApproveDiscipline,
+  onApproveSeeding,
+  approvalLoading,
+  onSendGateAnswer,
 }: {
   group: DisciplineGroup
   expanded: boolean
@@ -477,17 +517,23 @@ function DisciplineSection({
   onResume?: () => void
   resumeDisabled?: boolean
   lastMessageId?: string | null
+  onApproveDiscipline?: (discipline: string) => void
+  onApproveSeeding?: () => void
+  approvalLoading?: boolean
+  onSendGateAnswer?: (text: string) => void
 }) {
   const label = DISCIPLINE_LABELS[group.discipline] ?? group.discipline
 
-  // Status rendering as a pill next to the discipline name — replaces
-  // the icon-only status indicator. The pill is self-explanatory and
-  // removes the need for separate transition banners between sections.
   const statusPill =
     group.status === 'complete' ? (
       <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700">
         <Check className="size-3" />
         Complete
+      </span>
+    ) : group.status === 'awaiting_approval' ? (
+      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+        <span className="size-1.5 rounded-full bg-amber-500" />
+        Ready for review
       </span>
     ) : group.status === 'current' ? (
       <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700">
@@ -503,6 +549,7 @@ function DisciplineSection({
         className={cn(
           'flex w-full items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-left transition-colors hover:bg-gray-100',
           group.status === 'current' && 'border-blue-200 bg-blue-50 hover:bg-blue-100',
+          group.status === 'awaiting_approval' && 'border-amber-300 bg-amber-50 hover:bg-amber-100',
           group.status === 'complete' && 'border-green-200'
         )}
         data-testid={`discipline-section-${group.discipline}`}
@@ -519,18 +566,36 @@ function DisciplineSection({
         </span>
       </button>
 
-      {expanded && (
-        <div className="mt-2 flex flex-col gap-4 border-l-2 border-gray-200 pl-4">
-          {group.messages.map((msg) => (
-            <ChatMessage
-              key={msg.id}
-              message={msg}
-              onResume={msg.id === lastMessageId ? onResume : undefined}
-              resumeDisabled={resumeDisabled}
-            />
-          ))}
-        </div>
-      )}
+      {expanded && (() => {
+        const lastApproveIdx = group.messages.reduce(
+          (idx, m, i) => (m.kind === 'approve_prompt' ? i : idx), -1,
+        )
+        return (
+          <div className="mt-2 flex flex-col gap-4 border-l-2 border-gray-200 pl-4">
+            {group.messages.length === 0 && group.status === 'current' && (
+              <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
+                <Loader2 className="size-3 animate-spin" />
+                <span>Working...</span>
+              </div>
+            )}
+            {group.messages.map((msg, idx) => {
+              if (msg.kind === 'approve_prompt' && idx !== lastApproveIdx) return null
+              return (
+                <ChatMessage
+                  key={msg.id}
+                  message={msg}
+                  onResume={msg.id === lastMessageId ? onResume : undefined}
+                  resumeDisabled={resumeDisabled}
+                  onApproveDiscipline={onApproveDiscipline}
+                  onApproveSeeding={onApproveSeeding}
+                  approvalLoading={approvalLoading}
+                  onSendGateAnswer={onSendGateAnswer}
+                />
+              )
+            })}
+          </div>
+        )
+      })()}
     </div>
   )
 }

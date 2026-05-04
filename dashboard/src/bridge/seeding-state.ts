@@ -103,10 +103,10 @@ function nextDiscipline(complete: string[]): string {
  * inside a withStateLock block, use updateDisciplineStatusInStateUnlocked
  * instead to avoid deadlock.
  */
-async function updateDisciplineStatusInState(
+export async function updateDisciplineStatusInState(
   projectDir: string,
   discipline: string,
-  targetStatus: 'in-progress' | 'complete',
+  targetStatus: 'in-progress' | 'complete' | 'awaiting_approval',
 ): Promise<void> {
   await withStateLock(projectDir, async () => {
     await updateDisciplineStatusInStateUnlocked(projectDir, discipline, targetStatus)
@@ -120,7 +120,7 @@ async function updateDisciplineStatusInState(
 async function updateDisciplineStatusInStateUnlocked(
   projectDir: string,
   discipline: string,
-  targetStatus: 'in-progress' | 'complete',
+  targetStatus: 'in-progress' | 'complete' | 'awaiting_approval',
 ): Promise<void> {
   const stateFile = statePath(projectDir)
   if (!existsSync(stateFile)) return
@@ -132,8 +132,9 @@ async function updateDisciplineStatusInStateUnlocked(
     const entry = disciplines.find(d => d.discipline === discipline)
     if (!entry) return
 
-    // Monotonic forward-only promotion. Rank: pending < in-progress < complete.
-    const rank = (s: string) => (s === 'complete' ? 2 : s === 'in-progress' ? 1 : 0)
+    // Monotonic forward-only promotion. awaiting_approval sits between
+    // in-progress and complete (user must approve before it's truly done).
+    const rank = (s: string) => (s === 'complete' ? 3 : s === 'awaiting_approval' ? 2 : s === 'in-progress' ? 1 : 0)
     if (rank(targetStatus) > rank(entry.status)) {
       entry.status = targetStatus
     } else {
@@ -314,7 +315,7 @@ export function updateHeartbeat(projectDir: string): void {
  * treated as `running_autonomous` — matches pre-gated-autonomy behaviour
  * and keeps old projects reconciling the way they used to.
  */
-export function effectiveMode(state: SeedingSessionState): 'awaiting_gate' | 'running_autonomous' {
+export function effectiveMode(state: SeedingSessionState): 'awaiting_gate' | 'running_autonomous' | 'awaiting_approval' {
   return state.mode ?? 'running_autonomous'
 }
 
@@ -325,4 +326,38 @@ export function effectiveMode(state: SeedingSessionState): 'awaiting_gate' | 'ru
  */
 export function isAwaitingGateFor(state: SeedingSessionState, discipline: string): boolean {
   return effectiveMode(state) === 'awaiting_gate' && state.pending_gate?.discipline === discipline
+}
+
+/**
+ * Transition a discipline to "awaiting approval" — artifact is verified
+ * on disk, but the user hasn't accepted advancement yet. The bridge
+ * pauses here: no continuation turns fire, no discipline advancement.
+ */
+export function setAwaitingApproval(projectDir: string, discipline: string): void {
+  const state = readSeedingState(projectDir)
+  if (state.discipline_awaiting_approval === discipline) return
+  state.mode = 'awaiting_approval'
+  state.discipline_awaiting_approval = discipline
+  state.approval_requested_at = new Date().toISOString()
+  state.last_activity = new Date().toISOString()
+  writeSeedingState(projectDir, state)
+}
+
+/**
+ * Clear the approval gate. Called either when the user clicks "Accept"
+ * (before markDisciplineComplete) or when they send revision feedback
+ * (discipline reverts to active).
+ */
+export function clearAwaitingApproval(projectDir: string): void {
+  const state = readSeedingState(projectDir)
+  if (!state.discipline_awaiting_approval && state.mode !== 'awaiting_approval') return
+  state.mode = 'running_autonomous'
+  delete state.discipline_awaiting_approval
+  delete state.approval_requested_at
+  state.last_activity = new Date().toISOString()
+  writeSeedingState(projectDir, state)
+}
+
+export function isAwaitingApproval(state: SeedingSessionState): boolean {
+  return state.mode === 'awaiting_approval' && !!state.discipline_awaiting_approval
 }

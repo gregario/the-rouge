@@ -3,7 +3,7 @@ import { join } from 'path'
 import { statePath, writeStateJson } from './state-path'
 import { withStateLock } from './state-lock'
 import { finalizeSeeding } from './seeding-finalize'
-import { markSeedingComplete, readSeedingState } from './seeding-state'
+import { markSeedingComplete, readSeedingState, clearAwaitingApproval } from './seeding-state'
 import { DISCIPLINE_SEQUENCE } from './types'
 import { readSeedPid, clearSeedPid } from './seed-daemon-pid'
 import { hasQueuedMessages } from './seed-queue'
@@ -55,18 +55,19 @@ export async function repairProjectState(projectDir: string): Promise<RepairRepo
   }
 
   // Shape 1: stuck in seeding with all disciplines complete.
-  // finalizeSeeding / markSeedingComplete take the state-lock internally.
+  // With human-gated transitions, we no longer auto-finalize — the user
+  // must click "Approve & start build". This repair only flags the state;
+  // the dashboard renders the seeding_summary card for the user to act on.
   if (state.current_state === 'seeding') {
     const seeding = readSeedingState(projectDir)
     const allDone = (seeding.disciplines_complete?.length ?? 0) >= DISCIPLINE_SEQUENCE.length
-    if (allDone && !seeding.seeding_complete) {
-      const result = await finalizeSeeding(projectDir)
-      if (result.ok) {
-        markSeedingComplete(projectDir)
-        fixes.push('stuck-seeding: all 8 disciplines complete but seeding_complete was null → finalized')
-      }
-      // If finalize returned missing artifacts, don't claim a fix —
-      // the state really is incomplete.
+    if (allDone && !seeding.seeding_complete && !seeding.seeding_awaiting_final_approval) {
+      // Surface the final approval card — the user hasn't seen it yet
+      const { writeSeedingState: write } = await import('./seeding-state')
+      const ss = readSeedingState(projectDir)
+      ss.seeding_awaiting_final_approval = true
+      write(projectDir, ss)
+      fixes.push('stuck-seeding: all disciplines complete but no final approval card → surfaced')
     }
   }
 
@@ -88,6 +89,19 @@ export async function repairProjectState(projectDir: string): Promise<RepairRepo
   })
   if (shape2Fixed) {
     fixes.push('null-foundation: current_state=foundation with null foundation → set { status: "pending" }')
+  }
+
+  // Shape 2b: stale discipline_awaiting_approval — the discipline is
+  // already in disciplines_complete (e.g. from a crash mid-approval).
+  if (state.current_state === 'seeding') {
+    const seeding = readSeedingState(projectDir)
+    if (seeding.discipline_awaiting_approval) {
+      const complete = seeding.disciplines_complete ?? []
+      if (complete.includes(seeding.discipline_awaiting_approval)) {
+        clearAwaitingApproval(projectDir)
+        fixes.push(`stale-approval: ${seeding.discipline_awaiting_approval} awaiting approval but already in disciplines_complete → cleared`)
+      }
+    }
   }
 
   // Shape 3: current_state='escalation' but escalations[] has no pending

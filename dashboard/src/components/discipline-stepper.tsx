@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { DisciplineProgress, SeedingDiscipline } from '@/lib/types'
 import { cn } from '@/lib/utils'
-import { Check, Circle, Loader2, Minus } from 'lucide-react'
+import { Check, Circle, Loader2, Minus, Clock } from 'lucide-react'
 
 const DISCIPLINE_ORDER: SeedingDiscipline[] = [
   'brainstorming',
@@ -61,6 +61,18 @@ function StatusIcon({
         className="flex size-6 items-center justify-center rounded-full bg-purple-100 text-purple-600"
       >
         <Loader2 className="size-3.5 animate-spin" />
+      </div>
+    )
+  }
+
+  if (status === 'awaiting_approval') {
+    return (
+      <div
+        data-testid="discipline-icon"
+        data-status="awaiting_approval"
+        className="flex size-6 items-center justify-center rounded-full bg-amber-100 text-amber-600"
+      >
+        <Clock className="size-3.5" />
       </div>
     )
   }

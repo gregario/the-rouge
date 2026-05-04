@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { finalizeSeeding } from '../seeding-finalize'
-import { mkdirSync, rmSync, writeFileSync, readFileSync } from 'fs'
+import { mkdirSync, rmSync, writeFileSync, readFileSync, existsSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
 
@@ -38,11 +38,42 @@ describe('finalizeSeeding', () => {
     ],
   }, null, 2)
 
+  const VALID_MILESTONES = JSON.stringify({
+    milestones: [{
+      name: 'MVP',
+      stories: [
+        { id: 's-1', name: 'First story', status: 'pending', acceptance_criteria: ['AC 1', 'AC 2'] },
+        { id: 's-2', name: 'Second story', status: 'pending', acceptance_criteria: ['AC 3'] },
+      ],
+    }],
+  }, null, 2)
+
+  const VALID_BRAINSTORMING = [
+    '# Test Product — a comprehensive test application',
+    '',
+    '## The Problem',
+    'Testing needs to be reliable and comprehensive.',
+    '',
+    '## The User',
+    '',
+    '**Developers** who need automated testing for their projects.',
+    '',
+    'x'.repeat(300),
+    '',
+    '## Classifier Signals',
+    '- entity_count: 2',
+    '- integration_count: 0',
+    '- role_count: 1',
+    '- journey_count: 1',
+    '- screen_count: 1',
+  ].join('\n')
+
   function seedCompleteProject(): void {
     mkdirSync(join(testDir, 'seed_spec'), { recursive: true })
     mkdirSync(join(testDir, '.rouge'), { recursive: true })
+    writeFileSync(join(testDir, 'seed_spec', 'brainstorming.md'), VALID_BRAINSTORMING)
     writeFileSync(join(testDir, 'task_ledger.json'), VALID_LEDGER)
-    writeFileSync(join(testDir, 'seed_spec', 'milestones.json'), '{}')
+    writeFileSync(join(testDir, 'seed_spec', 'milestones.json'), VALID_MILESTONES)
     writeFileSync(join(testDir, 'vision.json'), VALID_VISION)
     writeFileSync(join(testDir, 'product_standard.json'), VALID_STANDARD)
     // state.json lives under .rouge/ (#135 / #143). Previous test
@@ -52,28 +83,40 @@ describe('finalizeSeeding', () => {
     writeFileSync(join(testDir, '.rouge', 'state.json'), JSON.stringify({ current_state: 'seeding', name: 'test' }))
   }
 
-  it('returns missingArtifacts when task_ledger.json is missing', async () => {
+  it('auto-generates task_ledger.json from milestones.json when missing', async () => {
     seedCompleteProject()
     rmSync(join(testDir, 'task_ledger.json'))
     const result = await finalizeSeeding(testDir)
-    expect(result.ok).toBe(false)
-    expect(result.missingArtifacts).toContain('task_ledger.json')
+    // ensureTaskLedger generates from milestones.json
+    const exists = existsSync(join(testDir, 'task_ledger.json'))
+    expect(exists).toBe(true)
+    const ledger = JSON.parse(readFileSync(join(testDir, 'task_ledger.json'), 'utf-8'))
+    expect(ledger.milestones).toBeDefined()
+    expect(ledger.seeded_by).toBe('bridge')
   })
 
   it('returns missingArtifacts when seed_spec/ has no files', async () => {
     seedCompleteProject()
-    rmSync(join(testDir, 'seed_spec', 'milestones.json'))
+    // Remove ALL files in seed_spec (brainstorming + milestones)
+    rmSync(join(testDir, 'seed_spec'), { recursive: true })
+    mkdirSync(join(testDir, 'seed_spec'), { recursive: true })
     const result = await finalizeSeeding(testDir)
     expect(result.ok).toBe(false)
     expect(result.missingArtifacts).toContain('seed_spec/')
   })
 
-  it('returns missingArtifacts when vision.json is missing', async () => {
+  it('auto-generates vision.json from brainstorming when missing', async () => {
     seedCompleteProject()
+    // Write a brainstorming artifact so ensureVision has source data
+    writeFileSync(join(testDir, 'seed_spec', 'brainstorming.md'),
+      '# Test Product — a test thing\n\n## The Problem\nSomething needs testing.\n\n## The User\n\n**Testers** who need to verify code.\n\n' + 'x'.repeat(300))
     rmSync(join(testDir, 'vision.json'))
-    const result = await finalizeSeeding(testDir)
-    expect(result.ok).toBe(false)
-    expect(result.missingArtifacts).toContain('vision.json')
+    await finalizeSeeding(testDir)
+    const exists = existsSync(join(testDir, 'vision.json'))
+    expect(exists).toBe(true)
+    const vision = JSON.parse(readFileSync(join(testDir, 'vision.json'), 'utf-8'))
+    expect(vision.product_name).toBe('Test Product')
+    expect(vision.generated).toBe(true)
   })
 
   it('auto-generates product_standard.json from library when missing', async () => {
@@ -94,13 +137,15 @@ describe('finalizeSeeding', () => {
     }
   })
 
-  it('returns missingArtifacts when vision.json is a stub (below byte floor)', async () => {
+  it('overwrites vision.json stub with generated content when below byte floor', async () => {
     seedCompleteProject()
+    writeFileSync(join(testDir, 'seed_spec', 'brainstorming.md'),
+      '# Stub Test — minimal\n\n## The Problem\nStub.\n\n## The User\n\n**Users** who test.\n\n' + 'x'.repeat(300))
     writeFileSync(join(testDir, 'vision.json'), '{ "stub": true }')
-    const result = await finalizeSeeding(testDir)
-    expect(result.ok).toBe(false)
-    // Either rejected for being too small or for missing required fields
-    expect(result.missingArtifacts?.some(m => m.includes('vision.json'))).toBe(true)
+    await finalizeSeeding(testDir)
+    const vision = JSON.parse(readFileSync(join(testDir, 'vision.json'), 'utf-8'))
+    expect(vision.product_name).toBe('Stub Test')
+    expect(vision.generated).toBe(true)
   })
 
   it('transitions state to ready when all required artifacts exist', async () => {
@@ -225,7 +270,7 @@ describe('finalizeSeeding', () => {
       expect(vision.infrastructure).toEqual({})
     })
 
-    it('is a no-op when manifest has no deploy.target', async () => {
+    it('is a no-op for propagation when manifest has no deploy.target', async () => {
       seedCompleteProject()
       writeVision()
       writeFileSync(
@@ -236,7 +281,9 @@ describe('finalizeSeeding', () => {
       await finalizeSeeding(testDir)
 
       const vision = JSON.parse(readFileSync(join(testDir, 'vision.json'), 'utf-8'))
-      expect(vision.infrastructure).toEqual({})
+      // propagateInfrastructureFromManifest returns early with no target,
+      // but ensureVision may have set needs_database/needs_auth from the manifest
+      expect(vision.infrastructure.deployment_target).toBeUndefined()
     })
   })
 })

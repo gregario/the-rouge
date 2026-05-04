@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'fs'
 import { resolve } from 'path'
 import { runClaude, detectRateLimit, extractMarkers, segmentMarkers, type MessageSegment } from './claude-runner'
 import { appendChatMessage } from './chat-reader'
-import { readSeedingState, writeSeedingState, updateSessionId, markDisciplineComplete, markDisciplinePrompted, markSeedingComplete, setStatus, appendPendingCorrection, peekPendingCorrection, clearPendingCorrection, isAwaitingGateFor, setAwaitingGate, clearPendingGate, updateHeartbeat, effectiveMode } from './seeding-state'
+import { readSeedingState, writeSeedingState, updateSessionId, markDisciplineComplete, markDisciplinePrompted, markSeedingComplete, setStatus, appendPendingCorrection, peekPendingCorrection, clearPendingCorrection, isAwaitingGateFor, setAwaitingGate, clearPendingGate, updateHeartbeat, effectiveMode, setAwaitingApproval, clearAwaitingApproval, isAwaitingApproval, updateDisciplineStatusInState } from './seeding-state'
 import type { SeedingMessageKind } from './types'
 import { finalizeSeeding } from './seeding-finalize'
 import { maybeDeriveWorkingTitle } from './derive-title'
@@ -424,7 +424,7 @@ async function runSeedingTurn(
       // Strip the [SYSTEM NOTE] prefix — the new `kind: 'system_note'`
       // drives UI styling, making the inline bracket tag redundant and
       // visually naff.
-      const note = `Reconciled earlier discipline state: ${reconciled.join(', ')} now marked complete (artifact verified on disk). Seeding continues.`
+      const note = `Reconciled earlier discipline state: ${reconciled.join(', ')} artifact verified on disk. Accept to continue or reply with feedback to revise.`
       appendChatMessage(projectDir, {
         id: genId(),
         role: 'rouge',
@@ -441,33 +441,116 @@ async function runSeedingTurn(
       clearPendingGate(projectDir)
     }
 
-    // Fallback finalization: if every discipline is complete on disk
-    // but `seeding_complete` was never set (the orchestrator prompt
-    // went silent after marketing without emitting SEEDING_COMPLETE,
-    // as happened with colour-contrast), auto-call finalizeSeeding.
-    // Without this the project sits in state=seeding forever with
-    // 8/8 disciplines done.
-    const postReconcileState = readSeedingState(projectDir)
-    const allDone =
-      (postReconcileState.disciplines_complete?.length ?? 0) >= DISCIPLINE_SEQUENCE.length
-    if (allDone && !postReconcileState.seeding_complete) {
-      const finalizeResult = await finalizeSeeding(projectDir)
-      if (finalizeResult.ok) {
-        markSeedingComplete(projectDir)
-        const totalDisc = DISCIPLINE_SEQUENCE.length
+    // If a discipline is awaiting approval and the user sends a message:
+    // - Acceptance words ("accept", "approve", "yes", "ok", "continue",
+    //   "lgtm") → treat as clicking Accept & continue
+    // - Anything else → treat as revision feedback
+    const preApprovalState = readSeedingState(projectDir)
+    if (isAwaitingApproval(preApprovalState)) {
+      const trimmedLower = text.trim().toLowerCase().replace(/[.!,]/g, '')
+      const isAcceptance = ['accept', 'approve', 'approved', 'yes', 'ok', 'okay',
+        'continue', 'lgtm', 'looks good', 'accept recommendations',
+        'accept and continue', 'accept & continue'].includes(trimmedLower)
+
+      if (isAcceptance && preApprovalState.discipline_awaiting_approval) {
+        console.log(`[seeding] user typed "${trimmedLower}" while ${preApprovalState.discipline_awaiting_approval} awaiting approval — treating as Accept`)
+        const disc = preApprovalState.discipline_awaiting_approval
+        clearAwaitingApproval(projectDir)
+        await markDisciplineComplete(projectDir, disc)
+        // Don't process the text through Claude — just advance
+        // The approval endpoint would fire a kickoff, but since we're
+        // inside runSeedingTurn already, we need to let the continuation
+        // logic below handle the kickoff. Set acceptedDisciplines so
+        // the return signals the advancement.
+        // We skip the Claude call by returning early here.
+        appendChatMessage(projectDir, {
+          id: genId(),
+          role: 'human',
+          content: text,
+          timestamp: new Date().toISOString(),
+          metadata: { discipline: disc },
+        })
         appendChatMessage(projectDir, {
           id: genId(),
           role: 'rouge',
-          content:
-            `All ${totalDisc} disciplines complete. Seeding finalized — project is now ready to build. ` +
-            'Click "Build this" in the specs table when you want the build loop to start.',
+          content: `${disc} approved. Advancing to the next discipline.`,
           timestamp: new Date().toISOString(),
           kind: 'system_note',
+          metadata: { discipline: disc },
         })
+        // After brainstorming: run classifier + tier gating inline
+        // before the kickoff, same as the approval endpoint does.
+        let postApprovalState = readSeedingState(projectDir)
+        if (disc === 'brainstorming' && !postApprovalState.applicable_disciplines) {
+          const classResult = runAutoClassifier(projectDir)
+          if (classResult.ok) {
+            await markDisciplineComplete(projectDir, 'sizing')
+            const applicable = listApplicableDisciplines(classResult.projectSize)
+            const ss = readSeedingState(projectDir)
+            ss.applicable_disciplines = applicable
+            ss.project_size = classResult.projectSize
+            writeSeedingState(projectDir, ss)
+            for (const d2 of DISCIPLINE_SEQUENCE) {
+              if (d2 === 'brainstorming' || d2 === 'sizing') continue
+              if (!applicable.includes(d2)) {
+                await markDisciplineComplete(projectDir, d2)
+              }
+            }
+            appendChatMessage(projectDir, {
+              id: genId(), role: 'rouge',
+              content: `Project classified as **${classResult.projectSize}** tier. ${applicable.length} discipline(s) applicable: ${applicable.join(', ')}.`,
+              timestamp: new Date().toISOString(), kind: 'system_note',
+              metadata: { discipline: 'sizing' },
+            })
+          }
+          postApprovalState = readSeedingState(projectDir)
+        }
+
+        const nextDisc = postApprovalState.current_discipline
+        if (nextDisc && !(postApprovalState.disciplines_complete ?? []).includes(nextDisc) && nextDisc !== 'sizing') {
+          try {
+            await runContinuationTurn(projectDir, [
+              `[SYSTEM] Discipline ${disc} approved by user. State has advanced.`,
+              `You are now entering ${nextDisc.toUpperCase()}. Follow its sub-prompt rules exactly.`,
+              `Begin the new discipline by asking its first question to the human.`,
+            ].join(' '), 0, `kickoff-${nextDisc}`)
+          } catch (err) {
+            console.error(`[seeding] post-approval kickoff failed:`, err)
+          }
+        }
+        return { ok: true, status: 200, disciplineComplete: [disc], seedingComplete: false, readyTransition: false }
       }
-      // If finalizeResult.ok is false, artifacts are genuinely missing
-      // — let the normal flow handle that; we don't want to surface a
-      // noisy system note here because the user hasn't triggered this.
+
+      console.log(`[seeding] user sent message while ${preApprovalState.discipline_awaiting_approval} awaiting approval — treating as revision`)
+      clearAwaitingApproval(projectDir)
+      // Also clear the final approval flag if set
+      if (preApprovalState.seeding_awaiting_final_approval) {
+        const ss = readSeedingState(projectDir)
+        delete ss.seeding_awaiting_final_approval
+        writeSeedingState(projectDir, ss)
+      }
+    }
+
+    // Final seeding approval: if every discipline is user-approved
+    // (in disciplines_complete) but seeding_complete was never set,
+    // surface a final approval card instead of auto-finalizing.
+    const postReconcileState = readSeedingState(projectDir)
+    const applicable = postReconcileState.applicable_disciplines ?? DISCIPLINE_SEQUENCE as unknown as string[]
+    const allApproved = applicable.every(
+      (d: string) => (postReconcileState.disciplines_complete ?? []).includes(d),
+    )
+    if (allApproved && !postReconcileState.seeding_complete && !postReconcileState.seeding_awaiting_final_approval) {
+      const ss = readSeedingState(projectDir)
+      ss.seeding_awaiting_final_approval = true
+      writeSeedingState(projectDir, ss)
+      appendChatMessage(projectDir, {
+        id: genId(),
+        role: 'rouge',
+        content:
+          `All disciplines complete. Review the seeding summary and approve to start building, or select a discipline to revise.`,
+        timestamp: new Date().toISOString(),
+        kind: 'seeding_summary',
+      })
     }
   }
 
@@ -478,6 +561,13 @@ async function runSeedingTurn(
   // artifacts, or clarify decisions. Claude remembers context via session_id.
 
   const activeDiscipline = resolveActiveDiscipline(state.current_discipline)
+  // For message tagging: prefer the gate's discipline or the approval
+  // discipline over current_discipline. This prevents gate answers and
+  // revision feedback from being tagged with the wrong discipline when
+  // the server has already advanced current_discipline.
+  const messageTagDiscipline = resolveActiveDiscipline(
+    state.pending_gate?.discipline ?? state.discipline_awaiting_approval ?? state.current_discipline,
+  )
   const alreadyPrompted = state.disciplines_prompted ?? []
   const isFirstTurn = state.session_id === null
   // Sizing is auto-completed by the classifier — never inject its prompt
@@ -635,6 +725,7 @@ async function runSeedingTurn(
 
   const acceptedDisciplines: string[] = []
   const rejectedDisciplines: Array<{ discipline: string; reason: string }> = []
+  const deferredApprovalCards: Array<{ discipline: string; isKill: boolean }> = []
 
   // Process DISCIPLINE_COMPLETE markers (require artifact verification).
   for (const d of markers.disciplinesComplete) {
@@ -664,17 +755,42 @@ async function runSeedingTurn(
     }
     const check = verifyDisciplineArtifact(projectDir, d)
     if (check.ok) {
-      await markDisciplineComplete(projectDir, d)
-      acceptedDisciplines.push(d)
-      // Taste kill verdict: the idea failed the taste gate. Mark the
-      // project for archival so seeding doesn't continue into spec/design.
-      if (d === 'taste' && check.killVerdict) {
-        console.log(`[seeding] taste verdict is KILL for ${projectDir} — seeding should stop`)
-        const { writeSeedingState, readSeedingState } = await import('./seeding-state')
-        const ss = readSeedingState(projectDir)
-        ss.taste_kill = true
-        ss.taste_kill_at = new Date().toISOString()
-        writeSeedingState(projectDir, ss)
+      // If the user answered a gate for this discipline this turn, they
+      // already gave consent — skip the approval card and complete
+      // directly. The approval card is only for when artifacts appear
+      // without a preceding gate answer (autonomous completion or
+      // reconciliation).
+      const userAnsweredGateForThis = preGatePending?.discipline === d
+      if (userAnsweredGateForThis) {
+        await markDisciplineComplete(projectDir, d)
+        acceptedDisciplines.push(d)
+        if (d === 'taste' && check.killVerdict) {
+          const ss = readSeedingState(projectDir)
+          ss.taste_kill = true
+          ss.taste_kill_at = new Date().toISOString()
+          writeSeedingState(projectDir, ss)
+        }
+        appendChatMessage(projectDir, {
+          id: genId(),
+          role: 'rouge',
+          content: `${d} complete — artifact verified. Advancing to the next discipline.`,
+          timestamp: new Date().toISOString(),
+          kind: 'system_note',
+          metadata: { discipline: d },
+        })
+      } else {
+        setAwaitingApproval(projectDir, d)
+        await updateDisciplineStatusInState(projectDir, d, 'awaiting_approval')
+        acceptedDisciplines.push(d)
+
+        // Defer the approval card — append it AFTER Claude's response
+        // segments (which include [WROTE:] summaries) so the user sees
+        // what was produced before being asked to accept.
+        const isKill = d === 'taste' && check.killVerdict === true
+        deferredApprovalCards.push({
+          discipline: d,
+          isKill,
+        })
       }
     } else {
       console.warn(
@@ -818,11 +934,26 @@ async function runSeedingTurn(
       role: 'human',
       content: text,
       timestamp: new Date().toISOString(),
-      metadata: activeDiscipline ? { discipline: activeDiscipline } : undefined,
+      metadata: messageTagDiscipline ? { discipline: messageTagDiscipline } : undefined,
     })
   }
   // Reuse the segments parsed above for the gate-and-complete guard.
   appendSegmentedRougeMessages(projectDir, prelimSegments, activeDiscipline ?? undefined)
+  // Now append deferred approval cards — AFTER the response segments
+  // so [WROTE:] summaries appear before the "Accept" prompt.
+  for (const card of deferredApprovalCards) {
+    const approvalContent = card.isKill
+      ? `**Taste verdict: KILL.** The idea didn't pass the taste gate. Review the graveyard entry and archive this project, or revise to continue.`
+      : `**${card.discipline}** artifact verified on disk. Accept to continue to the next discipline, or reply with feedback to revise.`
+    appendChatMessage(projectDir, {
+      id: genId(),
+      role: 'rouge',
+      content: approvalContent,
+      timestamp: new Date().toISOString(),
+      kind: 'approve_prompt',
+      metadata: { discipline: card.discipline, killVerdict: card.isKill || undefined },
+    })
+  }
   applyMarkerStateEffects(projectDir, prelimSegments, activeDiscipline)
   if (rejectedDisciplines.length > 0) {
     // Claude-facing note keeps the [SYSTEM NOTE] prefix — that text is
@@ -864,38 +995,19 @@ async function runSeedingTurn(
     void maybeDeriveWorkingTitle(projectDir, text)
   }
 
-  // Check for SEEDING_COMPLETE — tier validation gate.
-  // Before delegating to finalizeSeeding, run the deterministic tier check.
-  // If the tier check fails, REJECT the marker with a system note and
-  // pending correction so the LLM knows what's still missing.
-  let readyTransition = false
-  let missingArtifacts: string[] | undefined
+  // SEEDING_COMPLETE is now code-controlled via the approve-seeding
+  // endpoint. If the LLM emits it, ignore and correct.
   if (markers.seedingComplete) {
-    const tierCheck = validateTierCompletion(projectDir)
-    if (!tierCheck.ok) {
-      // Tier validation failed — reject SEEDING_COMPLETE
-      const tierNote =
-        `SEEDING_COMPLETE rejected — tier validation failed: ${tierCheck.reason}. ` +
-        `Complete the missing disciplines before emitting SEEDING_COMPLETE.`
-      appendChatMessage(projectDir, {
-        id: genId(),
-        role: 'rouge',
-        content: tierNote,
-        timestamp: new Date().toISOString(),
-        kind: 'system_note',
-        metadata: { discipline: activeDiscipline ?? undefined },
-      })
-      appendPendingCorrection(projectDir, `[SYSTEM NOTE] ${tierNote}`)
-      missingArtifacts = tierCheck.missing
-    } else {
-      const finalizeResult = await finalizeSeeding(projectDir)
-      if (finalizeResult.ok) {
-        markSeedingComplete(projectDir)
-        readyTransition = true
-      } else {
-        missingArtifacts = finalizeResult.missingArtifacts
-      }
-    }
+    const ignoreNote = 'SEEDING_COMPLETE ignored — seeding finalization is controlled by user approval. Do not emit this marker.'
+    appendChatMessage(projectDir, {
+      id: genId(),
+      role: 'rouge',
+      content: ignoreNote,
+      timestamp: new Date().toISOString(),
+      kind: 'system_note',
+      metadata: { discipline: activeDiscipline ?? undefined },
+    })
+    appendPendingCorrection(projectDir, `[SYSTEM NOTE] ${ignoreNote}`)
   }
 
   // Auto-continuation. Two shapes:
@@ -916,10 +1028,12 @@ async function runSeedingTurn(
   // chat note so the user knows to nudge with a message.
   const atDepthLimit = chunkDepth + 1 >= MAX_CHUNK_DEPTH
   const postContinuationState = readSeedingState(projectDir)
+  const isNowAwaitingApproval = isAwaitingApproval(postContinuationState)
   const shouldContinueForAdvance =
     acceptedDisciplines.length > 0 &&
     !markers.seedingComplete &&
-    !atDepthLimit
+    !atDepthLimit &&
+    !isNowAwaitingApproval
   // Only auto-continue a non-advancing turn if Claude actually emitted
   // decision/heartbeat markers — that's the signal it's in the middle
   // of autonomous work. A turn that was pure prose (no markers) is
@@ -935,6 +1049,7 @@ async function runSeedingTurn(
     rejectedDisciplines.length === 0 &&
     emittedAutonomousMarkers &&
     postContinuationState.mode !== 'awaiting_gate' &&
+    !isNowAwaitingApproval &&
     postContinuationState.status === 'active' &&
     !atDepthLimit
 
@@ -988,9 +1103,8 @@ async function runSeedingTurn(
     ok: true,
     status: 200,
     disciplineComplete: acceptedDisciplines.length > 0 ? acceptedDisciplines : undefined,
-    seedingComplete: markers.seedingComplete,
-    readyTransition,
-    missingArtifacts,
+    seedingComplete: false,
+    readyTransition: false,
   }
 }
 
@@ -1069,11 +1183,27 @@ async function reconcileDisciplineState(
     // this runs, so the in-memory state alone is insufficient).
     if (isAwaitingGateFor(state, d)) break
     if (preClearGateDiscipline === d) break
+    // If there's already a discipline awaiting approval, don't propose
+    // another one — only one can be pending at a time.
+    if (state.discipline_awaiting_approval) break
     const check = verifyDisciplineArtifact(projectDir, d)
     if (check.ok) {
-      await markDisciplineComplete(projectDir, d)
-      complete.add(d)
+      setAwaitingApproval(projectDir, d)
+      await updateDisciplineStatusInState(projectDir, d, 'awaiting_approval')
       newlyComplete.push(d)
+
+      const isKill = d === 'taste' && check.killVerdict
+      const approvalContent = isKill
+        ? `**Taste verdict: KILL.** The idea didn't pass the taste gate. Review the graveyard entry and archive this project, or revise to continue.`
+        : `**${d}** artifact verified on disk. Accept to continue to the next discipline, or reply with feedback to revise.`
+      appendChatMessage(projectDir, {
+        id: genId(),
+        role: 'rouge',
+        content: approvalContent,
+        timestamp: new Date().toISOString(),
+        kind: 'approve_prompt',
+        metadata: { discipline: d, killVerdict: isKill || undefined },
+      })
     } else {
       // First real gap — don't look further. If brainstorming genuinely
       // has no artifact, we cannot mark competition etc. as complete
