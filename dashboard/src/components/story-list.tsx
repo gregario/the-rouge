@@ -111,7 +111,7 @@ function StoryDetails({ enrichment }: { enrichment: StoryEnrichment }) {
           {acsOpen && (
             <ul className="mt-1.5 ml-5 flex list-disc flex-col gap-1.5 pl-2 text-[11px] leading-relaxed text-gray-700">
               {enrichment.acceptanceCriteria.map((ac, i) => (
-                <li key={i}>{ac}</li>
+                <li key={i}>{typeof ac === 'string' ? ac : typeof ac === 'object' && ac !== null ? ((ac as Record<string, unknown>).name ? `${(ac as Record<string, unknown>).name}: GIVEN ${(ac as Record<string, unknown>).given ?? ''} WHEN ${(ac as Record<string, unknown>).when ?? ''} THEN ${(ac as Record<string, unknown>).then ?? ''}` : JSON.stringify(ac)) : String(ac)}</li>
               ))}
             </ul>
           )}
@@ -373,7 +373,7 @@ export function StoryList({ milestones, selectedMilestoneId, enrichment, slug, b
                             >
                               {story.status === 'done' && <Check className="size-2.5" />}
                             </span>
-                            {criterion}
+                            {typeof criterion === 'string' ? criterion : typeof criterion === 'object' && criterion !== null ? ((criterion as Record<string, unknown>).name ? `${(criterion as Record<string, unknown>).name}: GIVEN ${(criterion as Record<string, unknown>).given ?? ''} WHEN ${(criterion as Record<string, unknown>).when ?? ''} THEN ${(criterion as Record<string, unknown>).then ?? ''}` : JSON.stringify(criterion)) : String(criterion)}
                           </li>
                         ))}
                       </ul>
