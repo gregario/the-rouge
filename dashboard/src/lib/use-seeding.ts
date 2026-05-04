@@ -68,6 +68,7 @@ interface UseSeedingResult {
   approveDiscipline: (discipline: string) => Promise<void>
   approveSeeding: () => Promise<void>
   isApproving: boolean
+  approvalError: string | null
 }
 
 export function useSeeding(slug: string): UseSeedingResult {
@@ -213,14 +214,20 @@ export function useSeeding(slug: string): UseSeedingResult {
 
   const [isApproving, setIsApproving] = useState(false)
 
+  const [approvalError, setApprovalError] = useState<string | null>(null)
+
   const approveDiscipline = useCallback(async (discipline: string) => {
     if (!slug || isApproving) return
     setIsApproving(true)
+    setApprovalError(null)
     try {
-      await approveDisciplineApi(slug, discipline)
+      const result = await approveDisciplineApi(slug, discipline)
+      if (!result.ok) {
+        setApprovalError(result.error ?? 'Discipline approval failed')
+      }
       await refetch()
     } catch (err) {
-      console.error('[useSeeding] approveDiscipline failed:', err)
+      setApprovalError(err instanceof Error ? err.message : 'Discipline approval failed')
     } finally {
       setIsApproving(false)
     }
@@ -229,11 +236,18 @@ export function useSeeding(slug: string): UseSeedingResult {
   const approveSeeding = useCallback(async () => {
     if (!slug || isApproving) return
     setIsApproving(true)
+    setApprovalError(null)
     try {
-      await approveSeedingApi(slug)
+      const result = await approveSeedingApi(slug)
+      if (!result.ok) {
+        const detail = result.missingArtifacts?.length
+          ? `Missing: ${result.missingArtifacts.join(', ')}`
+          : result.error ?? 'Seeding approval failed'
+        setApprovalError(detail)
+      }
       await refetch()
     } catch (err) {
-      console.error('[useSeeding] approveSeeding failed:', err)
+      setApprovalError(err instanceof Error ? err.message : 'Seeding approval failed')
     } finally {
       setIsApproving(false)
     }
@@ -255,5 +269,6 @@ export function useSeeding(slug: string): UseSeedingResult {
     approveDiscipline,
     approveSeeding,
     isApproving,
+    approvalError,
   }
 }
