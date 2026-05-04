@@ -220,7 +220,15 @@ function MilestonePlanCard({
                       {s.acceptance_criteria && s.acceptance_criteria.length > 0 && (
                         <ul className="mt-1 list-inside list-disc space-y-0.5 text-xs text-gray-600">
                           {s.acceptance_criteria.map((ac, i) => (
-                            <li key={i}>{ac}</li>
+                            <li key={i}>
+                              {typeof ac === 'string'
+                                ? ac
+                                : typeof ac === 'object' && ac !== null
+                                  ? (ac as Record<string, unknown>).name
+                                    ? `${(ac as Record<string, unknown>).name}: GIVEN ${(ac as Record<string, unknown>).given ?? ''} WHEN ${(ac as Record<string, unknown>).when ?? ''} THEN ${(ac as Record<string, unknown>).then ?? ''}`
+                                    : JSON.stringify(ac)
+                                  : String(ac)}
+                            </li>
                           ))}
                         </ul>
                       )}
