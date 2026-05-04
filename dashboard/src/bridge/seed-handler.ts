@@ -666,6 +666,16 @@ async function runSeedingTurn(
     if (check.ok) {
       await markDisciplineComplete(projectDir, d)
       acceptedDisciplines.push(d)
+      // Taste kill verdict: the idea failed the taste gate. Mark the
+      // project for archival so seeding doesn't continue into spec/design.
+      if (d === 'taste' && check.killVerdict) {
+        console.log(`[seeding] taste verdict is KILL for ${projectDir} — seeding should stop`)
+        const { writeSeedingState, readSeedingState } = await import('./seeding-state')
+        const ss = readSeedingState(projectDir)
+        ss.taste_kill = true
+        ss.taste_kill_at = new Date().toISOString()
+        writeSeedingState(projectDir, ss)
+      }
     } else {
       console.warn(
         `[seeding] rejecting DISCIPLINE_COMPLETE(${d}) — ${check.reason}`,

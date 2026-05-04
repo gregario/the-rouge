@@ -370,6 +370,11 @@ export default function ProjectPage({
       />
 
       {/* Merged milestone timeline + story list in ONE card */}
+      {project.milestones.length === 0 && !isSeeding && (
+        <div className="mt-4 rounded-lg border border-dashed border-gray-300 px-6 py-10 text-center text-sm text-gray-500">
+          No milestones yet. Start a build to generate the project plan.
+        </div>
+      )}
       {project.milestones.length > 0 && (
         <Card className="mt-4 border border-gray-200 bg-gray-50 shadow-sm">
           <CardContent className="p-5">
@@ -382,7 +387,7 @@ export default function ProjectPage({
               {/* Show provisioning checklist when Foundation milestone is selected */}
               {(() => {
                 const selMs = project.milestones.find(m => m.id === selectedMilestoneId)
-                const isFoundation = selMs?.name === 'Foundation'
+                const isFoundation = selMs?.title?.startsWith('Foundation') ?? false
                 const provSteps = project.foundation?.provisioning_steps
                 return isFoundation && provSteps && Object.keys(provSteps).length > 0
                   ? <ProvisioningChecklist steps={provSteps} />
@@ -561,7 +566,7 @@ export default function ProjectPage({
         state={project.state}
         slug={project.slug}
         productionUrl={project.productionUrl}
-        escalation={project.escalations[0]}
+        escalation={pendingEscalations[0] ?? project.escalations[0]}
         onCommandComplete={refetch}
         buildRunning={buildRunning}
         buildStartedAt={project.buildStartedAt}

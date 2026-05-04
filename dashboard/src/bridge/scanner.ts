@@ -354,8 +354,9 @@ function normalizeProject(
       }
     : undefined
 
-  // Seeding progress
-  const seedingProgress = raw.seedingProgress as { completedCount?: number; totalCount?: number } | undefined
+  // Seeding progress — pass the full object through so the home page
+  // can render discipline-level progress, not just the count.
+  const seedingProgress = raw.seedingProgress as BridgeProjectSummary['seedingProgress']
 
   // Progress % and health
   const v3Milestones = version === 'v3' ? (raw.milestones as V3Milestone[]) || [] : []
@@ -400,6 +401,7 @@ function normalizeProject(
     hasStateFile: true,
     providers,
     deploymentUrl,
+    seedingProgress,
     ...gateSignals,
   }
 }

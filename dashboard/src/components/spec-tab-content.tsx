@@ -46,9 +46,12 @@ export function SpecTabContent({
   //   1. Legacy project (no seedingProgress) — just SpecView, no toggle
   //   2. Creating (seedingProgress but no artifacts yet) — chat only, no toggle
   //   3. Reviewing (artifacts exist) — View/Revise toggle
+  // When defaultMode is 'view' (project is past seeding), never show the
+  // 'creating' stage — the project is ready even if seedingProgress data
+  // lingers with incomplete disciplines.
   const stage: 'legacy' | 'creating' | 'reviewing' = !seedingProgress
     ? 'legacy'
-    : !hasAnySpecContent
+    : !hasAnySpecContent && defaultMode === 'revise'
       ? 'creating'
       : 'reviewing'
 

@@ -110,7 +110,7 @@ export function MilestoneTimeline({ milestones, selectedId, onSelect }: Mileston
     >
       {milestones.map((milestone, index) => {
         const isSelected = milestone.id === selectedId
-        const isClickable = milestone.status !== 'pending'
+        const isClickable = milestone.status !== 'pending' || milestone.stories.length > 0
 
         return (
           <div

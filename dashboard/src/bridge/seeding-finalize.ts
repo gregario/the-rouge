@@ -3,10 +3,17 @@ import { join } from 'path'
 import { statePath as resolveStatePath, writeStateJson } from './state-path'
 import { withStateLock } from './state-lock'
 import { validateTierCompletion } from './tier-registry'
+import {
+  validateVision,
+  validateTaskLedger,
+  validateProductStandard,
+  type SchemaError,
+} from './artifact-schemas'
 
 export interface FinalizeResult {
   ok: boolean
   missingArtifacts?: string[]
+  schemaErrors?: Array<{ artifact: string; errors: SchemaError[] }>
 }
 
 // ─── Foundation story types ─────────────────────────────────────────
@@ -18,9 +25,16 @@ interface FoundationStory {
   foundation: true
   acceptance_criteria: string[]
   depends_on: string[]
+  description: string
+  feature_area: string
+  affected_entities: string[]
+  affected_screens: string[]
+  po_checks: string[]
+  env_limitations: string[]
 }
 
 interface InfraManifest {
+  stub?: boolean
   deploy?: { target?: string }
   database?: { provider?: string | null } | null
   auth?: { strategy?: string | null; provider?: string | null } | null
@@ -51,12 +65,26 @@ export function generateFoundationStories(projectDir: string): FoundationStory[]
 
   const stories: FoundationStory[] = []
 
+  function story(
+    partial: Pick<FoundationStory, 'id' | 'name' | 'acceptance_criteria' | 'depends_on'>,
+  ): FoundationStory {
+    return {
+      ...partial,
+      status: 'pending',
+      foundation: true,
+      description: partial.name,
+      feature_area: 'foundation',
+      affected_entities: [],
+      affected_screens: [],
+      po_checks: partial.acceptance_criteria,
+      env_limitations: [],
+    }
+  }
+
   // Always: scaffold
-  stories.push({
+  stories.push(story({
     id: 'f-scaffold',
     name: 'Project scaffold',
-    status: 'pending',
-    foundation: true,
     acceptance_criteria: [
       'Framework initialized with correct config',
       'All dependencies installed',
@@ -64,16 +92,14 @@ export function generateFoundationStories(projectDir: string): FoundationStory[]
       'Production build succeeds',
     ],
     depends_on: [],
-  })
+  }))
 
   // S+: database
   if (['S', 'M', 'L', 'XL'].includes(size) && manifest.database && manifest.database.provider) {
     const entityCount = Array.isArray(vision.entities) ? vision.entities.length : 0
-    stories.push({
+    stories.push(story({
       id: 'f-database',
       name: `Database setup (${manifest.database.provider}, ${entityCount} entities)`,
-      status: 'pending',
-      foundation: true,
       acceptance_criteria: [
         'Schema covers all entities from vision (2+ feature area references)',
         'Foreign keys and indexes defined',
@@ -82,16 +108,14 @@ export function generateFoundationStories(projectDir: string): FoundationStory[]
         `Entity count: ${entityCount}`,
       ],
       depends_on: ['f-scaffold'],
-    })
+    }))
   }
 
   // S+: auth
   if (['S', 'M', 'L', 'XL'].includes(size) && manifest.auth && manifest.auth.strategy) {
-    stories.push({
+    stories.push(story({
       id: 'f-auth',
       name: `Auth flows (${manifest.auth.strategy})`,
-      status: 'pending',
-      foundation: true,
       acceptance_criteria: [
         'Registration creates user and returns session',
         'Login authenticates and returns session',
@@ -100,18 +124,16 @@ export function generateFoundationStories(projectDir: string): FoundationStory[]
         'Session persistence works across page refresh',
       ],
       depends_on: ['f-scaffold', ...(manifest.database?.provider ? ['f-database'] : [])],
-    })
+    }))
   }
 
   // M+: per-integration stories
   if (['M', 'L', 'XL'].includes(size) && Array.isArray(manifest.integrations)) {
     for (const integration of manifest.integrations) {
       const name = typeof integration === 'string' ? integration : integration.name
-      stories.push({
+      stories.push(story({
         id: `f-integration-${name}`,
         name: `Integration: ${name}`,
-        status: 'pending',
-        foundation: true,
         acceptance_criteria: [
           'Client wrapper exists with TypeScript types',
           'Error handling covers timeouts, rate limits, auth failures',
@@ -120,17 +142,15 @@ export function generateFoundationStories(projectDir: string): FoundationStory[]
           'Setup documented in README',
         ],
         depends_on: ['f-scaffold'],
-      })
+      }))
     }
   }
 
   // S+: UI shell (skip for API-only projects)
   if (['S', 'M', 'L', 'XL'].includes(size) && manifest.deploy?.target !== 'api-only') {
-    stories.push({
+    stories.push(story({
       id: 'f-ui-shell',
       name: 'App shell + navigation',
-      status: 'pending',
-      foundation: true,
       acceptance_criteria: [
         'App shell renders without errors',
         'Navigation includes links for all feature areas',
@@ -139,16 +159,14 @@ export function generateFoundationStories(projectDir: string): FoundationStory[]
         'Loading states exist for async operations',
       ],
       depends_on: ['f-scaffold'],
-    })
+    }))
   }
 
   // M+: fixtures
   if (['M', 'L', 'XL'].includes(size)) {
-    stories.push({
+    stories.push(story({
       id: 'f-fixtures',
       name: 'Test fixtures + seed data',
-      status: 'pending',
-      foundation: true,
       acceptance_criteria: [
         'Seed data for every entity in schema',
         'Data is realistic (domain-appropriate names, values, dates)',
@@ -156,15 +174,13 @@ export function generateFoundationStories(projectDir: string): FoundationStory[]
         'Fixtures importable by feature tests',
       ],
       depends_on: ['f-database'],
-    })
+    }))
   }
 
   // Always: deploy (depends on all previous stories)
-  stories.push({
+  stories.push(story({
     id: 'f-deploy',
     name: `Staging deploy (${manifest.deploy?.target || 'auto'})`,
-    status: 'pending',
-    foundation: true,
     acceptance_criteria: [
       'Deploy to staging succeeds',
       'Staging URL accessible',
@@ -172,40 +188,34 @@ export function generateFoundationStories(projectDir: string): FoundationStory[]
       'Environment variables documented',
     ],
     depends_on: stories.filter(s => s.id !== 'f-deploy').map(s => s.id),
-  })
+  }))
 
   // L+: observability, performance, security
   if (['L', 'XL'].includes(size)) {
     stories.push(
-      {
+      story({
         id: 'f-observability',
         name: 'Logging + monitoring',
-        status: 'pending',
-        foundation: true,
         acceptance_criteria: [
           'Structured logging (JSON) on all API routes',
           'Error reporting integration configured',
           'Health dashboard accessible',
         ],
         depends_on: ['f-scaffold', 'f-deploy'],
-      },
-      {
+      }),
+      story({
         id: 'f-performance',
         name: 'Performance baselines',
-        status: 'pending',
-        foundation: true,
         acceptance_criteria: [
           'Lighthouse scores captured (baseline)',
           'Bundle size tracked',
           'Database query performance benchmarked',
         ],
         depends_on: ['f-deploy'],
-      },
-      {
+      }),
+      story({
         id: 'f-security',
         name: 'Security hardening',
-        status: 'pending',
-        foundation: true,
         acceptance_criteria: [
           'CORS configured correctly',
           'CSP headers set',
@@ -213,7 +223,7 @@ export function generateFoundationStories(projectDir: string): FoundationStory[]
           'Input sanitization on user-facing forms',
         ],
         depends_on: ['f-scaffold', ...(manifest.auth?.strategy ? ['f-auth'] : [])],
-      },
+      }),
     )
   }
 
@@ -238,6 +248,57 @@ function writeJsonAtomic(path: string, data: unknown): void {
   renameSync(tmp, path)
 }
 
+function validateJsonArtifact(
+  filePath: string,
+  validator: (data: unknown) => { ok: boolean; errors: SchemaError[] },
+): SchemaError[] | null {
+  try {
+    const data = JSON.parse(readFileSync(filePath, 'utf-8'))
+    const result = validator(data)
+    return result.ok ? null : result.errors
+  } catch {
+    return [{ field: '(root)', expected: 'valid JSON', actual: 'parse error' }]
+  }
+}
+
+/**
+ * Generate product_standard.json from library defaults if it doesn't exist.
+ * This file captures quality heuristics the Factory uses during evaluation.
+ * No discipline prompt writes it — it's a mechanical merge of global
+ * heuristics from `library/global/`.
+ */
+function ensureProductStandard(projectDir: string): void {
+  const standardPath = join(projectDir, 'product_standard.json')
+  if (existsSync(standardPath)) return
+
+  const libraryPaths = [
+    join(process.cwd(), 'library/global'),
+    join(process.cwd(), '../library/global'),
+  ]
+  let libraryDir: string | null = null
+  for (const p of libraryPaths) {
+    if (existsSync(p)) { libraryDir = p; break }
+  }
+  if (!libraryDir) return
+
+  const heuristics: unknown[] = []
+  for (const file of readdirSync(libraryDir).filter(f => f.endsWith('.json'))) {
+    try {
+      heuristics.push(JSON.parse(readFileSync(join(libraryDir, file), 'utf-8')))
+    } catch { /* skip malformed */ }
+  }
+
+  if (heuristics.length === 0) return
+
+  writeJsonAtomic(standardPath, {
+    schema_version: 'product-standard-v1',
+    generated: true,
+    generated_at: new Date().toISOString(),
+    source: 'library/global',
+    heuristics,
+  })
+}
+
 /**
  * Mirror infrastructure decisions from `infrastructure_manifest.json` into
  * `vision.json.infrastructure` (and `cycle_context.json.vision.infrastructure`),
@@ -252,8 +313,8 @@ function writeJsonAtomic(path: string, data: unknown): void {
  * Testimonial reproduced this: manifest.deploy.target="docker-compose" but
  * vision.json.infrastructure={}.
  *
- * This mirror is intentionally non-destructive: it only fills fields that
- * are missing on the target, so explicit spec/vision overrides win.
+ * The manifest is the canonical source for these fields. This mirror
+ * OVERWRITES vision/ctx values so they always match the manifest.
  */
 function propagateInfrastructureFromManifest(projectDir: string): void {
   const manifestPath = join(projectDir, 'infrastructure_manifest.json')
@@ -285,11 +346,13 @@ function propagateInfrastructureFromManifest(projectDir: string): void {
         }
       }
       const infra = vision.infrastructure ?? {}
-      let changed = false
-      if (!infra.deployment_target) { infra.deployment_target = target; changed = true }
-      if (infra.needs_database === undefined) { infra.needs_database = needsDatabase; changed = true }
-      if (infra.needs_auth === undefined) { infra.needs_auth = needsAuth; changed = true }
-      if (changed) {
+      const prev = { ...infra }
+      infra.deployment_target = target
+      infra.needs_database = needsDatabase
+      infra.needs_auth = needsAuth
+      if (infra.deployment_target !== prev.deployment_target ||
+          infra.needs_database !== prev.needs_database ||
+          infra.needs_auth !== prev.needs_auth) {
         vision.infrastructure = infra
         writeJsonAtomic(visionPath, vision)
       }
@@ -307,11 +370,13 @@ function propagateInfrastructureFromManifest(projectDir: string): void {
       }
       ctx.vision = ctx.vision ?? {}
       const infra = ctx.vision.infrastructure ?? {}
-      let changed = false
-      if (!infra.deployment_target) { infra.deployment_target = target; changed = true }
-      if (infra.needs_database === undefined) { infra.needs_database = needsDatabase; changed = true }
-      if (infra.needs_auth === undefined) { infra.needs_auth = needsAuth; changed = true }
-      if (changed) {
+      const prev = { ...infra }
+      infra.deployment_target = target
+      infra.needs_database = needsDatabase
+      infra.needs_auth = needsAuth
+      if (infra.deployment_target !== prev.deployment_target ||
+          infra.needs_database !== prev.needs_database ||
+          infra.needs_auth !== prev.needs_auth) {
         ctx.vision.infrastructure = infra
         writeJsonAtomic(ctxPath, ctx)
       }
@@ -322,6 +387,10 @@ function propagateInfrastructureFromManifest(projectDir: string): void {
 }
 
 export async function finalizeSeeding(projectDir: string): Promise<FinalizeResult> {
+  // Generate product_standard.json from library defaults if no
+  // discipline wrote it. Must run before the artifact check below.
+  ensureProductStandard(projectDir)
+
   // Propagate deployment_target and needs_* from the infrastructure
   // manifest into vision.json + cycle_context.json before the artifact
   // check runs — that way a project that had a valid manifest but an
@@ -376,6 +445,25 @@ export async function finalizeSeeding(projectDir: string): Promise<FinalizeResul
 
   if (missing.length > 0) {
     return { ok: false, missingArtifacts: missing }
+  }
+
+  // ── Schema validation: all required files exist, now check structure ──
+  const schemaErrors: Array<{ artifact: string; errors: SchemaError[] }> = []
+
+  const visionCheck = validateJsonArtifact(join(projectDir, 'vision.json'), validateVision)
+  if (visionCheck) schemaErrors.push({ artifact: 'vision.json', errors: visionCheck })
+
+  const ledgerCheck = validateJsonArtifact(join(projectDir, 'task_ledger.json'), validateTaskLedger)
+  if (ledgerCheck) schemaErrors.push({ artifact: 'task_ledger.json', errors: ledgerCheck })
+
+  const stdCheck = validateJsonArtifact(join(projectDir, 'product_standard.json'), validateProductStandard)
+  if (stdCheck) schemaErrors.push({ artifact: 'product_standard.json', errors: stdCheck })
+
+  if (schemaErrors.length > 0) {
+    const summaries = schemaErrors.map((e) =>
+      `${e.artifact}: ${e.errors.map((x) => `${x.field} expected ${x.expected}, got ${x.actual}`).join('; ')}`,
+    )
+    return { ok: false, missingArtifacts: summaries, schemaErrors }
   }
 
   // ── Foundation stories: generate and prepend as milestone[0] ──────

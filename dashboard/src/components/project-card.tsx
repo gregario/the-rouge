@@ -87,6 +87,10 @@ export function ProjectCard({ project }: { project: ProjectSummary }) {
   const hasEscalation = !!project.escalation
   const router = useRouter()
 
+  const displayProgress = isSeeding && project.seedingProgress && project.seedingProgress.totalCount > 0
+    ? Math.round((project.seedingProgress.completedCount / project.seedingProgress.totalCount) * 100)
+    : project.progress
+
   const age = formatAge(project.lastCheckpointAt)
   const cost = formatCost(project.cost.totalSpend)
 
@@ -149,7 +153,7 @@ export function ProjectCard({ project }: { project: ProjectSummary }) {
 
           {/* Progress ring + milestone/discipline bar */}
           <div className="flex items-center gap-4">
-            <ProgressRing progress={project.progress} hasEscalation={hasEscalation} />
+            <ProgressRing progress={displayProgress} hasEscalation={hasEscalation} />
 
             <div className="flex-1 min-w-0">
               {/* Milestone progress for building projects */}

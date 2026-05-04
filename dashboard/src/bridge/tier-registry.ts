@@ -19,12 +19,14 @@ import { join } from 'node:path'
 
 // ─── Tier definitions ────────────────────────────────────────────────
 
-/** Maps each seeding discipline to the minimum project tier that includes it. */
+/** Maps each seeding discipline to the minimum project tier that includes it.
+ *  Insertion order is the canonical display sequence — stepper and chat panel
+ *  both derive their ordering from this map via listApplicableDisciplines(). */
 export const DISCIPLINE_TIERS: Record<string, string> = {
   brainstorming: 'XS',
-  competition: 'M',
-  taste: 'XS',
   sizing: 'XS',
+  taste: 'XS',
+  competition: 'M',
   spec: 'XS',
   infrastructure: 'S',
   design: 'S',
@@ -96,22 +98,41 @@ export type TierValidationResult =
  *     decides how to handle that).
  */
 export function validateTierCompletion(projectDir: string): TierValidationResult {
+  const sizingPath = join(projectDir, 'seed_spec/sizing.json')
+  const sizingExists = existsSync(sizingPath)
   const projectSize = readProjectSize(projectDir)
-  if (!projectSize) {
-    // No sizing data — can't validate. Treat as OK so legacy projects
-    // (pre-classifier) still finalize.
+
+  if (!projectSize && !sizingExists) {
+    // No sizing file at all — legacy project (pre-classifier). Can't
+    // validate, treat as OK so old projects still finalize.
     return { ok: true }
   }
+
+  if (!projectSize && sizingExists) {
+    // sizing.json exists but is malformed or has an invalid tier value.
+    // This is a real problem — don't silently bypass tier validation.
+    return {
+      ok: false,
+      reason: 'sizing.json exists but contains invalid or missing project_size',
+      tier: 'unknown',
+      required: [],
+      completed: [],
+      missing: [],
+    }
+  }
+
+  // After the two null checks above, projectSize is guaranteed non-null.
+  const tier = projectSize!
 
   const seedingStatePath = join(projectDir, 'seeding-state.json')
   if (!existsSync(seedingStatePath)) {
     return {
       ok: false,
       reason: 'seeding-state.json not found',
-      tier: projectSize,
-      required: listApplicableDisciplines(projectSize),
+      tier,
+      required: listApplicableDisciplines(tier),
       completed: [],
-      missing: listApplicableDisciplines(projectSize),
+      missing: listApplicableDisciplines(tier),
     }
   }
 
@@ -123,24 +144,24 @@ export function validateTierCompletion(projectDir: string): TierValidationResult
     return {
       ok: false,
       reason: 'seeding-state.json is malformed',
-      tier: projectSize,
-      required: listApplicableDisciplines(projectSize),
+      tier,
+      required: listApplicableDisciplines(tier),
       completed: [],
-      missing: listApplicableDisciplines(projectSize),
+      missing: listApplicableDisciplines(tier),
     }
   }
 
   const completed = new Set(completedList)
-  const required = listApplicableDisciplines(projectSize)
+  const required = listApplicableDisciplines(tier)
   const missing = required.filter((d) => !completed.has(d))
 
   if (missing.length > 0) {
     return {
       ok: false,
       reason:
-        `${missing.length} discipline(s) required for ${projectSize}-tier not completed: ` +
+        `${missing.length} discipline(s) required for ${tier}-tier not completed: ` +
         `${missing.join(', ')} (completed: ${completedList.join(', ') || 'none'})`,
-      tier: projectSize,
+      tier,
       required,
       completed: completedList,
       missing,

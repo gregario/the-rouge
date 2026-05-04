@@ -4,9 +4,8 @@ import type { Escalation, ProjectState } from '@/lib/types'
 import { useState, useCallback } from 'react'
 import { isBridgeEnabled, sendCommand } from '@/lib/bridge-client'
 import { Button } from '@/components/ui/button'
-import { EscalationDrawer } from '@/components/escalation-drawer'
 import { ConfirmDialog } from '@/components/confirm-dialog'
-import { AlertTriangle, ExternalLink, Loader2, Play, Rocket, RotateCcw, SkipForward, Square } from 'lucide-react'
+import { ExternalLink, Loader2, Play, Rocket, RotateCcw, SkipForward, Square } from 'lucide-react'
 
 // Mid-phase states — rouge-loop is expected to be actively running a
 // Claude subprocess while the project sits in one of these. When a
@@ -53,7 +52,6 @@ export function ActionBar({
   buildRunning,
   buildStartedAt,
 }: ActionBarProps) {
-  const [drawerOpen, setDrawerOpen] = useState(false)
   const [loading, setLoading] = useState<string | null>(null)
   const [confirmAction, setConfirmAction] = useState<'start' | 'stop' | 'reset' | null>(null)
   const [commandError, setCommandError] = useState<string | null>(null)
@@ -157,33 +155,16 @@ export function ActionBar({
                 {commandNotice}
               </span>
             )}
-            {(state === 'escalation' || state === 'waiting-for-human') && escalation && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 border-amber-400 text-amber-700 hover:bg-amber-50"
-                onClick={() => setDrawerOpen(true)}
-                data-testid="open-escalation-button"
-              >
-                <AlertTriangle className="size-3.5" />
-                Respond to Escalation
-              </Button>
-            )}
+            {/* Escalation response is handled by inline EscalationResponse
+                cards above the tabs — see page.tsx lines 503-518. The legacy
+                drawer button was removed to avoid duplicate response surfaces. */}
             {renderActions(state, execCommand, loading, buildRunning)}
           </div>
         </div>
       </div>
 
-      {escalation && (
-        <EscalationDrawer
-          open={drawerOpen}
-          onOpenChange={setDrawerOpen}
-          escalation={escalation}
-          projectState={state}
-          slug={slug}
-          onResolved={onCommandComplete}
-        />
-      )}
+      {/* Legacy EscalationDrawer removed — inline EscalationResponse cards
+          are the canonical escalation surface (page.tsx). */}
 
       <ConfirmDialog
         open={confirmAction === 'start'}
