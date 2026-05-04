@@ -197,7 +197,11 @@ describe('advanceState — escalation human_response', () => {
     assert.strictEqual(result.consecutive_failures, 0);
   });
 
-  test('unrecognised response type is ignored — stays in escalation', async () => {
+  test('unrecognised response type is rejected — escalation marked blocked', async () => {
+    // validateHumanResponse rejects unknown types before the dispatch
+    // switch. The malformed response is deleted, the original escalation
+    // is marked 'blocked' (so the user knows to re-submit), and a new
+    // tier-999 malformed escalation is pushed.
     const state = {
       current_state: 'escalation',
       current_milestone: 'ms-1',
@@ -231,7 +235,11 @@ describe('advanceState — escalation human_response', () => {
     const result = readState(tmpDir);
     // Should stay in escalation — no transition
     assert.strictEqual(result.current_state, 'escalation');
-    // Escalation should still be pending (reverted)
-    assert.strictEqual(result.escalations[0].status, 'pending');
+    // Original escalation marked blocked (BUILD-003 FIX)
+    assert.strictEqual(result.escalations[0].status, 'blocked');
+    // A new malformed escalation should be pushed
+    const malformed = result.escalations.find(e => e.kind === 'malformed-human-response');
+    assert.ok(malformed, 'expected a malformed-human-response escalation');
+    assert.strictEqual(malformed.tier, 999);
   });
 });

@@ -326,8 +326,79 @@ function assembleFixStoryContext(projectDir, state) {
   return outputPath;
 }
 
+/**
+ * Collect relevant source files for inlining into the build prompt.
+ * Returns file contents directly so the model doesn't need to explore.
+ */
+function collectRelevantSourceFiles(projectDir, story, state, opts = {}) {
+  const maxFiles = opts.maxFiles || 5;
+  const maxTotalBytes = opts.maxTotalBytes || 30000;
+
+  const candidates = new Set();
+
+  // Source 1: files changed by completed stories in same milestone
+  const milestone = (state.milestones || []).find(m => m.name === state.current_milestone);
+  if (milestone) {
+    for (const s of milestone.stories || []) {
+      if (s.status === 'done' && s.id !== story.id) {
+        for (const f of s.files_changed || []) {
+          if (!f.includes('.test.') && !f.includes('node_modules')) {
+            candidates.add(f);
+          }
+        }
+      }
+    }
+  }
+
+  // Source 2: grep for affected entity names in src/
+  const entities = story.affected_entities || [];
+  if (entities.length > 0 && candidates.size < maxFiles) {
+    try {
+      const { execSync } = require('child_process');
+      const pattern = entities.slice(0, 3).join('|');
+      const grepResult = execSync(
+        `grep -rl --include="*.ts" --include="*.tsx" --include="*.js" "${pattern}" src/ packages/ apps/ 2>/dev/null | head -10`,
+        { cwd: projectDir, encoding: 'utf8', timeout: 5000, stdio: ['ignore', 'pipe', 'ignore'] }
+      );
+      for (const f of grepResult.trim().split('\n').filter(Boolean)) {
+        candidates.add(f);
+      }
+    } catch {}
+  }
+
+  // Rank: prefer shorter files (likely modules/utils), exclude test files and configs
+  const ranked = [...candidates]
+    .filter(f => {
+      const abs = path.isAbsolute(f) ? f : path.join(projectDir, f);
+      try { return fs.statSync(abs).isFile(); } catch { return false; }
+    })
+    .map(f => {
+      const abs = path.isAbsolute(f) ? f : path.join(projectDir, f);
+      const size = fs.statSync(abs).size;
+      return { path: f, abs, size };
+    })
+    .filter(f => f.size < 15000) // skip huge files
+    .sort((a, b) => a.size - b.size);
+
+  const result = [];
+  let totalBytes = 0;
+  for (const f of ranked) {
+    if (result.length >= maxFiles) break;
+    if (totalBytes + f.size > maxTotalBytes) break;
+    try {
+      const content = fs.readFileSync(f.abs, 'utf8');
+      const relPath = path.relative(projectDir, f.abs);
+      result.push({ path: relPath, content });
+      totalBytes += f.size;
+    } catch {}
+  }
+
+  return result;
+}
+
 module.exports = {
   assembleStoryContext,
   assembleMilestoneContext,
   assembleFixStoryContext,
+  collectRelevantSourceFiles,
 };

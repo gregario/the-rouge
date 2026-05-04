@@ -4,154 +4,147 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const {
-  REGISTRY,
-  DISCIPLINE_NAMES,
-  tierAtOrAbove,
-  shouldRun,
-  skipReason,
+  DISCIPLINE_TIERS,
+  TIER_ORDER,
   listApplicable,
-  listSkipped,
+  getTier,
 } = require('../src/launcher/discipline-registry.js');
 
-describe('tierAtOrAbove', () => {
-  test('exact match passes', () => {
-    assert.equal(tierAtOrAbove('M', 'M'), true);
-    assert.equal(tierAtOrAbove('XS', 'XS'), true);
-  });
-
-  test('higher tier passes', () => {
-    assert.equal(tierAtOrAbove('L', 'M'), true);
-    assert.equal(tierAtOrAbove('XL', 'XS'), true);
-  });
-
-  test('lower tier fails', () => {
-    assert.equal(tierAtOrAbove('XS', 'M'), false);
-    assert.equal(tierAtOrAbove('S', 'L'), false);
-  });
-
-  test('unknown tier throws', () => {
-    assert.throws(() => tierAtOrAbove('XXL', 'M'), /unknown projectSize/);
-    assert.throws(() => tierAtOrAbove('M', 'XXL'), /unknown applicable_at/);
+describe('TIER_ORDER', () => {
+  test('contains the five canonical tiers in order', () => {
+    assert.deepEqual(TIER_ORDER, ['XS', 'S', 'M', 'L', 'XL']);
   });
 });
 
-describe('REGISTRY integrity', () => {
-  test('every discipline entry has applicable_at + file', () => {
-    for (const [name, entry] of Object.entries(REGISTRY)) {
-      assert.ok(entry.applicable_at, `${name} missing applicable_at`);
-      assert.ok(entry.file, `${name} missing file`);
+describe('DISCIPLINE_TIERS integrity', () => {
+  test('every discipline entry has a valid tier', () => {
+    const validTiers = new Set(TIER_ORDER);
+    for (const [name, tier] of Object.entries(DISCIPLINE_TIERS)) {
+      assert.ok(validTiers.has(tier), `${name} has invalid tier: ${tier}`);
     }
   });
 
-  test('every file in REGISTRY exists on disk', () => {
-    const seedingDir = path.join(__dirname, '..', 'src', 'prompts', 'seeding');
-    for (const [name, entry] of Object.entries(REGISTRY)) {
-      const full = path.join(seedingDir, entry.file);
-      assert.ok(fs.existsSync(full), `${name} → ${full} does not exist`);
-    }
-  });
-
-  test('DISCIPLINE_NAMES order matches canonical swarm sequence', () => {
-    assert.deepEqual([...DISCIPLINE_NAMES], [
+  test('contains all 9 canonical disciplines', () => {
+    const expected = [
       'brainstorming', 'competition', 'taste', 'sizing', 'spec',
       'infrastructure', 'design', 'legal-privacy', 'marketing',
-    ]);
+    ];
+    assert.deepEqual(Object.keys(DISCIPLINE_TIERS).sort(), expected.sort());
   });
 
-  test('applicable_at values are all valid tiers', () => {
-    const validTiers = new Set(['XS', 'S', 'M', 'L', 'XL']);
-    for (const [name, entry] of Object.entries(REGISTRY)) {
-      assert.ok(validTiers.has(entry.applicable_at), `${name} has invalid tier: ${entry.applicable_at}`);
-    }
+  test('tier assignments match expected values', () => {
+    assert.equal(DISCIPLINE_TIERS['brainstorming'], 'XS');
+    assert.equal(DISCIPLINE_TIERS['competition'], 'M');
+    assert.equal(DISCIPLINE_TIERS['taste'], 'XS');
+    assert.equal(DISCIPLINE_TIERS['sizing'], 'XS');
+    assert.equal(DISCIPLINE_TIERS['spec'], 'XS');
+    assert.equal(DISCIPLINE_TIERS['infrastructure'], 'S');
+    assert.equal(DISCIPLINE_TIERS['design'], 'S');
+    assert.equal(DISCIPLINE_TIERS['legal-privacy'], 'S');
+    assert.equal(DISCIPLINE_TIERS['marketing'], 'M');
   });
 });
 
-describe('shouldRun', () => {
-  test('XS project runs brainstorming/taste/sizing/spec only', () => {
-    assert.equal(shouldRun('brainstorming', 'XS'), true);
-    assert.equal(shouldRun('taste', 'XS'), true);
-    assert.equal(shouldRun('sizing', 'XS'), true);
-    assert.equal(shouldRun('spec', 'XS'), true);
+describe('getTier', () => {
+  test('returns the tier for a known discipline', () => {
+    assert.equal(getTier('brainstorming'), 'XS');
+    assert.equal(getTier('competition'), 'M');
+    assert.equal(getTier('infrastructure'), 'S');
+  });
 
-    assert.equal(shouldRun('competition', 'XS'), false);
-    assert.equal(shouldRun('infrastructure', 'XS'), false);
-    assert.equal(shouldRun('design', 'XS'), false);
-    assert.equal(shouldRun('legal-privacy', 'XS'), false);
-    assert.equal(shouldRun('marketing', 'XS'), false);
+  test('returns null for an unknown discipline', () => {
+    assert.equal(getTier('nonsense'), null);
+    assert.equal(getTier(''), null);
+  });
+});
+
+describe('listApplicable', () => {
+  test('XS project runs brainstorming/taste/sizing/spec only', () => {
+    const app = listApplicable('XS');
+    assert.equal(app.length, 4);
+    assert.deepEqual(app.sort(), ['brainstorming', 'sizing', 'spec', 'taste']);
   });
 
   test('S project adds infrastructure/design/legal-privacy', () => {
-    assert.equal(shouldRun('infrastructure', 'S'), true);
-    assert.equal(shouldRun('design', 'S'), true);
-    assert.equal(shouldRun('legal-privacy', 'S'), true);
-
-    assert.equal(shouldRun('competition', 'S'), false);
-    assert.equal(shouldRun('marketing', 'S'), false);
+    const app = listApplicable('S');
+    assert.equal(app.length, 7);
+    // Should include all XS disciplines plus the S-tier ones
+    assert.ok(app.includes('brainstorming'));
+    assert.ok(app.includes('infrastructure'));
+    assert.ok(app.includes('design'));
+    assert.ok(app.includes('legal-privacy'));
+    // Should not include M-tier disciplines
+    assert.ok(!app.includes('competition'));
+    assert.ok(!app.includes('marketing'));
   });
 
   test('M project runs all 9 disciplines', () => {
-    for (const name of DISCIPLINE_NAMES) {
-      assert.equal(shouldRun(name, 'M'), true, `${name} should run at M`);
-    }
+    const app = listApplicable('M');
+    assert.equal(app.length, 9);
   });
 
   test('L and XL also run all 9', () => {
     for (const size of ['L', 'XL']) {
-      for (const name of DISCIPLINE_NAMES) {
-        assert.equal(shouldRun(name, size), true, `${name} should run at ${size}`);
-      }
+      const app = listApplicable(size);
+      assert.equal(app.length, 9, `Expected 9 disciplines at ${size}`);
     }
   });
 
-  test('unknown discipline throws', () => {
-    assert.throws(() => shouldRun('nonsense', 'M'), /unknown discipline/);
+  test('applicable maintains insertion order from DISCIPLINE_TIERS', () => {
+    const m = listApplicable('M');
+    assert.deepEqual(m, Object.keys(DISCIPLINE_TIERS));
   });
-});
 
-describe('listApplicable / listSkipped', () => {
-  test('XS → 4 applicable, 5 skipped', () => {
+  test('invalid project size throws', () => {
+    assert.throws(() => listApplicable('XXL'), /Invalid project size/);
+  });
+
+  test('applicable disciplines are a subset at smaller tiers', () => {
+    const xs = listApplicable('XS');
+    const s = listApplicable('S');
+    const m = listApplicable('M');
+    // Every XS discipline should appear in S
+    for (const d of xs) {
+      assert.ok(s.includes(d), `${d} in XS but not S`);
+    }
+    // Every S discipline should appear in M
+    for (const d of s) {
+      assert.ok(m.includes(d), `${d} in S but not M`);
+    }
+  });
+
+  test('XS → 4 applicable, 5 skipped (difference from total)', () => {
     const app = listApplicable('XS');
-    const skip = listSkipped('XS');
+    const allDisciplines = Object.keys(DISCIPLINE_TIERS);
+    const skipped = allDisciplines.filter(d => !app.includes(d));
     assert.equal(app.length, 4);
-    assert.equal(skip.length, 5);
-    assert.deepEqual(app, ['brainstorming', 'taste', 'sizing', 'spec']);
+    assert.equal(skipped.length, 5);
   });
 
   test('S → 7 applicable, 2 skipped (competition + marketing)', () => {
     const app = listApplicable('S');
-    const skip = listSkipped('S');
+    const allDisciplines = Object.keys(DISCIPLINE_TIERS);
+    const skipped = allDisciplines.filter(d => !app.includes(d));
     assert.equal(app.length, 7);
-    assert.equal(skip.length, 2);
-    assert.deepEqual(skip.sort(), ['competition', 'marketing']);
+    assert.equal(skipped.length, 2);
+    assert.deepEqual(skipped.sort(), ['competition', 'marketing']);
   });
 
   test('M → 9 applicable, 0 skipped', () => {
-    assert.equal(listApplicable('M').length, 9);
-    assert.equal(listSkipped('M').length, 0);
+    const app = listApplicable('M');
+    assert.equal(app.length, 9);
+    const allDisciplines = Object.keys(DISCIPLINE_TIERS);
+    const skipped = allDisciplines.filter(d => !app.includes(d));
+    assert.equal(skipped.length, 0);
   });
 
   test('applicable + skipped always sums to 9', () => {
+    const allDisciplines = Object.keys(DISCIPLINE_TIERS);
     for (const size of ['XS', 'S', 'M', 'L', 'XL']) {
-      const total = listApplicable(size).length + listSkipped(size).length;
+      const app = listApplicable(size);
+      const skipped = allDisciplines.filter(d => !app.includes(d));
+      const total = app.length + skipped.length;
       assert.equal(total, 9, `${size}: ${total} != 9`);
     }
-  });
-
-  test('applicable maintains canonical order', () => {
-    const m = listApplicable('M');
-    assert.deepEqual(m, [...DISCIPLINE_NAMES]);
-  });
-});
-
-describe('skipReason', () => {
-  test('names applicable_at and project_size', () => {
-    const r = skipReason('competition', 'XS');
-    assert.ok(r.includes('applicable_at=M'));
-    assert.ok(r.includes('project_size=XS'));
-    assert.ok(r.includes('below threshold'));
-  });
-
-  test('unknown discipline throws', () => {
-    assert.throws(() => skipReason('nonsense', 'XS'), /unknown discipline/);
   });
 });

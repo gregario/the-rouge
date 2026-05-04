@@ -40,4 +40,21 @@ function getModelForPhase(phase, configOverrides = {}) {
   return configOverrides[phase] || STATE_TO_MODEL[phase] || 'opus';
 }
 
-module.exports = { getModelForPhase, STATE_TO_MODEL };
+/**
+ * Per-story model selection for story-building phase.
+ * Routes routine/mechanical stories to Sonnet (5x cheaper cache reads).
+ * Escalates to Opus for: foundation, retries, first-in-milestone, complex stories.
+ */
+function getModelForStory(story, milestone, state, configOverrides = {}) {
+  if (configOverrides['story-building']) return configOverrides['story-building'];
+  if (story.complexity === 'routine') return 'sonnet';
+  if (story.foundation) return 'opus';
+  if ((story.attempts || 0) > 0) return 'opus';
+  const doneInMilestone = (milestone?.stories || []).filter(s => s.status === 'done').length;
+  if (doneInMilestone === 0) return 'opus';
+  const acCount = (story.acceptance_criteria || []).length;
+  if (acCount <= 3 && (story.depends_on || []).length === 0) return 'sonnet';
+  return 'opus';
+}
+
+module.exports = { getModelForPhase, getModelForStory, STATE_TO_MODEL };

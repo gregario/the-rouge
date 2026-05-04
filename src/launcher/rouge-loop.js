@@ -1967,9 +1967,23 @@ async function advanceState(projectDir) {
       break;
     }
 
-    case 'shipping':
-      next = 'final-review';
+    case 'shipping': {
+      const ctx = readJson(contextFile);
+      if (ctx?.ship_blocked || ctx?.escalation_needed || ctx?.ship_error) {
+        next = escalate(state, {
+          id: `esc-ship-blocked-${Date.now()}`,
+          tier: 2,
+          classification: 'ship-blocked',
+          summary: ctx.ship_blocked_reason
+            || ctx.ship_error?.message
+            || 'Shipping phase could not promote to production. See cycle_context.json for details.',
+        });
+        log(`[${projectName}] Ship blocked — escalating`);
+      } else {
+        next = 'final-review';
+      }
       break;
+    }
 
     case 'final-review': {
       const ctx = readJson(contextFile);
@@ -2641,7 +2655,16 @@ async function runPhase(projectDir) {
   }
 
   // V3: Per-phase model selection (Opus for reasoning, Sonnet for mechanical)
-  const model = process.env.ROUGE_MODEL || getModelForPhase(currentState, config.model_overrides || {});
+  // Story-building uses per-story selection based on complexity/novelty.
+  let model;
+  if (currentState === 'story-building' && state.current_story) {
+    const { getModelForStory } = require('./model-selection.js');
+    const storyMs = (state.milestones || []).find(m => m.name === state.current_milestone);
+    const storyObj = storyMs && (storyMs.stories || []).find(s => s.id === state.current_story);
+    model = process.env.ROUGE_MODEL || getModelForStory(storyObj || {}, storyMs, state, config.model_overrides || {});
+  } else {
+    model = process.env.ROUGE_MODEL || getModelForPhase(currentState, config.model_overrides || {});
+  }
   const phaseLog = path.join(LOG_DIR, `${projectName}-${currentState}.log`);
 
   log(`[${projectName}] Running phase: ${currentState} (model: ${model}, ceiling: ${HARD_CEILING / 60000}min, stale: ${PROGRESS_STALE_THRESHOLD / 60000}min)`);
@@ -2692,18 +2715,40 @@ async function runPhase(projectDir) {
       requiredOutputKeys: PHASE_REQUIRED_KEYS[currentState] || [],
     });
 
-    // Build the prompt instruction with V3 preamble
-    let promptInstruction = `${preambleText}\n\n---\n\nRead the phase prompt at ${promptFile} and execute it. The project directory is ${projectDir}. Read cycle_context.json for context.`;
+    // Build the prompt instruction
+    let promptInstruction;
 
-    // Foundation-as-stories: when building a foundation story, inject
-    // additional context so the building prompt applies foundation-specific
-    // rules (read infrastructure_manifest, never implement features, etc.)
-    if (currentState === 'story-building' && state.current_story) {
+    if (currentState === 'story-building') {
+      // Inline everything for story-building: prompt + context + source files.
+      // Eliminates ~15 exploration turns the model would otherwise spend reading files.
+      const buildPromptContent = fs.readFileSync(promptFile, 'utf8');
+      const storyCtxPath = path.join(projectDir, 'story_context.json');
+      const storyCtx = fs.existsSync(storyCtxPath) ? fs.readFileSync(storyCtxPath, 'utf8') : '{}';
+
+      // Collect relevant source files for inlining
+      let sourceFilesSection = '';
+      try {
+        const { collectRelevantSourceFiles } = require('./context-assembly');
+        const storyMs = (state.milestones || []).find(m => m.name === state.current_milestone);
+        const storyObj = storyMs && (storyMs.stories || []).find(s => s.id === state.current_story);
+        const relevantFiles = collectRelevantSourceFiles(projectDir, storyObj || {}, state);
+        if (relevantFiles.length > 0) {
+          sourceFilesSection = '\n\n---\n\n## Relevant Source Files\n\nThese are existing files in the project relevant to your story. Use them as patterns — do not re-explore the codebase.\n\n' +
+            relevantFiles.map(f => `### ${f.path}\n\`\`\`\n${f.content}\n\`\`\``).join('\n\n');
+        }
+      } catch {}
+
+      // Foundation story flag
       const currentMs = (state.milestones || []).find(m => m.name === state.current_milestone);
       const currentSt = currentMs && (currentMs.stories || []).find(s => s.id === state.current_story);
-      if (currentSt && currentSt.foundation) {
-        promptInstruction += `\n\n---\n\n## FOUNDATION STORY MODE\n\nThe active story "${currentSt.id}" has \`foundation: true\`. You are building foundation infrastructure, not a feature. Additional rules apply:\n\n1. Read \`infrastructure_manifest.json\` in the project directory for provider choices, deploy targets, database config.\n2. NEVER implement user-facing features or story-specific UI. Foundation builds the floor.\n3. Apply the hard-blocking rule: if an integration is missing or broken, ESCALATE with classification \`infrastructure-gap\`, do not substitute.\n4. Apply isolation rules from 00-foundation-building.md: never adopt existing resources, always create new infrastructure.\n5. Commit in logical units: one commit per migration, per integration scaffold, per auth flow step.\n6. The acceptance criteria for this foundation story are your build contract. Meet them with TDD just like a feature story.`;
-      }
+      const foundationFlag = (currentSt && currentSt.foundation)
+        ? '\n\n---\n\n## FOUNDATION STORY MODE\n\nThis story builds infrastructure, not features. Read `infrastructure_manifest.json` for provider choices. NEVER implement user-facing UI. ESCALATE with `infrastructure-gap` if an integration is missing.'
+        : '';
+
+      promptInstruction = `${preambleText}\n\n---\n\n${buildPromptContent}\n\n---\n\n## Story Context\n\n\`\`\`json\n${storyCtx}\n\`\`\`${foundationFlag}${sourceFilesSection}\n\n---\n\nThe project directory is ${projectDir}. Write results to cycle_context.json when done.`;
+    } else {
+      // All other phases: tell the model to read the prompt file (cheaper phases, fewer turns anyway)
+      promptInstruction = `${preambleText}\n\n---\n\nRead the phase prompt at ${promptFile} and execute it. The project directory is ${projectDir}. Read cycle_context.json for context.`;
     }
 
     // FIX-6: Save state.json before phase — restore if phase overwrites it
@@ -2774,7 +2819,7 @@ async function runPhase(projectDir) {
         promptInstruction,
         '--dangerously-skip-permissions',
         '--model', model,
-        '--max-turns', '200',
+        '--max-turns', (currentState === 'story-building' && model === 'sonnet') ? '40' : (currentState === 'story-building' ? '80' : '200'),
         '--output-format', 'stream-json',
         '--verbose',
         ...addDirs.flatMap(dir => ['--add-dir', dir]),
@@ -2888,23 +2933,58 @@ async function runPhase(projectDir) {
         const logSize = fs.statSync(phaseLog).size;
         const fallbackTokens = Math.max(logSize * 2, 10000);
         trackPhaseCostFromLog(state, phaseLog, fallbackTokens, model);
-        await commitState(projectDir, state);
+
+        // Merge cost data into the on-disk state rather than overwriting
+        // the entire file. External actors (dashboard budget-cap editor)
+        // may have mutated state.json while this phase was running — a
+        // full overwrite from the stale in-memory `state` would erase
+        // those changes.
+        const costData = { ...state.costs };
+        const alertFlags = {};
+        if (state._cost_alert_50) alertFlags._cost_alert_50 = true;
+        if (state._cost_alert_80) alertFlags._cost_alert_80 = true;
+
+        await facade.writeState({
+          projectDir,
+          source: 'loop',
+          mutator: (s) => {
+            if (s) {
+              s.costs = costData;
+              Object.assign(s, alertFlags);
+            }
+          },
+          eventDetail: { what: 'phase-cost-tracking' },
+          allowSlow: true,
+        });
+
         const src = state.costs.phase_cost_source === 'parsed' ? ' (parsed)' : state.costs.phase_cost_source === 'parsed-tokens' ? ' (parsed tokens)' : ' (estimated)';
         log(`[${projectName}] Cost: ~${state.costs.phase_cost_usd.toFixed(2)} USD this phase${src}, ~${state.costs.cumulative_cost_usd.toFixed(2)} USD cumulative`);
 
         // V3: Cost milestone notifications (per-project cap wins over global).
         // P1.5R PR 6: tier default slots between per-project and global.
-        const alertCap = state.budget_cap_usd ?? readBudgetCapFromSizing(projectDir) ?? config.budget_cap_usd;
+        // Re-read effective cap from the on-disk state (which now has the
+        // merged budget_cap_usd if the user changed it mid-phase).
+        const freshState = readJson(stateFile);
+        const alertCap = freshState?.budget_cap_usd ?? readBudgetCapFromSizing(projectDir) ?? config.budget_cap_usd;
         if (alertCap) {
-          const pct = Math.round((state.costs.cumulative_cost_usd / alertCap) * 100);
-          if (pct >= 80 && !state._cost_alert_80) {
-            state._cost_alert_80 = true;
-            notifyRich('cost-alert', { project: projectName, currentUsd: state.costs.cumulative_cost_usd, budgetUsd: alertCap, percentage: 80 });
-          } else if (pct >= 50 && !state._cost_alert_50) {
-            state._cost_alert_50 = true;
-            notifyRich('cost-alert', { project: projectName, currentUsd: state.costs.cumulative_cost_usd, budgetUsd: alertCap, percentage: 50 });
+          const pct = Math.round((costData.cumulative_cost_usd / alertCap) * 100);
+          if (pct >= 80 && !freshState?._cost_alert_80) {
+            notifyRich('cost-alert', { project: projectName, currentUsd: costData.cumulative_cost_usd, budgetUsd: alertCap, percentage: 80 });
+            await facade.writeState({
+              projectDir, source: 'loop',
+              mutator: (s) => { if (s) s._cost_alert_80 = true; },
+              eventDetail: { what: 'cost-alert-80' },
+              allowSlow: true,
+            });
+          } else if (pct >= 50 && !freshState?._cost_alert_50) {
+            notifyRich('cost-alert', { project: projectName, currentUsd: costData.cumulative_cost_usd, budgetUsd: alertCap, percentage: 50 });
+            await facade.writeState({
+              projectDir, source: 'loop',
+              mutator: (s) => { if (s) s._cost_alert_50 = true; },
+              eventDetail: { what: 'cost-alert-50' },
+              allowSlow: true,
+            });
           }
-          await commitState(projectDir, state);
         }
       } catch {}
 
@@ -2945,7 +3025,13 @@ async function runPhase(projectDir) {
         } else {
           log(`[${projectName}] Phase wrote state.json (${stateAfterPhase.current_state}) — restoring to ${currentState}`);
           const restored = JSON.parse(stateBeforePhase);
-          restored.current_state = currentState; // keep the state the launcher set
+          restored.current_state = currentState;
+          // Preserve fields that external actors (dashboard) may have set
+          // while the phase was running. The phase prompt shouldn't touch
+          // these, but the dashboard budget editor does.
+          if (typeof stateAfterPhase.budget_cap_usd === 'number') {
+            restored.budget_cap_usd = stateAfterPhase.budget_cap_usd;
+          }
           await commitState(projectDir, restored, { what: 'phase-restore', from: stateAfterPhase.current_state, to: currentState });
         }
       }
@@ -3009,6 +3095,10 @@ function checkBriefing() {
 
 function listProjects() {
   if (!fs.existsSync(PROJECTS_DIR)) return [];
+  const filter = process.env.ROUGE_PROJECT_FILTER;
+  if (filter) {
+    return hasStateFile(path.join(PROJECTS_DIR, filter)) ? [filter] : [];
+  }
   return fs.readdirSync(PROJECTS_DIR).filter(d =>
     hasStateFile(path.join(PROJECTS_DIR, d))
   );
@@ -3023,6 +3113,19 @@ function sleep(ms) {
 async function main() {
   // Keep the event loop alive — prevents Node from exiting when child process completes
   const keepAlive = setInterval(() => {}, 60000);
+
+  // Instance lock — prevent concurrent rouge-loop processes for the same project
+  const { acquire, release } = require('./instance-lock');
+  const filterSlug = process.env.ROUGE_PROJECT_FILTER || null;
+  const lockDir = filterSlug ? path.join(PROJECTS_DIR, filterSlug) : ROUGE_ROOT;
+  const lockResult = acquire(lockDir, { filter: filterSlug });
+  if (!lockResult.acquired) {
+    log(`Another rouge-loop (PID ${lockResult.existingPid}) is already running for ${filterSlug || 'all projects'}. Exiting.`);
+    process.exit(1);
+  }
+  // Store for signal handlers
+  global.__rougeLockDir = lockDir;
+  global.__rougeReleaseLock = () => release(lockDir);
 
   log(`Rouge launcher starting. Projects dir: ${PROJECTS_DIR}`);
   checkAuthExpiry();
@@ -3125,32 +3228,40 @@ async function main() {
       }
     }
 
+    // Exit cleanly when filtered to a single project that reached a terminal state
+    if (filterSlug) {
+      const termState = readJson(statePath(path.join(PROJECTS_DIR, filterSlug)));
+      if (termState && SKIP_STATES.has(termState.current_state)) {
+        log(`[${filterSlug}] Project in terminal state (${termState.current_state}) — exiting`);
+        release(lockDir);
+        process.exit(0);
+      }
+    }
+
     log(`Loop complete. Sleeping ${LOOP_DELAY / 1000}s.`);
     await sleep(LOOP_DELAY);
   }
 }
 
-// --- Signal handlers (daemon resilience) ---
-// Parent and child share PGID — signals to the process group propagate to both.
-// Without handlers, SIGTERM/SIGHUP use default behavior (terminate).
-process.on('SIGTERM', () => {
-  log('SIGTERM received — ignoring (launcher is long-running)');
-});
+// --- Signal handlers ---
+
+function shutdownGracefully(signal, exitCode) {
+  log(`${signal} received — shutting down`);
+  for (const [project, pid] of activeChildren) {
+    log(`Killing active child for ${path.basename(project)}: PID ${pid}`);
+    try { process.kill(-pid); } catch {}
+    try { process.kill(pid, 'SIGKILL'); } catch {}
+  }
+  activeChildren.clear();
+  if (global.__rougeReleaseLock) global.__rougeReleaseLock();
+  process.exit(exitCode);
+}
+
+process.on('SIGTERM', () => shutdownGracefully('SIGTERM', 143));
+process.on('SIGINT', () => shutdownGracefully('SIGINT', 130));
 
 process.on('SIGHUP', () => {
   log('SIGHUP received — ignoring (terminal disconnect)');
-});
-
-process.on('SIGINT', () => {
-  log('SIGINT received — shutting down');
-  // Kill any active claude children before exiting to prevent orphans.
-  for (const [project, pid] of activeChildren) {
-    log(`Killing active child for ${path.basename(project)}: PID ${pid}`);
-    try { process.kill(-pid); } catch {} // kill process group if detached
-    try { process.kill(pid, 'SIGKILL'); } catch {} // direct kill as fallback
-  }
-  activeChildren.clear();
-  process.exit(130);
 });
 
 // Prevent unhandled errors from crashing the launcher

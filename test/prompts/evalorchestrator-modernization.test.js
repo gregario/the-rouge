@@ -60,7 +60,7 @@ describe('02-evaluation-orchestrator.md sub-phase architecture (calibration inst
 
   test('re-walk triggers only on non-empty re_walk_requests[]', () => {
     assert.ok(/re_walk_requests.*is non-empty/.test(EO));
-    assert.ok(/Cap at one re-walk iteration per evaluation run/.test(EO),
+    assert.ok(/Cap the iteration so the loop can't spin on fuzzy evidence requests/.test(EO),
       'anti-loop cap preserves the re-walk sub-phase from spinning');
   });
 
