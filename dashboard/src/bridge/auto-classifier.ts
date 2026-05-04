@@ -11,6 +11,12 @@
  * cross-build import path exists. Keep these in sync manually; a future
  * shared package can unify them.
  *
+ * Classification algorithm:
+ *   - Each signal maps to a tier independently via boundaries.
+ *   - The project's tier is the MAJORITY vote across signals. Ties
+ *     break toward the higher tier (conservative).
+ *   - Safety floor: if any signal is L or XL, the project is at least M.
+ *
  * Signal extraction:
  *   1. Look for a `## Classifier Signals` section in brainstorming.md
  *      with explicit `entity_count: N` lines. This is the preferred path
@@ -18,20 +24,18 @@
  *   2. If the section is missing or incomplete, fall back to counting
  *      keyword mentions in the full text. This is deliberately coarse
  *      (a mention of "database" counts as one entity, not zero) so the
- *      classifier biases toward higher tiers when signal data is poor —
- *      under-specking a complex project is the failure mode we guard
- *      against (see project-sizer.js header comment).
+ *      classifier biases toward higher tiers when signal data is poor.
  */
 
 import { existsSync, readFileSync, mkdirSync, writeFileSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
-import { TIER_ORDER, type ProjectSize } from './tier-registry'
+import { TIER_ORDER, DISCIPLINE_TIERS, listApplicableDisciplines, type ProjectSize } from './tier-registry'
 
 // ─── Classifier boundaries ───────────────────────────────────────────
 // Mirrors src/launcher/project-sizer.js BOUNDARIES exactly.
 
 const BOUNDARIES: Record<string, number[]> = {
-  entity_count:      [1, 3, 6, 12],   // XS 0-1, S 2-3, M 4-6, L 7-12, XL 13+
+  entity_count:      [2, 3, 6, 12],   // XS 0-2, S 3,   M 4-6, L 7-12, XL 13+
   integration_count: [0, 2, 5, 10],   // XS 0,   S 1-2, M 3-5, L 6-10, XL 11+
   role_count:        [1, 2, 3, 5],    // XS 0-1, S 2,   M 3,   L 4-5,  XL 6+
   journey_count:     [2, 3, 6, 10],   // XS 0-2, S 3,   M 4-6, L 7-10, XL 11+
@@ -68,14 +72,36 @@ function maxTier(a: ProjectSize, b: ProjectSize): ProjectSize {
   return TIER_ORDER.indexOf(a) >= TIER_ORDER.indexOf(b) ? a : b
 }
 
+function majorityTier(votes: ProjectSize[]): ProjectSize {
+  const counts: Partial<Record<ProjectSize, number>> = {}
+  for (const v of votes) counts[v] = (counts[v] || 0) + 1
+  let best: ProjectSize = 'XS'
+  let bestCount = 0
+  for (const tier of TIER_ORDER) {
+    const c = counts[tier] || 0
+    if (c > bestCount || (c === bestCount && TIER_ORDER.indexOf(tier) > TIER_ORDER.indexOf(best))) {
+      best = tier
+      bestCount = c
+    }
+  }
+  return best
+}
+
 function classify(signals: Record<string, number>): { projectSize: ProjectSize; reasoning: string } {
-  let picked: ProjectSize = 'XS'
   const perSignal: Record<string, ProjectSize> = {}
+  const votes: ProjectSize[] = []
 
   for (const name of SIGNAL_NAMES) {
     const tier = tierForSignal(name, signals[name] ?? 0)
     perSignal[name] = tier
-    picked = maxTier(picked, tier)
+    votes.push(tier)
+  }
+
+  let picked = majorityTier(votes)
+
+  // Safety floor: if any signal is L or XL, the project is at least M.
+  if (votes.some((t) => t === 'L' || t === 'XL')) {
+    picked = maxTier('M', picked)
   }
 
   const drivers = SIGNAL_NAMES.filter((n) => perSignal[n] === picked)
@@ -278,11 +304,87 @@ export function runAutoClassifier(
   writeFileSync(tmpPath, JSON.stringify(artifact, null, 2) + '\n')
   renameSync(tmpPath, sizingPath)
 
+  // Write stubs for disciplines that are skipped at this tier, so
+  // downstream code that expects these artifacts doesn't crash.
+  writeSkippedDisciplineStubs(projectDir, projectSize, brainstormingText)
+
   return {
     ok: true,
     projectSize,
     signals,
     reasoning,
     signalSource,
+  }
+}
+
+// ─── Stub generation for skipped disciplines ────────────────────────
+
+function writeStubAtomic(filePath: string, content: string): void {
+  const dir = join(filePath, '..')
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+  const tmp = filePath + '.tmp'
+  writeFileSync(tmp, content)
+  renameSync(tmp, filePath)
+}
+
+function writeJsonStubAtomic(filePath: string, data: unknown): void {
+  writeStubAtomic(filePath, JSON.stringify(data, null, 2) + '\n')
+}
+
+function inferDeployTarget(brainstormingText: string): string {
+  const lower = brainstormingText.toLowerCase()
+  if (lower.includes('static') || lower.includes('github pages')) return 'static'
+  if (lower.includes('vercel')) return 'vercel'
+  if (lower.includes('netlify')) return 'netlify'
+  if (lower.includes('docker')) return 'docker-compose'
+  if (lower.includes('api') && !lower.includes('page') && !lower.includes('screen')) return 'api-only'
+  return 'vercel'
+}
+
+/**
+ * For each discipline skipped at the given tier, write a minimal stub
+ * artifact so downstream consumers (foundation stories, build loop,
+ * evaluator) don't crash on missing files.
+ */
+function writeSkippedDisciplineStubs(
+  projectDir: string,
+  projectSize: ProjectSize,
+  brainstormingText: string,
+): void {
+  const applicable = new Set(listApplicableDisciplines(projectSize))
+  const allDisciplines = Object.keys(DISCIPLINE_TIERS)
+  const skipped = allDisciplines.filter((d) => !applicable.has(d))
+
+  for (const discipline of skipped) {
+    switch (discipline) {
+      case 'infrastructure': {
+        const manifestPath = join(projectDir, 'infrastructure_manifest.json')
+        if (!existsSync(manifestPath)) {
+          writeJsonStubAtomic(manifestPath, {
+            stub: true,
+            stub_reason: `${projectSize} project, infrastructure discipline skipped`,
+            deploy: { target: inferDeployTarget(brainstormingText) },
+            database: null,
+            auth: null,
+            integrations: [],
+          })
+        }
+        break
+      }
+      case 'design': {
+        const briefPath = join(projectDir, 'design', 'design-brief.md')
+        if (!existsSync(briefPath)) {
+          writeStubAtomic(
+            briefPath,
+            '# Design Brief (auto-generated)\n\n' +
+              `No design discipline ran (${projectSize} project). ` +
+              'Builder should use brainstorming visual notes for guidance.\n',
+          )
+        }
+        break
+      }
+      // competition, legal-privacy, marketing: downstream code already
+      // handles their absence gracefully — no stubs needed.
+    }
   }
 }

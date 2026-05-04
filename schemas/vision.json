@@ -1,44 +1,52 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Rouge Vision Document",
-  "description": "Product vision produced during seeding. The north star for all autonomous decisions.",
+  "description": "Product vision produced during seeding. The north star for all autonomous decisions. Updated to match what prompts actually produce (not aspirational).",
   "type": "object",
-  "required": ["name", "one_liner", "persona", "problem", "feature_areas"],
+  "required": ["product_name", "one_liner", "persona"],
   "properties": {
-    "name": { "type": "string" },
+    "product_name": { "type": "string" },
     "one_liner": { "type": "string" },
     "persona": {
-      "type": "object",
-      "required": ["who", "context"],
-      "properties": {
-        "who": { "type": "string" },
-        "context": { "type": "string" },
-        "pain_points": { "type": "array", "items": { "type": "string" } }
-      }
+      "description": "Either a flat string ('casual gamers who want quick fun') or a structured object.",
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "object",
+          "required": ["who"],
+          "properties": {
+            "who": { "type": "string" },
+            "context": { "type": "string" },
+            "pain_points": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      ]
     },
     "problem": { "type": "string" },
     "emotional_north_star": { "type": "string" },
-    "reference_products": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["name", "dimensions"],
-        "properties": {
-          "name": { "type": "string" },
-          "url": { "type": "string", "format": "uri" },
-          "dimensions": {
-            "type": "array",
-            "items": { "type": "string" },
-            "description": "What aspects to compare (e.g., 'onboarding flow', 'data density', 'navigation model')"
-          }
-        }
+    "killer_edge": { "type": "string" },
+    "domain": { "type": "string" },
+    "domain_boundaries": {
+      "type": "object",
+      "properties": {
+        "in_scope": { "type": "array", "items": { "type": "string" } },
+        "out_of_scope": { "type": "array", "items": { "type": "string" } },
+        "future": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "properties": {
+        "in": { "type": "array", "items": { "type": "string" } },
+        "out": { "type": "array", "items": { "type": "string" } },
+        "deferred": { "type": "array", "items": { "type": "string" } }
       }
     },
     "feature_areas": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["name", "user_journeys"],
+        "required": ["name"],
         "properties": {
           "name": { "type": "string" },
           "description": { "type": "string" },
@@ -47,7 +55,7 @@
             "type": "array",
             "items": {
               "type": "object",
-              "required": ["name", "steps"],
+              "required": ["name"],
               "properties": {
                 "name": { "type": "string" },
                 "steps": { "type": "array", "items": { "type": "string" } },
@@ -58,13 +66,54 @@
         }
       }
     },
+    "reference_products": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "url": { "type": "string", "format": "uri" },
+          "dimensions": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "complexity_profile": {
+      "type": "object",
+      "properties": {
+        "primary": {
+          "type": "string",
+          "enum": ["single-page", "multi-route", "stateful", "api-first", "full-stack"]
+        },
+        "secondary": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["single-page", "multi-route", "stateful", "api-first", "full-stack"] },
+          "maxItems": 1
+        }
+      }
+    },
+    "infrastructure": {
+      "type": "object",
+      "properties": {
+        "needs_database": { "type": "boolean" },
+        "needs_auth": { "type": "boolean" },
+        "needs_payments": { "type": "boolean" },
+        "deployment_target": { "type": "string" },
+        "services": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
     "product_standard": {
       "type": "object",
       "properties": {
         "inherits": {
           "type": "array",
-          "items": { "type": "string" },
-          "description": "Library tiers to inherit (e.g., ['global', 'domain/web'])"
+          "items": { "type": "string" }
         },
         "overrides": {
           "type": "array",
@@ -80,43 +129,9 @@
         },
         "additions": {
           "type": "array",
-          "items": { "type": "object" },
-          "description": "Project-specific heuristics in Library entry format"
+          "items": { "type": "object" }
         },
         "definition_of_done": { "type": "string" }
-      }
-    },
-    "complexity_profile": {
-      "type": "object",
-      "properties": {
-        "primary": {
-          "type": "string",
-          "enum": ["single-page", "multi-route", "stateful", "api-first", "full-stack"]
-        },
-        "secondary": {
-          "type": "array",
-          "items": { "type": "string", "enum": ["single-page", "multi-route", "stateful", "api-first", "full-stack"] },
-          "maxItems": 1
-        }
-      },
-      "required": ["primary"]
-    },
-    "infrastructure": {
-      "type": "object",
-      "properties": {
-        "needs_database": { "type": "boolean" },
-        "needs_auth": { "type": "boolean" },
-        "needs_payments": { "type": "boolean" },
-        "deployment_target": {
-          "type": "string",
-          "enum": ["cloudflare", "cloudflare-workers", "vercel", "docker-compose", "docker", "github-pages", "gh-pages", "none"],
-          "default": "cloudflare-workers"
-        },
-        "services": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "External services needed: supabase, stripe, mapbox, sentry, etc."
-        }
       }
     }
   }

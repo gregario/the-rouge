@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation'
 import { projects as mockProjects } from '@/data/projects'
 import { isBridgeEnabled, fetchBridgeProjects } from '@/lib/bridge-client'
 import { isSetupComplete } from '@/lib/setup-state'
-import type { ProjectSummary, ProjectState, Provider } from '@/lib/types'
+import type { ProjectSummary, ProjectState, Provider, SeedingDiscipline, DisciplineStatus } from '@/lib/types'
+import { narrowEnum } from '@/lib/validate-enum'
 import { ProjectCard } from '@/components/project-card'
 import { TopBar } from '@/components/top-bar'
 import { LiveRefresh } from '@/components/live-refresh'
@@ -29,7 +30,12 @@ function mapBridgeProjects(data: Record<string, unknown>[]): ProjectSummary[] {
       name: String(p.name ?? ''),
       slug: String(p.slug ?? ''),
       description: String(p.description ?? ''),
-      state: (p.state as ProjectState) ?? 'ready',
+      state: narrowEnum(String(p.state ?? ''), [
+        'seeding', 'ready', 'foundation', 'foundation-eval', 'story-building',
+        'milestone-check', 'milestone-fix', 'analyzing', 'generating-change-spec',
+        'vision-check', 'shipping', 'final-review', 'complete',
+        'escalation', 'waiting-for-human',
+      ] as const, 'project.state') as ProjectState ?? 'seeding',
       providers: (p.providers as Provider[]) ?? [],
       health: Number(p.health ?? 50),
       progress: Number(p.progress ?? 0),
@@ -63,6 +69,39 @@ function mapBridgeProjects(data: Record<string, unknown>[]): ProjectSummary[] {
       awaitingGate: p.awaitingGate === true ? true : undefined,
       pendingGateDiscipline: typeof p.pendingGateDiscipline === 'string' ? p.pendingGateDiscipline : undefined,
       lastHeartbeatAt: typeof p.lastHeartbeatAt === 'string' ? p.lastHeartbeatAt : undefined,
+      seedingProgress: (() => {
+        const sp = p.seedingProgress as {
+          disciplines?: { discipline: string; status: string }[]
+          completedCount?: number; totalCount?: number
+          currentDiscipline?: string
+          applicableDisciplines?: string[]
+          projectSize?: string
+        } | undefined
+        if (!sp?.disciplines) return undefined
+        const VALID_DISCIPLINES = new Set([
+          'brainstorming', 'competition', 'taste', 'sizing', 'spec',
+          'infrastructure', 'design', 'legal-privacy', 'marketing',
+        ])
+        const VALID_STATUSES = new Set(['pending', 'in-progress', 'complete', 'skipped'])
+        const disciplines = sp.disciplines
+          .filter(d => VALID_DISCIPLINES.has(d.discipline) && VALID_STATUSES.has(d.status))
+          .map(d => ({
+            discipline: d.discipline as SeedingDiscipline,
+            status: d.status as DisciplineStatus,
+          }))
+        const applicableDisciplines = sp.applicableDisciplines
+          ?.filter(d => VALID_DISCIPLINES.has(d)) as SeedingDiscipline[] | undefined
+        return {
+          disciplines,
+          completedCount: sp.completedCount ?? 0,
+          totalCount: sp.totalCount
+            ?? (applicableDisciplines?.length || disciplines.length),
+          currentDiscipline: sp.currentDiscipline as SeedingDiscipline | undefined,
+          ...(applicableDisciplines && applicableDisciplines.length > 0
+            ? { applicableDisciplines, projectSize: sp.projectSize }
+            : {}),
+        }
+      })(),
     }
   })
 }

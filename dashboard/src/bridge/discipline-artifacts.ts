@@ -1,6 +1,14 @@
-import { existsSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Discipline } from './discipline-prompts'
+import {
+  validateSizing,
+  validateInfraManifest,
+  validateMilestones,
+  type ArtifactKind,
+  type ValidationResult,
+  type SchemaError,
+} from './artifact-schemas'
 
 /**
  * Verifies the artifact(s) a discipline is required to produce before its
@@ -15,8 +23,8 @@ import type { Discipline } from './discipline-prompts'
  */
 
 type ArtifactSpec =
-  | { kind: 'file'; path: string; minBytes: number }
-  | { kind: 'dir'; path: string; minFiles: number }
+  | { kind: 'file'; path: string; minBytes: number; schema?: ArtifactKind }
+  | { kind: 'dir'; path: string; minFiles: number; minFileBytes?: number }
   // All listed files must exist with their minBytes. Used where a
   // discipline's contract mandates multiple discrete outputs (e.g.
   // DESIGN's three scored passes) — a single-dir existence check
@@ -35,7 +43,7 @@ type ArtifactSpec =
 // consumed by the launcher at build time — the path is load-bearing.
 const ARTIFACT_SPECS: Record<Discipline, ArtifactSpec[]> = {
   sizing: [
-    { kind: 'file', path: 'seed_spec/sizing.json', minBytes: 50 },
+    { kind: 'file', path: 'seed_spec/sizing.json', minBytes: 50, schema: 'sizing' },
   ],
   brainstorming: [
     { kind: 'file', path: 'seed_spec/brainstorming.md', minBytes: 500 },
@@ -55,12 +63,12 @@ const ARTIFACT_SPECS: Record<Discipline, ArtifactSpec[]> = {
     { kind: 'file', path: 'docs/taste_verdict.md', minBytes: 300 },
   ],
   spec: [
-    { kind: 'file', path: 'seed_spec/milestones.json', minBytes: 500 },
+    { kind: 'file', path: 'seed_spec/milestones.json', minBytes: 500, schema: 'milestones' },
     { kind: 'file', path: 'seed_spec/spec.md', minBytes: 500 },
     { kind: 'file', path: 'docs/spec.md', minBytes: 500 },
   ],
   infrastructure: [
-    { kind: 'file', path: 'infrastructure_manifest.json', minBytes: 200 },
+    { kind: 'file', path: 'infrastructure_manifest.json', minBytes: 50, schema: 'infrastructure-manifest' },
   ],
   design: [
     // Primary: all three scored passes must exist as discrete YAML
@@ -100,12 +108,12 @@ const ARTIFACT_SPECS: Record<Discipline, ArtifactSpec[]> = {
     { kind: 'file', path: 'docs/design.md', minBytes: 2000 },
   ],
   'legal-privacy': [
-    { kind: 'dir', path: 'legal', minFiles: 1 },
+    { kind: 'dir', path: 'legal', minFiles: 1, minFileBytes: 100 },
     { kind: 'file', path: 'seed_spec/legal.md', minBytes: 300 },
     { kind: 'file', path: 'docs/legal.md', minBytes: 300 },
   ],
   marketing: [
-    { kind: 'dir', path: 'marketing', minFiles: 1 },
+    { kind: 'dir', path: 'marketing', minFiles: 1, minFileBytes: 100 },
     { kind: 'file', path: 'seed_spec/marketing.md', minBytes: 300 },
     { kind: 'file', path: 'docs/marketing.md', minBytes: 300 },
   ],
@@ -116,6 +124,47 @@ export interface ArtifactCheck {
   discipline: Discipline
   reason?: string
   checkedPaths: string[]
+  schemaErrors?: SchemaError[]
+  killVerdict?: boolean
+}
+
+function checkTasteKillVerdict(filePath: string): boolean {
+  try {
+    const content = readFileSync(filePath, 'utf-8')
+    const jsonMatch = content.match(/```json\s*([\s\S]*?)```/)
+    if (!jsonMatch) return false
+    const data = JSON.parse(jsonMatch[1])
+    return data?.verdict === 'kill'
+  } catch {
+    return false
+  }
+}
+
+function tryParseJson(filePath: string): unknown | null {
+  try {
+    return JSON.parse(readFileSync(filePath, 'utf-8'))
+  } catch {
+    return null
+  }
+}
+
+function runSchemaCheck(
+  projectDir: string,
+  path: string,
+  schema: ArtifactKind,
+): ValidationResult | null {
+  const data = tryParseJson(join(projectDir, path))
+  if (data === null) {
+    return { ok: false, errors: [{ field: '(root)', expected: 'valid JSON', actual: 'parse error' }] }
+  }
+  const VALIDATORS: Record<string, (d: unknown) => ValidationResult> = {
+    'sizing': validateSizing,
+    'infrastructure-manifest': validateInfraManifest,
+    'milestones': validateMilestones,
+  }
+  const validator = VALIDATORS[schema]
+  if (!validator) return null
+  return validator(data)
 }
 
 export function verifyDisciplineArtifact(
@@ -134,17 +183,62 @@ export function verifyDisciplineArtifact(
       checked.push(spec.path)
       if (!existsSync(full)) continue
       try {
-        if (statSync(full).size >= spec.minBytes) {
-          return { ok: true, discipline, checkedPaths: checked }
+        if (statSync(full).size < spec.minBytes) continue
+      } catch { continue }
+
+      // Byte check passed — run schema validation if configured
+      if (spec.schema) {
+        const result = runSchemaCheck(projectDir, spec.path, spec.schema)
+        if (result && !result.ok) {
+          return {
+            ok: false,
+            discipline,
+            reason: `${spec.path} failed schema validation: ${result.errors.map(
+              (e) => `${e.field} expected ${e.expected}, got ${e.actual}`,
+            ).join('; ')}`,
+            checkedPaths: checked,
+            schemaErrors: result.errors,
+          }
         }
-      } catch { /* skip */ }
+      }
+      // Brainstorming-specific: verify Classifier Signals section exists.
+      // Without it, the auto-classifier can't determine project size and
+      // sizing stalls. Better to reject the artifact early with a clear
+      // message than let it fail downstream.
+      if (discipline === 'brainstorming' && spec.path.endsWith('.md')) {
+        try {
+          const content = readFileSync(join(projectDir, spec.path), 'utf-8')
+          if (!/^##+\s*Classifier Signals/im.test(content)) {
+            return {
+              ok: false,
+              discipline,
+              reason: `${spec.path} is missing the required "## Classifier Signals" section. The auto-classifier needs entity_count, integration_count, role_count, journey_count, and screen_count to determine project size.`,
+              checkedPaths: checked,
+            }
+          }
+        } catch { /* file unreadable — already passed byte check, unexpected */ }
+      }
+      // Taste-specific: detect kill verdict in the fenced JSON block
+      if (discipline === 'taste') {
+        const killVerdict = checkTasteKillVerdict(join(projectDir, spec.path))
+        if (killVerdict) {
+          return { ok: true, discipline, checkedPaths: checked, killVerdict: true }
+        }
+      }
+      return { ok: true, discipline, checkedPaths: checked }
     } else if (spec.kind === 'dir') {
       const full = join(projectDir, spec.path)
       checked.push(spec.path)
       if (!existsSync(full)) continue
       try {
         const entries = readdirSync(full).filter((f) => !f.startsWith('.'))
-        if (entries.length >= spec.minFiles) {
+        // If minFileBytes is set, only count files that meet the floor
+        const qualifying = spec.minFileBytes
+          ? entries.filter((f) => {
+              try { return statSync(join(full, f)).size >= spec.minFileBytes! } catch { return false }
+            })
+          : entries
+        if (qualifying.length >= spec.minFiles) {
           return { ok: true, discipline, checkedPaths: checked }
         }
       } catch { /* skip */ }
@@ -162,7 +256,25 @@ export function verifyDisciplineArtifact(
           return false
         }
       })
-      if (allOk) return { ok: true, discipline, checkedPaths: checked }
+      if (allOk) {
+        // Design-specific: reject if any pass file contains slop_detected: true
+        if (discipline === 'design') {
+          for (const p of spec.paths) {
+            try {
+              const content = readFileSync(join(projectDir, p.path), 'utf-8')
+              if (/slop_detected\s*:\s*true/i.test(content)) {
+                return {
+                  ok: false,
+                  discipline,
+                  reason: `${p.path} contains slop_detected: true — design has unresolved quality issues`,
+                  checkedPaths: checked,
+                }
+              }
+            } catch { /* file unreadable — byte check already passed, so this is unexpected */ }
+          }
+        }
+        return { ok: true, discipline, checkedPaths: checked }
+      }
     }
   }
 

@@ -28,9 +28,15 @@ const STYLES: Record<Depth, string> = {
 
 export function depthForProject(p: ProjectSummary): Depth {
   if (p.state === 'ready') return 'ready'
-  // For now, seeding = brainstorm. Future: read per-discipline completion
-  // from state.json and map brainstorm/competition/taste/spec/design/marketing
-  // progress to the five depths.
+  if (!p.seedingProgress) return 'brainstorm'
+  const done = new Set(
+    p.seedingProgress.disciplines
+      .filter(d => d.status === 'complete')
+      .map(d => d.discipline),
+  )
+  if (done.has('design')) return 'designed'
+  if (done.has('spec')) return 'specced'
+  if (done.has('competition') || done.has('taste')) return 'researched'
   return 'brainstorm'
 }
 

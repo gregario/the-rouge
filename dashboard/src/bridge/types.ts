@@ -143,6 +143,14 @@ export interface BridgeProjectSummary {
   awaitingGate?: boolean
   pendingGateDiscipline?: string
   lastHeartbeatAt?: string
+  seedingProgress?: {
+    disciplines?: { discipline: string; status: string }[]
+    completedCount?: number
+    totalCount?: number
+    currentDiscipline?: string
+    applicableDisciplines?: string[]
+    projectSize?: string
+  }
 }
 
 // ─── Seeding chat log ────────────────────────────────────────────────
@@ -254,6 +262,16 @@ export interface SeedingSessionState {
   applicable_disciplines?: string[]
   /** Project size tier from the auto-classifier. */
   project_size?: string
+
+  // ─── Taste kill gate ──────────────────────────────────────────────
+  //
+  // Set when the taste discipline produces a KILL verdict. Signals that
+  // seeding should stop — the idea didn't pass the taste gate.
+
+  /** True when taste verdict is "kill". */
+  taste_kill?: boolean
+  /** ISO 8601 timestamp when the kill was detected. */
+  taste_kill_at?: string
 }
 
 // The canonical sequence of disciplines used when auto-advancing current_discipline.

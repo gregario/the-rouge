@@ -106,6 +106,17 @@ interface RougeState {
   awaitingGate?: boolean
   pendingGateDiscipline?: string
   lastHeartbeatAt?: string
+  foundation?: {
+    status?: string
+    provisioned?: boolean
+    provisioning_steps?: Record<string, {
+      status: 'done' | 'in-progress' | 'failed' | 'skipped'
+      url?: string | null
+      target?: string
+      provider?: string
+      reason?: string
+    }>
+  }
 }
 
 function mapSeedingProgress(raw: RougeState['seedingProgress']): SeedingProgress | undefined {
@@ -130,10 +141,15 @@ function mapSeedingProgress(raw: RougeState['seedingProgress']): SeedingProgress
         .filter((x): x is SeedingDiscipline => x !== null))
     : undefined
 
+  const totalCount = raw.totalCount
+    ?? (applicableDisciplines && applicableDisciplines.length > 0
+      ? applicableDisciplines.length
+      : disciplines.length)
+
   return {
     disciplines,
     completedCount: raw.completedCount ?? 0,
-    totalCount: raw.totalCount ?? 8,
+    totalCount,
     currentDiscipline: narrowEnum(raw.currentDiscipline, SEEDING_DISCIPLINES, 'seedingProgress.currentDiscipline'),
     ...(applicableDisciplines && applicableDisciplines.length > 0
       ? { applicableDisciplines, projectSize: raw.projectSize }

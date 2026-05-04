@@ -25,7 +25,7 @@ describe('tierForSignal', () => {
   test('entity_count band edges', () => {
     assert.equal(tierForSignal('entity_count', 0), 'XS');
     assert.equal(tierForSignal('entity_count', 1), 'XS');
-    assert.equal(tierForSignal('entity_count', 2), 'S');
+    assert.equal(tierForSignal('entity_count', 2), 'XS');
     assert.equal(tierForSignal('entity_count', 3), 'S');
     assert.equal(tierForSignal('entity_count', 4), 'M');
     assert.equal(tierForSignal('entity_count', 6), 'M');
@@ -97,11 +97,11 @@ describe('classify — canonical examples', () => {
   });
 });
 
-describe('classify — max-aggregation behavior', () => {
-  test('a single high signal pulls the tier up', () => {
-    // One integration-heavy signal on an otherwise trivial project.
-    // 12 integrations on a 1-entity project → max-aggregation picks XL
-    // because 12 lands in XL for integration_count.
+describe('classify — majority-vote behavior', () => {
+  test('a single high signal floors at M, not max tier', () => {
+    // 12 integrations (XL) on an otherwise trivial project.
+    // Majority is XS (4 of 5 signals), but safety floor kicks in
+    // because one signal is XL → floor at M.
     const r = classify({
       entity_count: 1,
       integration_count: 12,
@@ -109,7 +109,19 @@ describe('classify — max-aggregation behavior', () => {
       journey_count: 1,
       screen_count: 1,
     });
-    assert.equal(r.project_size, 'XL');
+    assert.equal(r.project_size, 'M');
+  });
+
+  test('majority wins when no L/XL signals', () => {
+    // 3 signals at S, 2 at XS → majority is S
+    const r = classify({
+      entity_count: 3,
+      integration_count: 1,
+      role_count: 1,
+      journey_count: 2,
+      screen_count: 3,
+    });
+    assert.equal(r.project_size, 'S');
   });
 
   test('zero on all signals → XS', () => {

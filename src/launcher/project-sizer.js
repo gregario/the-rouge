@@ -13,11 +13,13 @@
  * Classification algorithm:
  *   1. Each signal (entity_count, integration_count, role_count,
  *      journey_count, screen_count) maps to a tier band independently.
- *   2. The project's tier is the MAX tier across all signals — if any
- *      one signal lands in L, the project is at least L. The failure
- *      mode we're guarding against is under-specking a complex project;
- *      a single high signal is a stronger signal than several low ones.
- *   3. The reasoning string records which signals drove the verdict.
+ *   2. The project's tier is the MAJORITY vote across all signals —
+ *      the tier that the most signals agree on wins. Ties break
+ *      toward the higher tier (conservative).
+ *   3. Safety floor: if ANY signal is L or XL, the project is at
+ *      least M. This prevents genuinely complex projects from being
+ *      under-scoped when most signals happen to be low.
+ *   4. The reasoning string records which signals drove the verdict.
  *
  * Classifier v1 boundaries are deliberately rough. Mis-classification
  * at boundaries is expected; the design doc calls for logging
@@ -42,7 +44,7 @@ const CLASSIFIER_VERSION = 'v1';
  * the file about empirical recalibration.
  */
 const BOUNDARIES = Object.freeze({
-  entity_count:      [1, 3, 6, 12],   // XS 0-1, S 2-3, M 4-6, L 7-12, XL 13+
+  entity_count:      [2, 3, 6, 12],   // XS 0-2, S 3,   M 4-6, L 7-12, XL 13+
   integration_count: [0, 2, 5, 10],   // XS 0,   S 1-2, M 3-5, L 6-10, XL 11+
   role_count:        [1, 2, 3, 5],    // XS 0-1, S 2,   M 3,   L 4-5,  XL 6+
   journey_count:     [2, 3, 6, 10],   // XS 0-2, S 3,   M 4-6, L 7-10, XL 11+
@@ -78,7 +80,30 @@ function maxTier(a, b) {
 }
 
 /**
+ * Return the tier that the most signals voted for. Ties break toward
+ * the higher tier (conservative — avoids under-specking).
+ */
+function majorityTier(votes) {
+  const counts = {};
+  for (const v of votes) counts[v] = (counts[v] || 0) + 1;
+  let best = 'XS';
+  let bestCount = 0;
+  for (const tier of TIERS) {
+    const c = counts[tier] || 0;
+    if (c > bestCount || (c === bestCount && TIER_INDEX[tier] > TIER_INDEX[best])) {
+      best = tier;
+      bestCount = c;
+    }
+  }
+  return best;
+}
+
+/**
  * Classify a set of signals into a project tier.
+ *
+ * Algorithm: majority vote across signals, with a safety floor — if any
+ * signal is L or XL, the project is at least M (genuinely complex projects
+ * shouldn't be under-scoped even when most signals are low).
  *
  * @param {Object} signals — must contain all of REQUIRED_SIGNALS as non-negative integers.
  * @returns {Object} sizing artifact matching schemas/sizing-v1.json.
@@ -90,19 +115,23 @@ function classify(signals) {
   }
 
   const perSignal = {};
-  let pickedTier = 'XS';
+  const votes = [];
   for (const name of REQUIRED_SIGNALS) {
     if (!(name in signals)) {
       throw new Error(`missing required signal: ${name}`);
     }
     const tier = tierForSignal(name, signals[name]);
     perSignal[name] = tier;
-    pickedTier = maxTier(pickedTier, tier);
+    votes.push(tier);
   }
 
-  // Reasoning: which signals drove the verdict (== pickedTier) and which
-  // sat below. Readers use this to decide whether the picked tier looks
-  // justified or if an override is warranted.
+  let pickedTier = majorityTier(votes);
+
+  // Safety floor: if any signal is L or XL, the project is at least M.
+  if (votes.some((t) => t === 'L' || t === 'XL')) {
+    pickedTier = maxTier('M', pickedTier);
+  }
+
   const drivers = REQUIRED_SIGNALS.filter((n) => perSignal[n] === pickedTier);
   const lower = REQUIRED_SIGNALS.filter((n) => perSignal[n] !== pickedTier);
 
