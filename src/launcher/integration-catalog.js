@@ -242,6 +242,15 @@ function ensurePrerequisites(manifest, ctx, opts) {
         failed.push({ id: prereq.id, label: prereq.label, detail: `remediation ran but check still fails: ${recheck.detail}` });
         return;
       }
+      // Remediation failed — but the resource might already exist (e.g.,
+      // GitHub Pages POST returns 422 when Pages is already enabled).
+      // Re-run the original check: if it passes now, the prerequisite
+      // is satisfied regardless of whether remediation worked.
+      const recheck2 = runCheck(prereq.check, ctx);
+      if (recheck2.ok) {
+        remediated.push(prereq.id);
+        return;
+      }
       failed.push({ id: prereq.id, label: prereq.label, detail: `remediation failed: ${rem.detail}` });
       return;
     }
