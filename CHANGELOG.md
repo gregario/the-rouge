@@ -6,6 +6,57 @@ All notable changes to Rouge ship here. Format follows
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-05-04
+
+The seeding integrity release. 35 audit bugs fixed, discipline transitions
+rearchitected, artifact generation made deterministic. Seeding now works
+reliably from idea through to build-ready state.
+
+### Added
+
+- **Human-gated discipline transitions** — disciplines no longer auto-advance.
+  User clicks "Accept & continue" at each boundary. Approval cards with green
+  Accept button and amber "Ready for review" status in stepper.
+- **Artifact schema validation** — new `artifact-schemas.ts` validates JSON
+  structure (not just byte count) for sizing, vision, infrastructure manifest,
+  task ledger, product standard, and milestones.
+- **Deterministic artifact generation** — `ensureVision()`, `ensureTaskLedger()`,
+  `ensureProductStandard()` mechanically generate required artifacts from
+  existing discipline outputs. No more reliance on LLM to write these files.
+- **Clickable gate chips** — gate questions with A/B/C options render as
+  clickable buttons. Accept-or-revise gates get a synthetic "Accept" chip.
+- **Approve discipline / approve seeding API endpoints** — explicit user
+  approval required at every boundary. SEEDING_COMPLETE from LLM ignored.
+- **XS tier stub artifacts** — auto-generated infrastructure manifest and
+  design brief for skipped disciplines.
+- **state.json.milestones populated from task_ledger** on finalization.
+
+### Changed
+
+- **Classifier: majority vote** replaces max-aggregation. `entity_count=2`
+  stays XS. Safety floor: any L/XL signal floors at M minimum.
+- **Orchestrator prompt stripped** — removed 111 lines of state management.
+  LLM is now a worker within one discipline, not a controller.
+- **Infrastructure propagation overwrites** vision.json (was fill-if-empty).
+  Manifest is canonical source.
+- **Foundation stories have full field set** matching feature story shape
+  (description, feature_area, po_checks, env_limitations).
+- **Discipline ordering** aligned between stepper and chat panel.
+
+### Fixed
+
+- 35 of 36 audit issues from three deep audits (artifact dependencies,
+  UI states, prompt-disk contracts).
+- Malformed sizing.json no longer silently bypasses tier validation.
+- Progress ring shows discipline completion % during seeding (was always 0%).
+- Home page `seedingProgress` flows through to project cards.
+- `totalCount` uses applicable disciplines count (was hardcoded 8).
+- Escalation drawer picks first pending (was `escalations[0]`).
+- Spec view handles object-shaped acceptance criteria.
+- `needs_auth`/`needs_database` treat `"none"` as falsy.
+- Foundation milestone name match uses `startsWith` (was exact `===`).
+- Both pre-existing TypeScript errors fixed (`.name` → `.title`, foundation type).
+
 ## [0.4.0] — 2026-05-03
 
 The architecture release. The "horse built by committee" got reorganised: facade
