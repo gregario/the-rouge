@@ -591,12 +591,19 @@ describe('advanceState — foundation → story-building transition', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  test('foundation state → foundation-eval', async () => {
+  test('foundation state → foundation-eval (legacy fallback with _phase_complete)', async () => {
+    // The foundation code path has two branches:
+    // 1. Foundation-as-stories: if Foundation milestone has stories, it does
+    //    provisioning then routes to story-building.
+    // 2. Legacy fallback: if no foundation stories, it checks for
+    //    _phase_complete marker in cycle_context.
+    // This test exercises the legacy fallback path.
     const state = {
       current_state: 'foundation',
       milestones: [{ name: 'foundation', status: 'pending', stories: [] }],
     };
-    setupProject(tmpDir, state, {});
+    // Signal that the foundation phase completed via cycle_context marker
+    setupProject(tmpDir, state, { _phase_complete: 'foundation' });
 
     await advanceState(tmpDir);
 

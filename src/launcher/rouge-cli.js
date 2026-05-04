@@ -848,6 +848,13 @@ function cmdBuild(name) {
       process.exit(1);
     }
     env.ROUGE_PROJECT_FILTER = name;
+
+    const { isRunning } = require('./instance-lock');
+    const status = isRunning(projectPath);
+    if (status.running) {
+      console.error(`Build already running for "${name}" (PID ${status.pid}). Use \`rouge stop ${name}\` first.`);
+      process.exit(1);
+    }
   }
 
   console.log('Starting the Karpathy Loop...');
@@ -938,7 +945,40 @@ function cmdStart() {
   child.on('close', (code) => process.exit(code || 0));
 }
 
-function cmdStop() {
+function cmdStop(name) {
+  if (name) {
+    const projectPath = path.join(PROJECTS_DIR, name);
+    if (!fs.existsSync(projectPath)) {
+      console.error(`Project not found: ${name}`);
+      process.exit(1);
+    }
+    const { isRunning, lockPath } = require('./instance-lock');
+    const status = isRunning(projectPath);
+    if (!status.running) {
+      console.log(`No build running for "${name}".`);
+      process.exit(0);
+    }
+    console.log(`Stopping build for "${name}" (PID ${status.pid})...`);
+    try { process.kill(status.pid, 'SIGTERM'); } catch {}
+    let waited = 0;
+    const poll = setInterval(() => {
+      waited += 200;
+      try { process.kill(status.pid, 0); } catch {
+        clearInterval(poll);
+        console.log(`  Stopped.`);
+        try { fs.unlinkSync(lockPath(projectPath)); } catch {}
+        process.exit(0);
+      }
+      if (waited >= 5000) {
+        clearInterval(poll);
+        console.log(`  Force killing (PID ${status.pid})...`);
+        try { process.kill(status.pid, 'SIGKILL'); } catch {}
+        try { fs.unlinkSync(lockPath(projectPath)); } catch {}
+        process.exit(0);
+      }
+    }, 200);
+    return;
+  }
   const child = spawn(process.argv[0], [process.argv[1], 'dashboard', 'stop'], {
     stdio: 'inherit', env: process.env,
   });
@@ -1901,7 +1941,7 @@ if (command === 'doctor') {
 } else if (command === 'start') {
   cmdStart();
 } else if (command === 'stop') {
-  cmdStop();
+  cmdStop(args[1]);
 } else if (command === 'uninstall') {
   cmdUninstall().catch((err) => {
     console.error(err.message);
