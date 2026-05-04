@@ -663,17 +663,28 @@ export async function finalizeSeeding(projectDir: string): Promise<FinalizeResul
       }
 
       state.current_state = 'ready'
-      // Initialize the foundation field. Previously the orchestrator
-      // prompt was supposed to do this on human approval, but the bridge
-      // finalize path runs independently and left `foundation: null`
-      // behind — testimonial reached state=foundation with a null
-      // foundation field and rouge-loop crashed when it tried to read
-      // `state.foundation.status`. Setting `{ status: 'pending' }` here
-      // guarantees the shape is sound whenever state advances to 'ready'.
-      //
-      // If the caller (orchestrator) has already set foundation to
-      // something more specific (e.g., `{ status: 'complete' }` when the
-      // complexity profile waives foundation), preserve it.
+
+      // Copy milestones from task_ledger.json into state.json. The build
+      // loop reads task_ledger.json, but the dashboard reads state.json
+      // for the milestone timeline UI. Without this, state.milestones
+      // stays empty and the build escalates with "no milestones in state."
+      if (!state.milestones || state.milestones.length === 0) {
+        const lp = join(projectDir, 'task_ledger.json')
+        if (existsSync(lp)) {
+          try {
+            const ledger = JSON.parse(readFileSync(lp, 'utf-8'))
+            if (Array.isArray(ledger.milestones) && ledger.milestones.length > 0) {
+              state.milestones = ledger.milestones.map((m: { name: string; status?: string; stories?: unknown[] }) => ({
+                name: m.name,
+                status: m.status ?? 'pending',
+                stories: Array.isArray(m.stories) ? m.stories : [],
+              }))
+            }
+          } catch { /* malformed ledger — milestones stay empty, build will escalate */ }
+        }
+      }
+
+      // Initialize the foundation field.
       if (!state.foundation) {
         state.foundation = { status: 'pending' }
       }
