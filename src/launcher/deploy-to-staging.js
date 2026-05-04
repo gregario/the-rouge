@@ -256,15 +256,21 @@ function deployGithubPages(projectDir) {
     ? [configuredOutput]
     : (manifestDef?.build_output_dirs || ['dist', 'build', 'out', 'public']);
 
-  // Build — same timeout profile as Cloudflare since a cold Vite/Next
-  // build on a fresh runner can crest 2 min.
-  run('npm run build', { cwd: projectDir, timeout: 300000 });
+  // Build — skip if no build script exists (static HTML/CSS/JS projects).
+  const pkg = readJson(path.join(projectDir, 'package.json'));
+  if (pkg && pkg.scripts && pkg.scripts.build) {
+    run('npm run build', { cwd: projectDir, timeout: 300000 });
+  } else {
+    log('No build script in package.json — skipping build step (static project).');
+  }
 
   // Find the output dir. If the project config named one, that's the
-  // only candidate; otherwise probe the usual suspects.
+  // only candidate; otherwise probe the usual suspects. For static
+  // projects without a build step, the project root itself (.) serves
+  // as the output if no standard dirs exist.
   const outputDir = outputCandidates.find((d) =>
     fs.existsSync(path.join(projectDir, d)),
-  );
+  ) || ((!pkg?.scripts?.build) ? '.' : undefined);
   if (!outputDir) {
     throw new Error(
       `GitHub Pages: no build output directory found. Tried: ${outputCandidates.join(', ')}. ` +
