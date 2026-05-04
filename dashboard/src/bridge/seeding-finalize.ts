@@ -375,8 +375,8 @@ function ensureVision(projectDir: string): void {
     const manifest = JSON.parse(readFileSync(join(projectDir, 'infrastructure_manifest.json'), 'utf-8'))
     infrastructure = {
       deployment_target: manifest.deploy?.target,
-      needs_database: !!(manifest.database?.provider),
-      needs_auth: !!(manifest.auth?.strategy),
+      needs_database: !!(manifest.database?.provider && manifest.database.provider !== 'none'),
+      needs_auth: !!(manifest.auth?.strategy && manifest.auth.strategy !== 'none'),
     }
   } catch { /* no manifest */ }
 
@@ -475,8 +475,8 @@ function propagateInfrastructureFromManifest(projectDir: string): void {
   const target = manifest.deploy?.target
   if (!target || typeof target !== 'string') return
 
-  const needsDatabase = !!(manifest.database && manifest.database.provider)
-  const needsAuth = !!(manifest.auth && (manifest.auth.strategy || manifest.auth.provider))
+  const needsDatabase = !!(manifest.database && manifest.database.provider && manifest.database.provider !== 'none')
+  const needsAuth = !!(manifest.auth && manifest.auth.strategy && manifest.auth.strategy !== 'none')
 
   const visionPath = join(projectDir, 'vision.json')
   if (existsSync(visionPath)) {
