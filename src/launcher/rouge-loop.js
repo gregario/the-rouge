@@ -2931,8 +2931,9 @@ async function runPhase(projectDir) {
       // cannot be trusted for budget cap decisions.
       try {
         const logSize = fs.statSync(phaseLog).size;
-        const fallbackTokens = Math.max(logSize * 2, 10000);
-        trackPhaseCostFromLog(state, phaseLog, fallbackTokens, model);
+        const thisPhaseBytes = logSize - logSizeAtStart;
+        const fallbackTokens = Math.max(thisPhaseBytes * 2, 10000);
+        trackPhaseCostFromLog(state, phaseLog, fallbackTokens, model, logSizeAtStart);
 
         // Merge cost data into the on-disk state rather than overwriting
         // the entire file. External actors (dashboard budget-cap editor)

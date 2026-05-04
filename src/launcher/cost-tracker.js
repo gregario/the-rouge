@@ -44,9 +44,10 @@ function estimatePhaseCost(tokenCount, model) {
  * Returns { tokens, costUsd } when either is extractable; returns null
  * when nothing parseable was found (caller falls back to heuristic).
  */
-function parseRealCostFromLog(logPath) {
+function parseRealCostFromLog(logPath, startOffset = 0) {
   try {
-    const content = fs.readFileSync(logPath, 'utf8');
+    const fullContent = fs.readFileSync(logPath, 'utf8');
+    const content = startOffset > 0 ? fullContent.slice(startOffset) : fullContent;
     if (!content) return null;
 
     // Total-cost line: `Total cost: $1.23` / `total_cost_usd: 1.23` /
@@ -128,9 +129,9 @@ function trackPhaseCost(state, phaseTokens, model) {
  * priced via the model table) → also counted as real. `heuristic`
  * (log-size proxy) → counted as estimated, excluded from cap.
  */
-function trackPhaseCostFromLog(state, logPath, fallbackTokens, model) {
+function trackPhaseCostFromLog(state, logPath, fallbackTokens, model, startOffset = 0) {
   initCosts(state);
-  const real = parseRealCostFromLog(logPath);
+  const real = parseRealCostFromLog(logPath, startOffset);
   const tokens = real?.tokens || fallbackTokens;
   const cost = (real?.costUsd !== null && real?.costUsd !== undefined)
     ? real.costUsd
