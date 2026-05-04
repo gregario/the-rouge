@@ -6,6 +6,18 @@ All notable changes to Rouge ship here. Format follows
 
 ## [Unreleased]
 
+## [0.5.2] — 2026-05-04
+
+### Fixed
+
+- Log fd leak: build-runner closes the log file descriptor after spawn,
+  preventing cross-project log contamination when multiple builds run.
+- State files (vision.json, task_ledger.json, .rouge/state.json, etc.)
+  committed to project git repo during finalization so they survive
+  git clean/checkout operations by the build loop.
+- GitHub Pages prerequisite check: re-runs the original check after
+  failed remediation, so already-enabled Pages doesn't block deploys.
+
 ## [0.5.1] — 2026-05-04
 
 ### Fixed
