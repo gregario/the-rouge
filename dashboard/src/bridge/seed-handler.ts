@@ -441,11 +441,56 @@ async function runSeedingTurn(
       clearPendingGate(projectDir)
     }
 
-    // If a discipline is awaiting approval and the user sends a message
-    // (instead of clicking Accept), treat it as revision feedback.
-    // Clear the approval state so the discipline reverts to active.
+    // If a discipline is awaiting approval and the user sends a message:
+    // - Acceptance words ("accept", "approve", "yes", "ok", "continue",
+    //   "lgtm") → treat as clicking Accept & continue
+    // - Anything else → treat as revision feedback
     const preApprovalState = readSeedingState(projectDir)
     if (isAwaitingApproval(preApprovalState)) {
+      const trimmedLower = text.trim().toLowerCase().replace(/[.!,]/g, '')
+      const isAcceptance = ['accept', 'approve', 'approved', 'yes', 'ok', 'okay',
+        'continue', 'lgtm', 'looks good', 'accept recommendations',
+        'accept and continue', 'accept & continue'].includes(trimmedLower)
+
+      if (isAcceptance && preApprovalState.discipline_awaiting_approval) {
+        console.log(`[seeding] user typed "${trimmedLower}" while ${preApprovalState.discipline_awaiting_approval} awaiting approval — treating as Accept`)
+        const disc = preApprovalState.discipline_awaiting_approval
+        clearAwaitingApproval(projectDir)
+        await markDisciplineComplete(projectDir, disc)
+        // Don't process the text through Claude — just advance
+        // The approval endpoint would fire a kickoff, but since we're
+        // inside runSeedingTurn already, we need to let the continuation
+        // logic below handle the kickoff. Set acceptedDisciplines so
+        // the return signals the advancement.
+        // We skip the Claude call by returning early here.
+        appendChatMessage(projectDir, {
+          id: genId(),
+          role: 'human',
+          content: text,
+          timestamp: new Date().toISOString(),
+          metadata: { discipline: disc },
+        })
+        appendChatMessage(projectDir, {
+          id: genId(),
+          role: 'rouge',
+          content: `${disc} approved. Advancing to the next discipline.`,
+          timestamp: new Date().toISOString(),
+          kind: 'system_note',
+          metadata: { discipline: disc },
+        })
+        // Read the new state and fire kickoff for the next discipline
+        const postApprovalState = readSeedingState(projectDir)
+        const nextDisc = postApprovalState.current_discipline
+        if (nextDisc && !(postApprovalState.disciplines_complete ?? []).includes(nextDisc) && nextDisc !== 'sizing') {
+          await runContinuationTurn(projectDir, [
+            `[SYSTEM] Discipline ${disc} approved by user. State has advanced.`,
+            `You are now entering ${nextDisc.toUpperCase()}. The sub-prompt for that discipline is attached to this turn; follow its rules exactly.`,
+            `Begin the new discipline by asking its first question to the human.`,
+          ].join(' '), 0, `kickoff-${nextDisc}`)
+        }
+        return { ok: true, status: 200, disciplineComplete: [disc], seedingComplete: false, readyTransition: false }
+      }
+
       console.log(`[seeding] user sent message while ${preApprovalState.discipline_awaiting_approval} awaiting approval — treating as revision`)
       clearAwaitingApproval(projectDir)
       // Also clear the final approval flag if set

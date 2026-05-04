@@ -88,6 +88,8 @@ export function ChatPanel({
         timestamp: m.timestamp,
         kind: m.kind,
         markerId: m.metadata?.markerId,
+        discipline: m.metadata?.discipline as import('@/lib/types').SeedingDiscipline | undefined,
+        metadata: m.metadata ? { discipline: m.metadata.discipline, killVerdict: m.metadata.killVerdict } : undefined,
         _discipline: m.metadata?.discipline,
       }))
       // Optimistic pending human message: append at the end so the

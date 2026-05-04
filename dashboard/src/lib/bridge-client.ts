@@ -193,12 +193,11 @@ export interface SeedingChatMessage {
   timestamp: string
   // Marker kind for gated-autonomy messages — undefined on legacy
   // or plain prose. Drives distinct rendering in the chat UI.
-  kind?: 'prose' | 'gate_question' | 'autonomous_decision' | 'heartbeat' | 'system_note' | 'resume_prompt' | 'wrote_artifact'
+  kind?: 'prose' | 'gate_question' | 'autonomous_decision' | 'heartbeat' | 'system_note' | 'resume_prompt' | 'wrote_artifact' | 'approve_prompt' | 'seeding_summary'
   metadata?: {
     discipline?: string
-    // Gate id ('brainstorming/H2-north-star') or decision slug —
-    // lets the override mechanism address specific decisions.
     markerId?: string
+    killVerdict?: boolean
   }
 }
 
