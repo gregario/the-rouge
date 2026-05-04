@@ -285,13 +285,12 @@ function deployGithubPages(projectDir) {
   log(`Using build output: ${outputDir}`);
 
   const deployMsg = `Rouge deploy ${new Date().toISOString()}`;
-  // `gh-pages` needs a dotfiles flag for CNAME / .nojekyll — include
-  // it by default so custom domains and bare HTML survive the push.
-  // Note: `npx gh-pages` uses the local git credentials (HTTPS cached
-  // token, SSH key, or GH_TOKEN env var) — we don't shell out to
-  // `gh` CLI for the push, so `gh auth login` isn't strictly required,
-  // but the ambient git auth must be able to push to origin.
-  run(`npx -y gh-pages@6 -d ${outputDir} -b gh-pages -m "${deployMsg}" --dotfiles`, {
+  // Use --repo to push directly to the remote without local git
+  // operations. Without this, gh-pages temporarily alters the local
+  // working tree (branch checkout), which makes .rouge/state.json
+  // disappear during the push — killing the build loop and causing
+  // the project to vanish from the dashboard mid-deploy.
+  run(`npx -y gh-pages@6 -d ${outputDir} -b gh-pages -m "${deployMsg}" --dotfiles --repo ${remote}`, {
     cwd: projectDir,
     timeout: 180000,
   });
