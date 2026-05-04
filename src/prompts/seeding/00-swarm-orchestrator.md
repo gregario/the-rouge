@@ -18,20 +18,7 @@ You have 9 disciplines available. Each is a distinct phase of thinking with its 
 | 8 | **LEGAL/PRIVACY** — GC input review + boilerplate generation | 06-legal-privacy.md | S |
 | 9 | **MARKETING** — Landing page copy + scaffold | 07-marketing.md | M |
 
-**Tier-based skipping (P1.5R PR 4):** After SIZING writes `seed_spec/sizing.json`, you know the project's `project_size`. Before invoking any discipline, check its `applicable_at` against that size. If the discipline's threshold is above the project_size, **SKIP** it — don't invoke its sub-prompt, don't write its artifact. Emit:
-
-```
-[DISCIPLINE_SKIPPED: <name> — applicable_at=<tier>; project_size=<size> is below threshold]
-```
-
-The bot records the skip as a discipline status of `skipped` (distinct from `complete`). Skipped disciplines count toward convergence — you don't need to run them again.
-
-**Examples:**
-- XS project (calculator): skip COMPETITION, INFRASTRUCTURE, DESIGN, LEGAL-PRIVACY, MARKETING. Run only BRAINSTORMING, TASTE, SIZING, SPEC.
-- S project (todo app): skip COMPETITION, MARKETING. Run the other 7.
-- M+ project: run all 9.
-
-The authoritative tier map lives in `src/launcher/discipline-registry.js`. If this prompt and the registry disagree, the registry wins — it's read by tests and the bot. Prompt edits that change tiers without also updating the registry will be caught by the discipline-registry test.
+**Tier-based skipping** is handled by the bridge automatically after the classifier runs. You do NOT need to emit `[DISCIPLINE_SKIPPED]` markers or check tier tables — the bridge auto-skips non-applicable disciplines and never injects their sub-prompts. If you're working on a discipline, it's because the bridge determined it's applicable.
 
 ### Progress Reporting
 
@@ -49,7 +36,7 @@ If a discipline is skipped due to tier gating, emit:
 [DISCIPLINE_SKIPPED: <name> — applicable_at=<tier>; project_size=<size> is below threshold]
 ```
 
-Both markers count toward convergence. This allows the dashboard to show real-time progress to the user.
+Both markers allow the dashboard to show real-time progress to the user.
 
 ## Gated Autonomy: Marker Vocabulary
 
@@ -139,7 +126,7 @@ Emit when a discipline's artifact is on disk with full content. See "Discipline 
 
 ### `[DISCIPLINE_SKIPPED: <name>]`
 
-Emit when a discipline's `applicable_at` tier is above the project's `project_size` (e.g., COMPETITION is M-tier, project is XS). The bridge marks the discipline as complete and advances to the next one — skipped disciplines count toward convergence the same way completed ones do.
+Emit when a discipline's `applicable_at` tier is above the project's `project_size` (e.g., COMPETITION is M-tier, project is XS). The bridge marks the discipline as complete and advances to the next one. However, the bridge handles tier-based skipping automatically — you should rarely need to emit this yourself.
 
 ## Chunked Turn Contract
 
@@ -171,7 +158,7 @@ Never emit `[DISCIPLINE_COMPLETE: <name>]` based on summaries, plans, intentions
 
 **Pre-emission check.** Before writing `[DISCIPLINE_COMPLETE: <name>]`, verify the artifact(s) above exist on disk with full content. If you are tempted to say "here is a summary of the acceptance criteria" — instead, write the criteria to the file. If you are tempted to emit the marker and "flesh out the file later" — don't. Write the file now, then emit the marker.
 
-**SEEDING_COMPLETE pre-check.** Before presenting the SEED SUMMARY or writing `.rouge/state.json` to `ready`, verify every discipline's expected artifact exists on disk with content beyond stubs. If any are missing or placeholder-only, do NOT declare seeding complete — return to the missing discipline and do the work properly.
+**Artifact verification.** The bridge verifies every discipline's artifact on disk before accepting `[DISCIPLINE_COMPLETE]`. If an artifact is missing or doesn't pass schema validation, your marker is rejected and you'll receive a correction note explaining what's wrong.
 
 **No false completion claims.** Never self-score a discipline as complete if the work is only in your head. Never invoke "background agents" or "async workers" to explain why an artifact isn't on disk yet (see Sequential execution below — there is only one worker, and it is you, and the work is done when the file exists with content).
 
@@ -197,115 +184,38 @@ Do not re-run any discipline marked complete. Resume at the next remaining disci
 
 **Rules**:
 1. **Trust the state block, not your memory.** If the block says COMPETITION is complete and you think you were still working on it, the block is right and your memory is wrong. Move on to the next remaining discipline.
-2. **Do not re-run completed disciplines.** If you already emitted `[DISCIPLINE_COMPLETE: <name>]` for a discipline and the bot recorded it, that discipline's artifact is on disk. Do not rewrite it, do not "improve" it unless a loop-back trigger explicitly fires.
+2. **Do not re-run completed disciplines.** If you already emitted `[DISCIPLINE_COMPLETE: <name>]` for a discipline and the bot recorded it, that discipline's artifact is on disk. Do not rewrite it or "improve" it.
 3. **If a discipline was interrupted mid-work, restart it cleanly.** Do not try to patch around where you think you stopped. Open the artifact file, read what is there, decide whether to start over or continue cleanly. Emit `[DISCIPLINE_COMPLETE: <name>]` only when the artifact is fully written.
 4. **The state block is always the source of truth for completion status.** Your job is to make progress on the next remaining discipline — not to re-evaluate whether prior completions were "really" complete.
 5. **The state block is empty on the very first turn of a session.** No injected block ≠ "no prior state" in a way you need to explain. Just start with BRAINSTORMING as normal.
 
 This mechanism exists because the colouring book seeding session (2026-04-10) hit multiple rate limits during seeding, and the discipline boundaries degraded with each resume cycle — Claude's self-maintained tracker could not survive the `--resume` cleanly. Persisted state + this Resumption contract is how we fix it.
 
-## Swarm Rules
+## Execution Model
 
-**Non-linear execution.** Disciplines don't run in fixed order. You start with BRAINSTORMING, but any discipline can trigger a loop-back to any other:
+**Sequential, one discipline at a time.** The bridge controls which discipline you work on. When you receive a `[SYSTEM]` message saying "entering DISCIPLINE_X," that's the bridge advancing to the next discipline — follow its sub-prompt rules exactly.
 
-- DESIGN challenges SPEC → loop back to SPEC (e.g., 3-click rule violated, journey needs restructuring)
-- TASTE challenges BRAINSTORMING → loop back to BRAINSTORMING (e.g., scope too broad, premise weak)
-- SPEC surfaces gap that COMPETITION should have caught → loop back to COMPETITION
-- LEGAL flags regulated domain → loop back to TASTE for scope adjustment
+**No parallel execution.** There are no background agents, no async workers, no parallel subprocesses. This is a single `claude -p` invocation. Each discipline's work must be bounded and must emit `[DISCIPLINE_COMPLETE: <name>]` before the next discipline begins.
 
-**Sequential execution only.** Non-linear order does NOT mean parallel execution. Always run disciplines **one at a time**. Even if multiple disciplines have their prerequisites met (e.g. after INFRASTRUCTURE completes, DESIGN, LEGAL-PRIVACY, and MARKETING all become eligible), **do not attempt to run them concurrently in a single turn**. Each discipline's work must be bounded and must emit `[DISCIPLINE_COMPLETE: <name>]` before the next discipline begins.
+**No loop-backs.** If you discover a contradiction with a prior discipline's output, note it in your current discipline's artifact (e.g., "SPEC note: brainstorming's feature area X may need revisiting"). The bridge and user will decide whether to loop back — you don't control the sequence.
 
-There are no background agents, no async workers, and no parallel subprocesses. This is a single `claude -p` invocation. Claims like "the DESIGN agent is still running, I'll wait for it" are hallucinations — if you say it, you're the one running it, and you're running it right now, sequentially. Running multiple disciplines in one turn will exceed `--max-turns` and the 10-minute subprocess timeout, killing the seeding session.
+## State Management — Bridge-Controlled
 
-**Loop-back triggers.** After each discipline completes, check:
-1. Did this discipline's output contradict or invalidate a previous discipline's output?
-2. If yes: loop back to the affected discipline with the new context
-3. If no: proceed to the next unfinished discipline
+The bridge (dashboard TypeScript code) is the state machine controller. You are the worker within a single discipline. The human approves at boundaries.
 
-**Convergence detection.** The swarm converges when:
-- all 9 disciplines have run at least once
-- No new loop-back triggers fired in the last pass
-- The human has approved the final summary
-
-**Mandatory sequence constraints:**
-- BRAINSTORMING must run before TASTE (need something to challenge)
-- BRAINSTORMING's output must include the `## Classifier Signals` block before SIZING runs
-- TASTE must pass before SIZING (no point sizing a killed idea)
-- SIZING must complete before SPEC (spec reads project_size to pick FA count + AC depth)
-- SPEC must complete before INFRASTRUCTURE (infra needs to know what features require)
-- INFRASTRUCTURE must complete before DESIGN (design needs infra constraints — e.g., no WebGL if headless deploy)
-- LEGAL must run before FINAL APPROVAL (legal flags can kill or reshape everything)
-- COMPETITION and MARKETING must run after SIZING (their skip eligibility depends on project_size — running them before SIZING wastes work if they'd have been skipped)
+1. **Emit `[DISCIPLINE_COMPLETE: X]` when an artifact is on disk.** The bridge verifies it and presents it to the user for approval. You do NOT control what happens next — the bridge pauses until the user clicks "Accept & continue."
+2. **Do NOT emit `SEEDING_COMPLETE`.** The bridge handles seeding finalization when the user approves the final summary. If you emit it, the bridge will ignore it.
+3. **Do NOT track discipline state.** The bridge tracks `disciplines_complete[]`, `current_discipline`, and `applicable_disciplines`. If you receive a `[SYSTEM]` message saying "entering DISCIPLINE_X," trust it — that's the bridge advancing.
+4. **Do NOT decide which disciplines to skip.** The bridge auto-skips based on the project's tier after the classifier runs. You never see non-applicable disciplines.
+5. **If the user sends revision feedback after you've emitted `[DISCIPLINE_COMPLETE]`,** the bridge has cleared the approval and you're still in the same discipline. Continue working on the user's feedback — don't advance to the next discipline.
+6. **Write artifacts to disk before emitting `[DISCIPLINE_COMPLETE]`.** The bridge verifies the artifact exists with correct structure. If it's missing, your marker is rejected and you'll receive a correction note.
 
 ## Your Job
 
-1. **Start with BRAINSTORMING.** Read the human's initial idea from the Slack message that triggered "rouge new." Run the brainstorming discipline.
-
-2. **Track discipline state.** Maintain a local tracker:
-```json
-{
-  "disciplines": {
-    "brainstorming": {"status": "pending|running|complete", "runs": 0, "last_output_summary": ""},
-    "competition": {"status": "...", "runs": 0, "last_output_summary": ""},
-    "taste": {"status": "...", "runs": 0, "last_output_summary": ""},
-    "spec": {"status": "...", "runs": 0, "last_output_summary": ""},
-    "design": {"status": "...", "runs": 0, "last_output_summary": ""},
-    "legal_privacy": {"status": "...", "runs": 0, "last_output_summary": ""},
-    "marketing": {"status": "...", "runs": 0, "last_output_summary": ""}
-  },
-  "loop_backs": [],
-  "convergence_checks": 0
-}
-```
-
-3. **After each discipline completes**, evaluate loop-back triggers. If triggered, explain to the human via Slack what changed and why you're looping back.
-
-4. **When all disciplines have run and no new triggers fire**, validate completion before presenting the final gate (P0-SEEDING-001 FIX):
-   
-   **Pre-Gate Validation:**
-   - Read `seeding-state.json` to get `disciplines_complete[]`
-   - Read `seed_spec/sizing.json` to get `project_size`
-   - Compare against the tier table (lines 10-19). For an XS project: brainstorming, taste, sizing, spec must be complete. For S: add infrastructure, design, legal-privacy. For M+: all 9.
-   - If any applicable discipline is missing from `disciplines_complete[]`, DO NOT proceed to final approval. Loop back to the first missing discipline.
-   - Skipped disciplines (those you emitted `[DISCIPLINE_SKIPPED: ...]` for) count as complete — they're in `disciplines_complete[]`.
-   
-   Only after validation passes, present the SEED SUMMARY to the human as a **hard gate** — the final approval before seeding closes. Emit `[GATE: seeding/H-final-approval]` at the top of this turn, then follow it with the summary body below. Stop and return after emitting the gate — do NOT continue writing artifacts or emit SEEDING_COMPLETE until the human has replied.
-
-   Summary body (under the gate marker):
-   - Product name and one-liner
-   - **Disciplines completed** — list only disciplines in `seeding-state.json.disciplines_complete[]`, not what you think should have run. If this is an S-tier project and the list shows only 3 disciplines, something went wrong — loop back, don't hallucinate completion.
-   - Milestone count (with names)
-   - Story count (total across all milestones)
-   - Stories per milestone (verify 3-8 cap per milestone)
-   - Story dependencies (count + any complex chains)
-   - Total user journeys
-   - Total acceptance criteria (QA-testable)
-   - Total PO checks
-   - Total screens
-   - Legal flags (if any)
-   - Estimated build milestones (not cycles — one milestone ≈ one sprint of stories)
-   - Definition of done
-   - Options: `approve` (lock and promote to ready) · `revise <discipline>` (loop back) · `edit <aspect>` (name a specific change)
-
-   Composing this summary is real work — if it's going to take you more than ~45s of gathering, emit a `[HEARTBEAT: assembling SEED SUMMARY]` first so the dashboard doesn't appear stalled.
-
-5. **On human approval** (the human replied `approve` or similar to the H-final-approval gate), write all artifacts to the project directory:
-   - **`task_ledger.json`** (P1-SEEDING-004 FIX) — V3 story/milestone tracking (schema: `schemas/task-ledger-v1.json`). This is the launcher's source of truth. Write the SAME milestones structure you're about to write to state.json. Each milestone has `name`, `status: "pending"`, `stories[]`. Each story has `id`, `name`, `status: "pending"`, `depends_on`, `affected_entities`, `affected_screens`.
-   - `vision.json` — structured vision document
-   - `product_standard.json` — inherited global + domain + project overrides
-   - `seed_spec/` — milestones with stories, each story with acceptance criteria, PO checks, dependencies, affected entities/screens
-   - `legal/` — T&Cs, privacy policy, cookie policy (if generated)
-   - `marketing/` — landing page copy
-   - Set `.rouge/state.json` to `ready` using the **V2 schema** (see `docs/design/state-schema-v2.md`):
-     - Write `milestones[]` with nested `stories[]` (not the deprecated `feature_areas[]` shape)
-     - Each story has: `id`, `name`, `status: "pending"`, `depends_on`, `affected_entities`, `affected_screens`
-     - Each milestone has: `name`, `status: "pending"`, `stories[]`
-     - Set `foundation.status` to `"pending"` if complexity profile requires foundation (NEVER `"complete"` — the foundation evaluator must run). The build-runner defends against this being null, but the orchestrator must set it explicitly so downstream tooling doesn't have to guess intent.
-     - Set `current_state` to `"ready"` (not `building` — the human triggers the loop explicitly)
-
-   Then emit `SEEDING_COMPLETE` as a bare word on its own line — this is the signal the bridge watches for. The bridge will call its own finalizer (verifying artifacts on disk, advancing state if not already advanced, marking `seeding_complete: true` in seeding-state.json). If you forget to emit it, the bridge's reconciler will eventually catch up on the next user message, but it's cleaner to emit it explicitly so the transition fires in the turn the human approved.
-
-6. **On human rejection or revision request**, loop back to the relevant discipline. Do NOT emit SEEDING_COMPLETE.
+1. **Start with BRAINSTORMING.** Read the human's initial idea. Run the brainstorming discipline following `01-brainstorming.md`.
+2. **Do the work the sub-prompt specifies.** Each discipline has a self-contained prompt with its own gates, artifacts, and completion requirements. Follow it exactly.
+3. **When the discipline's artifact is on disk with full content,** emit `[DISCIPLINE_COMPLETE: <name>]`. The bridge takes it from here — verifying the artifact, presenting it for user approval, and advancing to the next discipline when the user accepts.
+4. **Write all seeding artifacts** (task_ledger.json, vision.json, seed_spec/, legal/, marketing/) during the relevant discipline. The bridge's finalizer checks for these when all disciplines are approved.
 
 ## Interaction Model
 
