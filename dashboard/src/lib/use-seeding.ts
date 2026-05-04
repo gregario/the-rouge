@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { fetchSeedingMessages, fetchSeedingStatus, sendSeedMessage, type SeedingChatMessage, type SeedingLivenessStatus } from './bridge-client'
+import { fetchSeedingMessages, fetchSeedingStatus, sendSeedMessage, approveDiscipline as approveDisciplineApi, approveSeeding as approveSeedingApi, type SeedingChatMessage, type SeedingLivenessStatus } from './bridge-client'
 import { stallThresholdMsForDiscipline } from './discipline-timing'
 
 // Phase 2 of the seed-loop architecture plan (see
@@ -65,6 +65,9 @@ interface UseSeedingResult {
   heartbeatAgeMs: number | null
   sendMessage: (text: string) => Promise<void>
   refetch: () => Promise<void>
+  approveDiscipline: (discipline: string) => Promise<void>
+  approveSeeding: () => Promise<void>
+  isApproving: boolean
 }
 
 export function useSeeding(slug: string): UseSeedingResult {
@@ -208,6 +211,34 @@ export function useSeeding(slug: string): UseSeedingResult {
     return 'waiting'
   }, [status, heartbeatAgeMs])
 
+  const [isApproving, setIsApproving] = useState(false)
+
+  const approveDiscipline = useCallback(async (discipline: string) => {
+    if (!slug || isApproving) return
+    setIsApproving(true)
+    try {
+      await approveDisciplineApi(slug, discipline)
+      await refetch()
+    } catch (err) {
+      console.error('[useSeeding] approveDiscipline failed:', err)
+    } finally {
+      setIsApproving(false)
+    }
+  }, [slug, isApproving, refetch])
+
+  const approveSeeding = useCallback(async () => {
+    if (!slug || isApproving) return
+    setIsApproving(true)
+    try {
+      await approveSeedingApi(slug)
+      await refetch()
+    } catch (err) {
+      console.error('[useSeeding] approveSeeding failed:', err)
+    } finally {
+      setIsApproving(false)
+    }
+  }, [slug, isApproving, refetch])
+
   return {
     messages,
     status,
@@ -221,5 +252,8 @@ export function useSeeding(slug: string): UseSeedingResult {
     heartbeatAgeMs,
     sendMessage,
     refetch,
+    approveDiscipline,
+    approveSeeding,
+    isApproving,
   }
 }

@@ -25,6 +25,10 @@ interface ChatPanelProps {
   currentDiscipline?: string
   selectedDiscipline?: string
   applicableDisciplines?: string[]
+  onApproveDiscipline?: (discipline: string) => void
+  onApproveSeeding?: () => void
+  approvalLoading?: boolean
+  awaitingApprovalDiscipline?: string
 }
 
 // Default ordering when no applicable list is provided
@@ -50,7 +54,7 @@ type MessageWithDiscipline = ChatMessageType & { _discipline?: string }
 interface DisciplineGroup {
   discipline: string
   messages: MessageWithDiscipline[]
-  status: 'complete' | 'current' | 'pending'
+  status: 'complete' | 'current' | 'pending' | 'awaiting_approval'
 }
 
 export function ChatPanel({
@@ -62,6 +66,10 @@ export function ChatPanel({
   currentDiscipline,
   selectedDiscipline,
   applicableDisciplines,
+  onApproveDiscipline,
+  onApproveSeeding,
+  approvalLoading,
+  awaitingApprovalDiscipline,
 }: ChatPanelProps) {
   const bridgeActive = isBridgeEnabled() && !!slug
   const seeding = useSeeding(bridgeActive ? slug : '')
@@ -131,11 +139,17 @@ export function ChatPanel({
     for (const d of sequence) {
       const msgs = messagesByDiscipline.get(d)
       if (!msgs || msgs.length === 0) continue
-      const status = complete.has(d) ? 'complete' : d === currentDiscipline ? 'current' : 'pending'
+      const status = complete.has(d)
+        ? 'complete'
+        : d === awaitingApprovalDiscipline
+          ? 'awaiting_approval'
+          : d === currentDiscipline
+            ? 'current'
+            : 'pending'
       result.push({ discipline: d, messages: msgs, status })
     }
     return result
-  }, [displayMessages, completedDisciplines, currentDiscipline, applicableDisciplines])
+  }, [displayMessages, completedDisciplines, currentDiscipline, applicableDisciplines, awaitingApprovalDiscipline])
 
   // Auto-expand logic:
   // - If currentDiscipline is provided: expand that one
@@ -280,13 +294,11 @@ export function ChatPanel({
               <ChatMessage
                 key={msg.id}
                 message={msg}
-                // Resume button is only live on the last message — a
-                // resume_prompt buried in history is stale (the user
-                // either resumed it manually or Rouge has since moved
-                // on). Non-last resume_prompts render with a disabled
-                // button.
                 onResume={msg.id === lastMessageId ? handleResume : undefined}
                 resumeDisabled={bridgeActive && seeding.isSending}
+                onApproveDiscipline={bridgeActive ? seeding.approveDiscipline : onApproveDiscipline}
+                onApproveSeeding={bridgeActive ? seeding.approveSeeding : onApproveSeeding}
+                approvalLoading={bridgeActive ? seeding.isApproving : approvalLoading}
               />
             ))
           ) : (
@@ -305,6 +317,9 @@ export function ChatPanel({
                 onResume={handleResume}
                 resumeDisabled={bridgeActive && seeding.isSending}
                 lastMessageId={lastMessageId}
+                onApproveDiscipline={bridgeActive ? seeding.approveDiscipline : onApproveDiscipline}
+                onApproveSeeding={bridgeActive ? seeding.approveSeeding : onApproveSeeding}
+                approvalLoading={bridgeActive ? seeding.isApproving : approvalLoading}
               />
             ))
           )}
@@ -470,6 +485,9 @@ function DisciplineSection({
   onResume,
   resumeDisabled,
   lastMessageId,
+  onApproveDiscipline,
+  onApproveSeeding,
+  approvalLoading,
 }: {
   group: DisciplineGroup
   expanded: boolean
@@ -477,17 +495,22 @@ function DisciplineSection({
   onResume?: () => void
   resumeDisabled?: boolean
   lastMessageId?: string | null
+  onApproveDiscipline?: (discipline: string) => void
+  onApproveSeeding?: () => void
+  approvalLoading?: boolean
 }) {
   const label = DISCIPLINE_LABELS[group.discipline] ?? group.discipline
 
-  // Status rendering as a pill next to the discipline name — replaces
-  // the icon-only status indicator. The pill is self-explanatory and
-  // removes the need for separate transition banners between sections.
   const statusPill =
     group.status === 'complete' ? (
       <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700">
         <Check className="size-3" />
         Complete
+      </span>
+    ) : group.status === 'awaiting_approval' ? (
+      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+        <span className="size-1.5 rounded-full bg-amber-500" />
+        Ready for review
       </span>
     ) : group.status === 'current' ? (
       <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700">
@@ -503,6 +526,7 @@ function DisciplineSection({
         className={cn(
           'flex w-full items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-left transition-colors hover:bg-gray-100',
           group.status === 'current' && 'border-blue-200 bg-blue-50 hover:bg-blue-100',
+          group.status === 'awaiting_approval' && 'border-amber-300 bg-amber-50 hover:bg-amber-100',
           group.status === 'complete' && 'border-green-200'
         )}
         data-testid={`discipline-section-${group.discipline}`}
@@ -527,6 +551,9 @@ function DisciplineSection({
               message={msg}
               onResume={msg.id === lastMessageId ? onResume : undefined}
               resumeDisabled={resumeDisabled}
+              onApproveDiscipline={onApproveDiscipline}
+              onApproveSeeding={onApproveSeeding}
+              approvalLoading={approvalLoading}
             />
           ))}
         </div>

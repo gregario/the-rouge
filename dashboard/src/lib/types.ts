@@ -345,6 +345,8 @@ export interface ChatMessage {
   /** The optimistic send failed (rate limit, network). UI renders
    *  the pending bubble with an error mark so the user can retry. */
   pendingErrored?: boolean
+  /** Metadata from the bridge — carries discipline, killVerdict, etc. */
+  metadata?: { discipline?: string; killVerdict?: boolean }
 }
 
 // ─── Activity Feed ───────────────────────────────────────────────────

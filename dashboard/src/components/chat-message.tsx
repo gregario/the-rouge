@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { ChevronRight, HelpCircle, CircleDot, Activity, Info, Play, FileCheck2 } from 'lucide-react'
+import { ChevronRight, HelpCircle, CircleDot, Activity, Info, Play, FileCheck2, CheckCircle2, Rocket, Loader2 } from 'lucide-react'
 
 // Markdown renderer with tight spacing matched to the chat panel's style
 function Markdown({ content, className }: { content: string; className?: string }) {
@@ -59,9 +59,15 @@ interface ChatMessageProps {
   /** True while a send is in flight — disables the Continue button on
    *  resume prompts so it doesn't fire twice. */
   resumeDisabled?: boolean
+  /** Called when user clicks "Accept & continue" on an approve_prompt. */
+  onApproveDiscipline?: (discipline: string) => void
+  /** Called when user clicks "Approve & start build" on a seeding_summary. */
+  onApproveSeeding?: () => void
+  /** True while an approval API call is in flight. */
+  approvalLoading?: boolean
 }
 
-export function ChatMessage({ message, onResume, resumeDisabled }: ChatMessageProps) {
+export function ChatMessage({ message, onResume, resumeDisabled, onApproveDiscipline, onApproveSeeding, approvalLoading }: ChatMessageProps) {
   const [reasoningOpen, setReasoningOpen] = useState(false)
 
   // Human messages
@@ -127,6 +133,24 @@ export function ChatMessage({ message, onResume, resumeDisabled }: ChatMessagePr
   if (message.kind === 'wrote_artifact') {
     return (
       <WroteArtifactMessage message={message} />
+    )
+  }
+  if (message.kind === 'approve_prompt') {
+    return (
+      <ApprovePromptMessage
+        message={message}
+        onApprove={onApproveDiscipline}
+        loading={approvalLoading}
+      />
+    )
+  }
+  if (message.kind === 'seeding_summary') {
+    return (
+      <SeedingSummaryMessage
+        message={message}
+        onApprove={onApproveSeeding}
+        loading={approvalLoading}
+      />
     )
   }
 
@@ -611,5 +635,92 @@ function ReasoningBlock({
         </div>
       </CollapsibleContent>
     </Collapsible>
+  )
+}
+
+function ApprovePromptMessage({
+  message,
+  onApprove,
+  loading,
+}: {
+  message: ChatMessageType
+  onApprove?: (discipline: string) => void
+  loading?: boolean
+}) {
+  const discipline = message.metadata?.discipline ?? message.discipline ?? 'unknown'
+  const isKill = message.metadata?.killVerdict === true
+  return (
+    <div
+      data-testid="chat-message"
+      data-role="rouge"
+      data-kind="approve_prompt"
+      className="rounded-lg border-2 border-amber-300 bg-amber-50/60 px-4 py-3"
+    >
+      <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-amber-900">
+        <CheckCircle2 className="size-4" />
+        {isKill ? 'Taste verdict: KILL' : `${discipline} ready for review`}
+      </div>
+      <div className="mb-3 text-sm leading-relaxed text-amber-800">
+        <Markdown content={message.content} />
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          onClick={() => onApprove?.(discipline)}
+          disabled={loading || !onApprove}
+          className={cn(
+            'h-8 gap-1.5 text-xs font-medium',
+            isKill
+              ? 'bg-red-600 hover:bg-red-700 text-white'
+              : 'bg-green-600 hover:bg-green-700 text-white',
+          )}
+          data-testid="approve-discipline-button"
+        >
+          {loading ? <Loader2 className="size-3 animate-spin" /> : <CheckCircle2 className="size-3" />}
+          {isKill ? 'Archive project' : 'Accept & continue'}
+        </Button>
+        <span className="text-xs text-amber-700">or reply with feedback to revise</span>
+      </div>
+    </div>
+  )
+}
+
+function SeedingSummaryMessage({
+  message,
+  onApprove,
+  loading,
+}: {
+  message: ChatMessageType
+  onApprove?: () => void
+  loading?: boolean
+}) {
+  return (
+    <div
+      data-testid="chat-message"
+      data-role="rouge"
+      data-kind="seeding_summary"
+      className="rounded-lg border-2 border-green-300 bg-green-50/60 px-4 py-3"
+    >
+      <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-green-900">
+        <Rocket className="size-4" />
+        Seeding complete — ready to build
+      </div>
+      <div className="mb-3 text-sm leading-relaxed text-green-800">
+        <Markdown content={message.content} />
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          onClick={onApprove}
+          disabled={loading || !onApprove}
+          className="h-8 gap-1.5 bg-green-600 text-xs font-medium text-white hover:bg-green-700"
+          data-testid="approve-seeding-button"
+        >
+          {loading ? <Loader2 className="size-3 animate-spin" /> : <Rocket className="size-3" />}
+          Approve &amp; start build
+        </Button>
+        <span className="text-xs text-green-700">or reply to revise a discipline</span>
+      </div>
+    </div>
   )
 }
