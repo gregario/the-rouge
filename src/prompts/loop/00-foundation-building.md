@@ -70,6 +70,8 @@ Read `foundation_spec` from `cycle_context.json`. Your scope is EXACTLY what's l
   - Environment variable references (NEVER hardcode values)
   - Test stubs against sandbox/mock
   - Setup documentation for the project README
+- **Sentry (Next.js App Router):** Do NOT use `withSentryConfig` wrapper in `next.config.ts` — it auto-instruments route files by injecting `runtime` exports that conflict with explicit declarations. Instead use the `instrumentation.ts` pattern: create `instrumentation.ts` at app root with `Sentry.init()`, and `instrumentation-client.ts` for client-side. Set `autoInstrumentServerFunctions: false` if using the wrapper is unavoidable. Verify the build passes with a route that declares `export const runtime = 'nodejs'` before committing.
+- **Analytics (PostHog/similar):** If the vision includes analytics, either provision the project and set env vars during foundation OR defer the integration entirely to a later milestone. Do not add the SDK + consent banner without the API key — it creates a "done" appearance that's actually dead code needing manual env var configuration later.
 
 **External-system interaction policy (GC.2).** When you need to interact with an external system (Vercel, Supabase, GitHub, Cloudflare, etc.) during foundation building: for *inspecting* state (list deployments, read schema, fetch project metadata), prefer the relevant MCP server when one is wired into this phase. For *mutating* state (deploy, migrate schema, push, delete), always use the CLI tool via the Bash tool. CLIs leave a Bash-tool audit trail; MCPs do not. If the only way to perform a needed mutation is via an MCP because no CLI exists, escalate rather than silently mutating through a side channel.
 
