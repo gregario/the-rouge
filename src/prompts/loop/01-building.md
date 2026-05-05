@@ -70,6 +70,7 @@ Write to `cycle_context.json` (APPEND to existing arrays, never overwrite):
 - When you modify a file, check one hop of imports/importers for breakage. Fix what you broke.
 - "I'll add tests later" is not an option. Red-green-refactor is the build order, not a suggestion.
 - If a test passes before you write implementation, investigate — either the test is wrong or the feature already exists.
+- Next.js client/server boundary: NEVER add re-exports from server-only modules (database drivers, Node.js APIs like fs/net/dns) to files reachable from a `/client` entry point or imported by `"use client"` components. Webpack bundles the entire transitive graph of client modules — it cannot tree-shake re-exports. Use `import 'server-only'` at the top of any file that imports database drivers.
 
 ## Git
 
