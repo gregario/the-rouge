@@ -124,9 +124,9 @@ describe('06-vision-check.md behavioral contract (calibration surfaces)', () => 
     for (const field of ['vision', 'implemented', 'previous_cycles', 'factory_decisions', 'factory_questions', 'evaluator_observations']) {
       assert.ok(VC.includes(field), `missing cycle_context input: ${field}`);
     }
-    // Evaluation-report subfields.
-    assert.ok(/evaluation_report\.po\.confidence/.test(VC));
-    assert.ok(/evaluation_report\.po\.quality_gaps/.test(VC));
+    // Evaluation-report subfields (via vision_check_context.json assembled view).
+    assert.ok(/po_confidence/.test(VC));
+    assert.ok(/quality_gaps/.test(VC));
   });
 
   test('reads journey.json + global_improvements.json from project root', () => {

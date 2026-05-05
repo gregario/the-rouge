@@ -18,17 +18,19 @@ Think like Brian Chesky's "11-star experience": the vision describes a destinati
 
 ## Inputs You Read
 
-From `cycle_context.json`:
+From `vision_check_context.json` (assembled by the launcher before this phase runs):
 - `vision` — the full vision document (the north star)
-- `implemented` — what was built this cycle
+- `implemented` — what was built across all stories in this milestone (aggregated with story_id attribution)
+- `skipped` — what was skipped and why
 - `previous_cycles` — all completed work across prior cycles
 - `factory_decisions` — decisions made during building phases (rationale, alternatives considered)
 - `factory_questions` — unresolved questions from building phases
 - `evaluator_observations` — observations from QA and PO review phases
-- `evaluation_report.po.confidence` — current PO confidence level
-- `evaluation_report.po.quality_gaps` — known gaps between current state and quality bar
+- `divergences` — where the building phase diverged from spec
+- `evaluation_report_summary.po_confidence` — current PO confidence level
+- `evaluation_report_summary.quality_gaps` — known gaps between current state and quality bar
 
-From the project root:
+From the project root (read directly):
 - `journey.json` — full history of cycle outcomes, decisions, learnings
 - `global_improvements.json` — accumulated cross-cutting improvement observations from milestone evaluations. Each entry was spotted during a milestone evaluation but scoped as `global` (no single milestone owns it). These are navigation gaps, consistency issues, a11y patterns, and polish items that span the product. File may not exist if no global improvements have been identified yet.
 

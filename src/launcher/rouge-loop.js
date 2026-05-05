@@ -1331,6 +1331,14 @@ async function advanceState(projectDir) {
           }
         }
 
+        // Compact older story entries to bound cycle_context growth
+        try {
+          const { compactOlderStories } = require('./context-assembly');
+          compactOlderStories(projectDir);
+        } catch (e) {
+          log(`[${projectName}] Story compaction failed (non-blocking): ${(e.message || '').slice(0, 200)}`);
+        }
+
       } else if (outcome === 'blocked') {
         story.blocked_by = result.blocked_by || 'unknown';
         story.attempts = (story.attempts || 0) + 1;
@@ -2592,7 +2600,7 @@ async function runPhase(projectDir) {
 
   // V2: Assemble focused context views before invoking prompts
   try {
-    const { assembleStoryContext, assembleMilestoneContext, assembleFixStoryContext } = require('./context-assembly');
+    const { assembleStoryContext, assembleMilestoneContext, assembleFixStoryContext, assembleAnalysisContext, assembleVisionCheckContext } = require('./context-assembly');
     if (currentState === 'story-building') {
       assembleStoryContext(projectDir, state);
       log(`[${projectName}] Assembled story_context.json for ${state.current_story}`);
@@ -2602,6 +2610,12 @@ async function runPhase(projectDir) {
     } else if (currentState === 'milestone-fix') {
       assembleFixStoryContext(projectDir, state);
       log(`[${projectName}] Assembled fix_story_context.json`);
+    } else if (currentState === 'analyzing') {
+      assembleAnalysisContext(projectDir, state);
+      log(`[${projectName}] Assembled analysis_context.json for cycle ${state.cycle_number || 1}`);
+    } else if (currentState === 'vision-check') {
+      assembleVisionCheckContext(projectDir, state);
+      log(`[${projectName}] Assembled vision_check_context.json for ${state.current_milestone}`);
     }
   } catch (err) {
     log(`[${projectName}] Context assembly failed (non-blocking): ${(err.message || '').slice(0, 200)}`);
