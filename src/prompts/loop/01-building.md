@@ -71,6 +71,9 @@ Write to `cycle_context.json` (APPEND to existing arrays, never overwrite):
 - "I'll add tests later" is not an option. Red-green-refactor is the build order, not a suggestion.
 - If a test passes before you write implementation, investigate — either the test is wrong or the feature already exists.
 - Next.js client/server boundary: NEVER add re-exports from server-only modules (database drivers, Node.js APIs like fs/net/dns) to files reachable from a `/client` entry point or imported by `"use client"` components. Webpack bundles the entire transitive graph of client modules — it cannot tree-shake re-exports. Use `import 'server-only'` at the top of any file that imports database drivers.
+- Next.js App Router: API routes that import database drivers MUST declare `export const runtime = 'nodejs'`. Edge runtime cannot use fs/net/dns. Also, `next/dynamic` with `ssr: false` is NOT allowed in Server Components — create a thin `'use client'` wrapper component that does the dynamic import.
+- TypeScript exactOptionalPropertyTypes: when passing optional properties that might be `undefined`, use conditional spread `...(value ? { key: value } : {})` — NOT `{ key: value }` where value could be undefined. Check the project's tsconfig before assuming this is off.
+- @neondatabase/serverless: JS arrays are NOT auto-converted to PostgreSQL array literals. For `ANY()` clauses, format arrays as `'{val1,val2}'::text[]` via `sql.raw()` — not `ANY(${jsArray})`.
 
 ## Git
 
