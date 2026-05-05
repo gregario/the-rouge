@@ -1214,6 +1214,27 @@ async function advanceState(projectDir) {
         break;
       }
 
+      // Deploy-readiness gate: if foundation_completion.deploy_ready is
+      // explicitly false, the product can't be evaluated after building
+      // (milestone-check needs a staging URL for product walk). Escalate
+      // now rather than building 7+ stories only to discover at eval time
+      // that there's no deployment. See #226.
+      const foundationCtx = readJson(contextFile);
+      if (foundationCtx?.foundation_completion?.deploy_ready === false) {
+        const gaps = (foundationCtx.foundation_completion.blocking_gaps || [])
+          .filter((g) => g.toLowerCase().includes('deploy') || g.toLowerCase().includes('database_url') || g.toLowerCase().includes('env'))
+          .slice(0, 3);
+        const gapDetail = gaps.length > 0 ? ` Blocking gaps: ${gaps.join('; ')}` : '';
+        log(`[${projectName}] Deploy not ready — escalating before story-building`);
+        next = escalate(state, {
+          id: `esc-deploy-not-ready-${Date.now()}`,
+          tier: 1,
+          classification: 'deploy-not-ready',
+          summary: `Foundation passed evaluation but deploy_ready=false. The staging deploy is not functional — building stories now would produce unevaluable code.${gapDetail} Fix the deployment (env vars, build errors) before resuming.`,
+        });
+        break;
+      }
+
       // Start first milestone. Informative escalations replace the
       // old `next = 'escalation'` fallbacks so users see WHY the loop
       // stopped, not a generic placeholder.
