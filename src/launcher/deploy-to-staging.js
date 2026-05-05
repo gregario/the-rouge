@@ -100,6 +100,21 @@ const DEPLOY_HANDLERS = {
 };
 
 function deployVercel(projectDir) {
+  // Pre-deploy: run a local build to catch webpack/TS errors before pushing
+  // to Vercel. This avoids burning 3 remote retries (each taking 30-60s) on
+  // errors that are instantly detectable locally (client bundle contamination,
+  // TypeScript errors, missing modules). See #226.
+  const hasTurbo = fs.existsSync(path.join(projectDir, 'turbo.json'));
+  const localBuildCmd = hasTurbo ? 'npx turbo run build' : 'npx next build';
+  try {
+    run(localBuildCmd, { cwd: projectDir, timeout: 300000 });
+    log('Local build passed — proceeding to remote deploy');
+  } catch (err) {
+    const detail = (err && (err.stderr || err.stdout || err.message)) || String(err);
+    log(`Local build failed — aborting deploy to avoid wasted remote retries:\n${String(detail).slice(0, 1000)}`);
+    throw new Error(`Local build failed: ${String(detail).slice(0, 300)}`);
+  }
+
   // Vercel: deploy via CLI (project must be linked via .vercel/project.json).
   // Use --prod because Vercel Hobby plan preview URLs return 401 (auth required).
   // Production deploys are publicly accessible for health checks.

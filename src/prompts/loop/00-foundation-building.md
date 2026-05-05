@@ -51,6 +51,11 @@ Read `foundation_spec` from `cycle_context.json`. Your scope is EXACTLY what's l
 - All relationships, foreign keys, indexes designed for the full product — not just one feature
 - Migrations that run cleanly on fresh and existing databases
 - Seed data for every entity — realistic data that matches the domain (GPS waypoints for fleet management, recipe ingredients for a cooking app, not "test123" and "foo bar")
+- **Next.js App Router projects:** shared workspace packages MUST scaffold separate entry points to prevent client bundle contamination:
+  - Add `"sideEffects": false` to the shared package's `package.json`
+  - Add a `"./client"` export in the `"exports"` field pointing to a client-safe barrel (no DB, no Node.js APIs)
+  - Add `import 'server-only'` at the top of any file that imports database drivers (`pg`, `@neondatabase/serverless`, etc.)
+  - The `/client` entry point MUST NOT transitively import any module that uses `fs`, `net`, `dns`, or `tls`
 
 ### Auth Flows
 - Registration, login, logout, session persistence
