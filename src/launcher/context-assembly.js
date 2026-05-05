@@ -396,9 +396,264 @@ function collectRelevantSourceFiles(projectDir, story, state, opts = {}) {
   return result;
 }
 
+/**
+ * Compact older story entries in cycle_context.json to prevent unbounded growth.
+ * Keeps the 2 most recent completed story results at full fidelity;
+ * older entries get verbose fields replaced with summaries.
+ *
+ * Idempotent: already-compacted entries are skipped.
+ */
+function compactOlderStories(projectDir) {
+  const contextFile = path.join(projectDir, 'cycle_context.json');
+  const ctx = readJson(contextFile);
+  if (!ctx) return;
+
+  let changed = false;
+
+  // Compact story_results array (if present): keep last 2 at full fidelity
+  const results = ctx.story_results;
+  if (Array.isArray(results) && results.length > 2) {
+    const cutoff = results.length - 2;
+    for (let i = 0; i < cutoff; i++) {
+      const entry = results[i];
+      if (!entry || entry._compacted) continue;
+
+      // Compact files_changed: array → { count, key_files }
+      if (Array.isArray(entry.files_changed)) {
+        entry.files_changed = {
+          count: entry.files_changed.length,
+          key_files: entry.files_changed.slice(0, 3),
+        };
+        changed = true;
+      }
+
+      // Compact acceptance_criteria lists
+      if (Array.isArray(entry.acceptance_criteria)) {
+        const passed = entry.acceptance_criteria.filter(ac => ac.status === 'pass' || ac.passed).length;
+        const failed = entry.acceptance_criteria.length - passed;
+        entry.acceptance_criteria = { total: entry.acceptance_criteria.length, passed, failed };
+        changed = true;
+      }
+
+      // Compact test results
+      if (entry.tests_added !== undefined && entry.tests_passing !== undefined && entry.test_results) {
+        delete entry.test_results;
+        changed = true;
+      }
+
+      // Mark as compacted so we don't re-process
+      entry._compacted = true;
+      changed = true;
+    }
+  }
+
+  // Compact alternatives_considered in factory_decisions (always runs).
+  // Keep last 10 decisions at full fidelity (most recent = most relevant to current gaps).
+  if (Array.isArray(ctx.factory_decisions) && ctx.factory_decisions.length > 10) {
+    const decisionCutoff = ctx.factory_decisions.length - 10;
+    for (let i = 0; i < decisionCutoff; i++) {
+      const decision = ctx.factory_decisions[i];
+      if (!decision || decision._compacted) continue;
+      if (Array.isArray(decision.alternatives_considered)) {
+        decision.alternatives_considered = decision.alternatives_considered[0] || null;
+        changed = true;
+      } else if (typeof decision.alternatives_considered === 'string' && decision.alternatives_considered.length > 100) {
+        const firstSentence = decision.alternatives_considered.split('. ')[0];
+        decision.alternatives_considered = firstSentence + (firstSentence.endsWith('.') ? '' : '.');
+        changed = true;
+      }
+      if (decision.context && decision.context.length > 100) {
+        decision.context = decision.context.slice(0, 100) + '...';
+        changed = true;
+      }
+      decision._compacted = true;
+      changed = true;
+    }
+  }
+
+  // Compact implemented array: keep last 5 at full fidelity, compact older
+  if (Array.isArray(ctx.implemented) && ctx.implemented.length > 5) {
+    const implCutoff = ctx.implemented.length - 5;
+    for (let i = 0; i < implCutoff; i++) {
+      const item = ctx.implemented[i];
+      if (!item || item._compacted) continue;
+      if (Array.isArray(item.files_changed) && item.files_changed.length > 3) {
+        item.files_changed = {
+          count: item.files_changed.length,
+          key_files: item.files_changed.slice(0, 3),
+        };
+        changed = true;
+      }
+      item._compacted = true;
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    writeJson(contextFile, ctx);
+  }
+}
+
+/**
+ * Assemble analysis_context.json for the analyzing phase.
+ *
+ * Provides: evaluation_report, factory_decisions, factory_questions,
+ * confidence_history, previous_cycles, vision, product_standard,
+ * retry_counts, qa_fix_results, capability_assessments, cycle metadata.
+ *
+ * @param {string} projectDir — project root
+ * @param {object} state — parsed state.json
+ * @returns {string} — path to the written analysis_context.json
+ */
+function assembleAnalysisContext(projectDir, state) {
+  const ctx = readJson(path.join(projectDir, 'cycle_context.json')) || {};
+
+  const analysisContext = {
+    _type: 'analysis_context',
+    _assembled_at: new Date().toISOString(),
+    _cycle_number: ctx._cycle_number || state.cycle_number || 1,
+    _current_milestone: ctx._current_milestone || state.current_milestone || null,
+
+    // Primary input: evaluation report (preserved in full)
+    evaluation_report: ctx.evaluation_report || {},
+
+    // Decision trail for root cause analysis
+    factory_decisions: ctx.factory_decisions || [],
+    factory_questions: ctx.factory_questions || [],
+
+    // Trend data
+    confidence_history: ctx.confidence_history || [],
+    previous_cycles: ctx.previous_cycles || [],
+
+    // Strategic context
+    vision: ctx.vision || {},
+    product_standard: ctx.product_standard || {},
+
+    // Fix/retry context
+    retry_counts: ctx.retry_counts || {},
+    qa_fix_results: ctx.qa_fix_results || {},
+
+    // Capability screen results (injected by launcher before this phase)
+    capability_assessments: ctx.capability_assessments || [],
+
+    // Divergences (for pattern detection)
+    divergences: ctx.divergences || [],
+
+    // Active spec for reference during root cause classification
+    active_spec: ctx.active_spec || {},
+
+    // Sub-phase evaluation reports (may be top-level in older projects)
+    test_integrity_report: ctx.test_integrity_report || null,
+    code_review_report: ctx.code_review_report || null,
+    product_walk: ctx.product_walk || null,
+
+    // Evaluator observations (from QA and PO review)
+    evaluator_observations: ctx.evaluator_observations || [],
+
+    // Circuit breaker mode (mid-loop diagnostic)
+    _circuit_breaker: ctx._circuit_breaker || false,
+    story_failures: ctx.story_failures || [],
+  };
+
+  const outputPath = path.join(projectDir, 'analysis_context.json');
+  writeJson(outputPath, analysisContext);
+  return outputPath;
+}
+
+/**
+ * Assemble vision_check_context.json for the vision-check phase.
+ *
+ * Provides: vision, implemented work, factory_decisions, divergences,
+ * evaluator observations, confidence, quality gaps, previous cycles.
+ *
+ * Note: vision-check also reads journey.json and global_improvements.json
+ * directly — those are NOT included here.
+ *
+ * @param {string} projectDir — project root
+ * @param {object} state — parsed state.json
+ * @returns {string} — path to the written vision_check_context.json
+ */
+function assembleVisionCheckContext(projectDir, state) {
+  const ctx = readJson(path.join(projectDir, 'cycle_context.json')) || {};
+
+  // Aggregate implemented items from story_results
+  const implemented = [];
+  const skipped = [];
+  if (Array.isArray(ctx.story_results)) {
+    for (const result of ctx.story_results) {
+      if (Array.isArray(result.implemented)) {
+        for (const item of result.implemented) {
+          implemented.push({ ...item, _story_id: result.story_id || result._story_id });
+        }
+      }
+      if (Array.isArray(result.skipped)) {
+        for (const item of result.skipped) {
+          skipped.push({ ...item, _story_id: result.story_id || result._story_id });
+        }
+      }
+    }
+  }
+  // Also include top-level implemented/skipped (from current cycle if not yet in story_results)
+  if (Array.isArray(ctx.implemented)) {
+    for (const item of ctx.implemented) {
+      if (!implemented.some(i => i.task === item.task)) {
+        implemented.push(item);
+      }
+    }
+  }
+  if (Array.isArray(ctx.skipped)) {
+    for (const item of ctx.skipped) {
+      if (!skipped.some(i => i.task === item.task)) {
+        skipped.push(item);
+      }
+    }
+  }
+
+  const visionCheckContext = {
+    _type: 'vision_check_context',
+    _assembled_at: new Date().toISOString(),
+    _cycle_number: ctx._cycle_number || state.cycle_number || 1,
+    _current_milestone: ctx._current_milestone || state.current_milestone || null,
+
+    // The north star
+    vision: ctx.vision || {},
+
+    // What was built (aggregated across stories)
+    implemented,
+    skipped,
+
+    // Full decision trail (vision-check reviews all decisions for drift)
+    factory_decisions: ctx.factory_decisions || [],
+    factory_questions: ctx.factory_questions || [],
+
+    // Divergences (critical for drift detection — never truncated)
+    divergences: ctx.divergences || [],
+
+    // Evaluator observations (from QA and PO review)
+    evaluator_observations: ctx.evaluator_observations || [],
+
+    // Evaluation confidence and gaps
+    evaluation_report_summary: {
+      po_confidence: ctx.evaluation_report?.po?.confidence || null,
+      po_confidence_adjusted: ctx.evaluation_report?.po?.confidence_adjusted || null,
+      quality_gaps: ctx.evaluation_report?.po?.quality_gaps || [],
+    },
+
+    // History
+    previous_cycles: ctx.previous_cycles || [],
+  };
+
+  const outputPath = path.join(projectDir, 'vision_check_context.json');
+  writeJson(outputPath, visionCheckContext);
+  return outputPath;
+}
+
 module.exports = {
   assembleStoryContext,
   assembleMilestoneContext,
   assembleFixStoryContext,
   collectRelevantSourceFiles,
+  compactOlderStories,
+  assembleAnalysisContext,
+  assembleVisionCheckContext,
 };
