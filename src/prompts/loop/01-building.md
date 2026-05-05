@@ -75,6 +75,20 @@ Write to `cycle_context.json` (APPEND to existing arrays, never overwrite):
 - TypeScript exactOptionalPropertyTypes: when passing optional properties that might be `undefined`, use conditional spread `...(value ? { key: value } : {})` — NOT `{ key: value }` where value could be undefined. Check the project's tsconfig before assuming this is off.
 - @neondatabase/serverless: JS arrays are NOT auto-converted to PostgreSQL array literals. For `ANY()` clauses, format arrays as `'{val1,val2}'::text[]` via `sql.raw()` — not `ANY(${jsArray})`.
 
+## Final Validation (before commit)
+
+Before declaring a story done, run the **full application build** — not just the package-level type check:
+
+1. Run `turbo run build` (or `next build` for single-app projects) from the project root
+2. If it fails, **fix the error immediately** — you have full context right now. Common issues:
+   - TS type errors from cross-package imports (check the app-level tsconfig is stricter than the package-level one)
+   - Webpack "Module not found" (server-only code leaking into client bundle)
+   - Static generation errors (DB queries at build time without env vars)
+3. Re-run until the build passes
+4. Only then run the test suite and commit
+
+This catches bundler, cross-package, and deployment errors at the moment you introduced them — not 7 stories later at milestone evaluation when the context is gone.
+
 ## Git
 
 Commit format: `<type>(<scope>): <description>`. Types: feat, fix, refactor, test, chore.
